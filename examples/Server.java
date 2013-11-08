@@ -66,6 +66,7 @@ public class Server {
         int useAtomic = 0;                    /* atomic record lyr processing */
         int pkCallbacks = 0;                  /* public key callbacks */
         int logCallback = 0;                  /* test logging callback */
+        int crlDirMonitor = 0;                /* enable CRL monitor */
 
         /* cert info */
         String serverCert = "../certs/server-cert.pem";
@@ -143,6 +144,9 @@ public class Server {
 
             } else if (arg.equals("-P")) {
                 pkCallbacks = 1;
+
+            } else if (arg.equals("-m")) {
+                crlDirMonitor = 1;
             
             } else {
                 printUsage();
@@ -301,17 +305,26 @@ public class Server {
                             + ret);
                     System.exit(1);
                 }
-                ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
-                        (WolfSSL.CYASSL_CRL_MONITOR |
-                         WolfSSL.CYASSL_CRL_START_MON));
-                if (ret == WolfSSL.MONITOR_RUNNING_E) {
-                    System.out.println("CRL monitor already running, " +
-                            "continuing");
-                } else if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to start CRL monitor, ret = "
-                            + ret);
-                    System.exit(1);
+                if (crlDirMonitor == 1) {
+                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
+                            (WolfSSL.CYASSL_CRL_MONITOR |
+                            WolfSSL.CYASSL_CRL_START_MON));
+                    if (ret == WolfSSL.MONITOR_RUNNING_E) {
+                        System.out.println("CRL monitor already running, " +
+                                "continuing");
+                    } else if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to start CRL monitor, ret = "
+                                + ret);
+                        System.exit(1);
+                    }
+                } else {
+                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to load CRL, ret = " + ret);
+                        System.exit(1);
+                    }
                 }
+
                 MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
                 ret = ssl.setCRLCb(crlCb);
                 if (ret != WolfSSL.SSL_SUCCESS) {
@@ -484,6 +497,7 @@ public class Server {
         System.out.println("-logtest\tEnable test logging callback");
         System.out.println("-U\t\tAtomic User Record Layer Callbacks");
         System.out.println("-P\t\tPublic Key Callbacks");
+        System.out.println("-m\t\tEnable CRL directory monitor");
         System.exit(1);
     }
 
