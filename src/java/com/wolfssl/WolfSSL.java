@@ -1,0 +1,580 @@
+/* WolfSSL.java
+ *
+ * Copyright (C) 2006-2013 wolfSSL Inc.
+ *
+ * This file is part of CyaSSL.
+ *
+ * CyaSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * CyaSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ */
+
+package com.wolfssl;
+
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
+/**
+ * Base class which wraps the native WolfSSL embedded SSL library.
+ * This class contains library init and cleanup methods, general callback
+ * methods, as well as error codes and general wolfSSL codes.
+ *
+ * @author  wolfSSL
+ * @version 1.1, September 2013
+ */
+public class WolfSSL {
+
+    /* ----------------------- wolfSSL codes ---------------------------- */
+
+    public final static int SSL_ERROR_NONE      =  0;
+    public final static int SSL_FAILURE         =  0;
+    public final static int SSL_SUCCESS         =  1;
+
+    public final static int SSL_BAD_CERTTYPE    = -8;
+    public final static int SSL_BAD_STAT        = -7;
+    public final static int SSL_BAD_PATH        = -6;
+    public final static int SSL_BAD_FILETYPE    = -5;
+    public final static int SSL_BAD_FILE        = -4;
+    public final static int SSL_NOT_IMPLEMENTED = -3;
+    public final static int SSL_UNKNOWN         = -2;
+    public final static int SSL_FATAL_ERROR     = -1;
+
+    public final static int SSL_FILETYPE_ASN1    = 2;
+    public final static int SSL_FILETYPE_PEM     = 1;
+    /** ASN1 */
+    public final static int SSL_FILETYPE_DEFAULT = 2;
+    /** NTRU raw key blog */
+    public final static int SSL_FILETYPE_RAW     = 3;
+   
+    /**
+     * Verification mode for peer certificates.
+     * <p>
+     * <b>Client mode:</b> the client will not verify the certificate
+     * received from the server and the handshake will continue as normal.
+     * <br/>
+     * <b>Server mode:</b> the server will not send a certificate request
+     * to the client. As such, client verification will not be enabled.
+     * 
+     * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+     */
+    public final static int SSL_VERIFY_NONE = 0;
+    
+    /**
+     * Verification mode for peer certificates.
+     * <p>
+     * <b>Client mode:</b> the client will verify the certificate received
+     * from the server during the handshake. This is turned on by default
+     * in CyaSSL, therefore, using this option has no effect.
+     * <br/>
+     * <b>Server mode:</b> the server will send a certificate request to the
+     * client and verify the client certificate which is received.
+     * 
+     * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+     */
+    public final static int SSL_VERIFY_PEER = 1;
+    
+    /**
+     * Verification mode for peer certificates.
+     * <p>
+     * <b>Client mode:</b> no effect when used on the client side.
+     * <br/>
+     * <b>Server mode:</b> the verification will fail on the server side
+     * if the client fails to send a certificate when requested to do so
+     * (when using SSL_VERIFY_PEER on the SSL server).
+     * 
+     * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+     */
+    public final static int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2;
+    public final static int SSL_VERIFY_CLIENT_ONCE          = 4;
+
+    public final static int SSL_SESS_CACHE_OFF                = 30;
+    public final static int SSL_SESS_CACHE_CLIENT             = 31;
+    public final static int SSL_SESS_CACHE_SERVER             = 32;
+    public final static int SSL_SESS_CACHE_BOTH               = 33;
+    public final static int SSL_SESS_CACHE_NO_AUTO_CLEAR      = 34;
+    public final static int SSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 35;
+
+    public final static int SSL_ERROR_WANT_READ        =  2;
+    public final static int SSL_ERROR_WANT_WRITE       =  3;
+    public final static int SSL_ERROR_WANT_CONNECT     =  7;
+    public final static int SSL_ERROR_WANT_ACCEPT      =  8;
+    public final static int SSL_ERROR_SYSCALL          =  5;
+    public final static int SSL_ERROR_WANT_X509_LOOKUP = 83;
+    public final static int SSL_ERROR_ZERO_RETURN      =  6;
+    public final static int SSL_ERROR_SSL              = 85;
+
+    /* extra definitions from ssl.h */
+    public final static int CYASSL_CRL_CHECKALL      = 1;
+    public final static int CYASSL_OCSP_ENABLE       = 0x0001;
+    public final static int CYASSL_OCSP_URL_OVERRIDE = 0x0002;
+    public final static int CYASSL_OCSP_NO_NONCE     = 0x0004;
+
+    /* I/O callback default errors, pulled from cyassl/ssl.h IOerrors */
+    public final static int CYASSL_CBIO_ERR_GENERAL    = -1;
+    public final static int CYASSL_CBIO_ERR_WANT_READ  = -2;
+    public final static int CYASSL_CBIO_ERR_WANT_WRITE = -2;
+    public final static int CYASSL_CBIO_ERR_CONN_RST   = -3;
+    public final static int CYASSL_CBIO_ERR_ISR        = -4;
+    public final static int CYASSL_CBIO_ERR_CONN_CLOSE = -5;
+    public final static int CYASSL_CBIO_ERR_TIMEOUT    = -6;
+
+    /* Atomic User Needs, from ssl.h */
+    public final static int CYASSL_SERVER_END  = 0;
+    public final static int CYASSL_CLIENT_END  = 1;
+    public final static int CYASSL_BLOCK_TYPE  = 2;
+    public final static int CYASSL_STREAM_TYPE = 3;
+    public final static int CYASSL_AEAD_TYPE   = 4;
+    public final static int CYASSL_TLS_HMAC_INNER_SZ = 13;
+
+    /* GetBulkCipher enum, pulled in from ssl.h for Atomic Record layer */
+    public final static int cyassl_cipher_null = 0;
+    public final static int cyassl_rc4         = 1;
+    public final static int cyassl_rc2         = 2;
+    public final static int cyassl_des         = 3;
+    public final static int cyassl_triple_des  = 4;
+    public final static int cyassl_des40       = 5;
+    public final static int cyassl_idea        = 6;
+    public final static int cyassl_aes         = 7;
+    public final static int cyassl_aes_gcm     = 8;
+    public final static int cyassl_aes_ccm     = 9;
+    public final static int cyassl_hc128       = 10;
+    public final static int cyassl_rabbit      = 11;
+
+    /* CyaSSL error codes, pulled in from cyassl/error.h CyaSSL_ErrorCodes */
+    public final static int GEN_COOKIE_E    =   -277;
+
+    public final static int SSL_SENT_SHUTDOWN                   = 1;
+    public final static int SSL_RECEIVED_SHUTDOWN               = 2;
+    public final static int SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4;
+    public final static int SSL_OP_NO_SSLv2                     = 8;
+
+    public final static int SSL_HANDSHAKE_FAILURE                 = 101;
+    public final static int SSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102;
+    public final static int SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103;
+    public final static int SSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104;
+
+    /** Monitor this CRL directory flag */
+    public final static int CYASSL_CRL_MONITOR   = 0x01;
+
+    /** Start CRL monitoring flag */
+    public final static int CYASSL_CRL_START_MON = 0x02;
+
+    /** Bad mutex */
+    public final static int BAD_MUTEX_ERROR      = -256;
+
+    /** Bad path for opendir */
+    public final static int BAD_PATH_ERROR       = -258;
+
+    /** CRL Monitor already running */
+    public final static int MONITOR_RUNNING_E    = -263;
+
+    /** Thread create error */
+    public final static int THREAD_CREATE_E      = -264;
+
+    /** Cache header match error */
+    public final static int CACHE_MATCH_ERROR    = -280;
+
+    /* ---------------------- wolfCrypt codes ---------------------------- */
+
+    /** Out of memory error */
+    public final static int MEMORY_E        = -125;
+
+    /** Output buffer too small or input too large */
+    public final static int BUFFER_E        = -132;
+
+    /** ASN input error, not enough data */
+    public final static int ASN_INPUT_E     = -154;
+
+    /** Bad function argument provided */
+    public final static int BAD_FUNC_ARG    = -173;
+
+    /** Feature not compiled in */
+    public final static int NOT_COMPILED_IN = -174;
+
+    /** No password provided by user */
+    public final static int NO_PASSWORD     = -176;
+
+    /* hmac codes, from cyassl/ctaocrypt/hmac.h */
+    public final static int MD5   = 0;
+    public final static int SHA   = 1;
+    public final static int SHA256 = 2;
+    public final static int SHA512 = 4;
+    public final static int SHA384 = 5;
+
+    /* ------------------------ constructors ---------------------------- */
+
+    /**
+     * Initializes the wolfSSL library for use.
+     */
+    public WolfSSL() throws WolfSSLException {
+        int ret = init();
+        if (ret != SSL_SUCCESS) {
+            throw new WolfSSLException("Failed to initialize wolfSSL library: "
+                    + ret);
+        }
+    }
+
+    /* ------------------- private/protected methods -------------------- */ 
+
+    private native int init();
+
+    static native void nativeFree(long ptr);
+
+    /* ------------------------- Java methods --------------------------- */ 
+
+    /**
+     * Loads JNI library; must be called prior to any other calls in this class.
+     * @throws UnsatisfiedLinkError if the library is not found.
+     */
+    public static void loadLibrary() throws UnsatisfiedLinkError {
+        System.loadLibrary("wolfSSL");
+    }
+
+    /**
+     * Load JNI library; must be called prior to any other calls in this package.
+     * @throws UnsatisfiedLinkError if the library is not found.
+     */
+    public static void loadLibrary(String libPath) throws UnsatisfiedLinkError {
+        System.loadLibrary(libPath);
+    }
+
+    /* ---------------- native SSL/TLS version functions ---------------- */
+
+    /**
+     * Indicates that the application is a server and will only support the 
+     * SSL 3.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long SSLv3_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * SSL 3.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long SSLv3_ClientMethod();
+
+    /**
+     * Indicates that the application is a server and will only support the 
+     * TLS 1.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * TLS 1.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_ClientMethod();
+
+    /**
+     * Indicates that the application is a server and will only support the 
+     * TLS 1.1 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_1_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * TLS 1.1 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_1_ClientMethod();
+
+    /**
+     * Indicates that the application is a server and will only support the 
+     * TLS 1.2 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_2_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * TLS 1.2 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_2_ClientMethod();
+    
+    /**
+     * Indicates that the application is a server and will only support the 
+     * DTLS 1.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * DTLS 1.0 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_ClientMethod();
+    
+    /**
+     * Indicates that the application is a server and will only support the 
+     * DTLS 1.2 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_2_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the 
+     * DTLS 1.2 protocol.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_2_ClientMethod();
+    
+    /**
+     * Indicates that the application is a server and will use the highest
+     * possible SSL/TLS version from SSL 3.0 up to TLS 1.2.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long SSLv23_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will use the highest
+     * possible SSL/TLS version from SSL 3.0 up to TLS 1.2.
+     * This method allocates memory for and initializes a new native
+     * CYASSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     * 
+     * @return  A pointer to the created CYASSL_METHOD structure if
+     *          successful, null on failure. 
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long SSLv23_ClientMethod();
+
+    /**
+     * Converts an error code returned by getError() into a more human-
+     * readable error string.
+     * The maximum length of the returned string is 80 characters by
+     * default, as defined by MAX_ERROR_SZ in the native wolfSSL
+     * error.h header file.
+     * 
+     * @param errNumber     error code returned by <code>getError()</code>
+     * @return              output String containing human-readable error
+     *                      string matching <code>errNumber</code>
+     *                      on success. On failure, this method returns a
+     *                      String with the appropriate failure reason.
+     * @see                 WolfSSLSession#getError(long, int)
+     */
+    public final static native String getErrorString(long errNumber);
+
+    /**
+     * Un-initializes the wolfSSL library from further use.
+     * Doesn't have to be called, though it will free any resources used by
+     * the library.
+     */
+    public final static native int cleanup();
+
+    /**
+     * Turns on debug logging at runtime.
+     * To enable logging at build time, use <b>--enable-debug</b> or define
+     * <b>DEBUG_CYASSL</b>. Debugging must be enabled at build time in order
+     * for the method to have any effect.
+     *
+     * @return  <code>SSL_SUCCESS</code> upon success. <code>NOT_COMPILED_IN
+     *          </code> if logging isnt' enabled for this wolfSSL build.
+     * @see     #debuggingOFF()
+     * @see     #setLoggingCb(WolfSSLLoggingCallback)
+     */
+    public final static native int debuggingON();
+
+    /**
+     * Turns off runtime debug log messages.
+     * If they're already off, no action is taken.
+     *
+     * @see #debuggingON()
+     * @see #setLoggingCb(WolfSSLLoggingCallback)
+     */
+    public final static native void debuggingOFF();
+
+    /**
+     * Registers the callback to be used for Logging debug and trace
+     * messages.
+     *
+     * @param cb    Callback to be used for logging debug messages
+     * @return      <b><code>SSL_ERROR_NONE</code></b> upon success,
+     *              <b><code>BAD_FUNC_ARG</code></b> if input is null,
+     *              <b><code>NOT_COMPILED_IN</code></b> if wolfSSL was not
+     *              compiled with debugging support enabled.
+     * @see         #debuggingON()
+     * @see         #debuggingOFF()
+     */
+    public final static native int setLoggingCb(WolfSSLLoggingCallback cb);
+    
+    /**
+     * Persists session cache to memory buffer.
+     * This method can be used to persist the current session cache to a 
+     * memory buffer for storage. The cache can be loaded back into wolfSSL
+     * using the corresponding <code>memrestoreSessionCache()</code> method.
+     *
+     * @param mem   buffer to store session cache in
+     * @param sz    size of the input buffer, <b>mem</b>
+     * @return      <b><code>SSL_SUCCESS</code></b> on success,
+     *              <b><code>SSL_FAILURE</code></b> on general failure,
+     *              <b><code>BUFFER_E</code></b> if the memory buffer is too
+     *              small to store the session cache in,
+     *              <b><code>BAD_MUTEX_ERROR</code></b> if the session cache
+     *              mutex lock failed,
+     *              <b><code>BAD_FUNC_ARG</code></b> if invalid parameters are
+     *              used.
+     * @see         #memrestoreSessionCache(byte[], int)
+     * @see         #getSessionCacheMemsize()
+     * @see         WolfSSLContext#memsaveCertCache(long, byte[], int, int[])
+     * @see         WolfSSLContext#memrestoreCertCache(long, byte[], int)
+     * @see         WolfSSLContext#getCertCacheMemsize(long)
+     */
+    public static native int memsaveSessionCache(byte[] mem, int sz);
+
+    /**
+     * Restores the persistant session cache from memory buffer.
+     * This function restores a session cache that was previously saved to
+     * a memory buffer.
+     *
+     * @param mem   buffer containing persistant session cache to be restored
+     * @param sz    size of the input buffer, <b>mem</b>
+     * @return      <b><code>SSL_SUCCESS</code></b> upon success,
+     *              <b><code>SSL_FAILURE</code></b> upon general failure,
+     *              <b><code>BUFFER_E</code></b> if the memory buffer is too
+     *              small, <b><code>CACHE_MATCH_ERROR</code></b> if the
+     *              session cache header match failed and there were
+     *              differences in how the cache and the current library
+     *              are configured, <b><code>BAD_MUTEX_ERROR</code></b>
+     *              if the session cache mutex lock failed,
+     *              <b><code>BAD_FUNC_ARG</code></b> if invalid parameters are
+     *              used.
+     * @see         #memsaveSessionCache(byte[], int)
+     * @see         #getSessionCacheMemsize()
+     * @see         WolfSSLContext#memsaveCertCache(long, byte[], int, int[])
+     * @see         WolfSSLContext#memrestoreCertCache(long, byte[], int)
+     * @see         WolfSSLContext#getCertCacheMemsize(long)
+     */
+    public static native int memrestoreSessionCache(byte[] mem, int sz);
+
+    /**
+     * Gets how big the session cache save buffer needs to be.
+     * Use this method to determine how large the buffer needs to be to
+     * store the persistant session cache into memory.
+     *
+     * @return      size, in bytes, of how large the output buffer should be
+     *              to store the session cache into memory.
+     * @see         #memsaveSessionCache(byte[], int)
+     * @see         #memrestoreSessionCache(byte[], int)
+     * @see         WolfSSLContext#memsaveCertCache(long, byte[], int, int[])
+     * @see         WolfSSLContext#memrestoreCertCache(long, byte[], int)
+     * @see         WolfSSLContext#getCertCacheMemsize(long)
+     */
+    public static native int getSessionCacheMemsize();
+    
+    /**
+     * Returns the DER-encoded form of the certificate pointed to by
+     * x509.
+     * 
+     * @param x509      pointer (long) to a native CYASSL_X509 object. This
+     *                  objects represents an X.509 certificate.
+     * @return          DER-encoded certificate or
+     *                  <code>null</code> if the input buffer is null.
+     *
+     */
+    public static native byte[] x509_getDer(long x509);
+
+    /**
+     * Returns the wolfSSL max HMAC digest size.
+     * Specifically, returns the value of the native wolfSSL
+     * MAX_DIGEST_SIZE define.
+     *
+     * @return  value of native MAX_DIGEST_SIZE define
+     */
+    public static native int getHmacMaxSize();
+
+} /* end WolfSSL */
+
