@@ -19,7 +19,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-#include <cyassl/options.h>
+#ifndef __ANDROID__
+    #include <cyassl/options.h>
+#endif
+
 #include <cyassl/ctaocrypt/rsa.h>
 #include "com_wolfssl_wolfcrypt_RSA.h"
 #include <stdio.h>

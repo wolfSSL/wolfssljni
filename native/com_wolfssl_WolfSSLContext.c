@@ -260,7 +260,11 @@ int NativeVerifyCallback(int preverify_ok, CYASSL_X509_STORE_CTX* store)
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             return -101;    /* failed to attach JNIEnv to thread */
         }
@@ -617,7 +621,11 @@ int NativeIORecvCb(CYASSL *ssl, char *buf, int sz, void *ctx)
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -811,7 +819,11 @@ int NativeIOSendCb(CYASSL *ssl, char *buf, int sz, void *ctx)
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -999,7 +1011,11 @@ int NativeGenCookieCb(CYASSL *ssl, unsigned char *buf, int sz, void *ctx)
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -1217,7 +1233,11 @@ void NativeCtxMissingCRLCallback(const char* url)
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         }
@@ -1364,7 +1384,11 @@ int NativeMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -1591,7 +1615,11 @@ int  NativeDecryptVerifyCb(CYASSL* ssl, unsigned char* decOut,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -1816,7 +1844,11 @@ int  NativeEccSignCb(CYASSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -2039,7 +2071,11 @@ int  NativeEccVerifyCb(CYASSL* ssl, const unsigned char* sig,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -2267,7 +2303,11 @@ int  NativeRsaSignCb(CYASSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -2491,7 +2531,11 @@ int  NativeRsaVerifyCb(CYASSL* ssl, unsigned char* sig, unsigned int sigSz,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -2702,7 +2746,11 @@ int  NativeRsaEncCb(CYASSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
@@ -2926,7 +2974,11 @@ int  NativeRsaDecCb(CYASSL* ssl, unsigned char* in, unsigned int inSz,
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
         } else {
