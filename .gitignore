@@ -1,0 +1,16 @@
+*.swp
+*.lo
+*.la
+*.o
+*.deps
+*.libs
+*.gz
+*.zip
+*.bak
+*.dummy
+*.log
+TAGS
+.DS_Store
+TEST-*
+build/
+lib/
