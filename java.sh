@@ -24,6 +24,12 @@ else
     exit
 fi
 
+# create /lib directory if doesn't exist
+if [ ! -d ./lib ]
+then
+    mkdir ./lib
+fi
+
 gcc -DCYASSL_DTLS -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSL.c -o ./native/com_wolfssl_WolfSSL.o -I$javaIncludes
 gcc -DCYASSL_DTLS -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLSession.c -o ./native/com_wolfssl_WolfSSLSession.o -I$javaIncludes
 gcc -DCYASSL_DTLS -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLContext.c -o ./native/com_wolfssl_WolfSSLContext.o -I$javaIncludes
