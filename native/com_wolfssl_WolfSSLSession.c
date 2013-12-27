@@ -96,7 +96,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 
     /* get fd from FileDescriptor */
     jcls = (*jenv)->GetObjectClass(jenv, fdesc);
+#ifdef __ANDROID__
+    fid = (*jenv)->GetFieldID(jenv, jcls, "descriptor", "I");
+#else
     fid = (*jenv)->GetFieldID(jenv, jcls, "fd", "I");
+#endif
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
