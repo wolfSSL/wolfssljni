@@ -316,7 +316,7 @@ public class Client {
 
             } else {
 
-                /* if not using DTL or I/O callbacks, Spass Socket
+                /* if not using DTLS or I/O callbacks, pass Socket
                  * fd to CyaSSL */
                 ret = ssl.setFd(sock);
 
