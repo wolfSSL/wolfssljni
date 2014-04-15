@@ -240,13 +240,12 @@ public class Server {
 
             /* set OCSP options, override URL */
             if (useOcsp == 1) {
-                long ocspOptions = WolfSSL.CYASSL_OCSP_ENABLE |
-                                   WolfSSL.CYASSL_OCSP_NO_NONCE;
-                ret = sslCtx.setOCSPOptions(ocspOptions);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to set OCSP options, ret = "
-                            + ret);
-                    System.exit(1);
+
+                long ocspOptions = WolfSSL.CYASSL_OCSP_NO_NONCE;
+
+                if (ocspUrl != null) {
+                    ocspOptions = ocspOptions |
+                                  WolfSSL.CYASSL_OCSP_URL_OVERRIDE;
                 }
 
                 if (ocspUrl != null) {
@@ -256,6 +255,13 @@ public class Server {
                         System.out.println("failed to set OCSP overrideUrl");
                         System.exit(1);
                     }
+                }
+
+                ret = sslCtx.enableOCSP(ocspOptions);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to enable OCSP, ret = "
+                            + ret);
+                    System.exit(1);
                 }
             }
 
@@ -495,6 +501,9 @@ public class Server {
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
+        System.out.println("-o\t\tPerform OCSP lookup on peer certificate");
+        System.out.println("-O <url>\tPerform OCSP lookup using <url> " +
+                "as responder");
         System.out.println("-U\t\tAtomic User Record Layer Callbacks");
         System.out.println("-P\t\tPublic Key Callbacks");
         System.out.println("-m\t\tEnable CRL directory monitor");

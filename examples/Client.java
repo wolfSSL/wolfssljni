@@ -240,13 +240,12 @@ public class Client {
 
             /* set OCSP options, override URL */
             if (useOcsp == 1) {
-                long ocspOptions = WolfSSL.CYASSL_OCSP_ENABLE |
-                                   WolfSSL.CYASSL_OCSP_NO_NONCE;
-                ret = sslCtx.setOCSPOptions(ocspOptions);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to set OCSP options, ret = "
-                            + ret);
-                    System.exit(1);
+
+                long ocspOptions = WolfSSL.CYASSL_OCSP_NO_NONCE;
+
+                if (ocspUrl != null) {
+                    ocspOptions = ocspOptions |
+                                  WolfSSL.CYASSL_OCSP_URL_OVERRIDE;
                 }
 
                 if (ocspUrl != null) {
@@ -256,6 +255,13 @@ public class Client {
                         System.out.println("failed to set OCSP overrideUrl");
                         System.exit(1);
                     }
+                }
+
+                ret = sslCtx.enableOCSP(ocspOptions);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to enable OCSP, ret = "
+                            + ret);
+                    System.exit(1);
                 }
             }
 

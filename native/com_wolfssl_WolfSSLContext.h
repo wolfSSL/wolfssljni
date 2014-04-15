@@ -193,11 +193,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
- * Method:    setOCSPOptions
+ * Method:    enableOCSP
  * Signature: (JJ)I
  */
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOptions
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_enableOCSP
   (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    disableOCSP
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_disableOCSP
+  (JNIEnv *, jobject, jlong);
 
 /*
  * Class:     com_wolfssl_WolfSSLContext

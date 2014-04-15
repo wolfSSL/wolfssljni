@@ -115,9 +115,8 @@ public class WolfSSL {
 
     /* extra definitions from ssl.h */
     public final static int CYASSL_CRL_CHECKALL      = 1;
-    public final static int CYASSL_OCSP_ENABLE       = 0x0001;
-    public final static int CYASSL_OCSP_URL_OVERRIDE = 0x0002;
-    public final static int CYASSL_OCSP_NO_NONCE     = 0x0004;
+    public final static int CYASSL_OCSP_URL_OVERRIDE = 1;
+    public final static int CYASSL_OCSP_NO_NONCE     = 2;
 
     /* I/O callback default errors, pulled from cyassl/ssl.h IOerrors */
     public final static int CYASSL_CBIO_ERR_GENERAL    = -1;

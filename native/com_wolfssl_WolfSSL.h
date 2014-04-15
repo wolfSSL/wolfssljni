@@ -75,12 +75,10 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_ERROR_SSL 85L
 #undef com_wolfssl_WolfSSL_CYASSL_CRL_CHECKALL
 #define com_wolfssl_WolfSSL_CYASSL_CRL_CHECKALL 1L
-#undef com_wolfssl_WolfSSL_CYASSL_OCSP_ENABLE
-#define com_wolfssl_WolfSSL_CYASSL_OCSP_ENABLE 1L
 #undef com_wolfssl_WolfSSL_CYASSL_OCSP_URL_OVERRIDE
-#define com_wolfssl_WolfSSL_CYASSL_OCSP_URL_OVERRIDE 2L
+#define com_wolfssl_WolfSSL_CYASSL_OCSP_URL_OVERRIDE 1L
 #undef com_wolfssl_WolfSSL_CYASSL_OCSP_NO_NONCE
-#define com_wolfssl_WolfSSL_CYASSL_OCSP_NO_NONCE 4L
+#define com_wolfssl_WolfSSL_CYASSL_OCSP_NO_NONCE 2L
 #undef com_wolfssl_WolfSSL_CYASSL_CBIO_ERR_GENERAL
 #define com_wolfssl_WolfSSL_CYASSL_CBIO_ERR_GENERAL -1L
 #undef com_wolfssl_WolfSSL_CYASSL_CBIO_ERR_WANT_READ

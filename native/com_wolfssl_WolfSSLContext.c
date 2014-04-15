@@ -1302,10 +1302,16 @@ void NativeCtxMissingCRLCallback(const char* url)
     }
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOptions
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_enableOCSP
   (JNIEnv* jenv, jobject jcl, jlong ctx, jlong options)
 {
-    return CyaSSL_CTX_OCSP_set_options((CYASSL_CTX*)ctx, options);
+    return CyaSSL_CTX_EnableOCSP((CYASSL_CTX*)ctx, options);
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_disableOCSP
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    return CyaSSL_CTX_DisableOCSP((CYASSL_CTX*)ctx);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOverrideUrl
@@ -1332,7 +1338,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOverrideUrl
     
     url = (*jenv)->GetStringUTFChars(jenv, urlString, 0);
 
-    ret = (jint) CyaSSL_CTX_OCSP_set_override_url((CYASSL_CTX*)ctx, url);
+    ret = (jint) CyaSSL_CTX_SetOCSP_OverrideURL((CYASSL_CTX*)ctx, url);
 
     (*jenv)->ReleaseStringUTFChars(jenv, urlString, url);
 

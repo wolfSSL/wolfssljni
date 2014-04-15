@@ -53,7 +53,7 @@ public class WolfSSLTest extends TestCase {
         tstMethod(lib.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
         tstMethod(lib.DTLSv1_2_ServerMethod(), "DTLSv1_2_ServerMethod()");
         tstMethod(lib.DTLSv1_2_ClientMethod(), "DTLSv1_2_ClientMethod()");
-        tstMethod(lib.SSLv23_ServerMethod(), "SSLv23__ServerMethod()");
+        tstMethod(lib.SSLv23_ServerMethod(), "SSLv23_ServerMethod()");
         tstMethod(lib.SSLv23_ClientMethod(), "SSLv23_ClientMethod()");
     }
 

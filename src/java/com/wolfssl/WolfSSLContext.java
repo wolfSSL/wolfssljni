@@ -288,7 +288,8 @@ public class WolfSSLContext {
     private native int disableCRL(long ctx);
     private native int loadCRL(long ctx, String path, int type, int monitor);
     private native int setCRLCb(long ctx, WolfSSLMissingCRLCallback cb);
-    private native int setOCSPOptions(long ctx, long options);
+    private native int enableOCSP(long ctx, long options);
+    private native int disableOCSP(long ctx);
     private native int setOCSPOverrideUrl(long ctx, String url);
     private native void setMacEncryptCb(long ctx);
     private native void setDecryptVerifyCb(long ctx);
@@ -911,10 +912,10 @@ public class WolfSSLContext {
     }
 
     /**
-     * Sets options to configure behavior of OCSP functionality in wolfSSL.
+     * Enable OCSP functionality for this context, set options.
      * The value of <b>options</b> is formed by OR'ing one or more of the 
      * following options:<br/>
-     * <b>CYASSL_OCSP_ENABLE</b> - enable OCSP lookups<br/>
+     * <b>CYASSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br/>
      * <b>CYASSL_OCSP_URL_OVERRIDE</b> - use the override URL instead of the
      * URL in certificates</br>
      * This function only sets the OCSP options when wolfSSL has been
@@ -923,13 +924,27 @@ public class WolfSSLContext {
      * @param options  value used to set the OCSP options
      * @return         <b><code>SSL_SUCCESS</code></b> upon success, 
      *                 <b><code>SSL_FAILURE</code></b> upon failure,
+     *                 <b><code>BAD_FUNC_ARG</code></b> if context is null,
+     *                 <b><code>MEMORY_E</code></b> upon memory error,
      *                 <b><code>NOT_COMPILED_IN</code></b> when this function
      *                 has been called, but OCSP support was not enabled when
      *                 wolfSSL was compiled.
+     * @see            #disableOCSP
      * @see            #setOCSPOverrideUrl(String)
      */
-    public int setOCSPOptions(long options) {
-        return setOCSPOptions(getContextPtr(), options);
+    public int enableOCSP(long options) {
+        return enableOCSP(getContextPtr(), options);
+    }
+
+    /**
+     * Disable OCSP for this context.
+     * @return  <b><code>SSL_SUCCESS</code></b> upon success,
+     *          <b><code>BAD_FUNC_ARG</code></b> if context is null,
+     * @see     #enableOCSP(long)
+     * @see     #setOCSPOverrideUrl(String)
+     */
+    public int disableOCSP() {
+        return disableOCSP(getContextPtr());
     }
 
     /**
@@ -944,7 +959,8 @@ public class WolfSSLContext {
      *              <b><code>NOT_COMPILED_IN</code></b> when this function has
      *              been called, but OCSP support was not enabled when
      *              wolfSSL was compiled.
-     * @see         #setOCSPOptions(long)
+     * @see         #enableOCSP(long)
+     * @see         #disableOCSP
      */
     public int setOCSPOverrideUrl(String url) {
         return setOCSPOverrideUrl(getContextPtr(), url);
