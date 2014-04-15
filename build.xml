@@ -1,8 +1,17 @@
 <?xml version="1.0"?>
-<!-- build file for wolfSSL Java interface -->
 <project name="wolfssl" default="build" basedir=".">
 
-    <!-- default value useful for dev environment-->
+    <description>
+     wolfSSL JNI is a Java wrapper for the CyaSSL lightweight SSL/TLS library.
+
+     This build file requires JUnit for running provided JUnit tests. JUnit can
+     be downloaded from: http:/www.junit.org/
+
+     When running JUnit tests, this package will look for JUnit at:
+     $JUNIT_HOME/junit.jar
+    </description>
+
+    <!-- set properties for this build -->
     <property name="src.dir" value="src/java/"/>
     <property name="native.dir" value="native"/>
     <property name="lib.dir" value="lib/"/>
@@ -12,133 +21,132 @@
     <property name="test.build.dir" value="build/test"/>
     <property name="examples.dir" value="examples/"/>
     <property name="examples.build.dir" value="examples/build"/>
+    <property name="reports.dir" value="build/reports"/>
 
+    <!-- classpath to compiled wolfssl.jar, for running tests -->
     <path id="classpath">
-      <fileset dir="${lib.dir}" includes="*.jar">
-        <include name="wolfssl.jar"/>
-      </fileset>
-      <fileset dir="${test.dir}" includes="*.jar">
-        <include name="junit-4.10.jar"/>
-      </fileset>
-      <!--<fileset dir="/usr/share/java/" includes="ant-junit.jar" />-->
+        <fileset dir="${lib.dir}" includes="*.jar">
+            <include name="wolfssl.jar"/>
+        </fileset>
     </path>
 
     <target name="init" depends="clean, default-javac-flags">
-      <mkdir dir="${build.dir}"/>
-      <mkdir dir="${lib.dir}"/>
-      <mkdir dir="${examples.build.dir}"/>
-      <mkdir dir="${test.build.dir}"/>
+        <mkdir dir="${build.dir}"/>
+        <mkdir dir="${lib.dir}"/>
+        <mkdir dir="${examples.build.dir}"/>
+        <mkdir dir="${test.build.dir}"/>
+        <mkdir dir="${reports.dir}"/>
     </target>
 
     <target name="clean">
-      <delete dir="${test.build.dir}"/>
-      <delete dir="${build.dir}"/>
-      <!-- <delete dir="${lib.dir}"/> -->
-      <delete dir="${examples.build.dir}"/>
-      <delete>
-        <fileset dir="." includes="TEST-*" />
-        <fileset dir="${lib.dir}" includes="wolfssl.jar" />
-      </delete>
+        <delete dir="${test.build.dir}"/>
+        <delete dir="${build.dir}"/>
+        <delete dir="${examples.build.dir}"/>
+        <delete dir="${reports.dir}"/>
+        <delete>
+            <fileset dir="${lib.dir}" includes="wolfssl.jar" />
+        </delete>
     </target>
 
     <target name="cleanjni">
-      <delete>
-        <fileset dir="${lib.dir}" includes="*.jnilib"/>
-        <fileset dir="${lib.dir}" includes="*.so"/>
-        <fileset dir="${native.dir}" includes="*.o"/>
-      </delete>
+        <delete>
+            <fileset dir="${lib.dir}" includes="*.jnilib"/>
+            <fileset dir="${lib.dir}" includes="*.so"/>
+            <fileset dir="${native.dir}" includes="*.o"/>
+        </delete>
     </target>
 
     <target name="build" depends="init, compile, jar, javah, javadoc, examples, test"/>
 
     <target name="javah">
-      <javah destdir="${native.dir}" force="yes" classpathref="classpath">
-        <class name="com.wolfssl.WolfSSL"/>
-        <class name="com.wolfssl.WolfSSLSession"/>
-        <class name="com.wolfssl.WolfSSLContext"/>
-        <class name="com.wolfssl.wolfcrypt.ECC"/>
-        <class name="com.wolfssl.wolfcrypt.RSA"/>
-      </javah>
+        <javah destdir="${native.dir}" force="yes" classpathref="classpath">
+            <class name="com.wolfssl.WolfSSL"/>
+            <class name="com.wolfssl.WolfSSLSession"/>
+            <class name="com.wolfssl.WolfSSLContext"/>
+            <class name="com.wolfssl.wolfcrypt.ECC"/>
+            <class name="com.wolfssl.wolfcrypt.RSA"/>
+        </javah>
     </target>
 
     <target name="compile">
-      <javac
-       srcdir="${src.dir}"
-       destdir="${build.dir}"
-       debug="${java.debug}"
-       debuglevel="${java.debuglevel}"
-       deprecation="${java.deprecation}"
-       optimize="${java.optimize}"
-       source="${java.source}"
-       target="${java.target}"
-       classpathref="classpath"
-       includeantruntime="false" />
+        <javac srcdir="${src.dir}"
+               destdir="${build.dir}"
+               debug="${java.debug}"
+               debuglevel="${java.debuglevel}"
+               deprecation="${java.deprecation}"
+               optimize="${java.optimize}"
+               source="${java.source}"
+               target="${java.target}"
+               classpathref="classpath"
+               includeantruntime="false" />
     </target>
 
     <target name="default-javac-flags"
             description="Set the javac flags that will produce a debug jar
             with no compiler optimisation and all debug symbols" >
-      <property name="java.debug" value="true"/>
-      <property name="java.debuglevel" value="source,lines,vars"/>
-      <property name="java.deprecation" value="false"/>
-      <property name="java.optimize" value="false"/>
-      <property name="java.source" value="1.5"/>
-      <property name="java.target" value="1.5"/>
+        <property name="java.debug" value="true"/>
+        <property name="java.debuglevel" value="source,lines,vars"/>
+        <property name="java.deprecation" value="false"/>
+        <property name="java.optimize" value="false"/>
+        <property name="java.source" value="1.5"/>
+        <property name="java.target" value="1.5"/>
     </target>
 
     <target name="jar">
-      <jar jarfile="${lib.dir}/wolfssl.jar" basedir="${build.dir}">
-      </jar>
+        <jar jarfile="${lib.dir}/wolfssl.jar" basedir="${build.dir}"></jar>
     </target>
 
     <target name="javadoc" description="generate documentation">
-      <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
+        <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
     </target>
 
     <target name="examples">
-      <javac
-       srcdir="${examples.dir}"
-       destdir="${examples.build.dir}"
-       debug="${java.debug}"
-       debuglevel="${java.debuglevel}"
-       deprecation="${java.deprecation}"
-       optimize="${java.optimize}"
-       source="${java.source}"
-       target="${java.target}"
-       classpathref="classpath"
-       includeantruntime="false" />
+        <javac srcdir="${examples.dir}"
+               destdir="${examples.build.dir}"
+               debug="${java.debug}"
+               debuglevel="${java.debuglevel}"
+               deprecation="${java.deprecation}"
+               optimize="${java.optimize}"
+               source="${java.source}"
+               target="${java.target}"
+               classpathref="classpath"
+               includeantruntime="false" />
     </target>
 
     <target name="build-test">
-      <javac
-       srcdir="${test.dir}"
-       destdir="${test.build.dir}"
-       debug="${java.debug}"
-       debuglevel="${java.debuglevel}"
-       deprecation="${java.depreciation}"
-       optimize="${java.optimize}"
-       source="${java.source}"
-       target="${java.target}"
-       classpathref="classpath"
-       includeantruntime="false" />
+        <javac srcdir="${test.dir}"
+               destdir="${test.build.dir}"
+               debug="${java.debug}"
+               debuglevel="${java.debuglevel}"
+               deprecation="${java.depreciation}"
+               optimize="${java.optimize}"
+               source="${java.source}"
+               target="${java.target}"
+               classpathref="classpath"
+               includeantruntime="false" />
     </target>
 
     <target name="test" depends="build-test">
-      <junit printsummary="yes" showoutput="yes" haltonfailure="yes">
-        <formatter type="plain"/>
+        <junit printsummary="yes" showoutput="yes" haltonfailure="yes">
         <classpath>
-          <pathelement location="src/test/junit-4.10.jar" />
-          <pathelement location="build/" />
-          <pathelement location="build/test" />
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${test.build.dir}"/>
+            <pathelement location="${java.class.path}"/>
         </classpath>
+
+        <formatter type="plain"/>
+        <formatter type="xml"/>
+
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
         <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
-        <batchtest fork="yes">
-          <fileset dir="${test.dir}">
-            <include name="**/*Test*.java"/>
-          </fileset>
+
+        <batchtest fork="yes" todir="${reports.dir}">
+            <fileset dir="${test.dir}">
+                <include name="**/*Test*.java"/>
+            </fileset>
         </batchtest>
-      </junit>
+
+        </junit>
     </target>
 
 </project>
