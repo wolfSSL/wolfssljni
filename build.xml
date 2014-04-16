@@ -142,7 +142,7 @@
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
-                <include name="**/*Test*.java"/>
+                <include name="**/*TestSuite.java"/>
             </fileset>
         </batchtest>
 

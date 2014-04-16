@@ -22,25 +22,42 @@
 package com.wolfssl;
 
 import org.junit.Test;
-import junit.framework.TestCase;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
 
-public class WolfSSLTest extends TestCase {
+public class WolfSSLTest {
 
+    @BeforeClass
+    public static void loadLibrary() {
+        try {
+            WolfSSL.loadLibrary();
+        } catch (UnsatisfiedLinkError ule) {
+            fail("failed to load native JNI library");
+        }
+    }
+
+    @Test
     public void testWolfSSL() throws WolfSSLException {
 
         WolfSSL lib = null;
 
         try {
-            WolfSSL.loadLibrary();
             lib = new WolfSSL();
-        } catch (UnsatisfiedLinkError ule) {
-            fail("failed to load native JNI library");
         } catch (WolfSSLException e) {
             fail("failed to create WolfSSL object");
         }
 
+        System.out.println("WolfSSL Class");
+
+        test_WolfSSL_Method_Allocators(lib);
+
+    }
+
+    public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
         tstMethod(lib.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
         tstMethod(lib.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
         tstMethod(lib.TLSv1_ServerMethod(), "TLSv1_ServerMethod()");
