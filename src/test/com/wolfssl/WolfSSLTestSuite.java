@@ -33,9 +33,11 @@ import org.junit.runners.Suite;
     WolfCryptECCTest.class
 })
 
+
 public class WolfSSLTestSuite {
     /* this class remains empty,
      * only used as a holder for the above
      * annotations */
+
 }
 
