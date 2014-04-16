@@ -27,8 +27,8 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
     WolfSSLTest.class,
-    WolfSSLSessionTest.class,
-    WolfSSLContextTest.class
+    WolfSSLContextTest.class,
+    WolfSSLSessionTest.class
 })
 
 public class WolfSSLTestSuite {

@@ -44,17 +44,27 @@ public class WolfSSLTest {
     public void testWolfSSL() throws WolfSSLException {
 
         WolfSSL lib = null;
+        System.out.println("WolfSSL Class");
+
+        test_WolfSSL_new(lib);
+        test_WolfSSL_Method_Allocators(lib);
+
+    }
+
+    public void test_WolfSSL_new(WolfSSL lib) {
 
         try {
+            System.out.print("\tWolfSSL()");
             lib = new WolfSSL();
-        } catch (WolfSSLException e) {
+        } catch (UnsatisfiedLinkError ule) {
+            System.out.println("\t\t... failed");
+            fail("failed to load native JNI library");
+        } catch (WolfSSLException we) {
+            System.out.println("\t\t... failed");
             fail("failed to create WolfSSL object");
         }
 
-        System.out.println("WolfSSL Class");
-
-        test_WolfSSL_Method_Allocators(lib);
-
+        System.out.println("\t\t... passed");
     }
 
     public void test_WolfSSL_Method_Allocators(WolfSSL lib) {

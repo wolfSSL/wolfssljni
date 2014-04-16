@@ -33,34 +33,29 @@ public class WolfSSLSessionTest {
     @Test
     public void testWolfSSLSession() throws WolfSSLException {
 
-        WolfSSL lib = null;
+        WolfSSLContext ctx = null;
+        WolfSSLSession ssl = null;
 
-        try {
-            lib = new WolfSSL();
-        } catch (WolfSSLException e) {
-            fail("failed to create WolfSSL object");
-        }
+        ctx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
 
         System.out.println("WolfSSLSession Class");
 
-        test_WolfSSL_new(lib);
+        test_WolfSSLSession_new(ssl, ctx);
 
     }
 
-    public void test_WolfSSL_new(WolfSSL lib) {
+    public void test_WolfSSLSession_new(WolfSSLSession ssl,
+                                        WolfSSLContext ctx) {
 
         try {
-            System.out.print("\tWolfSSL()");
-            lib = new WolfSSL();
-        } catch (UnsatisfiedLinkError ule) {
-            System.out.println("\t\t... failed");
-            fail("failed to load native JNI library");
+            System.out.print("\tWolfSSLSession()");
+            ssl = new WolfSSLSession(ctx);
         } catch (WolfSSLException we) {
-            System.out.println("\t\t... failed");
-            fail("failed to create WolfSSL object");
+            System.out.println("\t... failed");
+            fail("failed to create WolfSSLSession object");
         }
 
-        System.out.println("\t\t... passed");
+        System.out.println("\t... passed");
     }
 }
 
