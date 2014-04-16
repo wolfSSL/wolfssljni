@@ -1,4 +1,4 @@
-/* WolfSSLSessionTest.java
+/* WolfCryptECCTest.java
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -26,43 +26,25 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
-import com.wolfssl.WolfSSL;
+import com.wolfssl.wolfcrypt.ECC;
 
-public class WolfSSLSessionTest {
+public class WolfCryptECCTest {
 
-    WolfSSLContext ctx;
-    WolfSSLSession ssl;
+    ECC ecc;
 
     @Test
-    public void testWolfSSLSession() throws WolfSSLException {
+    public void testECC() throws WolfSSLException {
 
-        ctx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+        System.out.println("ECC Class");
 
-        System.out.println("WolfSSLSession Class");
-
-        test_WolfSSLSession_new();
-        test_WolfSSLSession_freeSSL();
-
+        test_ECC_new();
     }
 
-    public void test_WolfSSLSession_new() {
+    public void test_ECC_new() {
 
-        try {
-            System.out.print("\tWolfSSLSession()");
-            ssl = new WolfSSLSession(ctx);
-        } catch (WolfSSLException we) {
-            System.out.println("\t... failed");
-            fail("failed to create WolfSSLSession object");
-        }
-
-        System.out.println("\t... passed");
-    }
-
-    public void test_WolfSSLSession_freeSSL() {
-
-        System.out.print("\tfreeSSL()");
-        ssl.freeSSL();
-        System.out.println("\t\t... passed");
+        System.out.print("\tECC()");
+        ecc = new ECC();
+        System.out.println("\t\t\t... passed");
     }
 }
 

@@ -1,4 +1,4 @@
-/* WolfSSLTest.java
+/* WolfSSLTestSuite.java
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -28,7 +28,9 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
     WolfSSLTest.class,
     WolfSSLContextTest.class,
-    WolfSSLSessionTest.class
+    WolfSSLSessionTest.class,
+    WolfCryptRSATest.class,
+    WolfCryptECCTest.class
 })
 
 public class WolfSSLTestSuite {

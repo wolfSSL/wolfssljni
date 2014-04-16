@@ -1,4 +1,4 @@
-/* WolfSSLSessionTest.java
+/* WolfCryptRSATest.java
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -26,43 +26,26 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
-import com.wolfssl.WolfSSL;
+import com.wolfssl.wolfcrypt.RSA;
 
-public class WolfSSLSessionTest {
+public class WolfCryptRSATest {
 
-    WolfSSLContext ctx;
-    WolfSSLSession ssl;
+    RSA rsa;
 
     @Test
-    public void testWolfSSLSession() throws WolfSSLException {
+    public void testRSA() throws WolfSSLException {
 
-        ctx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+        System.out.println("RSA Class");
 
-        System.out.println("WolfSSLSession Class");
-
-        test_WolfSSLSession_new();
-        test_WolfSSLSession_freeSSL();
-
+        test_RSA_new();
     }
 
-    public void test_WolfSSLSession_new() {
+    public void test_RSA_new() {
 
-        try {
-            System.out.print("\tWolfSSLSession()");
-            ssl = new WolfSSLSession(ctx);
-        } catch (WolfSSLException we) {
-            System.out.println("\t... failed");
-            fail("failed to create WolfSSLSession object");
-        }
-
-        System.out.println("\t... passed");
-    }
-
-    public void test_WolfSSLSession_freeSSL() {
-
-        System.out.print("\tfreeSSL()");
-        ssl.freeSSL();
-        System.out.println("\t\t... passed");
+        System.out.print("\tRSA()");
+        rsa = new RSA();
+        System.out.println("\t\t\t... passed");
     }
 }
+
 

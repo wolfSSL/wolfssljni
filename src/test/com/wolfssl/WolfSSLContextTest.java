@@ -1,4 +1,4 @@
-/* WolfSSLTest.java
+/* WolfSSLContextTest.java
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -30,20 +30,15 @@ import com.wolfssl.WolfSSL;
 
 public class WolfSSLContextTest {
 
+    WolfSSLContext ctx;
+
     @Test
     public void testWolfSSLContext() throws WolfSSLException {
 
-        WolfSSL lib = null;
-
-        try {
-            lib = new WolfSSL();
-        } catch (WolfSSLException e) {
-            fail("failed to create WolfSSL object");
-        }
-
         System.out.println("WolfSSLContext Class");
 
-        test_WolfSSLContext_new(lib.SSLv23_ServerMethod());
+        test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
+        test_WolfSSLContext_free();
 
     }
 
@@ -52,18 +47,17 @@ public class WolfSSLContextTest {
         if (method != 0)
         {
             System.out.print("\tWolfSSLContext()");
-            WolfSSLContext wc = null;
 
             /* test failure case */
             try {
 
-                wc = new WolfSSLContext(0);
+                ctx = new WolfSSLContext(0);
 
             } catch (WolfSSLException e) {
 
                 /* now test success case */
                 try {
-                    wc = new WolfSSLContext(method);
+                    ctx = new WolfSSLContext(method);
                 } catch (WolfSSLException we) {
                     System.out.println("\t... failed");
                     fail("failed to create WolfSSLContext object");
@@ -76,6 +70,13 @@ public class WolfSSLContextTest {
             System.out.println("\t... failed");
             fail("failure case improperly succeeded, WolfSSLContext()");
         }
+    }
+
+    public void test_WolfSSLContext_free() {
+
+        System.out.print("\tfree()");
+        ctx.free();
+        System.out.println("\t\t\t... passed");
     }
 }
 
