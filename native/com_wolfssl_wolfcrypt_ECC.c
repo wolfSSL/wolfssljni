@@ -36,9 +36,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
     int     tmpResult;
     ecc_key myKey;
 
-    if (((unsigned int)sigSz  < 0) || 
-        ((unsigned int)hashSz < 0) ||
-        ((unsigned int)keySz  < 0)) {
+    if ((sigSz  < 0) || (hashSz < 0) || (keySz  < 0)) {
         return -1;
     }
 
@@ -96,8 +94,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
     unsigned int idx = 0;
 
     /* check in and key sz */
-    if (((unsigned int)inSz  < 0) || 
-        ((unsigned int)keySz < 0)) {
+    if ((inSz  < 0) || (keySz < 0)) {
         return -1;
     }
 
