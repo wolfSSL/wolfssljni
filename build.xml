@@ -78,7 +78,9 @@
                source="${java.source}"
                target="${java.target}"
                classpathref="classpath"
-               includeantruntime="false" />
+               includeantruntime="false">
+            <compilerarg value="-Xlint:-options"/>
+        </javac>
     </target>
 
     <target name="default-javac-flags"
@@ -86,10 +88,10 @@
             with no compiler optimisation and all debug symbols" >
         <property name="java.debug" value="true"/>
         <property name="java.debuglevel" value="source,lines,vars"/>
-        <property name="java.deprecation" value="false"/>
+        <property name="java.deprecation" value="true"/>
         <property name="java.optimize" value="false"/>
-        <property name="java.source" value="1.5"/>
-        <property name="java.target" value="1.5"/>
+        <property name="java.source" value="1.7"/>
+        <property name="java.target" value="1.7"/>
     </target>
 
     <target name="jar">
@@ -110,7 +112,9 @@
                source="${java.source}"
                target="${java.target}"
                classpathref="classpath"
-               includeantruntime="false" />
+               includeantruntime="false">
+            <compilerarg value="-Xlint:-options"/>
+        </javac>
     </target>
 
     <target name="build-test">
@@ -123,7 +127,9 @@
                source="${java.source}"
                target="${java.target}"
                classpathref="classpath"
-               includeantruntime="false" />
+               includeantruntime="false">
+            <compilerarg value="-Xlint:-options"/>
+        </javac>
     </target>
 
     <target name="test" depends="build-test">
