@@ -4,6 +4,7 @@ OS=`uname`
 ARCH=`uname -m`
 
 # set up Java include and library paths for OS X and Linux
+# NOTE: you may need to modify these if your platform uses different locations
 if [ "$OS" == "Darwin" ] ; then
     javaIncludes="/System/Library/Frameworks/JavaVM.framework/Headers"
     javaLibs="-dynamiclib -framework JavaVM"

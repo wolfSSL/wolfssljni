@@ -2,13 +2,13 @@
 <project name="wolfssl" default="build" basedir=".">
 
     <description>
-     wolfSSL JNI is a Java wrapper for the CyaSSL lightweight SSL/TLS library.
+    wolfSSL JNI is a Java wrapper for the CyaSSL lightweight SSL/TLS library.
 
-     This build file requires JUnit for running provided JUnit tests. JUnit can
-     be downloaded from: http:/www.junit.org/
+    This build file requires JUnit for running provided JUnit tests. JUnit can
+    be downloaded from: http:/www.junit.org/
 
-     When running JUnit tests, this package will look for JUnit at:
-     $JUNIT_HOME/junit.jar
+    When running JUnit tests, this package will look for JUnit at:
+    $JUNIT_HOME/junit.jar
     </description>
 
     <!-- set properties for this build -->
@@ -22,11 +22,16 @@
     <property name="examples.dir" value="examples/"/>
     <property name="examples.build.dir" value="examples/build"/>
     <property name="reports.dir" value="build/reports"/>
+    <property environment="env"/>
 
     <!-- classpath to compiled wolfssl.jar, for running tests -->
     <path id="classpath">
         <fileset dir="${lib.dir}" includes="*.jar">
             <include name="wolfssl.jar"/>
+        </fileset>
+        <fileset dir="${env.JUNIT_HOME}">
+            <include name="junit4.jar"/>
+            <include name="ant-junit4.jar"/>
         </fileset>
     </path>
 
@@ -145,6 +150,7 @@
 
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
         <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
+        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/junit4.jar" />
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
