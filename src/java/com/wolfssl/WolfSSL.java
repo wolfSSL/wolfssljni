@@ -61,7 +61,7 @@ public class WolfSSL {
      * <p>
      * <b>Client mode:</b> the client will not verify the certificate
      * received from the server and the handshake will continue as normal.
-     * <br/>
+     * <br>
      * <b>Server mode:</b> the server will not send a certificate request
      * to the client. As such, client verification will not be enabled.
      * 
@@ -75,7 +75,7 @@ public class WolfSSL {
      * <b>Client mode:</b> the client will verify the certificate received
      * from the server during the handshake. This is turned on by default
      * in CyaSSL, therefore, using this option has no effect.
-     * <br/>
+     * <br>
      * <b>Server mode:</b> the server will send a certificate request to the
      * client and verify the client certificate which is received.
      * 
@@ -87,7 +87,7 @@ public class WolfSSL {
      * Verification mode for peer certificates.
      * <p>
      * <b>Client mode:</b> no effect when used on the client side.
-     * <br/>
+     * <br>
      * <b>Server mode:</b> the verification will fail on the server side
      * if the client fails to send a certificate when requested to do so
      * (when using SSL_VERIFY_PEER on the SSL server).
@@ -214,6 +214,9 @@ public class WolfSSL {
 
     /**
      * Initializes the wolfSSL library for use.
+     *
+     * @throws com.wolfssl.WolfSSLException if wolfSSL library fails to
+     *                                      initialize correctly
      */
     public WolfSSL() throws WolfSSLException {
         int ret = init();
@@ -240,7 +243,9 @@ public class WolfSSL {
     }
 
     /**
-     * Load JNI library; must be called prior to any other calls in this package.
+     * Load JNI library; must be called prior to any other calls in this
+     * package.
+     * @param  libPath path to native JNI library
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary(String libPath) throws UnsatisfiedLinkError {
@@ -451,6 +456,9 @@ public class WolfSSL {
      * Un-initializes the wolfSSL library from further use.
      * Doesn't have to be called, though it will free any resources used by
      * the library.
+     *
+     * @return <code>SSL_SUCCESS</code> upon success, <code>BAD_MUTEX_ERROR
+     *         </code> on mutex error.
      */
     public final static native int cleanup();
 

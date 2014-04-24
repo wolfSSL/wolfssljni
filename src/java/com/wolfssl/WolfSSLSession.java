@@ -59,7 +59,10 @@ public class WolfSSLSession {
     /**
      * Creates a new SSL/TLS session.
      * 
-     * @param ctx   WolfSSLContext object used to create SSL session.
+     * @param  ctx   WolfSSLContext object used to create SSL session.
+     *
+     * @throws com.wolfssl.WolfSSLException if session object creation
+     *                                      failed.
      */
     public WolfSSLSession(WolfSSLContext ctx) throws WolfSSLException {
         sslPtr = newSSL(ctx.getContextPtr());
@@ -557,7 +560,7 @@ public class WolfSSLSession {
      *              in an error return code.
      * @return      the unique error code describing why the previous API
      *              function failed. SSL_ERROR_NONE will be returned if
-     *              <code>ret</code> > 0.
+     *              <code>ret</code> is less than 0.
      * @see         WolfSSL#getErrorString(long)
      */
     public int getError(int ret) {
@@ -603,7 +606,7 @@ public class WolfSSLSession {
      * wolfSSL will try to resume the session.
      *
      * @return      a pointer to the current SSL session object on success.
-     *              <code>null</code if <b>ssl</b> is <code>null</code>,
+     *              <code>null</code> if <b>ssl</b> is <code>null</code>,
      *              the SSL session cache is disabled, wolfSSL doesn't have
      *              the session ID available, or mutex functions fail.
      * @see         #setSession(long)
@@ -746,6 +749,8 @@ public class WolfSSLSession {
      * Gets the native (long) CYASSL_X509 pointer to the peer's certificate.
      * This can be used to retrieve further information about the peer's
      * certificate (issuer, subject, alt name, etc.)
+     *
+     * @return      (long) CYASSL_X509 pointer to the peer's certificate.
      *
      * @see         WolfSSLSession#getPeerX509Issuer(long)
      * @see         WolfSSLSession#getPeerX509Subject(long)
@@ -904,7 +909,7 @@ public class WolfSSLSession {
      *                  corrupted. <b><code>MEMORY_E</code></b> if an out of
      *                  memory condition occurs, <b><code>ASN_INPUT_E</code></b>
      *                  if Base16 decoding fails on the file, and <b><code>
-     *                  BAD_FUNC_ARG</b></code> if invalid input parameters
+     *                  BAD_FUNC_ARG</code></b> if invalid input parameters
      *                  are given.
      * @see             WolfSSLContext#loadVerifyBuffer(byte[], long, int)
      * @see             WolfSSLContext#useCertificateBuffer(byte[], long, int)
@@ -936,7 +941,7 @@ public class WolfSSLSession {
      *                  if Base16 decoding fails on the file,
      *                  <b><code>NO_PASSWORD</code></b> if the key file is
      *                  encrypted but no password is provided, and <b><code>
-     *                  BAD_FUNC_ARG</b></code> if invalid input parameters
+     *                  BAD_FUNC_ARG</code></b> if invalid input parameters
      *                  are given.
      * @see             WolfSSLContext#loadVerifyBuffer(byte[], long, int)
      * @see             WolfSSLContext#useCertificateBuffer(byte[], long, int)
@@ -968,7 +973,7 @@ public class WolfSSLSession {
      *                  if Base16 decoding fails on the file,
      *                  <b><code>BUFFER_E</code></b> if a chain buffer is 
      *                  bigger than the receiving buffer, and <b><code>
-     *                  BAD_FUNC_ARG</b></code> if invalid input parameters
+     *                  BAD_FUNC_ARG</code></b> if invalid input parameters
      *                  are given.
      * @see             WolfSSLContext#loadVerifyBuffer(byte[], long, int)
      * @see             WolfSSLContext#useCertificateBuffer(byte[], long, int)
@@ -1115,17 +1120,17 @@ public class WolfSSLSession {
      *                  to indicate that the directory should be monitored
      *                  and <code>CYASSL_CRL_START_MON</code> to start the
      *                  monitor.
-     * @return          <b><code>SSL_SUCCESS</code></b> upon success<br/>
+     * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
      *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
-     *                  internal CertManager fails<br/>
+     *                  internal CertManager fails<br>
      *                  <b><code>BAD_FUNC_ARG</code></b> if the SSL pointer
-     *                  is null<br/>
+     *                  is null<br>
      *                  <b><code>BAD_PATH_ERROR</code></b> if there is an
-     *                  error opening the provided directory<br/>
+     *                  error opening the provided directory<br>
      *                  <b><code>MEMORY_E</code></b> if a memory error
-     *                  occurred<br/>
+     *                  occurred<br>
      *                  <b><code>MONITOR_RUNNING_E</code></b> if the CRL 
-     *                  monitor is already running<br/>
+     *                  monitor is already running<br>
      *                  <b><code>THREAD_CREATE_E</code></b> if there was an
      *                  error when creating the CRL monitoring thread.
      * @see             #enableCRL(int)
@@ -1281,17 +1286,17 @@ public class WolfSSLSession {
      * Allows caller to determine the negotiated bulk cipher algorithm from
      * the handshake.
      *
-     * @return  If successful, the call will return one of the following:<p>
-     *          WolfSSL.cyassl_cipher_null<br/>
-     *          WolfSSL.cyassl_des</br>
-     *          WolfSSL.cyassl_triple_des</br>
-     *          WolfSSL.cyassl_aes</br>
-     *          WolfSSL.cyassl_aes_gcm</br>
-     *          WolfSSL.cyassl_aes_ccm</br>
-     *          WolfSSL.cyassl_camellia</br>
-     *          WolfSSL.hc128</br>
-     *          WolfSSL.rabbit</br></br>
-     *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
+     * @return  If successful, the call will return one of the following:<br>
+     *          WolfSSL.cyassl_cipher_null<br>
+     *          WolfSSL.cyassl_des<br>
+     *          WolfSSL.cyassl_triple_des<br>
+     *          WolfSSL.cyassl_aes<br>
+     *          WolfSSL.cyassl_aes_gcm<br>
+     *          WolfSSL.cyassl_aes_ccm<br>
+     *          WolfSSL.cyassl_camellia<br>
+     *          WolfSSL.hc128<br>
+     *          WolfSSL.rabbit<br>
+     *          <b><code>BAD_FUNC_ARG</code></b> for an error state.<br>
      * @see     #getCipherBlockSize()
      * @see     #getKeySize()
      */
@@ -1346,10 +1351,10 @@ public class WolfSSLSession {
      * For cipher types except <b>CYASSL_AEAD_TYPE</b>.
      *
      * @return  If successful, the call will return one of the following:<p>
-     *          WolfSSL.MD5</br>
-     *          WolfSSL.SHA</br>
-     *          WolfSSL.SHA256</br>
-     *          WolfSSL.SHA394</br><br/>
+     *          WolfSSL.MD5<br>
+     *          WolfSSL.SHA<br>
+     *          WolfSSL.SHA256<br>
+     *          WolfSSL.SHA394<br><br>
      *          <b><code>BAD_FUNC_ARG</code></b> or
      *          <b><code>SSL_FATAL_ERROR</code></b> will be returned for an
      *          error state.
@@ -1366,9 +1371,9 @@ public class WolfSSLSession {
      * handshake.
      *
      * @return  If successful, the call will return one of the following:<p>
-     *          WolfSSL.CYASSL_BLOCK_TYPE<br/>
-     *          WolfSSL.CYASSL_STREAM_TYPE<br/>
-     *          WolfSSL.CYASSL_AEAD_TYPE<br/><br/>
+     *          WolfSSL.CYASSL_BLOCK_TYPE<br>
+     *          WolfSSL.CYASSL_STREAM_TYPE<br>
+     *          WolfSSL.CYASSL_AEAD_TYPE<br><br>
      *          <b><code>BAD_FUNC_ARG</code></b> will be returned for an
      *          error state.
      * @see     #getBulkCipher()
@@ -1385,6 +1390,11 @@ public class WolfSSLSession {
      * <b>content</b> is the type of message, and <b>verify</b> specifies
      * whether this is a verification of a peer message. Valid for cipher
      * types excluding <b>CYASSL_AEAD_TYPE</b>.
+     *
+     * @param   inner    inner HMAC vector to set
+     * @param   sz       size of the message, in bytes
+     * @param   content  type of the message
+     * @param   verify   specifies if this is a verification of a peer message.
      *
      * @return  <b><code>1</code></b> upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.

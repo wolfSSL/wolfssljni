@@ -76,6 +76,8 @@ public class WolfSSLContext {
      *                  is created with one of the protocol-specific methods
      *                  (ex: TLSv1_2_ClientMethod()) matching to the desired
      *                  SSL/TLS/DTLS protocol level.
+     *
+     * @throws com.wolfssl.WolfSSLException when creation of SSL context fails
      */
     public WolfSSLContext(long method) throws WolfSSLException {
         sslCtxPtr = newContext(method);
@@ -374,19 +376,19 @@ public class WolfSSLContext {
      * @param file  path to the file containing PEM-formatted CA certificates
      * @param path  path to directory containing PEM-formatted CA certificates
      *              to load
-     * @return      <code>SSL_SUCCESS</code> on success. Otherwise<br/>
+     * @return      <code>SSL_SUCCESS</code> on success. Otherwise<br>
      *              <code>SSL_FAILURE</code> if <b>ctx</b> is null, or if
-     *              both <b>file</b> and <b>path</b> are null.<br/>
+     *              both <b>file</b> and <b>path</b> are null.<br>
      *              <code>SSL_BAD_FILETYPE</code> if the file is in the 
-     *              wrong format.</br>
+     *              wrong format.<br>
      *              <code>SSL_BAD_FILE</code> if the file doesn't exist, can't
-     *              be read, or is corrupted.</br>
+     *              be read, or is corrupted.<br>
      *              <code>MEMORY_E</code> if an out of memory condition
-     *              occurs.<br/>
+     *              occurs.<br>
      *              <code>ASN_INPUT_E</code> if Base16 decoding fails on the
-     *              file.</br>
+     *              file.<br>
      *              <code>BUFFER_E</code> if a chain buffer is bigger than the
-     *              recieving buffer.</br>
+     *              recieving buffer.<br>
      *              <code>BAD_PATH_ERROR</code> if the native opendir()
      *              function call fails when trying to open <b>path</b>.
      * @see         #useCertificateFile(String, int)
@@ -432,21 +434,21 @@ public class WolfSSLContext {
      * The verification <b>mode</b> of peer certificates is a logically
      * OR'd list of flags. The possible flag values include:
      * <p>
-     * <code>SSL_VERIFY_NONE</code><br/>
+     * <code>SSL_VERIFY_NONE</code><br>
      * <b>Client mode:</b> the client will not verify the certificate
-     * received from teh server and the handshake will continue as normal.<br/>
+     * received from teh server and the handshake will continue as normal.<br>
      * <b>Server mode:</b> the server will not send a certificate request to
      * the client. As such, client verification will not be enabled.
      * <p>
-     * <code>SSL_VERIFY_PEER</code><br/>
+     * <code>SSL_VERIFY_PEER</code><br>
      * <b>Client mode:</b> the client will verify the certificate received
      * from the server during the handshake. This is turned on by default in
-     * wolfSSL, therefore, using this option has no effect.<br/>
+     * wolfSSL, therefore, using this option has no effect.<br>
      * <b>Server mode:</b> the server will send a certificate request to the
      * client and verify the client certificate received.
      * <p>
-     * <code>SSL_VERIFY_FAIL_IF_NO_PEER_CERT</code><br/>
-     * <b>Client mode:</b> no effect when used on the client side.<br/>
+     * <code>SSL_VERIFY_FAIL_IF_NO_PEER_CERT</code><br>
+     * <b>Client mode:</b> no effect when used on the client side.<br>
      * <b>Server mode:</b> the verification will fail on the server side if
      * the client fails to send a certificate when requested to do so (when
      * using SSL_VERIFY_PEER on the SSL server).
@@ -664,7 +666,7 @@ public class WolfSSLContext {
      *                  if Base16 decoding fails on the file,
      *                  <b><code>NO_PASSWORD</code></b> if the key file is
      *                  encrypted but no password is provided, and <b><code>
-     *                  BAD_FUNC_ARG</b></code> if invalid input arguments
+     *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
      * @see             #loadVerifyBuffer(byte[], long, int)
      * @see             #useCertificateBuffer(byte[], long, int)
@@ -697,7 +699,7 @@ public class WolfSSLContext {
      *                  if Base16 decoding fails on the file,
      *                  <b><code>BUFFER_E</code></b> if a chain buffer is 
      *                  bigger than the receiving buffer, and <b><code>
-     *                  BAD_FUNC_ARG</b></code> if invalid input arguments
+     *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
      * @see             #loadVerifyBuffer(byte[], long, int)
      * @see             #useCertificateBuffer(byte[], long, int)
@@ -714,8 +716,8 @@ public class WolfSSLContext {
      * Turns on grouping of the handshake messages where possible using the
      * SSL context.
      *
-     * @return          <b><code>SSL_SUCCESS</b></code> upon success. <b><code>
-     *                  BAD_FUNC_ARG</b></code> if the input context is null.
+     * @return          <b><code>SSL_SUCCESS</code></b> upon success. <b><code>
+     *                  BAD_FUNC_ARG</code></b> if the input context is null.
      * @see             WolfSSLSession#setGroupMessages()
      */
     public int setGroupMessages() {
@@ -866,17 +868,17 @@ public class WolfSSLContext {
      *                  to indicate that the directory should be monitored
      *                  and <code>CYASSL_CRL_START_MON</code> to start the
      *                  monitor.
-     * @return          <b><code>SSL_SUCCESS</code></b> upon success<br/>
+     * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
      *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
-     *                  internal CertManager fails<br/>
+     *                  internal CertManager fails<br>
      *                  <b><code>BAD_FUNC_ARG</code></b> if the SSL pointer
-     *                  is null<br/>
+     *                  is null<br>
      *                  <b><code>BAD_PATH_ERROR</code></b> if there is an
-     *                  error opening the provided directory<br/>
+     *                  error opening the provided directory<br>
      *                  <b><code>MEMORY_E</code></b> if a memory error
-     *                  occurred<br/>
+     *                  occurred<br>
      *                  <b><code>MONITOR_RUNNING_E</code></b> if the CRL 
-     *                  monitor is already running<br/>
+     *                  monitor is already running<br>
      *                  <b><code>THREAD_CREATE_E</code></b> if there was an
      *                  error when creating the CRL monitoring thread.
      * @see             WolfSSLSession#enableCRL(int)
@@ -914,10 +916,10 @@ public class WolfSSLContext {
     /**
      * Enable OCSP functionality for this context, set options.
      * The value of <b>options</b> is formed by OR'ing one or more of the 
-     * following options:<br/>
-     * <b>CYASSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br/>
+     * following options:<br>
+     * <b>CYASSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br>
      * <b>CYASSL_OCSP_URL_OVERRIDE</b> - use the override URL instead of the
-     * URL in certificates</br>
+     * URL in certificates<br>
      * This function only sets the OCSP options when wolfSSL has been
      * compiled with OCSP support (--enable-ocsp, #define HAVE_OCSP).
      *
