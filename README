@@ -16,14 +16,16 @@ when running java.sh. In this case, you should modify java.sh to match
 your environment.
 
 
-wolfSSL JNI Release 1.0.2 (04/24/2014)
+wolfSSL JNI Release 1.1.0 (04/24/2014)
 
-Release 1.0.2 has bug fixes and new features including:
+Release 1.1.0 has bug fixes and new features including:
 
 - Updated support for CyaSSL 2.9.4
 - Updated example certificates and CRLs
 - Now expects user to have JUnit JARs pre-installed on dev platform
 - Updated unit tests, JUnit4 style
+- Android support
+- CRL monitor now optional in server mode
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
