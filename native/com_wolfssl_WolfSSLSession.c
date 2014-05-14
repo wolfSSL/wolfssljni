@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <cyassl/ssl.h>
-#include <cyassl/error.h>
+#include <cyassl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
