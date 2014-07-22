@@ -11,7 +11,7 @@ if [ "$OS" == "Darwin" ] ; then
     jniLibName="libwolfssl.jnilib"
     cflags="-DHAVE_ECC"
 elif [ "$OS" == "Linux" ] ; then
-    javaIncludes="-I/usr/lib/jvm/java-6-openjdk/include"
+    javaIncludes="-I/usr/lib/jvm/java-8-oracle/include -I/usr/lib/jvm/java-8-oracle/include/linux"
     javaLibs="-shared"
     jniLibName="libwolfSSL.so"
     cflags="-DHAVE_ECC -DUSE_FAST_MATH"
