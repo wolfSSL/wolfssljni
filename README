@@ -5,10 +5,6 @@ This package provides a Java, JNI-based interface to the native wolfSSL
 (CyaSSL) API. It provides Java applications with SSL/TLS support up to the
 current TLS 1.2 and DTLS 1.2 standards.
 
-NOTE: wolfSSL JNI has been tested against CyaSSL 2.9.4, which can be
-downloaded from the wolfSSL Download page:
-http://wolfssl.com/yaSSL/download/downloadForm.php
-
 Note 1)
 The java.sh script uses a common location for the Java install location.
 If your Java install location is different, this could lead to an error
