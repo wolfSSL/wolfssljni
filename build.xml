@@ -30,7 +30,7 @@
             <include name="wolfssl.jar"/>
         </fileset>
         <fileset dir="${env.JUNIT_HOME}">
-            <include name="junit4.jar"/>
+            <include name="junit-4.11.jar"/>
             <include name="ant-junit4.jar"/>
         </fileset>
     </path>
@@ -150,7 +150,7 @@
 
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
         <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
-        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/junit4.jar" />
+        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/junit-4.11.jar" />
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
