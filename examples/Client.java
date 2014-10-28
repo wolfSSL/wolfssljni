@@ -47,6 +47,7 @@ public class Client {
         int ret, input;
         byte[] back = new byte[80];
         String msg  = "hello from jni";
+        WolfSSLSession ssl;
         long method = 0;
         Socket sock = null;
         DataOutputStream outstream = null;
@@ -59,6 +60,7 @@ public class Client {
         String cipherList = "AES128-SHA";     /* try AES128-SHA by default */
         int sslVersion = 3;                   /* default to TLS 1.2 */
         int verifyPeer = 1;                   /* verify peer by default */
+        int benchmark = 0;
         int doDTLS = 0;                       /* don't use DTLS by default */
         int useOcsp = 0;                      /* don't use OCSP by default */
         String ocspUrl = null;                /* OCSP override URL */
@@ -116,6 +118,13 @@ public class Client {
                 if (args.length < i+2)
                     printUsage();
                 clientKey = args[++i];
+
+            } else if (arg.equals("-b")) {
+                if (args.length < i+2)
+                  printUsage();
+                benchmark = Integer.parseInt(args[++i]);
+                if (benchmark < 0 || benchmark > 1000000)
+                    printUsage();
 
             } else if (arg.equals("-A")) {
                 if (args.length < i+2)
@@ -265,8 +274,44 @@ public class Client {
                 }
             }
 
+            if (benchmark != 0) {
+                int times = benchmark;
+                int i = 0;
+                
+                long start = System.nanoTime();
+                long avg;
+                
+
+                for (i = 0; i < times; i++) {                   
+                    sock = new Socket(host, port);
+                   /* System.out.println("Connected to " + 
+                            sock.getInetAddress().getHostAddress() + 
+                            " on port " + 
+                            sock.getPort() + "\n"); */
+
+                    outstream = new DataOutputStream(sock.getOutputStream());
+                    instream = new DataInputStream(sock.getInputStream());
+                    ssl = new WolfSSLSession(sslCtx);
+                    ssl.setFd(sock);
+                    ret = ssl.connect();
+                    if (ret != WolfSSL.SSL_SUCCESS)
+                        System.out.println("ssl.connect failed");
+
+                    ssl.shutdownSSL();
+                    ssl.freeSSL();
+                    sock.close();
+                }
+                avg = System.nanoTime() - start;
+                avg /= times;
+                avg /= 1000000; /*milliseconds*/
+                System.out.println("CyaSSL_connect avg took: " + avg + 
+                        " milliseconds");
+
+                sslCtx.free();
+                System.exit(1);
+            }
             /* create SSL object */
-            WolfSSLSession ssl = new WolfSSLSession(sslCtx);
+            ssl = new WolfSSLSession(sslCtx);
 
             /* enable/load CRL functionality */
             ret = ssl.enableCRL(WolfSSL.CYASSL_CRL_CHECKALL);
@@ -443,6 +488,8 @@ public class Client {
                 "../certs/client-key.pem");
         System.out.println("-A <file>\tCertificate Authority file,\tdefault " +
                 "../certs/ca-cert.pem");
+        System.out.println("-b <num>\tBenchmark <num> connections and print" +
+                " stats");
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
             ", -v 3 for DTLSv1.2");
