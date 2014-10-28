@@ -498,7 +498,7 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
             (*jenv)->ExceptionClear(jenv);
 
         (*jenv)->ThrowNew(jenv, excClass, "Can't find InetSocketAddress class");
-        return SSL_FAILURE;
+        return NULL;
     }
 
     /* create jstring from char* */ 
@@ -515,7 +515,7 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
 
             (*jenv)->ThrowNew(jenv, excClass,
                     "Can't find InetSocketAddress(String,port)");
-            return SSL_FAILURE;
+            return NULL;
         }
 
         return (*jenv)->NewObject(jenv, isa, constr, ipAddr, port);
@@ -530,7 +530,7 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
 
             (*jenv)->ThrowNew(jenv, excClass,
                     "Can't find InetSocketAddress(port)");
-            return SSL_FAILURE;
+            return NULL;
         }
 
         return (*jenv)->NewObject(jenv, isa, constr, port);
