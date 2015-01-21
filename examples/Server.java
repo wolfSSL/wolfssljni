@@ -1,15 +1,15 @@
 /* Server.java
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -241,11 +241,11 @@ public class Server {
             /* set OCSP options, override URL */
             if (useOcsp == 1) {
 
-                long ocspOptions = WolfSSL.CYASSL_OCSP_NO_NONCE;
+                long ocspOptions = WolfSSL.WOLFSSL_OCSP_NO_NONCE;
 
                 if (ocspUrl != null) {
                     ocspOptions = ocspOptions |
-                                  WolfSSL.CYASSL_OCSP_URL_OVERRIDE;
+                                  WolfSSL.WOLFSSL_OCSP_URL_OVERRIDE;
                 }
 
                 if (ocspUrl != null) {
@@ -313,8 +313,8 @@ public class Server {
                 }
                 if (crlDirMonitor == 1) {
                     ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
-                            (WolfSSL.CYASSL_CRL_MONITOR |
-                            WolfSSL.CYASSL_CRL_START_MON));
+                            (WolfSSL.WOLFSSL_CRL_MONITOR |
+                            WolfSSL.WOLFSSL_CRL_START_MON));
                     if (ret == WolfSSL.MONITOR_RUNNING_E) {
                         System.out.println("CRL monitor already running, " +
                                 "continuing");
@@ -361,7 +361,7 @@ public class Server {
 
                 } else {
                     /* if not using DTLS or I/O callbacks, pass Socket 
-                     * fd to CyaSSL */
+                     * fd to wolfSSL */
                      ret = ssl.setFd(clientSocket);
 
                     if (ret != WolfSSL.SSL_SUCCESS) {
@@ -419,7 +419,7 @@ public class Server {
                 if (ret != WolfSSL.SSL_SUCCESS) {
                     int err = ssl.getError(ret);
                     String errString = sslLib.getErrorString(err);
-                    System.out.println("CyaSSL_accept failed. err = " + err +
+                    System.out.println("wolfSSL_accept failed. err = " + err +
                             ", " + errString);
                     System.exit(1);
                 }

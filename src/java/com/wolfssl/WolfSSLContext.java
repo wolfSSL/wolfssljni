@@ -1,15 +1,15 @@
 /* WolfSSLContext.java
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -37,7 +37,7 @@ import com.wolfssl.WolfSSLException;
  */
 public class WolfSSLContext {
 
-    /* internal native CYASSL_CTX pointer */
+    /* internal native WOLFSSL_CTX pointer */
     private long sslCtxPtr;
 
     /* user-registerd I/O callbacks, called by internal WolfSSLContext
@@ -71,8 +71,8 @@ public class WolfSSLContext {
     /**
      * Creates a new SSL/TLS context for the desired SSL/TLS protocol level.
      * 
-     * @param method    a pointer (long) to the desired CYASSL_METHOD for
-     *                  use in the SSL context. This CYASSL_METHOD pointer
+     * @param method    a pointer (long) to the desired WOLFSSL_METHOD for
+     *                  use in the SSL context. This WOLFSSL_METHOD pointer
      *                  is created with one of the protocol-specific methods
      *                  (ex: TLSv1_2_ClientMethod()) matching to the desired
      *                  SSL/TLS/DTLS protocol level.
@@ -309,7 +309,7 @@ public class WolfSSLContext {
      * This file is provided by the <b>file</b> parameter. The <b>format</b>
      * paramenter specifies the format type of the file - either
      * <b>SSL_FILETYPE_ASN1</b> or <b>SSL_FILETYPE_PEM</b>. Please see the
-     * CyaSSL examples for proper usage.
+     * wolfSSL examples for proper usage.
      *
      * @param file      a file containing the certificate to be loaded into
      *                  the wolfSSL SSL context.
@@ -335,7 +335,7 @@ public class WolfSSLContext {
      * This file is provided by the <b>file</b> parameter. The <b>format</b>
      * paramenter specifies the format type of the file - either
      * <b>SSL_FILETYPE_ASN1</b> or <b>SSL_FILETYPE_PEM</b>. Please see the
-     * CyaSSL examples for proper usage.
+     * wolfSSL examples for proper usage.
      *
      * @param file      a file containing the private key to be loaded into
      *                  the wolfSSL SSL context.
@@ -369,7 +369,7 @@ public class WolfSSLContext {
      * parameter is a directory path which contains certificates of trusted
      * root CAs. If the value of <b>file</b> is not NULL, <b>path</b> may be
      * specified as <code>null</code> if not needed. If <b>path</b> is
-     * specified, and <code>NO_CYASSL_DIR</code> is defined when building the
+     * specified, and <code>NO_WOLFSSL_DIR</code> is defined when building the
      * library, wolfSSL will load all CA certificates located in the given
      * directory.
      *
@@ -726,7 +726,7 @@ public class WolfSSLContext {
 
     /**
      * Registers a receive callback for wolfSSL to get input data.
-     * By default, CyaSSL uses EmbedReceive() in src/io.c as the callback.
+     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
      * This uses the system's TCP recv() function. The user can register a 
      * function to get input from memory, some other network module, or from
      * anywhere. Please see the EmbedReceive() function in src/io.c as a 
@@ -809,7 +809,7 @@ public class WolfSSLContext {
      * Turns on Certificate Revocation List (CRL) checking when
      * verifying certificates for the specified Context.
      * By default, CRL checking is off. <b>options</b> include
-     * CYASSL_CRL_CHECKALL which performs CRL checking on each certificate
+     * WOLFSSL_CRL_CHECKALL which performs CRL checking on each certificate
      * in the chain versus the leaf certificate only (which is default).
      *
      * @param options   options to use when enabling CRL
@@ -864,9 +864,9 @@ public class WolfSSLContext {
      *                  </code>.
      * @param monitor   OR'd list of flags to indicate if wolfSSL should 
      *                  monitor the provided CRL directory for changes.
-     *                  Flag values include <code>CYASSL_CRL_MONITOR</code>
+     *                  Flag values include <code>WOLFSSL_CRL_MONITOR</code>
      *                  to indicate that the directory should be monitored
-     *                  and <code>CYASSL_CRL_START_MON</code> to start the
+     *                  and <code>WOLFSSL_CRL_START_MON</code> to start the
      *                  monitor.
      * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
      *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
@@ -917,8 +917,8 @@ public class WolfSSLContext {
      * Enable OCSP functionality for this context, set options.
      * The value of <b>options</b> is formed by OR'ing one or more of the 
      * following options:<br>
-     * <b>CYASSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br>
-     * <b>CYASSL_OCSP_URL_OVERRIDE</b> - use the override URL instead of the
+     * <b>WOLFSSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br>
+     * <b>WOLFSSL_OCSP_URL_OVERRIDE</b> - use the override URL instead of the
      * URL in certificates<br>
      * This function only sets the OCSP options when wolfSSL has been
      * compiled with OCSP support (--enable-ocsp, #define HAVE_OCSP).
@@ -952,7 +952,7 @@ public class WolfSSLContext {
     /**
      * Manually sets the URL for OCSP to use.
      * By default, OCSP will use the URL found in the individual certificate
-     * unless the CYASSL_OCSP_URL_OVERRIDE option is set using the
+     * unless the WOLFSSL_OCSP_URL_OVERRIDE option is set using the
      * setOCSPOptions() method.
      *
      * @param url   the OCSP override URL for wolfSSL to use

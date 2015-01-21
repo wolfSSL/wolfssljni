@@ -1,15 +1,15 @@
 /* com_wolfssl_wolfcrypt_RSA.c
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,10 +20,10 @@
  */
 
 #ifndef __ANDROID__
-    #include <cyassl/options.h>
+    #include <wolfssl/options.h>
 #endif
 
-#include <cyassl/ctaocrypt/rsa.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 #include "com_wolfssl_wolfcrypt_RSA.h"
 #include <stdio.h>
 
@@ -64,14 +64,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     /* get output buffer size */ 
     (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
 
-    InitRng(&rng);
-    InitRsaKey(&myKey, NULL);
+    wc_InitRng(&rng);
+    wc_InitRsaKey(&myKey, NULL);
 
     idx = 0;
 
-    ret = RsaPrivateKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
+    ret = wc_RsaPrivateKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
     if (ret == 0) {
-        ret = RsaSSL_Sign(inBuf, (unsigned int)inSz, outBuf, tmpOut,
+        ret = wc_RsaSSL_Sign(inBuf, (unsigned int)inSz, outBuf, tmpOut,
                 &myKey, &rng);
         if (ret > 0) {
             /* save and convert to 0 for success */
@@ -79,10 +79,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
             ret = 0;
         }
     } else {
-        printf("RsaPrivateKeyDecode failed, ret = %d\n", ret);
+        printf("wc_RsaPrivateKeyDecode failed, ret = %d\n", ret);
     }
 
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -119,22 +119,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
         return -1;
     }
    
-    InitRsaKey(&myKey, NULL);
+    wc_InitRsaKey(&myKey, NULL);
     idx = 0;
 
-    ret = RsaPublicKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
+    ret = wc_RsaPublicKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
     if (ret == 0) {
-        ret = RsaSSL_Verify(sigBuf, (unsigned int)sigSz, outBuf,
+        ret = wc_RsaSSL_Verify(sigBuf, (unsigned int)sigSz, outBuf,
                 (unsigned int)outSz, &myKey);
         if (ret < 0) {
-            printf("RsaSSL_Verify failed, ret = %d\n", ret);
+            printf("wc_RsaSSL_Verify failed, ret = %d\n", ret);
             return ret;
         }
     } else {
-        printf("RsaPublicKeyDecode failed, ret = %d\n", ret);
+        printf("wc_RsaPublicKeyDecode failed, ret = %d\n", ret);
     }
 
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -176,14 +176,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     /* get output buffer size */ 
     (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
 
-    InitRng(&rng);
-    InitRsaKey(&myKey, NULL);
+    wc_InitRng(&rng);
+    wc_InitRsaKey(&myKey, NULL);
 
     idx = 0;
 
-    ret = RsaPublicKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
+    ret = wc_RsaPublicKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
     if (ret == 0) {
-        ret = RsaPublicEncrypt(inBuf, (unsigned int)inSz, outBuf, tmpOut,
+        ret = wc_RsaPublicEncrypt(inBuf, (unsigned int)inSz, outBuf, tmpOut,
                 &myKey, &rng);
         if (ret > 0) {
             /* save and convert to 0 for success */
@@ -191,10 +191,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
             ret = 0;
         }
     } else {
-        printf("RsaPublicKeyDecode failed, ret = %d\n", ret);
+        printf("wc_RsaPublicKeyDecode failed, ret = %d\n", ret);
     }
 
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -231,22 +231,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
         return -1;
     }
    
-    InitRsaKey(&myKey, NULL);
+    wc_InitRsaKey(&myKey, NULL);
     idx = 0;
 
-    ret = RsaPrivateKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
+    ret = wc_RsaPrivateKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
     if (ret == 0) {
-        ret = RsaPrivateDecrypt(inBuf, (unsigned int)inSz, outBuf,
+        ret = wc_RsaPrivateDecrypt(inBuf, (unsigned int)inSz, outBuf,
                 (unsigned int)outSz, &myKey);
         if (ret < 0) {
-            printf("RsaPrivateDecrypt failed, ret = %d\n", ret);
+            printf("wc_RsaPrivateDecrypt failed, ret = %d\n", ret);
             return ret;
         }
     } else {
-        printf("RsaPrivateKeyDecode failed, ret = %d\n", ret);
+        printf("wc_RsaPrivateKeyDecode failed, ret = %d\n", ret);
     }
 
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }

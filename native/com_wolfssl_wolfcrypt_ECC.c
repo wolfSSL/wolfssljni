@@ -1,15 +1,15 @@
 /* com_wolfssl_wolfcrypt_ECC.c
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,11 +20,11 @@
  */
 
 #ifndef __ANDROID__
-    #include <cyassl/options.h>
+    #include <wolfssl/options.h>
 #endif
 
-#include <cyassl/ctaocrypt/ecc.h>
-#include <cyassl/ctaocrypt/asn.h>
+#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/asn.h>
 #include "com_wolfssl_wolfcrypt_ECC.h"
 #include <stdio.h>
 
@@ -59,24 +59,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
         return -1;
     }
   
-    ecc_init(&myKey);
+    wc_ecc_init(&myKey);
 
-    ret = ecc_import_x963(keyBuf, (unsigned int)keySz, &myKey);
+    ret = wc_ecc_import_x963(keyBuf, (unsigned int)keySz, &myKey);
  
     if (ret == 0) {
-        ret = ecc_verify_hash(sigBuf, (unsigned int)sigSz, hashBuf,
+        ret = wc_ecc_verify_hash(sigBuf, (unsigned int)sigSz, hashBuf,
                 (unsigned int)hashSz, &tmpResult, &myKey);
         if (ret != 0) {
-            printf("ecc_verify_hash failed, ret = %d\n", ret);
-            ecc_free(&myKey);
+            printf("wc_ecc_verify_hash failed, ret = %d\n", ret);
+            wc_ecc_free(&myKey);
             return -1;
         }
     } else {
-        printf("ecc_import_x963 failed, ret = %d\n", ret);
+        printf("wc_ecc_import_x963 failed, ret = %d\n", ret);
         return -1;
     }
 
-    ecc_free(&myKey);
+    wc_ecc_free(&myKey);
    
     (*jenv)->SetIntArrayRegion(jenv, result, 0, 1, &tmpResult);
     
@@ -117,24 +117,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
         return -1;
     }
  
-    InitRng(&rng);
-    ecc_init(&myKey);
+    wc_InitRng(&rng);
+    wc_ecc_init(&myKey);
 
-    ret = EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
+    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
     if (ret == 0) {
-        ret = ecc_sign_hash(inBuf, (unsigned int)inSz, outBuf, &tmpOut,
+        ret = wc_ecc_sign_hash(inBuf, (unsigned int)inSz, outBuf, &tmpOut,
                 &rng, &myKey);
         if (ret != 0) {
-            printf("ecc_sign_hash failed, ret = %d\n", ret);
-            ecc_free(&myKey);
+            printf("wc_ecc_sign_hash failed, ret = %d\n", ret);
+            wc_ecc_free(&myKey);
             return -1;
         }
     } else {
-        printf("EccPrivateKeyDecode failed, ret = %d\n", ret);
+        printf("wc_EccPrivateKeyDecode failed, ret = %d\n", ret);
         return -1;
     }
 
-    ecc_free(&myKey);
+    wc_ecc_free(&myKey);
     
     (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, (jlong*)&tmpOut);
 

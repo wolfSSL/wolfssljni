@@ -1,15 +1,15 @@
 /* MyDecryptVerifyCallback.java
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -45,14 +45,14 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
         byte[] keyBytes = null;
         byte[] ivBytes  = null;
         int digestSz    = ssl.getHmacSize();
-        byte[] myInner = new byte[WolfSSL.CYASSL_TLS_HMAC_INNER_SZ];
+        byte[] myInner = new byte[WolfSSL.WOLFSSL_TLS_HMAC_INNER_SZ];
         byte[] verify  = new byte[WolfSSL.getHmacMaxSize()];
 
         MyAtomicDecCtx decCtx = (MyAtomicDecCtx) ctx;
         Cipher cipher = null;
 
         /* example supports (d)tls AES */
-        if (ssl.getBulkCipher() != WolfSSL.cyassl_aes) {
+        if (ssl.getBulkCipher() != WolfSSL.wolfssl_aes) {
             System.out.println("MyDecryptVerifyCallback not using AES");
             return -1;
         }
@@ -70,7 +70,7 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
                 cipher = Cipher.getInstance("AES/CBC/NoPadding", "SunJCE");
 
                 /* decrypt is from other side (peer) */
-                if (ssl.getSide() == WolfSSL.CYASSL_SERVER_END) {
+                if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
                     keyBytes = ssl.getClientWriteKey();
                     ivBytes  = ssl.getClientWriteIV();
                 } else {
@@ -95,12 +95,12 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
             decOut.put(cipher.doFinal(decIn, 0, (int)decSz));
             decOut.flip();
 
-            if (ssl.getCipherType() == WolfSSL.CYASSL_AEAD_TYPE) {
+            if (ssl.getCipherType() == WolfSSL.WOLFSSL_AEAD_TYPE) {
                 padSz[0] = ssl.getAeadMacSize();
                 return 0;     
             }
 
-            if (ssl.getCipherType() == WolfSSL.CYASSL_BLOCK_TYPE) {
+            if (ssl.getCipherType() == WolfSSL.WOLFSSL_BLOCK_TYPE) {
                 pad = decOut.get((int)decSz - 1);
                 padByte = 1;
                 if (ssl.isTLSv1_1() == 1)

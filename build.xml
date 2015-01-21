@@ -2,7 +2,7 @@
 <project name="wolfssl" default="build" basedir=".">
 
     <description>
-    wolfSSL JNI is a Java wrapper for the CyaSSL lightweight SSL/TLS library.
+    wolfSSL JNI is a Java wrapper for the wolfSSL lightweight SSL/TLS library.
 
     This build file requires JUnit for running provided JUnit tests. JUnit can
     be downloaded from: http:/www.junit.org/

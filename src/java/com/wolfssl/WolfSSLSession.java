@@ -1,15 +1,15 @@
 /* WolfSSLSession.java
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -36,7 +36,7 @@ import com.wolfssl.WolfSSLException;
  */
 public class WolfSSLSession {
 
-    private long sslPtr;    /* internal pointer to native CYASSL object */
+    private long sslPtr;    /* internal pointer to native WOLFSSL object */
 
     private Object ioReadCtx;
     private Object ioWriteCtx;
@@ -216,7 +216,7 @@ public class WolfSSLSession {
      * This file is provided by the <b>file</b> parameter. The <b>format</b>
      * paramenter specifies the format type of the file - either
      * <b>SSL_FILETYPE_ASN1</b> or <b>SSL_FILETYPE_PEM</b>. Please see the
-     * CyaSSL examples for proper usage.
+     * wolfSSL examples for proper usage.
      *
      * @param file      a file containing the certificate to be loaded into
      *                  the wolfSSL SSL session object.
@@ -243,7 +243,7 @@ public class WolfSSLSession {
      * This file is provided by the <b>file</b> parameter. The <b>format</b>
      * paramenter specifies the format type of the file - either
      * <b>SSL_FILETYPE_ASN1</b> or <b>SSL_FILETYPE_PEM</b>. Please see the
-     * CyaSSL examples for proper usage.
+     * wolfSSL examples for proper usage.
      *
      * @param file      a file containing the private key to be loaded into
      *                  the wolfSSL SSL session.
@@ -319,7 +319,7 @@ public class WolfSSLSession {
 
     /**
      * Informs wolfSSL session that the underlying I/O is non-blocking.
-     * After an application creates a SSL session (native CYASSL object),
+     * After an application creates a SSL session (native WOLFSSL object),
      * if it will be used with a non-blocking socket, this method should
      * be called. This lets the SSL session know that receiving EWOULDBLOCK
      * means that the recvfrom call would block rather than that it timed out.
@@ -376,12 +376,12 @@ public class WolfSSLSession {
      * to <code>getError</code> will yield either <b>SSL_ERROR_WANT_READ</b> or
      * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
      * call to <code>connect()</code> when the underlying I/O is ready and
-     * CyaSSL will pick up where it left off.
+     * wolfSSL will pick up where it left off.
      * <p>
      * If the underlying I/O is blocking, <code>connect()</code> will only
      * return once the handshake has been finished or an error occurred.
      * <p>
-     * CyaSSL takes a different approach to certificate verification than
+     * wolfSSL takes a different approach to certificate verification than
      * OpenSSL does. The default policy for clients is to verify the server,
      * meaning that if the application doesn't load CA certificates to verify
      * the server, it will get a connect error, "unable to verify" (-155). If
@@ -578,7 +578,7 @@ public class WolfSSLSession {
      * setSession()</code>. At this point, the application may call <code>
      * connect()</code> and wolfSSL will try to resume the session.
      *
-     * @param session   pointer to the native CYASSL_SESSION structure used
+     * @param session   pointer to the native WOLFSSL_SESSION structure used
      *                  to set the session for the SSL session object.
      * @return          <code>SSL_SUCCESS</code> upon successfully setting
      *                  the session. <code>SSL_FAILURE</code> will be
@@ -593,7 +593,7 @@ public class WolfSSLSession {
 
     /**
      * Returns a pointer to the current session used in the given SSL object.
-     * The native CYASSL_SESSION pointed to contains all the necessary
+     * The native WOLFSSL_SESSION pointed to contains all the necessary
      * information required to perform a session resumption and reestablishment
      * the connection without a new handshake.
      * <p>
@@ -746,11 +746,11 @@ public class WolfSSLSession {
     }
 
     /**
-     * Gets the native (long) CYASSL_X509 pointer to the peer's certificate.
+     * Gets the native (long) WOLFSSL_X509 pointer to the peer's certificate.
      * This can be used to retrieve further information about the peer's
      * certificate (issuer, subject, alt name, etc.)
      *
-     * @return      (long) CYASSL_X509 pointer to the peer's certificate.
+     * @return      (long) WOLFSSL_X509 pointer to the peer's certificate.
      *
      * @see         WolfSSLSession#getPeerX509Issuer(long)
      * @see         WolfSSLSession#getPeerX509Subject(long)
@@ -764,7 +764,7 @@ public class WolfSSLSession {
     /**
      * Gets the peer X509 certificate's issuer information.
      *
-     * @param x509  pointer (long) to native CYASSL_X509 structure, obtained
+     * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
      * @return      String representation of the peer's issuer information
      * @see         WolfSSLSession#getPeerCertificate()
@@ -779,7 +779,7 @@ public class WolfSSLSession {
     /**
      * Gets the peer X509 certificate's subject information.
      *
-     * @param x509  pointer (long) to native CYASSL_X509 structure, obtained
+     * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
      * @return      String representation of the peer's subject information
      * @see         WolfSSLSession#getPeerCertificate()
@@ -797,7 +797,7 @@ public class WolfSSLSession {
      * from the peer cert. If no more altnames are available, <b>null</b>
      * will be returned.
      *
-     * @param x509  pointer (long) to native CYASSL_X509 structure, obtained
+     * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
      * @return      String representation of the peer's subject information
      * @see         WolfSSLSession#getPeerCertificate()
@@ -824,12 +824,12 @@ public class WolfSSLSession {
     }
 
     /**
-     * Returns a pointer to the native CYASSL_CIPHER object being used
+     * Returns a pointer to the native WOLFSSL_CIPHER object being used
      * in with the SSL session.
      * This pointer can be used with the <code>getCipherName()</code> function
      * to get the name of the current cipher suite being used.
      *
-     * @return      pointer (long) to the native CYASSL_CIPHER object
+     * @return      pointer (long) to the native WOLFSSL_CIPHER object
      *              currently used with the SSL session.
      * @see         WolfSSLSession#cipherGetName()
      */
@@ -1063,7 +1063,7 @@ public class WolfSSLSession {
      * Turns on Certificate Revocation List (CRL) checking when
      * verifying certificates.
      * By default, CRL checking is off. <b>options</b> include
-     * CYASSL_CRL_CHECKALL which performs CRL checking on each certificate
+     * WOLFSSL_CRL_CHECKALL which performs CRL checking on each certificate
      * in the chain versus the leaf certificate only (which is default).
      *
      * @param options   options to use when enabling CRL
@@ -1116,9 +1116,9 @@ public class WolfSSLSession {
      *                  </code>.
      * @param monitor   OR'd list of flags to indicate if wolfSSL should 
      *                  monitor the provided CRL directory for changes.
-     *                  Flag values include <code>CYASSL_CRL_MONITOR</code>
+     *                  Flag values include <code>WOLFSSL_CRL_MONITOR</code>
      *                  to indicate that the directory should be monitored
-     *                  and <code>CYASSL_CRL_START_MON</code> to start the
+     *                  and <code>WOLFSSL_CRL_START_MON</code> to start the
      *                  monitor.
      * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
      *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
@@ -1258,8 +1258,8 @@ public class WolfSSLSession {
     /**
      * Allows retrieval of the side of this wolfSSL connection.
      *
-     * @return  <b><code>CYASSL_SERVER_END</code></b> or
-     *          <b><code>CYASSL_CLIENT_END</code></b> depending on the side
+     * @return  <b><code>WOLFSSL_SERVER_END</code></b> or
+     *          <b><code>WOLFSSL_CLIENT_END</code></b> depending on the side
      *          of the wolfSSL session object.
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getClientWriteKey()
@@ -1287,13 +1287,13 @@ public class WolfSSLSession {
      * the handshake.
      *
      * @return  If successful, the call will return one of the following:<br>
-     *          WolfSSL.cyassl_cipher_null<br>
-     *          WolfSSL.cyassl_des<br>
-     *          WolfSSL.cyassl_triple_des<br>
-     *          WolfSSL.cyassl_aes<br>
-     *          WolfSSL.cyassl_aes_gcm<br>
-     *          WolfSSL.cyassl_aes_ccm<br>
-     *          WolfSSL.cyassl_camellia<br>
+     *          WolfSSL.wolfssl_cipher_null<br>
+     *          WolfSSL.wolfssl_des<br>
+     *          WolfSSL.wolfssl_triple_des<br>
+     *          WolfSSL.wolfssl_aes<br>
+     *          WolfSSL.wolfssl_aes_gcm<br>
+     *          WolfSSL.wolfssl_aes_ccm<br>
+     *          WolfSSL.wolfssl_camellia<br>
      *          WolfSSL.hc128<br>
      *          WolfSSL.rabbit<br>
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.<br>
@@ -1320,7 +1320,7 @@ public class WolfSSLSession {
     /**
      * Allows caller to determine the negotiated aead mac size from the
      * handshake.
-     * For cipher type <b>CYASSL_AEAD_TYPE</b>.
+     * For cipher type <b>WOLFSSL_AEAD_TYPE</b>.
      *
      * @return  the size in bytes of the aead mac size upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
@@ -1334,7 +1334,7 @@ public class WolfSSLSession {
     /**
      * Allows the caller to determine the negotiated (h)mac size from the
      * handshake.
-     * For cipher types except <b>CYASSL_AEAD_TYPE</b>.
+     * For cipher types except <b>WOLFSSL_AEAD_TYPE</b>.
      *
      * @return  the size in bytes of the (h)mac size upon success, 
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
@@ -1348,7 +1348,7 @@ public class WolfSSLSession {
     /**
      * Allows caller to determine the negotiated (h)mac type from the
      * handshake.
-     * For cipher types except <b>CYASSL_AEAD_TYPE</b>.
+     * For cipher types except <b>WOLFSSL_AEAD_TYPE</b>.
      *
      * @return  If successful, the call will return one of the following:<p>
      *          WolfSSL.MD5<br>
@@ -1371,9 +1371,9 @@ public class WolfSSLSession {
      * handshake.
      *
      * @return  If successful, the call will return one of the following:<p>
-     *          WolfSSL.CYASSL_BLOCK_TYPE<br>
-     *          WolfSSL.CYASSL_STREAM_TYPE<br>
-     *          WolfSSL.CYASSL_AEAD_TYPE<br><br>
+     *          WolfSSL.WOLFSSL_BLOCK_TYPE<br>
+     *          WolfSSL.WOLFSSL_STREAM_TYPE<br>
+     *          WolfSSL.WOLFSSL_AEAD_TYPE<br><br>
      *          <b><code>BAD_FUNC_ARG</code></b> will be returned for an
      *          error state.
      * @see     #getBulkCipher()
@@ -1389,7 +1389,7 @@ public class WolfSSLSession {
      * getHmacSize() bytes. The size of the message is specified by <b>sz</b>,
      * <b>content</b> is the type of message, and <b>verify</b> specifies
      * whether this is a verification of a peer message. Valid for cipher
-     * types excluding <b>CYASSL_AEAD_TYPE</b>.
+     * types excluding <b>WOLFSSL_AEAD_TYPE</b>.
      *
      * @param   inner    inner HMAC vector to set
      * @param   sz       size of the message, in bytes

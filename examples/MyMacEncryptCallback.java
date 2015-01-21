@@ -1,15 +1,15 @@
 /* MyMacEncryptCallback.java
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2015 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -37,13 +37,13 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
         String tlsStr   = "TLS";
         byte[] keyBytes  = null;
         byte[] ivBytes   = null;
-        byte[] myInner = new byte[WolfSSL.CYASSL_TLS_HMAC_INNER_SZ];
+        byte[] myInner = new byte[WolfSSL.WOLFSSL_TLS_HMAC_INNER_SZ];
 
         MyAtomicEncCtx encCtx = (MyAtomicEncCtx) ctx;
         Cipher cipher = null;
 
         /* example supports (d)tls AES */
-        if (ssl.getBulkCipher() != WolfSSL.cyassl_aes) {
+        if (ssl.getBulkCipher() != WolfSSL.wolfssl_aes) {
             System.out.println("MyMacEncryptCallback not using AES");
             return -1;
         }
@@ -83,7 +83,7 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
                 cipher = Cipher.getInstance("AES/CBC/NoPadding", "SunJCE");
                 SecretKeySpec key = null;
 
-                if (ssl.getSide() == WolfSSL.CYASSL_CLIENT_END) {
+                if (ssl.getSide() == WolfSSL.WOLFSSL_CLIENT_END) {
                     keyBytes = ssl.getClientWriteKey();
                     ivBytes  = ssl.getClientWriteIV();
                 }
