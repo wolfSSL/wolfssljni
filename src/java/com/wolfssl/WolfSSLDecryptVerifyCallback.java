@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
  * callbacks.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback) 
+ * to the {@link WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
  * WolfSSLContext.setDecryptVerifyCb()} method to be registered with the
  * native wolfSSL library.
  *
@@ -47,7 +47,7 @@ public interface WolfSSLDecryptVerifyCallback {
      * @param ssl       the current SSL session object from which the
      *                  callback was initiated.
      * @param decOut    output buffer where the result of the decryption
-     *                  should be stored. 
+     *                  should be stored.
      * @param decIn     the encrypted input buffer
      * @param decSz     the size of the input buffer, <b>decIn</b>
      * @param content   used with setTlsHmacInner(), the type of message

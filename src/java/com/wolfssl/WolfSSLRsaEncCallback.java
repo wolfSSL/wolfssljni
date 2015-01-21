@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
  * encrypt callback class to be used by wolfSSL.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setRsaEncCb(WolfSSLRsaEncCallback) 
+ * to the {@link WolfSSLContext#setRsaEncCb(WolfSSLRsaEncCallback)
  * WolfSSLContext.setRsaEncCb()} method to be registered with the native
  * wolfSSL library.
  *

@@ -52,17 +52,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
         printf("problem getting hash buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
-  
+
     wc_ecc_init(&myKey);
 
     ret = wc_ecc_import_x963(keyBuf, (unsigned int)keySz, &myKey);
- 
+
     if (ret == 0) {
         ret = wc_ecc_verify_hash(sigBuf, (unsigned int)sigSz, hashBuf,
                 (unsigned int)hashSz, &tmpResult, &myKey);
@@ -77,9 +77,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
     }
 
     wc_ecc_free(&myKey);
-   
+
     (*jenv)->SetIntArrayRegion(jenv, result, 0, 1, &tmpResult);
-    
+
     return ret;
 }
 
@@ -110,13 +110,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
         printf("problem getting out buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
- 
+
     wc_InitRng(&rng);
     wc_ecc_init(&myKey);
 
@@ -135,7 +135,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
     }
 
     wc_ecc_free(&myKey);
-    
+
     (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, (jlong*)&tmpOut);
 
     return ret;

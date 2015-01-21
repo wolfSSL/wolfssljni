@@ -27,8 +27,8 @@ package com.wolfssl;
  * callback class to be used by wolfSSL during the handshake process.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback) 
- * WolfSSLContext.setVerify()} method to be registered with the native wolfSSL 
+ * to the {@link WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+ * WolfSSLContext.setVerify()} method to be registered with the native wolfSSL
  * library.
  *
  * @author  wolfSSL
@@ -38,17 +38,17 @@ public interface WolfSSLVerifyCallback {
 
     /**
      * Verify callback method.
-     * This method acts as the verify callback to be used during the 
+     * This method acts as the verify callback to be used during the
      * SSL/TLS handshake. It is called when verification of the peer
      * certificate fails. Note that peer verification must be turned on.
      *
      * @param preverify_ok indicates if verification of the peer certificate
-     *                     already passed. 0 if failed, 1 if passed. 
+     *                     already passed. 0 if failed, 1 if passed.
      * @param x509StorePtr pointer to the context used for certificate
      *                     chain verification.
-     * @return             <code>0</code> if the verification process should 
-     *                     stop immediately with an error. <code>1</code> if 
-     *                     the verification process should continue with the 
+     * @return             <code>0</code> if the verification process should
+     *                     stop immediately with an error. <code>1</code> if
+     *                     the verification process should continue with the
      *                     rest of the handshake.
      */
     public int verifyCallback(int preverify_ok, long x509StorePtr);

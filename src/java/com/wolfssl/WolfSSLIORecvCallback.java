@@ -26,8 +26,8 @@ package com.wolfssl;
  * callback class to be used by wolfSSL.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setIORecv(WolfSSLIORecvCallback) 
- * WolfSSLContext.setIORecv()} method to be registered with the native wolfSSL 
+ * to the {@link WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
+ * WolfSSLContext.setIORecv()} method to be registered with the native wolfSSL
  * library.
  *
  * @author  wolfSSL
@@ -48,7 +48,7 @@ public interface WolfSSLIORecvCallback {
      * @param sz    size of buffer, <b>buf</b>
      * @param ctx   I/O context to be used.
      * @return      the number of bytes read, or an error. For possible error
-     *              codes, see the default EmbedRecv() function in 
+     *              codes, see the default EmbedRecv() function in
      *              wolfssl_package/src/io.c
      */
     public int receiveCallback(WolfSSLSession ssl, byte[] buf, int sz,

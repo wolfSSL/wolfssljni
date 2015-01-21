@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
  * callbacks.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setMacEncryptCb(WolfSSLMacEncryptCallback) 
+ * to the {@link WolfSSLContext#setMacEncryptCb(WolfSSLMacEncryptCallback)
  * WolfSSLContext.setMacEncryptCb()} method to be registered with the native
  * wolfSSL library.
  *

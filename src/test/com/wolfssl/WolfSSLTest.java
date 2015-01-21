@@ -85,7 +85,7 @@ public class WolfSSLTest {
     }
 
     public void tstMethod(long method, String name) {
-       
+
         System.out.print("\t" + name);
 
         if (method == 0) {
@@ -97,3 +97,4 @@ public class WolfSSLTest {
         System.out.println("\t... passed");
     }
 }
+

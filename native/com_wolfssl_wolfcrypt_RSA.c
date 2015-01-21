@@ -54,14 +54,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
         printf("problem getting out buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
-   
-    /* get output buffer size */ 
+
+    /* get output buffer size */
     (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
 
     wc_InitRng(&rng);
@@ -112,13 +112,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
         printf("problem getting out buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
-   
+
     wc_InitRsaKey(&myKey, NULL);
     idx = 0;
 
@@ -166,14 +166,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
         printf("problem getting out buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
-   
-    /* get output buffer size */ 
+
+    /* get output buffer size */
     (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
 
     wc_InitRng(&rng);
@@ -224,13 +224,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
         printf("problem getting out buffer address\n");
         return -1;
     }
-    
+
     unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
-   
+
     wc_InitRsaKey(&myKey, NULL);
     idx = 0;
 

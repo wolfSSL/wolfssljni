@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
  * callback class to be used by wolfSSL.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback) 
+ * to the {@link WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
  * WolfSSLContext.setEccSignCb()} method to be registered with the native
  * wolfSSL library.
  *

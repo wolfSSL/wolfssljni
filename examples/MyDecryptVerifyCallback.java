@@ -63,7 +63,7 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
         }
 
         try {
-            /* setup AES */ 
+            /* setup AES */
             if(!decCtx.isCipherSetup()) {
                 int keyLen = ssl.getKeySize();
                 SecretKeySpec key = null;
@@ -77,7 +77,7 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
                     keyBytes = ssl.getServerWriteKey();
                     ivBytes  = ssl.getServerWriteIV();
                 }
-                
+
                 key = new SecretKeySpec(keyBytes, "AES");
                 cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(ivBytes));
                 decCtx.setCipher(cipher);
@@ -90,14 +90,14 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
                     return -1;
                 }
             }
-        
+
             /* decrypt */
             decOut.put(cipher.doFinal(decIn, 0, (int)decSz));
             decOut.flip();
 
             if (ssl.getCipherType() == WolfSSL.WOLFSSL_AEAD_TYPE) {
                 padSz[0] = ssl.getAeadMacSize();
-                return 0;     
+                return 0;
             }
 
             if (ssl.getCipherType() == WolfSSL.WOLFSSL_BLOCK_TYPE) {
@@ -157,5 +157,4 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
         return ret;
     }
 }
-
 

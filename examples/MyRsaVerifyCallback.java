@@ -33,7 +33,7 @@ class MyRsaVerifyCallback implements WolfSSLRsaVerifyCallback
 
         System.out.println("---------- Entered MyRsaVerifyCallback ----------");
         int ret = -1;
-        
+
         RSA rsa = new RSA();
         MyRsaVerifyCtx rsaVerifyCtx = (MyRsaVerifyCtx)ctx;
 

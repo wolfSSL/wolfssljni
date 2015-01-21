@@ -27,9 +27,9 @@ package com.wolfssl;
  * CRL callback class to be called by wolfSSL when CRL lookup fails.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to either the {@link WolfSSLSession#setCRLCb(long, WolfSSLMissingCRLCallback) 
+ * to either the {@link WolfSSLSession#setCRLCb(long, WolfSSLMissingCRLCallback)
  * WolfSSLSession.setCRLCb()} method or {@link WolfSSLContext#setCRLCb(long,
- * WolfSSLMissingCRLCallback) WolfSSLContext.setCRLCb()} method, to be 
+ * WolfSSLMissingCRLCallback) WolfSSLContext.setCRLCb()} method, to be
  * registered with the native wolfSSL library.
  *
  * @author  wolfSSL

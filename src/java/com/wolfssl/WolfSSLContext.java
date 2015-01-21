@@ -48,8 +48,8 @@ public class WolfSSLContext {
 
     /* user-registered DTLS cookie generation callback */
     private WolfSSLGenCookieCallback internCookieCb = null;
-       
-    /* user-registered MAC/encrypt and decrypt/verify callbacks */ 
+
+    /* user-registered MAC/encrypt and decrypt/verify callbacks */
     private WolfSSLMacEncryptCallback internMacEncryptCb = null;
     private WolfSSLDecryptVerifyCallback internDecryptVerifyCb = null;
 
@@ -70,7 +70,7 @@ public class WolfSSLContext {
 
     /**
      * Creates a new SSL/TLS context for the desired SSL/TLS protocol level.
-     * 
+     *
      * @param method    a pointer (long) to the desired WOLFSSL_METHOD for
      *                  use in the SSL context. This WOLFSSL_METHOD pointer
      *                  is created with one of the protocol-specific methods
@@ -87,7 +87,7 @@ public class WolfSSLContext {
         this.active = true;
     }
 
-    /* ------------------- private/protected methods -------------------- */ 
+    /* ------------------- private/protected methods -------------------- */
 
     long getContextPtr()
     {
@@ -113,7 +113,7 @@ public class WolfSSLContext {
     WolfSSLMacEncryptCallback getInternMacEncryptCb() {
         return internMacEncryptCb;
     }
-    
+
     /* used by JNI native decrypt/verify Cb */
     WolfSSLDecryptVerifyCallback getInternDecryptVerifyCb() {
         return internDecryptVerifyCb;
@@ -134,7 +134,7 @@ public class WolfSSLContext {
     private int internalIOSendCallback(WolfSSLSession ssl, byte[] buf, int sz)
     {
         int ret;
-        
+
         /* call user-registered recv method */
         ret = internSendCb.sendCallback(ssl, buf, sz,
                     ssl.getIOWriteCtx());
@@ -232,7 +232,7 @@ public class WolfSSLContext {
                 outSz, keyDer, keySz, ssl.getRsaVerifyCtx());
 
         return ret;
-    } 
+    }
 
     private int internalRsaEncCallback(WolfSSLSession ssl, ByteBuffer in,
             long inSz, ByteBuffer out, int[] outSz, ByteBuffer keyDer,
@@ -260,9 +260,9 @@ public class WolfSSLContext {
         return ret;
     }
 
-    
+
     /* ------------------ native method declarations -------------------- */
-    
+
     private native long newContext(long method);
     private native int useCertificateFile(long ctx, String file, int format);
     private native int usePrivateKeyFile(long ctx, String file, int format);
@@ -301,7 +301,7 @@ public class WolfSSLContext {
     private native void setRsaVerifyCb(long ctx);
     private native void setRsaEncCb(long ctx);
     private native void setRsaDecCb(long ctx);
-    
+
     /* ------------------- context-specific methods --------------------- */
 
     /**
@@ -379,7 +379,7 @@ public class WolfSSLContext {
      * @return      <code>SSL_SUCCESS</code> on success. Otherwise<br>
      *              <code>SSL_FAILURE</code> if <b>ctx</b> is null, or if
      *              both <b>file</b> and <b>path</b> are null.<br>
-     *              <code>SSL_BAD_FILETYPE</code> if the file is in the 
+     *              <code>SSL_BAD_FILETYPE</code> if the file is in the
      *              wrong format.<br>
      *              <code>SSL_BAD_FILE</code> if the file doesn't exist, can't
      *              be read, or is corrupted.<br>
@@ -423,10 +423,10 @@ public class WolfSSLContext {
     public int useCertificateChainFile(String file) {
         return useCertificateChainFile(getContextPtr(), file);
     }
-    
-    
+
+
     /**
-     * Sets the verification method for remote peers and also allows a 
+     * Sets the verification method for remote peers and also allows a
      * verify callback to be registered with the SSL session.
      * If no verify callback is desired, null can be used for <code>
      * callback</code>.
@@ -651,7 +651,7 @@ public class WolfSSLContext {
      * This method behaves like the non-buffered version, only differing
      * in its ability to be called with a buffer as input rather than a file.
      *
-     * @param in        the input buffer containing the private key to be 
+     * @param in        the input buffer containing the private key to be
      *                  loaded
      * @param sz        the size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
@@ -697,7 +697,7 @@ public class WolfSSLContext {
      *                  corrupted. <b><code>MEMORY_E</code></b> if an out of
      *                  memory condition occurs, <b><code>ASN_INPUT_E</code></b>
      *                  if Base16 decoding fails on the file,
-     *                  <b><code>BUFFER_E</code></b> if a chain buffer is 
+     *                  <b><code>BUFFER_E</code></b> if a chain buffer is
      *                  bigger than the receiving buffer, and <b><code>
      *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
@@ -727,14 +727,14 @@ public class WolfSSLContext {
     /**
      * Registers a receive callback for wolfSSL to get input data.
      * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
-     * This uses the system's TCP recv() function. The user can register a 
+     * This uses the system's TCP recv() function. The user can register a
      * function to get input from memory, some other network module, or from
-     * anywhere. Please see the EmbedReceive() function in src/io.c as a 
+     * anywhere. Please see the EmbedReceive() function in src/io.c as a
      * guide for how the function should work and for error codes.
      * <p>
      * In particular, <b>IO_ERR_WANT_READ</b> should be returned for
      * non-blocking receive when no data is ready.
-     * 
+     *
      * @param callback  method to be registered as the receive callback for
      *                  the wolfSSL context. The signature of this function
      *                  must follow that as shown in
@@ -756,7 +756,7 @@ public class WolfSSLContext {
      * By default, wolfSSL uses EmbedSend() in src/io.c as the callback,
      * which uses the system's TCP send() function. The user can register
      * a function to send output to memory, some other network module, or
-     * to anywhere. Please see the EmbedSend() function in src/io.c as a 
+     * to anywhere. Please see the EmbedSend() function in src/io.c as a
      * guide for how the function should work and for error codes.
      * <p>
      * In particular, <b>IO_ERR_WANT_WRITE</b> should be returned for
@@ -854,7 +854,7 @@ public class WolfSSLContext {
     /**
      * Loads CRL files into wolfSSL from the specified path, using the
      * specified Context.
-     * This method loads a list of CRL files into wolfSSL. The files can be 
+     * This method loads a list of CRL files into wolfSSL. The files can be
      * in either PEM or DER format, as specified by the <b>type</b>
      * parameter.
      *
@@ -862,7 +862,7 @@ public class WolfSSLContext {
      * @param type      type of files in <b>path</b>, either <code>
      *                  SSL_FILETYPE_PEM</code> or <code>SSL_FILETYPE_ASN1
      *                  </code>.
-     * @param monitor   OR'd list of flags to indicate if wolfSSL should 
+     * @param monitor   OR'd list of flags to indicate if wolfSSL should
      *                  monitor the provided CRL directory for changes.
      *                  Flag values include <code>WOLFSSL_CRL_MONITOR</code>
      *                  to indicate that the directory should be monitored
@@ -877,7 +877,7 @@ public class WolfSSLContext {
      *                  error opening the provided directory<br>
      *                  <b><code>MEMORY_E</code></b> if a memory error
      *                  occurred<br>
-     *                  <b><code>MONITOR_RUNNING_E</code></b> if the CRL 
+     *                  <b><code>MONITOR_RUNNING_E</code></b> if the CRL
      *                  monitor is already running<br>
      *                  <b><code>THREAD_CREATE_E</code></b> if there was an
      *                  error when creating the CRL monitoring thread.
@@ -915,7 +915,7 @@ public class WolfSSLContext {
 
     /**
      * Enable OCSP functionality for this context, set options.
-     * The value of <b>options</b> is formed by OR'ing one or more of the 
+     * The value of <b>options</b> is formed by OR'ing one or more of the
      * following options:<br>
      * <b>WOLFSSL_OCSP_NO_NONCE</b> - disable sending OCSP nonce<br>
      * <b>WOLFSSL_OCSP_URL_OVERRIDE</b> - use the override URL instead of the
@@ -924,7 +924,7 @@ public class WolfSSLContext {
      * compiled with OCSP support (--enable-ocsp, #define HAVE_OCSP).
      *
      * @param options  value used to set the OCSP options
-     * @return         <b><code>SSL_SUCCESS</code></b> upon success, 
+     * @return         <b><code>SSL_SUCCESS</code></b> upon success,
      *                 <b><code>SSL_FAILURE</code></b> upon failure,
      *                 <b><code>BAD_FUNC_ARG</code></b> if context is null,
      *                 <b><code>MEMORY_E</code></b> upon memory error,
@@ -967,7 +967,7 @@ public class WolfSSLContext {
     public int setOCSPOverrideUrl(String url) {
         return setOCSPOverrideUrl(getContextPtr(), url);
     }
-    
+
     /**
      * Allows caller to set the Atomic User Record Processing Mac/Encrypt
      * Callback.
@@ -999,7 +999,7 @@ public class WolfSSLContext {
         /* register internal callback with native library */
         setMacEncryptCb(getContextPtr());
     }
-   
+
     /**
      * Allows caller to set the Atomic Record Processing Decrypt/Verify
      * Callback.
@@ -1019,23 +1019,23 @@ public class WolfSSLContext {
      *                  callback for the WolfSSL context. The signature of
      *                  this object and corresponding method must match that
      *                  as shown in
-     *                  WolfSSLDecryptVerifyCallback.java, inside 
+     *                  WolfSSLDecryptVerifyCallback.java, inside
      *                  decryptVerifyCallback().
      * @see             #setMacEncryptCb(WolfSSLMacEncryptCallback)
      */
     public void setDecryptVerifyCb(WolfSSLDecryptVerifyCallback
            callback) {
-        
+
         /* set decrypt/verify callback */
         internDecryptVerifyCb = callback;
 
-        /* register internal callback with native library */ 
+        /* register internal callback with native library */
         setDecryptVerifyCb(getContextPtr());
     }
 
     /**
      * Allows caller to set the Public Key Callback for ECC Signing.
-     * The callback should return 0 for success or a negative value for an 
+     * The callback should return 0 for success or a negative value for an
      * error. The <b>ssl</b> and <b>ctx</b> pointers are available for
      * the users convenience. <b>in</b> is the inptu buffer to sign while
      * <b>inSz</b> denotes the length of the input. <b>out</b> is the output
@@ -1191,7 +1191,7 @@ public class WolfSSLContext {
      * example callback can be found in examples/MyRsaDecCallback.java.
      *
      * @param callback  object to be registered as the RSA private decrypt
-     *                  callback for the WolfSSL context. The signature of 
+     *                  callback for the WolfSSL context. The signature of
      *                  this object and corresponding method must match that
      *                  as shown in WolfSSLRsaDecCallback.java, inside
      *                  rsaDecCallback().

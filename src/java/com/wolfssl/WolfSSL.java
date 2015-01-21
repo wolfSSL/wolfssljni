@@ -55,7 +55,7 @@ public class WolfSSL {
     public final static int SSL_FILETYPE_DEFAULT = 2;
     /** NTRU raw key blog */
     public final static int SSL_FILETYPE_RAW     = 3;
-   
+
     /**
      * Verification mode for peer certificates.
      * <p>
@@ -64,11 +64,11 @@ public class WolfSSL {
      * <br>
      * <b>Server mode:</b> the server will not send a certificate request
      * to the client. As such, client verification will not be enabled.
-     * 
+     *
      * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
      */
     public final static int SSL_VERIFY_NONE = 0;
-    
+
     /**
      * Verification mode for peer certificates.
      * <p>
@@ -78,11 +78,11 @@ public class WolfSSL {
      * <br>
      * <b>Server mode:</b> the server will send a certificate request to the
      * client and verify the client certificate which is received.
-     * 
+     *
      * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
      */
     public final static int SSL_VERIFY_PEER = 1;
-    
+
     /**
      * Verification mode for peer certificates.
      * <p>
@@ -91,7 +91,7 @@ public class WolfSSL {
      * <b>Server mode:</b> the verification will fail on the server side
      * if the client fails to send a certificate when requested to do so
      * (when using SSL_VERIFY_PEER on the SSL server).
-     * 
+     *
      * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
      */
     public final static int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2;
@@ -226,13 +226,13 @@ public class WolfSSL {
         }
     }
 
-    /* ------------------- private/protected methods -------------------- */ 
+    /* ------------------- private/protected methods -------------------- */
 
     private native int init();
 
     static native void nativeFree(long ptr);
 
-    /* ------------------------- Java methods --------------------------- */ 
+    /* ------------------------- Java methods --------------------------- */
 
     /**
      * Loads JNI library; must be called prior to any other calls in this class.
@@ -255,12 +255,12 @@ public class WolfSSL {
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * SSL 3.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
      *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
@@ -268,157 +268,157 @@ public class WolfSSL {
     public final static native long SSLv3_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * SSL 3.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long SSLv3_ClientMethod();
 
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * TLS 1.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * TLS 1.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_ClientMethod();
 
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * TLS 1.1 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_1_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * TLS 1.1 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_1_ClientMethod();
 
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * TLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_2_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * TLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_2_ClientMethod();
-    
+
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * DTLS 1.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long DTLSv1_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * DTLS 1.0 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long DTLSv1_ClientMethod();
-    
+
     /**
-     * Indicates that the application is a server and will only support the 
+     * Indicates that the application is a server and will only support the
      * DTLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long DTLSv1_2_ServerMethod();
 
     /**
-     * Indicates that the application is a client and will only support the 
+     * Indicates that the application is a client and will only support the
      * DTLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long DTLSv1_2_ClientMethod();
-    
+
     /**
      * Indicates that the application is a server and will use the highest
      * possible SSL/TLS version from SSL 3.0 up to TLS 1.2.
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long SSLv23_ServerMethod();
@@ -429,9 +429,9 @@ public class WolfSSL {
      * This method allocates memory for and initializes a new native
      * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
      * context with newContext().
-     * 
+     *
      * @return  A pointer to the created WOLFSSL_METHOD structure if
-     *          successful, null on failure. 
+     *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long SSLv23_ClientMethod();
@@ -442,7 +442,7 @@ public class WolfSSL {
      * The maximum length of the returned string is 80 characters by
      * default, as defined by MAX_ERROR_SZ in the native wolfSSL
      * error.h header file.
-     * 
+     *
      * @param errNumber     error code returned by <code>getError()</code>
      * @return              output String containing human-readable error
      *                      string matching <code>errNumber</code>
@@ -497,10 +497,10 @@ public class WolfSSL {
      * @see         #debuggingOFF()
      */
     public final static native int setLoggingCb(WolfSSLLoggingCallback cb);
-    
+
     /**
      * Persists session cache to memory buffer.
-     * This method can be used to persist the current session cache to a 
+     * This method can be used to persist the current session cache to a
      * memory buffer for storage. The cache can be loaded back into wolfSSL
      * using the corresponding <code>memrestoreSessionCache()</code> method.
      *
@@ -561,11 +561,11 @@ public class WolfSSL {
      * @see         WolfSSLContext#getCertCacheMemsize(long)
      */
     public static native int getSessionCacheMemsize();
-    
+
     /**
      * Returns the DER-encoded form of the certificate pointed to by
      * x509.
-     * 
+     *
      * @param x509      pointer (long) to a native WOLFSSL_X509 object. This
      *                  objects represents an X.509 certificate.
      * @return          DER-encoded certificate or

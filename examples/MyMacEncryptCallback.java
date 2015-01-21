@@ -99,7 +99,7 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
 
             } else {
                 cipher = encCtx.getCipher();
-                
+
                 if (cipher == null) {
                     System.out.println("Cipher was not previously set up");
                     return -1;

@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
  * @version 1.0, August 2013
  */
 public class ECC {
-    
+
     public native int doVerify(ByteBuffer sig, long sigSz, ByteBuffer hash,
             long hashLen, ByteBuffer keyDer, long keySz, int[] result);
 

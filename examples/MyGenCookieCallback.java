@@ -29,7 +29,7 @@ class MyGenCookieCallback implements WolfSSLGenCookieCallback
 {
     public int genCookieCallback(WolfSSLSession ssl, byte[] buf, int sz,
             Object ctx) {
-        
+
         int port = 0;
         byte[] out = null;
         InetAddress hostAddr = null;
@@ -62,3 +62,4 @@ class MyGenCookieCallback implements WolfSSLGenCookieCallback
         return buf.length;
     }
 }
+

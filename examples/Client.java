@@ -34,7 +34,7 @@ import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
 
 public class Client {
-    
+
     public static Charset charset = Charset.forName("UTF-8");
     public static CharsetEncoder encoder = charset.newEncoder();
 
@@ -74,7 +74,7 @@ public class Client {
         String caCert     = "../certs/ca-cert.pem";
         String crlPemDir  = "../certs/crl";
 
-        /* server (peer) info */ 
+        /* server (peer) info */
         String host = "localhost";
         int port    =  11111;
 
@@ -103,7 +103,7 @@ public class Client {
                 if (sslVersion < 0 || sslVersion > 3) {
                     printUsage();
                 }
-    
+
             } else if (arg.equals("-l")) {
                 if (args.length < i+2)
                     printUsage();
@@ -142,7 +142,7 @@ public class Client {
 
             } else if (arg.equals("-logtest")) {
                 logCallback = 1;
-            
+
             } else if (arg.equals("-o")) {
                 useOcsp = 1;
 
@@ -172,7 +172,7 @@ public class Client {
         }
 
         try {
-            
+
             /* load JNI library */
             WolfSSL.loadLibrary();
 
@@ -277,16 +277,16 @@ public class Client {
             if (benchmark != 0) {
                 int times = benchmark;
                 int i = 0;
-                
+
                 long start = System.nanoTime();
                 long avg;
-                
 
-                for (i = 0; i < times; i++) {                   
+
+                for (i = 0; i < times; i++) {
                     sock = new Socket(host, port);
-                   /* System.out.println("Connected to " + 
-                            sock.getInetAddress().getHostAddress() + 
-                            " on port " + 
+                   /* System.out.println("Connected to " +
+                            sock.getInetAddress().getHostAddress() +
+                            " on port " +
                             sock.getPort() + "\n"); */
 
                     outstream = new DataOutputStream(sock.getOutputStream());
@@ -304,7 +304,7 @@ public class Client {
                 avg = System.nanoTime() - start;
                 avg /= times;
                 avg /= 1000000; /*milliseconds*/
-                System.out.println("wolfSSL_connect avg took: " + avg + 
+                System.out.println("wolfSSL_connect avg took: " + avg +
                         " milliseconds");
 
                 sslCtx.free();
@@ -344,9 +344,9 @@ public class Client {
                 }
             } else {
                 sock = new Socket(host, port);
-                System.out.println("Connected to " + 
-                        sock.getInetAddress().getHostAddress() + 
-                        " on port " + 
+                System.out.println("Connected to " +
+                        sock.getInetAddress().getHostAddress() +
+                        " on port " +
                         sock.getPort() + "\n");
 
                 outstream = new DataOutputStream(sock.getOutputStream());

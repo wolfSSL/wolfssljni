@@ -27,8 +27,8 @@ package com.wolfssl;
  * callback class to be used by wolfSSL for printing debug messages.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSL#setLoggingCb(WolfSSLLoggingCallback) 
- * WolfSSL.setLoggingCb()} method to be registered with the native wolfSSL 
+ * to the {@link WolfSSL#setLoggingCb(WolfSSLLoggingCallback)
+ * WolfSSL.setLoggingCb()} method to be registered with the native wolfSSL
  * library.
  *
  * @author  wolfSSL

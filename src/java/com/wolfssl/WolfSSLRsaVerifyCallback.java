@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
  * verification callback class to be used by wolfSSL.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setRsaVerifyCb(WolfSSLRsaVerifyCallback) 
+ * to the {@link WolfSSLContext#setRsaVerifyCb(WolfSSLRsaVerifyCallback)
  * WolfSSLContext.setRsaVerifyCb()} method to be registered with the native
  * wolfSSL library.
  *
@@ -59,6 +59,4 @@ public interface WolfSSLRsaVerifyCallback {
             long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,
             long keySz, Object ctx);
 }
-
-
 

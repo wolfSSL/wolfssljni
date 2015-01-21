@@ -50,7 +50,7 @@ class MyRecvCallback implements WolfSSLIORecvCallback
                 ioctx.setPort(recvPacket.getPort());
 
             } catch (SocketTimeoutException ste) {
-                return WolfSSL.WOLFSSL_CBIO_ERR_TIMEOUT; 
+                return WolfSSL.WOLFSSL_CBIO_ERR_TIMEOUT;
             } catch (SocketException se) {
                 se.printStackTrace();
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
@@ -61,7 +61,7 @@ class MyRecvCallback implements WolfSSLIORecvCallback
                 e.printStackTrace();
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
             }
-            
+
             return recvPacket.getLength();
 
         } else {

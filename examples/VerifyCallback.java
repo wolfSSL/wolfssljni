@@ -22,7 +22,7 @@
 import com.wolfssl.WolfSSLVerifyCallback;
 
 public class VerifyCallback implements WolfSSLVerifyCallback {
-    
+
     public int verifyCallback(int preverify_ok, long x509StorePtr) {
         System.out.println("Hello from Java verify callback!");
         System.out.println("peer cert verification failed");

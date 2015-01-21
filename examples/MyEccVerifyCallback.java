@@ -30,7 +30,7 @@ class MyEccVerifyCallback implements WolfSSLEccVerifyCallback
     public int eccVerifyCallback(WolfSSLSession ssl, ByteBuffer sig,
             long sigSz, ByteBuffer hash, long hashSz, ByteBuffer keyDer,
             long keySz, int[] result, Object ctx) {
-        
+
         System.out.println("---------- Entered MyEccVerifyCallback ----------");
 
         int ret = -1;

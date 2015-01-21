@@ -27,8 +27,8 @@ package com.wolfssl;
  * callback class to be used by wolfSSL.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setIOSend(WolfSSLIOSendCallback) 
- * WolfSSLContext.setIOSend()} method to be registered with the native wolfSSL 
+ * to the {@link WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
+ * WolfSSLContext.setIOSend()} method to be registered with the native wolfSSL
  * library.
  *
  * @author  wolfSSL
@@ -48,10 +48,10 @@ public interface WolfSSLIOSendCallback {
      * @param sz    size of data in buffer "<b>buf</b>"
      * @param ctx   I/O context to be used.
      * @return      the number of bytes sent, or an error. For possible error
-     *              codes, see the default EmbedSend() function in 
+     *              codes, see the default EmbedSend() function in
      *              wolfssl_package/src/io.c
      */
     public int sendCallback(WolfSSLSession ssl, byte[] buf, int sz,
-           Object ctx); 
+           Object ctx);
 }
 
