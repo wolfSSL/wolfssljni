@@ -6,12 +6,14 @@ ARCH=`uname -m`
 # set up Java include and library paths for OS X and Linux
 # NOTE: you may need to modify these if your platform uses different locations
 if [ "$OS" == "Darwin" ] ; then
-    javaIncludes="-I/System/Library/Frameworks/JavaVM.framework/Headers"
+    javaHome=`/usr/libexec/java_home`
+    javaIncludes="-I$javaHome/include -I$javaHome/include/darwin"
     javaLibs="-dynamiclib -framework JavaVM"
     jniLibName="libwolfssl.jnilib"
     cflags="-DHAVE_ECC"
 elif [ "$OS" == "Linux" ] ; then
-    javaIncludes="-I/usr/lib/jvm/java-8-oracle/include -I/usr/lib/jvm/java-8-oracle/include/linux"
+    javaHome=`echo $(dirname $(dirname $(dirname $(readlink -f $(which java)))))`
+    javaIncludes="-I$javaHome/include -I$javaHome/include/linux"
     javaLibs="-shared"
     jniLibName="libwolfSSL.so"
     cflags="-DHAVE_ECC -DUSE_FAST_MATH"
