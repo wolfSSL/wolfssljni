@@ -12,7 +12,7 @@ when running java.sh. In this case, you should modify java.sh to match
 your environment.
 
 
-wolfSSL JNI Release 1.2.0 (06/02/2014)
+wolfSSL JNI Release 1.2.0 (06/02/2015)
 
 Release 1.2.0 has bug fixes and new features including:
 
