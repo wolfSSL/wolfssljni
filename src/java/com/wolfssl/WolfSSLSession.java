@@ -224,6 +224,7 @@ public class WolfSSLSession {
      *                  </code>. Possible options are <b>SSL_FILETYPE_ASN1</b>,
      *                  for DER-encoded certificates, or <b>SSL_FILETYPE_PEM
      *                  </b> for PEM-encoded certificates.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success,
      *                  <code>SSL_BAD_FILE</code> upon bad input file,
      *                  otherwise <code>SSL_FAILURE</code>. Possible failure
@@ -234,7 +235,12 @@ public class WolfSSLSession {
      *                  decoding fails on the file.
      * @see             WolfSSLContext#useCertificateFile(String, int)
      */
-    public int useCertificateFile(String file, int format) {
+    public int useCertificateFile(String file, int format)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return useCertificateFile(getSessionPtr(), file, format);
     }
 
@@ -251,6 +257,7 @@ public class WolfSSLSession {
      *                  </code>. Possible options are <b>SSL_FILETYPE_ASN1</b>,
      *                  for a DER-encoded key, or <b>SSL_FILETYPE_PEM
      *                  </b> for a PEM-encoded key.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success,
      *                  <code>SSL_BAD_FILE</code> upon bad input file, otherwise
      *                  <code>SSL_FAILURE</code>. Possible failure causes
@@ -262,7 +269,12 @@ public class WolfSSLSession {
      *                  encrypted but no password is provided.
      * @see             WolfSSLContext#usePrivateKeyFile(String, int)
      */
-    public int usePrivateKeyFile(String file, int format) {
+    public int usePrivateKeyFile(String file, int format)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return usePrivateKeyFile(getSessionPtr(), file, format);
     }
 
@@ -276,6 +288,7 @@ public class WolfSSLSession {
      * @param file  path to the file containing the chain of certificates
      *              to be loaded into the wolfSSL SSL session. Certificates
      *              must be in PEM format.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success,
      *              <code>SSL_BAD_FILE</code> upon bad input file, otherwise
      *              <code>SSL_FAILURE</code>. If the function call fails,
@@ -285,7 +298,12 @@ public class WolfSSLSession {
      * @see         WolfSSLContext#useCertificateFile(String, int)
      * @see         #useCertificateFile(String, int)
      */
-    public int useCertificateChainFile(String file) {
+    public int useCertificateChainFile(String file)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return useCertificateChainFile(getSessionPtr(), file);
     }
 
@@ -295,11 +313,16 @@ public class WolfSSLSession {
      * SSL connection.
      *
      * @param sd    Socket to be used as input/output facility.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success, otherwise
      *              <code>SSL_FAILURE</code>.
      * @see         #getFd()
      */
-    public int setFd(Socket sd) {
+    public int setFd(Socket sd) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setFd(getSessionPtr(), sd, 1);
     }
 
@@ -309,11 +332,16 @@ public class WolfSSLSession {
      * This can be used when using DatagramSocket objects with DTLS.
      *
      * @param sd    Socket to be used as input/output facility.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success, otherwise
      *              <code>SSL_FAILURE</code>.
      * @see         #getFd()
      */
-    public int setFd(DatagramSocket sd) {
+    public int setFd(DatagramSocket sd) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setFd(getSessionPtr(), sd, 2);
     }
 
@@ -327,11 +355,17 @@ public class WolfSSLSession {
      * @param nonblock  value used to set non-blocking flag on the SSL
      *                  session. Use <b>1</b> to specify non-blocking,
      *                  otherwise <b>0</b>.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see             #getUsingNonblock()
      * @see             #dtlsGotTimeout()
      * @see             #dtlsGetCurrentTimeout()
      */
-    public void setUsingNonblock(int nonblock) {
+    public void setUsingNonblock(int nonblock)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         setUsingNonblock(getSessionPtr(), nonblock);
     }
 
@@ -343,12 +377,17 @@ public class WolfSSLSession {
      * This lets the SSL session object know that receiving EWOULDBLOCK means
      * that the recvfrom call would block rather than that it timed out.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <b>1</b> if the underlying I/O is non-blocking, otherwise
      *              <b>0</b> if blocking.
      * @see         #setUsingNonblock(int)
      * @see         #setSession(long)
      */
-    public int getUsingNonblock() {
+    public int getUsingNonblock() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getUsingNonblock(getSessionPtr());
     }
 
@@ -357,10 +396,15 @@ public class WolfSSLSession {
      * SSL connection.
      * Typically this will be a socket file descriptor.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      SSL session file descriptor
      * @see         #setFd(Socket)
      */
-    public int getFd() {
+    public int getFd() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getFd(getSessionPtr());
     }
 
@@ -393,11 +437,16 @@ public class WolfSSLSession {
      * <p>
      * before calling <code>newSSL()</code>, though it's not recommended.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> if successful, otherwise
      *              <code>SSL_FATAL_ERROR</code> if an error occurred. To get
      *              a more detailed error code, call <code>getError()</code>.
      */
-    public int connect() {
+    public int connect() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return connect(getSessionPtr());
     }
 
@@ -421,6 +470,7 @@ public class WolfSSLSession {
      *
      * @param data      data buffer which will be sent to peer
      * @param length    size, in bytes, of data to send to the peer
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          the number of bytes written upon success. <code>0
      *                  </code>will be returned upon failure. <code>
      *                  SSL_FATAL_ERROR</code>upon failure when either an
@@ -431,7 +481,11 @@ public class WolfSSLSession {
      *                  <code>BAD_FUNC_ARC</code> when bad arguments are used.
      *                  Use <code>getError</code> to get a specific error code.
      */
-    public int write(byte[] data, int length) {
+    public int write(byte[] data, int length) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return write(getSessionPtr(), data, length);
     }
 
@@ -456,6 +510,7 @@ public class WolfSSLSession {
      * @param data  buffer where the data read from the SSL connection
      *              will be placed.
      * @param sz    number of bytes to read into <b><code>data</code></b>
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      the number of bytes read upon success. <code>SSL_FAILURE
      *              </code> will be returned upon failure which may be caused
      *              by either a clean (close notify alert) shutdown or just
@@ -468,7 +523,11 @@ public class WolfSSLSession {
      *              get a specific error code.
      *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
      */
-    public int read(byte[] data, int sz) {
+    public int read(byte[] data, int sz) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return read(getSessionPtr(), data, sz);
     }
 
@@ -491,23 +550,32 @@ public class WolfSSLSession {
      * If the underlying I/O is blocking, <code>accept()</code> will only
      * return once the handshake has been finished or an error occurred.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success. <code>SSL_FATAL_ERROR
      *              </code> if an error occurred. To get a more detailed
      *              error code, call <code>getError()</code>.
      * @see         #getError(int)
      * @see         #connect()
      */
-    public int accept() {
+    public int accept() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return accept(getSessionPtr());
     }
 
     /**
      * Frees an allocated SSL session.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#newContext(long)
      * @see         WolfSSLContext#free()
      */
-    public void freeSSL() {
+    public void freeSSL() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
 
         /* free native resources */
         freeSSL(getSessionPtr());
@@ -536,13 +604,18 @@ public class WolfSSLSession {
      * or <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat
      * the call to <code>shutdownSSL()</code> when the underlying I/O is ready.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success,
      *              <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
      *              getError()</code> for a more specific error code.
      * @see         #freeSSL(long)
      * @see         WolfSSLContext#free()
      */
-    public int shutdownSSL() {
+    public int shutdownSSL() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return shutdownSSL(getSessionPtr());
     }
 
@@ -558,12 +631,17 @@ public class WolfSSLSession {
      *
      * @param ret   return value of the previous function which resulted
      *              in an error return code.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      the unique error code describing why the previous API
      *              function failed. SSL_ERROR_NONE will be returned if
      *              <code>ret</code> is less than 0.
      * @see         WolfSSL#getErrorString(long)
      */
-    public int getError(int ret) {
+    public int getError(int ret) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getError(getSessionPtr(), ret);
     }
 
@@ -580,6 +658,7 @@ public class WolfSSLSession {
      *
      * @param session   pointer to the native WOLFSSL_SESSION structure used
      *                  to set the session for the SSL session object.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon successfully setting
      *                  the session. <code>SSL_FAILURE</code> will be
      *                  returned on failure. This could be caused by the
@@ -587,7 +666,11 @@ public class WolfSSLSession {
      *                  timed out.
      * @see             #getSession()
      */
-    public int setSession(long session) {
+    public int setSession(long session) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setSession(getSessionPtr(), session);
     }
 
@@ -605,13 +688,18 @@ public class WolfSSLSession {
      * At this point, the application may call <code>connect()</code> and
      * wolfSSL will try to resume the session.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      a pointer to the current SSL session object on success.
      *              <code>null</code> if <b>ssl</b> is <code>null</code>,
      *              the SSL session cache is disabled, wolfSSL doesn't have
      *              the session ID available, or mutex functions fail.
      * @see         #setSession(long)
      */
-    public long getSession() {
+    public long getSession() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getSession(getSessionPtr());
     }
 
@@ -633,11 +721,16 @@ public class WolfSSLSession {
      * @param list  null-terminated text string and colon-delimited list
      *              of cipher suites to use with the specified SSL
      *              context.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> upon success. <code>
      *              SSL_FAILURE</code> upon failure.
      * @see         WolfSSLContext#setCipherList(String)
      */
-    public int setCipherList(String list) {
+    public int setCipherList(String list) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setCipherList(getSessionPtr(), list);
     }
 
@@ -651,6 +744,7 @@ public class WolfSSLSession {
      * been waiting. The value returned by this method indicates how long the
      * application should wait.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      the current DTLS timeout value in seconds, or
      *              <code>NOT_COMPILED_IN</code> if wolfSSL was not built
      *              with DTLS support.
@@ -659,7 +753,11 @@ public class WolfSSLSession {
      * @see         #dtlsGotTimeout()
      * @see         #dtlsSetPeer(InetSocketAddress)
      */
-    public int dtlsGetCurrentTimeout() {
+    public int dtlsGetCurrentTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return dtlsGetCurrentTimeout(getSessionPtr());
     }
 
@@ -670,6 +768,7 @@ public class WolfSSLSession {
      * called on the SSL session when the controlling code thinks the
      * transmission has timed out.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> upon success. <code>
      *              SSL_FATAL_ERROR</code> if there have been too many
      *              retransmissions/timeouts without getting a response from
@@ -680,13 +779,18 @@ public class WolfSSLSession {
      * @see         #dtlsSetPeer(InetSocketAddress)
      * @see         #dtls()
      */
-    public int dtlsGotTimeout() {
+    public int dtlsGotTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return dtlsGotTimeout(getSessionPtr());
     }
 
     /**
      * Used to determine if the SSL session has been configured to use DTLS.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>1</code> if the SSL has been configured to use DTLS,
      *              otherwise, <code>0</code>.
      * @see         #dtlsGetCurrentTimeout()
@@ -694,7 +798,11 @@ public class WolfSSLSession {
      * @see         #dtlsGotTimeout()
      * @see         #dtlsSetPeer(InetSocketAddress)
      */
-    public int dtls() {
+    public int dtls() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return dtls(getSessionPtr());
     }
 
@@ -702,6 +810,7 @@ public class WolfSSLSession {
      * Sets the DTLS peer.
      *
      * @param peer  DTLS peer's InetSocketAddress
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> upon success, <code>
      *              SSL_FAILURE</code> upon failure, <code>
      *              SSL_NOT_IMPLEMENTED</code> if wolfSSL was not compiled
@@ -711,13 +820,19 @@ public class WolfSSLSession {
      * @see         #dtlsGotTimeout()
      * @see         #dtls()
      */
-    public int dtlsSetPeer(InetSocketAddress peer) {
+    public int dtlsSetPeer(InetSocketAddress peer)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return dtlsSetPeer(getSessionPtr(), peer);
     }
 
     /**
      * Gets the InetSocketAddress of the DTLS peer.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      DTLS peer's InetSocketAddress upon success, <code>
      *              null</code> upon failure.
      * @see         #dtlsGetCurrentTimeout()
@@ -725,7 +840,11 @@ public class WolfSSLSession {
      * @see         #dtlsSetPeer(InetSocketAddress)
      * @see         #dtls()
      */
-    public InetSocketAddress dtlsGetPeer() {
+    public InetSocketAddress dtlsGetPeer() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return dtlsGetPeer(getSessionPtr());
     }
 
@@ -736,12 +855,17 @@ public class WolfSSLSession {
      * reuse a given session, this method will notify the application if the
      * requested session has been negotiated after the handshake has completed.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <b>1</b> if the session was reused, <b>0</b> if a new
      *              session needed to be negotiated.
      * @see         #setSession(long)
      * @see         #getSession()
      */
-    public int sessionReused() {
+    public int sessionReused() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return sessionReused(getSessionPtr());
     }
 
@@ -750,6 +874,7 @@ public class WolfSSLSession {
      * This can be used to retrieve further information about the peer's
      * certificate (issuer, subject, alt name, etc.)
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      (long) WOLFSSL_X509 pointer to the peer's certificate.
      *
      * @see         WolfSSLSession#getPeerX509Issuer(long)
@@ -757,7 +882,11 @@ public class WolfSSLSession {
      * @see         WolfSSLSession#getVersion()
      * @see         WolfSSLSession#getCurrentCipher()
      */
-    public long getPeerCertificate() {
+    public long getPeerCertificate() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getPeerCertificate(getSessionPtr());
     }
 
@@ -766,13 +895,18 @@ public class WolfSSLSession {
      *
      * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      String representation of the peer's issuer information
      * @see         WolfSSLSession#getPeerCertificate()
      * @see         WolfSSLSession#getPeerX509Subject(long)
      * @see         WolfSSLSession#getVersion()
      * @see         WolfSSLSession#getCurrentCipher()
      */
-    public String getPeerX509Issuer(long x509) {
+    public String getPeerX509Issuer(long x509) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getPeerX509Issuer(getSessionPtr(), x509);
     }
 
@@ -781,13 +915,18 @@ public class WolfSSLSession {
      *
      * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      String representation of the peer's subject information
      * @see         WolfSSLSession#getPeerCertificate()
      * @see         WolfSSLSession#getPeerX509Issuer(long)
      * @see         WolfSSLSession#getVersion()
      * @see         WolfSSLSession#getCurrentCipher()
      */
-    public String getPeerX509Subject(long x509) {
+    public String getPeerX509Subject(long x509) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getPeerX509Subject(getSessionPtr(), x509);
     }
 
@@ -799,6 +938,7 @@ public class WolfSSLSession {
      *
      * @param x509  pointer (long) to native WOLFSSL_X509 structure, obtained
      *              from getPeerCertificate().
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      String representation of the peer's subject information
      * @see         WolfSSLSession#getPeerCertificate()
      * @see         WolfSSLSession#getPeerX509Issuer(long)
@@ -806,7 +946,11 @@ public class WolfSSLSession {
      * @see         WolfSSLSession#getVersion()
      * @see         WolfSSLSession#getCurrentCipher()
      */
-    public String getPeerX509AltName(long x509) {
+    public String getPeerX509AltName(long x509) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getPeerX509AltName(getSessionPtr(), x509);
     }
 
@@ -816,10 +960,15 @@ public class WolfSSLSession {
      * Examples include "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "DTLS", and
      * "DTLS 1.2".
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      SSL/TLS protocol version being used in String format,
      *              or "unknown".
      */
-    public String getVersion() {
+    public String getVersion() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getVersion(getSessionPtr());
     }
 
@@ -829,11 +978,16 @@ public class WolfSSLSession {
      * This pointer can be used with the <code>getCipherName()</code> function
      * to get the name of the current cipher suite being used.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      pointer (long) to the native WOLFSSL_CIPHER object
      *              currently used with the SSL session.
      * @see         WolfSSLSession#cipherGetName()
      */
-    public long getCurrentCipher() {
+    public long getCurrentCipher() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getCurrentCipher(getSessionPtr());
     }
 
@@ -847,10 +1001,15 @@ public class WolfSSLSession {
      *
      * @param dn    domain name to check against the peer certificate
      *              when received.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success, <code>SSL_FAILURE
      *              </code> if a memory error was encountered.
      */
-    public int checkDomainName(String dn) {
+    public int checkDomainName(String dn) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return checkDomainName(getSessionPtr(), dn);
     }
 
@@ -862,13 +1021,19 @@ public class WolfSSLSession {
      * @param pSz   size of <code>p</code>
      * @param g     Diffie-Hellman "generator" parameter
      * @param gSz   size of <code>g</code>
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success. <code>MEMORY_E
      *              </code> if a memory error was encountered. <code>
      *              SIDE_ERROR</code> if this function is called on an
      *              SSL client instead of an SSL server.
      * @see         #accept()
      */
-    public int setTmpDH(byte[] p, int pSz, byte[] g, int gSz) {
+    public int setTmpDH(byte[] p, int pSz, byte[] g, int gSz)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setTmpDH(getSessionPtr(), p, pSz, g, gSz);
     }
 
@@ -880,6 +1045,7 @@ public class WolfSSLSession {
      * @param format    format of DH parameter file, either
      *                  <code>SSL_FILETYPE_ASN1</code> or <code>
      *                  SSL_FILETYPE_PEM</code>.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> on success. <code>MEMORY_E
      *                  </code> if a memory error was encountered. <code>
      *                  SIDE_ERROR</code> if this function is called on an
@@ -889,7 +1055,12 @@ public class WolfSSLSession {
      *                  problem with the input file.
      * @see             #setTmpDH(byte[], int, byte[], int)
      */
-    public int setTmpDHFile(String fname, int format) {
+    public int setTmpDHFile(String fname, int format)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setTmpDHFile(getSessionPtr(), fname, format);
     }
 
@@ -902,6 +1073,7 @@ public class WolfSSLSession {
      * @param sz        size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
      *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
      *                  in the wrong format, <b><code>SSL_BAD_FILE</code></b>
@@ -918,7 +1090,12 @@ public class WolfSSLSession {
      * @see             #usePrivateKeyBuffer(byte[], long, int)
      * @see             #useCertificateChainBuffer(byte[], long)
      */
-    public int useCertificateBuffer(byte[] in, long sz, int format) {
+    public int useCertificateBuffer(byte[] in, long sz, int format)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return useCertificateBuffer(getSessionPtr(), in, sz, format);
     }
 
@@ -932,6 +1109,7 @@ public class WolfSSLSession {
      * @param sz        the size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
      *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
      *                  in the wrong format, <b><code>SSL_BAD_FILE</code></b>
@@ -950,7 +1128,12 @@ public class WolfSSLSession {
      * @see             #useCertificateBuffer(byte[], long, int)
      * @see             #useCertificateChainBuffer(byte[], long)
      */
-    public int usePrivateKeyBuffer(byte[] in, long sz, int format) {
+    public int usePrivateKeyBuffer(byte[] in, long sz, int format)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return usePrivateKeyBuffer(getSessionPtr(), in, sz, format);
     }
 
@@ -964,6 +1147,7 @@ public class WolfSSLSession {
      * @param in        the input buffer containing the PEM-formatted
      *                  certificate chain to be loaded.
      * @param sz        the size of the input buffer, <b>in</b>
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
      *                  in the wrong format, <b><code>SSL_BAD_FILE</code></b>
@@ -982,7 +1166,12 @@ public class WolfSSLSession {
      * @see             #useCertificateBuffer(byte[], long, int)
      * @see             #usePrivateKeyBuffer(byte[], long, int)
      */
-    public int useCertificateChainBuffer(byte[] in, long sz) {
+    public int useCertificateChainBuffer(byte[] in, long sz)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return useCertificateChainBuffer(getSessionPtr(), in, sz);
     }
 
@@ -990,11 +1179,16 @@ public class WolfSSLSession {
      * Turns on grouping of the handshake messages where possible using the
      * SSL session.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> upon success. <code>
      *              BAD_FUNC_ARG</code> if the input session is null.
      * @see         WolfSSLContext#setGroupMessages()
      */
-    public int setGroupMessages() {
+    public int setGroupMessages() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setGroupMessages(getSessionPtr());
     }
 
@@ -1011,11 +1205,16 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              receive callback method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         #setIOWriteCtx(Object)
      * @see         WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      * @see         WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      */
-    public void setIOReadCtx(Object ctx) {
+    public void setIOReadCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         ioReadCtx = ctx;
         setIOReadCtx(getSessionPtr());
     }
@@ -1033,11 +1232,16 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              send callback method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         #setIOReadCtx(Object)
      * @see         WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      * @see         WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      */
-    public void setIOWriteCtx(Object ctx) {
+    public void setIOWriteCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         ioWriteCtx = ctx;
         setIOWriteCtx(getSessionPtr());
     }
@@ -1052,9 +1256,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              cookie generation method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setGenCookie(WolfSSLGenCookieCallback)
      */
-    public void setGenCookieCtx(Object ctx) {
+    public void setGenCookieCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         genCookieCtx = ctx;
         setGenCookieCtx(getSessionPtr());
     }
@@ -1067,6 +1276,7 @@ public class WolfSSLSession {
      * in the chain versus the leaf certificate only (which is default).
      *
      * @param options   options to use when enabling CRL
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success. <code>
      *                  NOT_COMPILED_IN</code> if wolfSSL was not compiled
      *                  with CRL enabled. <code>MEMORY_E</code> if an out
@@ -1081,7 +1291,11 @@ public class WolfSSLSession {
      * @see             WolfSSLContext#disableCRL()
      * @see             WolfSSLContext#setCRLCb(WolfSSLMissingCRLCallback)
      */
-    public int enableCRL(int options) {
+    public int enableCRL(int options) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return enableCRL(getSessionPtr(), options);
     }
 
@@ -1091,6 +1305,7 @@ public class WolfSSLSession {
      * temporarily or permanently disable CRL checking for a given SSL
      * session object that previously had CRL checking enabled.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success, <code>
      *              BAD_FUNC_ARG</code> if pointer is not provided.
      * @see         #enableCRL(int)
@@ -1100,7 +1315,11 @@ public class WolfSSLSession {
      * @see         WolfSSLContext#disableCRL()
      * @see         WolfSSLContext#setCRLCb(WolfSSLMissingCRLCallback)
      */
-    public int disableCRL() {
+    public int disableCRL() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return disableCRL(getSessionPtr());
     }
 
@@ -1120,6 +1339,7 @@ public class WolfSSLSession {
      *                  to indicate that the directory should be monitored
      *                  and <code>WOLFSSL_CRL_START_MON</code> to start the
      *                  monitor.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
      *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
      *                  internal CertManager fails<br>
@@ -1140,7 +1360,12 @@ public class WolfSSLSession {
      * @see             WolfSSLContext#disableCRL()
      * @see             WolfSSLContext#setCRLCb(WolfSSLMissingCRLCallback)
      */
-    public int loadCRL(String path, int type, int monitor) {
+    public int loadCRL(String path, int type, int monitor)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return loadCRL(getSessionPtr(), path, type, monitor);
     }
 
@@ -1149,6 +1374,7 @@ public class WolfSSLSession {
      *
      * @param cb        callback to be registered with SSL session, called
      *                  when CRL lookup fails.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>BAD_FUNC_ARG</code></b> if SSL pointer is
      *                  null.
@@ -1159,7 +1385,12 @@ public class WolfSSLSession {
      * @see             WolfSSLContext#disableCRL()
      * @see             WolfSSLContext#setCRLCb(WolfSSLMissingCRLCallback)
      */
-    public int setCRLCb(WolfSSLMissingCRLCallback cb) {
+    public int setCRLCb(WolfSSLMissingCRLCallback cb)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setCRLCb(getSessionPtr(), cb);
     }
 
@@ -1167,11 +1398,16 @@ public class WolfSSLSession {
      * Returns the cipher suite name associated with the WolfSSL session
      * in String format.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          String representation of the cipher suite associated
      *                  with the corresponding WolfSSL session.
      * @see             WolfSSLSession#getCurrentCipher()
      */
-    public String cipherGetName() {
+    public String cipherGetName() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return cipherGetName(getSessionPtr());
     }
 
@@ -1182,24 +1418,34 @@ public class WolfSSLSession {
      *
      * @param verify    specifies whether this if for verification of a peer
      *                  message.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          a valid secret upon success, or <b>null</b> for an
      *                  error state. The size of the secret can be obtained
      *                  from getHmacSize().
      * @see             #getHmacSize()
      */
-    public byte[] getMacSecret(int verify) {
+    public byte[] getMacSecret(int verify) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getMacSecret(getSessionPtr(), verify);
     }
 
     /**
      * Allows retrieval of the client write key from the handshake process.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  a valid key buffer upon success, or <b>null</b> for an error
      *          state. The size of the key can be obtained from getKeySize().
      * @see     #getKeySize()
      * @see     #getClientWriteIV()
      */
-    public byte[] getClientWriteKey() {
+    public byte[] getClientWriteKey() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getClientWriteKey(getSessionPtr());
     }
 
@@ -1207,25 +1453,35 @@ public class WolfSSLSession {
      * Allows retrieval of the client write IV (initialization vector) from
      * the handshake process.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  a valid IV buffer upon success, or <b>null</b> for an error
      *          state. The size of the IV can be obtained from
      *          getCipherBlockSize().
      * @see     #getCipherBlockSize()
      * @see     #getClientWriteKey()
      */
-    public byte[] getClientWriteIV() {
+    public byte[] getClientWriteIV() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getClientWriteIV(getSessionPtr());
     }
 
     /**
      * Allows retrieval of the server write key from the handshake process.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  a valid key buffer upon success, or <b>null</b> for an error
      *          state. The size of the key can be obtained from getKeySize().
      * @see     #getKeySize()
      * @see     #getServerWriteIV()
      */
-    public byte[] getServerWriteKey() {
+    public byte[] getServerWriteKey() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getServerWriteKey(getSessionPtr());
     }
 
@@ -1233,31 +1489,42 @@ public class WolfSSLSession {
      * Allows retrieval of the server write IV (initialization vector) from
      * the handshake process.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  a valid IV buffer upon success, or <b>null</b> for an error
      *          state. The size of the IV can be obtained from
      *          getCipherBlockSize().
      * @see     #getCipherBlockSize()
      * @see     #getServerWriteKey()
      */
-    public byte[] getServerWriteIV() {
+    public byte[] getServerWriteIV() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getServerWriteIV(getSessionPtr());
     }
 
     /**
      * Allows retrieval of the key size from the handshake process.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  the key size in bytes upon success.
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getClientWriteKey()
      * @see     #getServerWriteKey()
      */
-    public int getKeySize() {
+    public int getKeySize() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getKeySize(getSessionPtr());
     }
 
     /**
      * Allows retrieval of the side of this wolfSSL connection.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  <b><code>WOLFSSL_SERVER_END</code></b> or
      *          <b><code>WOLFSSL_CLIENT_END</code></b> depending on the side
      *          of the wolfSSL session object.
@@ -1265,7 +1532,11 @@ public class WolfSSLSession {
      * @see     #getClientWriteKey()
      * @see     #getServerWriteKey()
      */
-    public int getSide() {
+    public int getSide() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getSide(getSessionPtr());
     }
 
@@ -1273,12 +1544,17 @@ public class WolfSSLSession {
      * Allows callers to determine if the negotiated protocol version is at
      * least TLS version 1.1 or greater.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  <b><code>1</code></b> for true, <b><code>0</code></b> for
      *          false.
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getSide()
      */
-    public int isTLSv1_1() {
+    public int isTLSv1_1() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return isTLSv1_1(getSessionPtr());
     }
 
@@ -1286,6 +1562,7 @@ public class WolfSSLSession {
      * Allows caller to determine the negotiated bulk cipher algorithm from
      * the handshake.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  If successful, the call will return one of the following:<br>
      *          WolfSSL.wolfssl_cipher_null<br>
      *          WolfSSL.wolfssl_des<br>
@@ -1300,7 +1577,11 @@ public class WolfSSLSession {
      * @see     #getCipherBlockSize()
      * @see     #getKeySize()
      */
-    public int getBulkCipher() {
+    public int getBulkCipher() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getBulkCipher(getSessionPtr());
     }
 
@@ -1308,12 +1589,17 @@ public class WolfSSLSession {
      * Allows callers to determine the negotiated cipher block size from the
      * handshake.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  the size in bytes of the cipher block size upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getBulkCipher()
      * @see     #getKeySize()
      */
-    public int getCipherBlockSize() {
+    public int getCipherBlockSize() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getCipherBlockSize(getSessionPtr());
     }
 
@@ -1322,12 +1608,17 @@ public class WolfSSLSession {
      * handshake.
      * For cipher type <b>WOLFSSL_AEAD_TYPE</b>.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  the size in bytes of the aead mac size upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getBulkCipher()
      * @see     #getKeySize()
      */
-    public int getAeadMacSize() {
+    public int getAeadMacSize() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getAeadMacSize(getSessionPtr());
     }
 
@@ -1336,12 +1627,17 @@ public class WolfSSLSession {
      * handshake.
      * For cipher types except <b>WOLFSSL_AEAD_TYPE</b>.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  the size in bytes of the (h)mac size upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getBulkCipher()
      * @see     #getHmacType()
      */
-    public int getHmacSize() {
+    public int getHmacSize() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getHmacSize(getSessionPtr());
     }
 
@@ -1350,6 +1646,7 @@ public class WolfSSLSession {
      * handshake.
      * For cipher types except <b>WOLFSSL_AEAD_TYPE</b>.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  If successful, the call will return one of the following:<p>
      *          WolfSSL.MD5<br>
      *          WolfSSL.SHA<br>
@@ -1362,7 +1659,11 @@ public class WolfSSLSession {
      * @see     #getHmacSize()
      *
      */
-    public int getHmacType() {
+    public int getHmacType() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getHmacType(getSessionPtr());
     }
 
@@ -1370,6 +1671,7 @@ public class WolfSSLSession {
      * Allows caller to determine the negotiated cipher type from the
      * handshake.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  If successful, the call will return one of the following:<p>
      *          WolfSSL.WOLFSSL_BLOCK_TYPE<br>
      *          WolfSSL.WOLFSSL_STREAM_TYPE<br>
@@ -1379,7 +1681,11 @@ public class WolfSSLSession {
      * @see     #getBulkCipher()
      * @see     #getHmacType()
      */
-    public int getCipherType() {
+    public int getCipherType() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return getCipherType(getSessionPtr());
     }
 
@@ -1396,13 +1702,18 @@ public class WolfSSLSession {
      * @param   content  type of the message
      * @param   verify   specifies if this is a verification of a peer message.
      *
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  <b><code>1</code></b> upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
      * @see     #getBulkCipher()
      * @see     #getHmacType()
      */
     public int setTlsHmacInner(byte[] inner, long sz, int content,
-            int verify) {
+            int verify) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         return setTlsHmacInner(getSessionPtr(), inner, sz, content, verify);
     }
 
@@ -1412,9 +1723,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              MAC/Encrypt method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setMacEncryptCb(WolfSSLMacEncryptCallback)
      */
-    public void setMacEncryptCtx(Object ctx) {
+    public void setMacEncryptCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         macEncryptCtx = ctx;
         setMacEncryptCtx(getSessionPtr());
     }
@@ -1425,9 +1741,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              decrypt/verify method.
-     * @see         WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see      WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
      */
-    public void setDecryptVerifyCtx(Object ctx) {
+    public void setDecryptVerifyCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         decryptVerifyCtx = ctx;
         setDecryptVerifyCtx(getSessionPtr());
     }
@@ -1437,9 +1758,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              ECC signing method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
      */
-    public void setEccSignCtx(Object ctx) {
+    public void setEccSignCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         eccSignCtx = ctx;
         setEccSignCtx(getSessionPtr());
     }
@@ -1449,9 +1775,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              ECC verification method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
      */
-    public void setEccVerifyCtx(Object ctx) {
+    public void setEccVerifyCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         eccVerifyCtx = ctx;
         setEccVerifyCtx(getSessionPtr());
     }
@@ -1461,9 +1792,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              RSA signing method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setRsaSignCb(WolfSSLRsaSignCallback)
      */
-    public void setRsaSignCtx(Object ctx) {
+    public void setRsaSignCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         rsaSignCtx = ctx;
         setRsaSignCtx(getSessionPtr());
     }
@@ -1474,9 +1810,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              RSA verification method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setRsaVerifyCb(WolfSSLRsaVerifyCallback)
      */
-    public void setRsaVerifyCtx(Object ctx) {
+    public void setRsaVerifyCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         rsaVerifyCtx = ctx;
         setRsaVerifyCtx(getSessionPtr());
     }
@@ -1487,9 +1828,14 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              RSA public encrypt method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setRsaEncCb(WolfSSLRsaEncCallback)
      */
-    public void setRsaEncCtx(Object ctx) {
+    public void setRsaEncCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         rsaEncCtx = ctx;
         setRsaEncCtx(getSessionPtr());
     }
@@ -1500,11 +1846,26 @@ public class WolfSSLSession {
      *
      * @param ctx   context object to be registered with the SSL session's
      *              RSA private decrypt method.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLContext#setRsaDecCb(WolfSSLRsaDecCallback)
      */
-    public void setRsaDecCtx(Object ctx) {
+    public void setRsaDecCtx(Object ctx) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
         rsaDecCtx = ctx;
         setRsaDecCtx(getSessionPtr());
+    }
+
+    @Override
+    protected void finalize() throws Throwable
+    {
+        if (this.active == true) {
+            /* free resources, set state */
+            this.freeSSL();
+            this.active = false;
+        }
     }
 
 } /* end WolfSSLSession */
