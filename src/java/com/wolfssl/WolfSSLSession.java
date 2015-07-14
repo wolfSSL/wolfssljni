@@ -1861,10 +1861,16 @@ public class WolfSSLSession {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            /* free resources, set state */
-            this.freeSSL();
-            this.active = false;
+        try {
+            if (this.active == true) {
+                /* free resources, set state */
+                this.freeSSL();
+                this.active = false;
+            }
+        } catch (Throwable t) {
+            throw t;
+        } finally {
+            super.finalize();
         }
     }
 

@@ -1387,10 +1387,16 @@ public class WolfSSLContext {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            /* free resources, set state */
-            this.free();
-            this.active = false;
+        try {
+            if (this.active == true) {
+                /* free resources, set state */
+                this.free();
+                this.active = false;
+            }
+        } catch (Throwable t) {
+            throw t;
+        } finally {
+            super.finalize();
         }
     }
 
