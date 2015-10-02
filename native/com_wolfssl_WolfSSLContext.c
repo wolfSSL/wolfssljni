@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 

@@ -23,6 +23,7 @@
     #include <wolfssl/options.h>
 #endif
 
+#include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include "com_wolfssl_wolfcrypt_RSA.h"
 #include <stdio.h>

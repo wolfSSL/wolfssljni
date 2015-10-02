@@ -25,7 +25,7 @@
 #define _Included_com_wolfssl_globals
 
 /* global JavaVM reference for JNIEnv lookup */
-JavaVM*  g_vm;
+extern JavaVM*  g_vm;
 
 /* struct to hold I/O class, object refs */
 typedef struct {

@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -27,6 +28,9 @@
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
+
+/* global JavaVM reference for JNIEnv lookup */
+JavaVM*  g_vm;
 
 /* global object refs for logging callbacks */
 static jobject g_loggingCbIfaceObj;
@@ -59,13 +63,21 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)wolfSSLv3_server_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)wolfSSLv3_client_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod

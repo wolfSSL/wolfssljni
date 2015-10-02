@@ -91,9 +91,9 @@ public class WolfSSLTest {
         if (method == 0) {
             System.out.println("\t... failed");
             fail("method test failed, method was null");
+        } else if (method != WolfSSL.NOT_COMPILED_IN) {
+            WolfSSL.nativeFree(method);
         }
-
-        WolfSSL.nativeFree(method);
         System.out.println("\t... passed");
     }
 }
