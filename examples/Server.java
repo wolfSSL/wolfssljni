@@ -50,29 +50,33 @@ public class Server {
         DataOutputStream outstream    = null;
         DataInputStream  instream     = null;
 
-        int ret, insz;
+        int ret = 0, insz;
         String msg  = "I hear you fa shizzle, from Java!";
         byte[] input = new byte[80];
         long method = 0;
 
         /* config info */
-        boolean useIOCallbacks = false;       /* test I/O callbacks */
-        String cipherList = "AES128-SHA";     /* try AES128-SHA by default */
-        int sslVersion = 3;                   /* default to TLS 1.2 */
-        int verifyPeer = 1;                   /* verify peer by default */
-        int doDTLS = 0;                       /* don't use DTLS by default */
-        int useOcsp = 0;                      /* don't use OCSP by default */
-        String ocspUrl = null;                /* OCSP override URL */
-        int useAtomic = 0;                    /* atomic record lyr processing */
-        int pkCallbacks = 0;                  /* public key callbacks */
-        int logCallback = 0;                  /* test logging callback */
-        int crlDirMonitor = 0;                /* enable CRL monitor */
+        boolean useIOCallbacks = false;      /* test I/O callbacks */
+        String cipherList = null;            /* default cipher suite list */
+        int sslVersion = 3;                  /* default to TLS 1.2 */
+        int verifyPeer = 1;                  /* verify peer by default */
+        int doDTLS = 0;                      /* don't use DTLS by default */
+        int useOcsp = 0;                     /* don't use OCSP by default */
+        String ocspUrl = null;               /* OCSP override URL */
+        int useAtomic = 0;                   /* atomic record lyr processing */
+        int pkCallbacks = 0;                 /* public key callbacks */
+        int logCallback = 0;                 /* test logging callback */
+        int crlDirMonitor = 0;               /* enable CRL monitor */
+        int usePsk = 0;                      /* use pre shared keys */
+        int needDH = 0;                      /* toggle for loading DH params */
+        int sendPskIdentityHint = 1;         /* toggle sending PSK ident hint */
 
         /* cert info */
         String serverCert = "../certs/server-cert.pem";
         String serverKey  = "../certs/server-key.pem";
         String caCert     = "../certs/client-cert.pem";
         String crlPemDir  = "../certs/crl";
+        String dhParam    = "../certs/dh2048.pem";
 
         /* server info */
         int port    =  11111;
@@ -124,6 +128,9 @@ public class Server {
             } else if (arg.equals("-u")) {
                 doDTLS = 1;
 
+            } else if (arg.equals("-s")) {
+                usePsk = 1;
+
             } else if (arg.equals("-iocb")) {
                 useIOCallbacks = true;
 
@@ -147,6 +154,9 @@ public class Server {
 
             } else if (arg.equals("-m")) {
                 crlDirMonitor = 1;
+
+            } else if (arg.equals("-I")) {
+                sendPskIdentityHint = 0;
 
             } else {
                 printUsage();
@@ -204,39 +214,63 @@ public class Server {
             /* create context */
             WolfSSLContext sslCtx = new WolfSSLContext(method);
 
-            /* load certificate/key files */
-            ret = sslCtx.useCertificateFile(serverCert,
-                    WolfSSL.SSL_FILETYPE_PEM);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("failed to load server certificate!");
-                System.exit(1);
-            }
+            if (usePsk == 1) {
 
-            ret = sslCtx.usePrivateKeyFile(serverKey,
-                    WolfSSL.SSL_FILETYPE_PEM);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("failed to load server private key!");
-                System.exit(1);
-            }
+                MyPskServerCallback pskServerCb = new MyPskServerCallback();
+                sslCtx.setPskServerCb(pskServerCb);
+                if (sendPskIdentityHint == 1) {
+                    ret = sslCtx.usePskIdentityHint("cyassl server");
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("Error setting PSK Identity Hint");
+                        System.exit(1);
+                    }
+                }
 
-
-            /* set verify callback */
-            if (verifyPeer == 0) {
-                sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             } else {
-                ret = sslCtx.loadVerifyLocations(caCert, null);
+
+                /* load certificate/key files */
+                ret = sslCtx.useCertificateFile(serverCert,
+                        WolfSSL.SSL_FILETYPE_PEM);
                 if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to load CA certificates!");
+                    System.out.println("failed to load server certificate!");
                     System.exit(1);
                 }
 
-                VerifyCallback vc = new VerifyCallback();
-                sslCtx.setVerify(WolfSSL.SSL_VERIFY_PEER, vc);
+                ret = sslCtx.usePrivateKeyFile(serverKey,
+                        WolfSSL.SSL_FILETYPE_PEM);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to load server private key!");
+                    System.exit(1);
+                }
+
+                /* set verify callback */
+                if (verifyPeer == 0) {
+                    sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+                } else {
+                    ret = sslCtx.loadVerifyLocations(caCert, null);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to load CA certificates!");
+                        System.exit(1);
+                    }
+
+                    VerifyCallback vc = new VerifyCallback();
+                    sslCtx.setVerify(WolfSSL.SSL_VERIFY_PEER, vc);
+                }
             }
 
             /* set cipher list */
-            if (cipherList != null)
+            if (cipherList == null) {
+                if (usePsk == 1)
+                    ret = sslCtx.setCipherList("DHE-PSK-AES128-GCM-SHA256");
+                    needDH = 1;
+            } else {
                 ret = sslCtx.setCipherList(cipherList);
+            }
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("failed to set cipher list, ret = " + ret);
+                System.exit(1);
+            }
 
             /* set OCSP options, override URL */
             if (useOcsp == 1) {
@@ -303,6 +337,15 @@ public class Server {
 
                 /* create SSL object */
                 WolfSSLSession ssl = new WolfSSLSession(sslCtx);
+
+                if (needDH == 1) {
+                    ret = ssl.setTmpDHFile(dhParam, WolfSSL.SSL_FILETYPE_PEM);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to set DH file, ret = " +
+                                ret);
+                        System.exit(1);
+                    }
+                }
 
                 /* enable/load CRL functionality */
                 ret = ssl.enableCRL(0);

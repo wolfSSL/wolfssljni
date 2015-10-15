@@ -44,7 +44,7 @@ public class Client {
 
     public void run(String[] args) {
 
-        int ret, input;
+        int ret = 0, input;
         byte[] back = new byte[80];
         String msg  = "hello from jni";
         WolfSSLSession ssl;
@@ -57,7 +57,7 @@ public class Client {
 
         /* config info */
         boolean useIOCallbacks = false;       /* test I/O callbacks */
-        String cipherList = "AES128-SHA";     /* try AES128-SHA by default */
+        String cipherList = null;             /* default ciphersuite list */
         int sslVersion = 3;                   /* default to TLS 1.2 */
         int verifyPeer = 1;                   /* verify peer by default */
         int benchmark = 0;
@@ -67,6 +67,7 @@ public class Client {
         int useAtomic = 0;                    /* atomic record lyr processing */
         int pkCallbacks = 0;                  /* public key callbacks */
         int logCallback = 0;                  /* use test logging callback */
+        int usePsk = 0;                       /* use pre shared keys */
 
         /* cert info */
         String clientCert = "../certs/client-cert.pem";
@@ -136,6 +137,9 @@ public class Client {
 
             } else if (arg.equals("-u")) {
                 doDTLS = 1;
+
+            } else if (arg.equals("-s")) {
+                usePsk = 1;
 
             } else if (arg.equals("-iocb")) {
                 useIOCallbacks = true;
@@ -214,38 +218,57 @@ public class Client {
             /* create context */
             WolfSSLContext sslCtx = new WolfSSLContext(method);
 
-            /* load certificate files */
-            ret = sslCtx.useCertificateFile(clientCert,
-                    WolfSSL.SSL_FILETYPE_PEM);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("failed to load client certificate!");
-                System.exit(1);
-            }
+            /* set up PSK, if being used */
+            if (usePsk == 1) {
 
-            ret = sslCtx.usePrivateKeyFile(clientKey,
-                    WolfSSL.SSL_FILETYPE_PEM);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("failed to load client private key!");
-                System.exit(1);
-            }
+                MyPskClientCallback pskClientCb = new MyPskClientCallback();
+                sslCtx.setPskClientCb(pskClientCb);
 
-            /* set verify callback */
-            if (verifyPeer == 0) {
-                sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             } else {
-                ret = sslCtx.loadVerifyLocations(caCert, null);
+
+                /* load certificate files */
+                ret = sslCtx.useCertificateFile(clientCert,
+                        WolfSSL.SSL_FILETYPE_PEM);
                 if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to load CA certificates!");
+                    System.out.println("failed to load client certificate!");
                     System.exit(1);
                 }
 
-                VerifyCallback vc = new VerifyCallback();
-                sslCtx.setVerify(WolfSSL.SSL_VERIFY_PEER, vc);
+                ret = sslCtx.usePrivateKeyFile(clientKey,
+                        WolfSSL.SSL_FILETYPE_PEM);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to load client private key!");
+                    System.exit(1);
+                }
+
+                /* set verify callback */
+                if (verifyPeer == 0) {
+                    sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+                } else {
+                    ret = sslCtx.loadVerifyLocations(caCert, null);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to load CA certificates!");
+                        System.exit(1);
+                    }
+
+                    VerifyCallback vc = new VerifyCallback();
+                    sslCtx.setVerify(WolfSSL.SSL_VERIFY_PEER, vc);
+                }
             }
 
             /* set cipher list */
-            if (cipherList != null)
+            if (cipherList == null) {
+                if (usePsk == 1) {
+                    ret = sslCtx.setCipherList("DHE-PSK-AES128-GCM-SHA256");
+                }
+            } else {
                 ret = sslCtx.setCipherList(cipherList);
+            }
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("failed to set cipher list, ret = " + ret);
+                System.exit(1);
+            }
 
             /* set OCSP options, override URL */
             if (useOcsp == 1) {
@@ -464,11 +487,13 @@ public class Client {
         String altname;
         long peerCrtPtr = ssl.getPeerCertificate();
 
-        System.out.println("issuer : " + ssl.getPeerX509Issuer(peerCrtPtr));
-        System.out.println("subject : " + ssl.getPeerX509Subject(peerCrtPtr));
+        if (peerCrtPtr != 0) {
+            System.out.println("issuer : " + ssl.getPeerX509Issuer(peerCrtPtr));
+            System.out.println("subject : " + ssl.getPeerX509Subject(peerCrtPtr));
 
-        while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
-            System.out.println("altname = " + altname);
+            while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
+                System.out.println("altname = " + altname);
+        }
 
         System.out.println("SSL version is " + ssl.getVersion());
         System.out.println("SSL cipher suite is " + ssl.cipherGetName());
@@ -490,6 +515,7 @@ public class Client {
                 "../certs/ca-cert.pem");
         System.out.println("-b <num>\tBenchmark <num> connections and print" +
                 " stats");
+        System.out.println("-s\t\tUse pre shared keys");
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
             ", -v 3 for DTLSv1.2");
