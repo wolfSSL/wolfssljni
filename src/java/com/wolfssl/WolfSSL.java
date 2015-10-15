@@ -264,7 +264,9 @@ public class WolfSSL {
      * @return  A pointer to the created WOLFSSL_METHOD structure if
      *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
+     * @deprecated SSL 3.0 is now considered insecure.
      */
+    @Deprecated
     public final static native long SSLv3_ServerMethod();
 
     /**
@@ -277,7 +279,9 @@ public class WolfSSL {
      * @return  A pointer to the created WOLFSSL_METHOD structure if
      *          successful, null on failure.
      * @see     WolfSSLContext#newContext(long)
+     * @deprecated SSL 3.0 is now considered insecure.
      */
+    @Deprecated
     public final static native long SSLv3_ClientMethod();
 
     /**

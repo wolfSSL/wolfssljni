@@ -33,6 +33,8 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
 
+/* suppress SSLv3 deprecation warnings, meant for end user not examples */
+@SuppressWarnings("deprecation")
 public class Server {
 
     public static Charset charset = Charset.forName("UTF-8");

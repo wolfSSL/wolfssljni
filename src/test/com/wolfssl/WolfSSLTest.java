@@ -29,6 +29,8 @@ import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
 
+/* suppress SSLv3 deprecation warnings, meant for end user not tests */
+@SuppressWarnings("deprecation")
 public class WolfSSLTest {
 
     @BeforeClass
