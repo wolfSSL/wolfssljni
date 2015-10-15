@@ -53,6 +53,10 @@ public class WolfSSLSession {
     /* reference to the associated WolfSSLContext */
     private WolfSSLContext ctx;
 
+    /* user-registered PSK callbacks, also at WolfSSLContext level */
+    private WolfSSLPskClientCallback internPskClientCb = null;
+    private WolfSSLPskServerCallback internPskServerCb = null;
+
     /* is this context active, or has it been freed? */
     private boolean active = false;
 
@@ -133,6 +137,31 @@ public class WolfSSLSession {
         return this.rsaDecCtx;
     }
 
+    private long internalPskClientCallback(WolfSSLSession ssl, String hint,
+            StringBuffer identity, long idMaxLen, byte[] key,
+            long keyMaxLen)
+    {
+        long ret;
+
+        /* call user-registered PSK client callback method */
+        ret = internPskClientCb.pskClientCallback(ssl, hint, identity,
+                idMaxLen, key, keyMaxLen);
+
+        return ret;
+    }
+
+    private long internalPskServerCallback(WolfSSLSession ssl,
+            String identity, byte[] key, long keyMaxLen)
+    {
+        long ret;
+
+        /* call user-registered PSK server callback method */
+        ret = internPskServerCb.pskServerCallback(ssl, identity,
+                key, keyMaxLen);
+
+        return ret;
+    }
+
     /* ------------------ native method declarations -------------------- */
 
     private native long newSSL(long ctx);
@@ -208,6 +237,11 @@ public class WolfSSLSession {
     private native void setRsaVerifyCtx(long ssl);
     private native void setRsaEncCtx(long ssl);
     private native void setRsaDecCtx(long ssl);
+    private native void setPskClientCb(long ctx);
+    private native void setPskServerCb(long ctx);
+    private native String getPskIdentityHint(long ssl);
+    private native String getPskIdentity(long ssl);
+    private native int usePskIdentityHint(long ssl, String hint);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -1856,6 +1890,153 @@ public class WolfSSLSession {
 
         rsaDecCtx = ctx;
         setRsaDecCtx(getSessionPtr());
+    }
+
+    /**
+     * Allows caller to set the PSK client callback at the WolfSSLSession level.
+     * This provides a method for the user to set the identity, hint, and key
+     * the WolfSSLSession level. The PSK client callback can also be set at the
+     * WolfSSLContext level, allowing the user to set it once for all
+     * SSL/TLS sessions that are created from the WolfSSLContext.
+     * The callback should return the length of the key in octets or
+     * 0 for error. The <b>ssl</b> parameter is available for the user's
+     * convenience. <b>hint</b> is the client PSK hint. <b>identity</b>
+     * is the client identity, with a maximum size in characters of
+     * <b>idMaxLen</b>. <b>key</b> is the client key, with a maximum size
+     * in bytes of <b>keyMaxLen</b>. An example callback can be found
+     * in examples/MyPskClientCallback.java.
+     *
+     * If the user sets the PSK client callback at both WolfSSLSession and
+     * WolfSSLContext levels, the context-level one will be used.
+     *
+     * @param callback object to be registered as the PSK client callback
+     *                 for the WolfSSLSession. The signature of this object
+     *                 and corresponding method must match that as shown in
+     *                 WolfSSLPskClientCallback.java, inside
+     *                 pskClientCallback().
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLContext#usePskIdentityHint(String)
+     * @see    WolfSSLSession#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLSession#getPskIdentity()
+     * @see    WolfSSLSession#getPskIdentityHint()
+     */
+    public void setPskClientCb(WolfSSLPskClientCallback callback)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set PSK client callback */
+        internPskClientCb = callback;
+
+        /* register internal callback with native library */
+        setPskClientCb(getSessionPtr());
+    }
+
+    /**
+     * Allows caller to set the PSK server identity and key at the
+     * WolfSSLSession level.
+     * The PSK server callback can also be set at the WolfSSLContext level,
+     * allowing the user to set it once for all SSL/TLS sessions that are
+     * created from the WolfSSLContext.
+     * The callback should return the length of the key in octets or
+     * 0 for error. The <b>ssl</b> parameter is available for the user's
+     * convenience. <b>identity</b> is the client identity,
+     * <b>key</b> is the server key, with a maximum size
+     * in bytes of <b>keyMaxLen</b>. An example callback can be found
+     * in examples/MyPskServerCallback.java.
+     *
+     * @param callback object to be registered as the PSK server callback
+     *                 for the WolfSSLSession. The signature of this object
+     *                 and corresponding method must match that as shown in
+     *                 WolfSSLPskServerCallback.java, inside
+     *                 pskServerCallback().
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLContext#usePskIdentityHint(String)
+     * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLSession#getPskIdentity()
+     * @see    WolfSSLSession#getPskIdentityHint()
+     */
+    public void setPskServerCb(WolfSSLPskServerCallback callback)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set PSK server callback */
+        internPskServerCb = callback;
+
+        /* register internal callback with native library */
+        setPskServerCb(getSessionPtr());
+    }
+
+    /**
+     * Returns the PSK identity hint.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return PSK identity hint String
+     * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLContext#usePskIdentityHint(String)
+     * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLSession#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLSession#getPskIdentity()
+     * @see    WolfSSLSession#usePskIdentityHint(String)
+     */
+    public String getPskIdentityHint() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getPskIdentityHint(getSessionPtr());
+    }
+
+    /**
+     * Returns the PSK identity.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return PSK identity hint String
+     * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLContext#usePskIdentityHint(String)
+     * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLSession#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLSession#getPskIdentityHint()
+     * @see    WolfSSLSession#usePskIdentityHint(String)
+     */
+    public String getPskIdentity() {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getPskIdentity(getSessionPtr());
+    }
+
+    /**
+     * Sets the identity hint for this session.
+     *
+     * @param  hint  identity hint to be used for session.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return <code>SSL_SUCCESS</code> upon success,
+     *         <code>SSL_FAILURE</code> upon error.
+     * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLContext#usePskIdentityHint(String)
+     * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
+     * @see    WolfSSLSession#setPskServerCb(WolfSSLPskServerCallback)
+     * @see    WolfSSLSession#getPskIdentityHint()
+     * @see    WolfSSLSession#getPskIdentity()
+     */
+    public int usePskIdentityHint(String hint) {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return usePskIdentityHint(getSessionPtr(), hint);
     }
 
     @Override

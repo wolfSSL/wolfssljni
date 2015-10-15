@@ -33,5 +33,10 @@ typedef struct {
     jobject obj;
 } internCtx;
 
+unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
+        unsigned int id_max_len, unsigned char* key, unsigned int max_key_len);
+unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
+        unsigned char* key, unsigned int max_key_len);
+
 #endif
 
