@@ -1031,17 +1031,24 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setGenCookie
 
 int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
-    jmethodID  cookieCbMethodId;
-    jbyteArray inData;
-    jclass     excClass;
-    jobjectRefType refcheck;
-    internCtx*   myCtx = ctx;
 
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  cookieCbMethodId;      /* internalGenCookieCallback ID */
+    jbyteArray inData;                /* jbyteArray to hold cookie data */
+
+    if (!g_vm || !ssl || !buf) {
+        /* can't throw exception yet, just return error */
         return GEN_COOKIE_E;
     }
 
@@ -1054,12 +1061,10 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return GEN_COOKIE_E;
         }
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return GEN_COOKIE_E;
     }
 
     /* find exception class in case we need it */
@@ -1067,138 +1072,150 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
-
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference");
-            return GEN_COOKIE_E;
-        }
-
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in "
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
                 "NativeGenCookieCb");
-            return GEN_COOKIE_E;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativeGenCookieCb");
-            return GEN_COOKIE_E;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeGenCookieCb");
-            return GEN_COOKIE_E;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativeGenCookieCb");
-            return GEN_COOKIE_E;
-        }
-
-        /* call internal gen cookie callback */
-        cookieCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalGenCookieCallback",
-                "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-
-        if (!cookieCbMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalGenCookieCallback method from JNI\n");
-            retval = GEN_COOKIE_E;
-        }
-
-        if (!retval && sz >= 0)
-        {
-            /* create jbyteArray to hold cookie data */
-            inData = (*jenv)->NewByteArray(jenv, sz);
-            if (!inData) {
-                return GEN_COOKIE_E;
-            }
-
-            /* call Java cookie callback */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, cookieCbMethodId,
-                                        myCtx->obj, inData, (jint)sz);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                /* an exception occurred on the Java side, how to handle it? */
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                retval = GEN_COOKIE_E;
-            }
-
-            /* copy jbyteArray into char array */
-            if (retval >= 0) {
-                (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval,
-                        (jbyte*)buf);
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                    retval = GEN_COOKIE_E;
-                }
-            }
-
-            /* delete local refs */
-            (*jenv)->DeleteLocalRef(jenv, inData);
-        }
-
-        /* detach JNIEnv from thread */
         (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
 
-    } else {
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeGenCookieCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeGenCookieCb");
-
+            "Can't get native WolfSSLContext field ID in "
+            "NativeGenCookieCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
+
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativeGenCookieCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
+
+    /* get WolfSSLContext(ctx) object from WolfSSLSession object */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeGenCookieCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference in "
+            "NativeGenCookieCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
+
+    /* call internal gen cookie callback */
+    cookieCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalGenCookieCallback",
+            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+
+   if (!cookieCbMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting internalGenCookieCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return GEN_COOKIE_E;
+    }
+
+    if (sz >= 0)
+    {
+        /* create jbyteArray to hold cookie data */
+        inData = (*jenv)->NewByteArray(jenv, sz);
+        if (!inData) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "Error getting internalGenCookieCallback method from JNI");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return GEN_COOKIE_E;
+        }
+
+        /* call Java cookie callback */
+        retval = (*jenv)->CallIntMethod(jenv, ctxRef, cookieCbMethodId,
+                                    (jobject)(*g_cachedSSLObj),
+                                    inData, (jint)sz);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, inData);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return GEN_COOKIE_E;
+        }
+
+        /* copy jbyteArray into char array */
+        if (retval >= 0) {
+            (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval,
+                    (jbyte*)buf);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, ctxRef);
+                (*jenv)->DeleteLocalRef(jenv, inData);
+                (*g_vm)->DetachCurrentThread(g_vm);
+                return GEN_COOKIE_E;
+            }
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, inData);
+    }
+
+    /* delete local refs, detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }

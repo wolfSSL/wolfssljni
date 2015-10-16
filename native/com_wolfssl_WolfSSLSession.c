@@ -356,7 +356,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    internCtx* myCtx;
     static jobject* g_cachedSSLObj;
     jclass excClass;
 
@@ -370,15 +369,6 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input WolfSSLSession object was null in freeSSL");
         return;
-    }
-
-    /* free internal genCookieCtx */
-    myCtx = (internCtx*) wolfSSL_GetCookieCtx((WOLFSSL*)ssl);
-    if (myCtx != NULL) {
-        if (myCtx->active == 1) {
-            (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
-        }
     }
 
     /* delete global WolfSSLSession object reference */
@@ -1092,74 +1082,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setGroupMessages
         return BAD_FUNC_ARG;
     }
     return wolfSSL_set_group_messages((WOLFSSL*)ssl);
-}
-
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setGenCookieCtx
-  (JNIEnv* jenv, jobject jcl, jlong ssl)
-{
-    jclass         sslClass;
-    jclass         excClass;
-
-    int*           invalid;
-    void*          genCookieCtx;
-    internCtx*   myCtx;
-
-    /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return;
-    }
-
-    if (!ssl) {
-        (*jenv)->ThrowNew(jenv, excClass,
-            "Input WolfSSLSession object was null in "
-            "setGenCookieCtx");
-        return;
-    }
-
-    /* get WolfSSLSession class from object ref */
-    sslClass = (*jenv)->GetObjectClass(jenv, jcl);
-    if (!sslClass) {
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLSession object class");
-        return;
-    }
-
-    /* free existing memory if it already exists, before we malloc again */
-    genCookieCtx = (internCtx*) wolfSSL_GetCookieCtx((WOLFSSL*)ssl);
-
-    /* note: if CTX has not been set up yet, wolfSSL defaults to -1 */
-    invalid = (int*)genCookieCtx;
-    if ((genCookieCtx != NULL) && (*invalid != -1)) {
-        myCtx = (internCtx*)genCookieCtx;
-        if (myCtx->active == 1) {
-            (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
-        }
-    }
-
-    /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
-    if (!myCtx) {
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Unable to allocate memory for gen cookie context\n");
-        return;
-    }
-
-    /* set CTX as active */
-    myCtx->active = 1;
-
-    /* store global ref to WolfSSLSession object */
-    myCtx->obj = (*jenv)->NewGlobalRef(jenv, jcl);
-    if (!myCtx->obj) {
-        (*jenv)->ThrowNew(jenv, excClass,
-               "Unable to store WolfSSLSession object as global reference");
-        return;
-    }
-
-    wolfSSL_SetCookieCtx((WOLFSSL*) ssl, myCtx);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_enableCRL
