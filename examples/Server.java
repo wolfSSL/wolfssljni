@@ -341,7 +341,7 @@ public class Server {
                 /* create SSL object */
                 WolfSSLSession ssl = new WolfSSLSession(sslCtx);
 
-                if (needDH == 1) {
+                if (usePsk == 0 || cipherList != null || needDH == 1) {
                     ret = ssl.setTmpDHFile(dhParam, WolfSSL.SSL_FILETYPE_PEM);
                     if (ret != WolfSSL.SSL_SUCCESS) {
                         System.out.println("failed to set DH file, ret = " +

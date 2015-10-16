@@ -227,7 +227,6 @@ public class WolfSSLSession {
     private native int getCipherType(long ssl);
     private native int setTlsHmacInner(long ssl, byte[] inner, long sz,
             int content, int verify);
-    private native void setMacEncryptCtx(long ssl);
     private native void setDecryptVerifyCtx(long ssl);
     private native void setEccSignCtx(long ssl);
     private native void setEccVerifyCtx(long ssl);
@@ -1821,7 +1820,6 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         macEncryptCtx = ctx;
-        setMacEncryptCtx(getSessionPtr());
     }
 
     /**

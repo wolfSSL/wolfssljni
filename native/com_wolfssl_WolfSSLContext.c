@@ -1441,19 +1441,25 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         int macVerify, unsigned char* encOut, const unsigned char* encIn,
         unsigned int encSz, void* ctx)
 {
-    JNIEnv*    jenv;
-    int        hmacSize;
     jint       retval = 0;
     jint       vmret  = 0;
-    jmethodID  macEncryptMethodId;
-    jclass     excClass;
+
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  macEncryptMethodId;    /* internalMacEncryptCallback ID */
+
+    int        hmacSize;
     jbyteArray j_macIn;
 
-    jobjectRefType refcheck;
-    internCtx*     myCtx = ctx;
-
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    if (!g_vm || !ssl || !macOut || !macIn || !encOut || !encIn) {
         return -1;
     }
 
@@ -1466,12 +1472,10 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return -1;
         }
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return -1;
     }
 
     /* find exception class in case we need it */
@@ -1479,169 +1483,202 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
-
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference "
-                "in NativeMacEncryptCb");
-            return -1;
-        }
-
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in "
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
                 "NativeMacEncryptCb");
-            return -1;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativeMacEncryptCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeMacEncryptCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativeMacEncryptCb");
-            return -1;
-        }
-
-        /* get ref to internal MAC encrypt callback */
-        macEncryptMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalMacEncryptCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
-                "[BJIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;J)I");
-
-        if (!macEncryptMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalMacEncryptCallback method "
-                    "from JNI\n");
-            retval = -1;
-        }
-
-        if (retval == 0)
-        {
-            hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
-
-            /* create ByteBuffer to wrap macOut */
-            jobject macOutBB = (*jenv)->NewDirectByteBuffer(jenv, macOut,
-                    hmacSize);
-            if (!macOutBB) {
-                printf("failed to create macOut ByteBuffer\n");
-                return -1;
-            }
-
-            /* create jbyteArray to hold macIn, since macIn is read-only */
-            j_macIn = (*jenv)->NewByteArray(jenv, macInSz);
-            if (!j_macIn)
-                return -1;
-
-            (*jenv)->SetByteArrayRegion(jenv, j_macIn, 0, macInSz,
-                    (jbyte*)macIn);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap encOut */
-            jobject encOutBB = (*jenv)->NewDirectByteBuffer(jenv, encOut,
-                    encSz);
-            if (!encOutBB) {
-                printf("failed to create encOut ByteBuffer\n");
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap encIn - use encOut b/c it's not a
-             * const, but points to same memory. This will be important
-             * in Java-land in order to have an updated encIn array after
-             * doing the MAC operation. */
-            jobject encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut,
-                    encSz);
-            if (!encInBB) {
-                printf("failed to create encIn ByteBuffer\n");
-                return -1;
-            }
-
-            /* call Java MAC/encrypt callback */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, macEncryptMethodId,
-                    myCtx->obj, macOutBB, j_macIn, (jlong)macInSz, macContent,
-                    macVerify, encOutBB, encInBB, (jlong)encSz);
-
-            if ((*jenv)->ExceptionOccurred(jenv) || retval != 0) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                (*jenv)->ThrowNew(jenv, excClass,
-                    "Call to Java callback failed in NativeMacEncryptCb");
-                return -1;
-            }
-
-            /* delete local refs */
-            (*jenv)->DeleteLocalRef(jenv, j_macIn);
-        }
-
-        /* detach JNIEnv from thread */
         (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-    } else {
-        /* clear any existing exception before we throw another */
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeMacEncryptCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeMacEncryptCb");
-
+            "Can't get native WolfSSLContext field ID in "
+            "NativeMacEncryptCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativeMacEncryptCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv,
+            (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeMacEncryptCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference in "
+            "NativeMacEncryptCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get ref to internal MAC encrypt callback */
+    macEncryptMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalMacEncryptCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
+            "[BJIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;J)I");
+
+    if (!macEncryptMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting internalMacEncryptCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        retval = -1;
+    }
+
+    if (retval == 0)
+    {
+        hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
+
+        /* create ByteBuffer to wrap macOut */
+        jobject macOutBB = (*jenv)->NewDirectByteBuffer(jenv, macOut,
+                hmacSize);
+        if (!macOutBB) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create macOut ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create jbyteArray to hold macIn, since macIn is read-only */
+        j_macIn = (*jenv)->NewByteArray(jenv, macInSz);
+        if (!j_macIn) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create macIn ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, j_macIn, 0, macInSz,
+                (jbyte*)macIn);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create ByteBuffer to wrap encOut */
+        jobject encOutBB = (*jenv)->NewDirectByteBuffer(jenv, encOut,
+                encSz);
+        if (!encOutBB) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create encOut ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create ByteBuffer to wrap encIn - use encOut b/c it's not a
+         * const, but points to same memory. This will be important
+         * in Java-land in order to have an updated encIn array after
+         * doing the MAC operation. */
+        jobject encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut,
+                encSz);
+        if (!encInBB) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create encIn ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            (*jenv)->DeleteLocalRef(jenv, encOutBB);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* call Java MAC/encrypt callback */
+        retval = (*jenv)->CallIntMethod(jenv, ctxRef, macEncryptMethodId,
+                (jobject)(*g_cachedSSLObj), macOutBB, j_macIn, (jlong)macInSz,
+                macContent, macVerify, encOutBB, encInBB, (jlong)encSz);
+
+        if ((*jenv)->ExceptionOccurred(jenv) || retval != 0) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Call to Java callback failed in NativeMacEncryptCb");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            (*jenv)->DeleteLocalRef(jenv, encOutBB);
+            (*jenv)->DeleteLocalRef(jenv, encInBB);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, macOutBB);
+        (*jenv)->DeleteLocalRef(jenv, j_macIn);
+        (*jenv)->DeleteLocalRef(jenv, encOutBB);
+        (*jenv)->DeleteLocalRef(jenv, encInBB);
+    }
+
+    /* detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
