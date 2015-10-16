@@ -313,22 +313,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setGroupMessages
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
- * Method:    setIOReadCtx
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOReadCtx
-  (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     com_wolfssl_WolfSSLSession
- * Method:    setIOWriteCtx
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOWriteCtx
-  (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     com_wolfssl_WolfSSLSession
  * Method:    setGenCookieCtx
  * Signature: (J)V
  */

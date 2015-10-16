@@ -556,6 +556,8 @@ public class Server {
         System.out.println("-A <file>\tCertificate Authority file,\tdefault " +
                 "../certs/client-cert.pem");
         System.out.println("-d\t\tDisable peer checks");
+        System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
+            ", -v 3 for DTLSv1.2");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
         System.out.println("-o\t\tPerform OCSP lookup on peer certificate");

@@ -206,8 +206,6 @@ public class WolfSSLSession {
     private native int useCertificateChainBuffer(long ssl, byte[] in,
             long sz);
     private native int setGroupMessages(long ssl);
-    private native void setIOReadCtx(long ssl);
-    private native void setIOWriteCtx(long ssl);
     private native void setGenCookieCtx(long ssl);
     private native int enableCRL(long ssl, int options);
     private native int disableCRL(long ssl);
@@ -1288,7 +1286,6 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         ioReadCtx = ctx;
-        setIOReadCtx(getSessionPtr());
     }
 
     /**
@@ -1317,7 +1314,6 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         ioWriteCtx = ctx;
-        setIOWriteCtx(getSessionPtr());
     }
 
     /**

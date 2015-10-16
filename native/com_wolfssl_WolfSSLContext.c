@@ -619,17 +619,24 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setIORecv(JNIEnv* jenv,
 
 int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
-    jmethodID  recvCbMethodId;
-    jbyteArray inData;
-    jclass     excClass;
-    jobjectRefType refcheck;
-    internCtx*   myCtx = ctx;
 
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  recvCbMethodId;        /* internalIORecvCallback ID */
+    jbyteArray inData;
+
+    if (!g_vm || !ssl || !buf || !ctx) {
+        /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -642,12 +649,10 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     /* find exception class in case we need it */
@@ -655,142 +660,144 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
-
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference in "
-                "NativeIORecvCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-                //"Lcom/wolfssl/WolfSSLSession$WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in NativeIORecvCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativeIORecvCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeIORecvCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativeIORecvCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* call internal I/O recv callback */
-        recvCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalIORecvCallback",
-                "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-
-        if (!recvCbMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalIORecvCallback method from JNI\n");
-            retval = WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        if (!retval)
-        {
-            /* create jbyteArray to hold received data */
-            inData = (*jenv)->NewByteArray(jenv, sz);
-            if (!inData) {
-                return WOLFSSL_CBIO_ERR_GENERAL;
-            }
-
-            /* call Java send callback, ignore native ctx since Java
-             * handles it */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, recvCbMethodId,
-                                        myCtx->obj, inData, (jint)sz);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                /* an exception occurred on the Java side, how to
-                 * handle it? */
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                retval = WOLFSSL_CBIO_ERR_GENERAL;
-            }
-
-            /* copy jbyteArray into char array */
-            if (retval >= 0) {
-                (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval,
-                        (jbyte*)buf);
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                    retval = WOLFSSL_CBIO_ERR_GENERAL;
-                }
-            }
-
-            /* delete local refs */
-            (*jenv)->DeleteLocalRef(jenv, inData);
-        }
-
-        /* detach JNIEnv from thread */
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativePskClientCb");
         (*g_vm)->DetachCurrentThread(g_vm);
+        return 0;
+    }
 
-    } else {
-        /* clear any existing exception before we throw another */
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeIORecvCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeIORecvCb");
-
+            "Can't get native WolfSSLContext field ID in NativeIORecvCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
+
+    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativeIORecvCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeIORecvCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* get WolfSSLContext class reference from object */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference in "
+            "NativeIORecvCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* call internal I/O recv callback */
+    recvCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalIORecvCallback",
+            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (!recvCbMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalIORecvCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* create jbyteArray to hold received data */
+    inData = (*jenv)->NewByteArray(jenv, sz);
+    if (!inData) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalIORecvCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* call Java send callback, ignore native ctx since Java
+     * handles it */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, recvCbMethodId,
+                                (jobject)(*g_cachedSSLObj),
+                                inData, (jint)sz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inData);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* copy jbyteArray into char array */
+    if (retval >= 0) {
+        (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval,
+                (jbyte*)buf);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, inData);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    /* delete local refs, detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, inData);
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -818,17 +825,24 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setIOSend
 
 int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
-    jmethodID  sendCbMethodId;
-    jbyteArray outData;
-    jclass     excClass;
-    jobjectRefType refcheck;
-    internCtx*     myCtx = ctx;
 
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  sendCbMethodId;        /* internalIOSendCallback ID */
+    jbyteArray outData;               /* jbyteArray for data to send */
+
+    if (!g_vm || !ssl || !buf || !ctx) {
+        /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -841,12 +855,10 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     /* find exception class in case we need it */
@@ -854,135 +866,143 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
-
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in NativeIOSendCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativeIOSendCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeIOSendCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativeIOSendCb");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        /* call internal I/O recv callback */
-        sendCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalIOSendCallback",
-                "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-
-        if (!sendCbMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalIOSendCallback method from JNI\n");
-            retval = WOLFSSL_CBIO_ERR_GENERAL;
-        }
-
-        if (!retval && sz >= 0)
-        {
-            /* create jbyteArray to hold received data */
-            outData = (*jenv)->NewByteArray(jenv, sz);
-            if (!outData) {
-                return WOLFSSL_CBIO_ERR_GENERAL;
-            }
-
-            (*jenv)->SetByteArrayRegion(jenv, outData, 0, sz, (jbyte*)buf);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                return WOLFSSL_CBIO_ERR_GENERAL;
-            }
-
-            /* call Java send callback, ignore native ctx since Java
-             * handles it */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, sendCbMethodId,
-                                        myCtx->obj, outData, (jint)sz);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                /* an exception occurred on the Java side, how to
-                 * handle it? */
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                retval = WOLFSSL_CBIO_ERR_GENERAL;
-            }
-
-            /* delete local refs */
-            (*jenv)->DeleteLocalRef(jenv, outData);
-        }
-
-        /* detach JNIEnv from thread */
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativePskClientCb");
         (*g_vm)->DetachCurrentThread(g_vm);
+        return 0;
+    }
 
-    } else {
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeIOSendCb");
-
+            "Can't get native WolfSSLContext field ID in NativeIOSendCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
+
+    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativeIOSendCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeIOSendCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference in "
+            "NativeIOSendCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* call internal I/O recv callback */
+    sendCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalIOSendCallback",
+            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (!sendCbMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting internalIOSendCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (sz >= 0)
+    {
+        /* create jbyteArray to hold received data */
+        outData = (*jenv)->NewByteArray(jenv, sz);
+        if (!outData) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "Error getting internalIOSendCallback method from JNI");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, outData, 0, sz, (jbyte*)buf);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, outData);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* call Java send callback, ignore native ctx since Java
+         * handles it */
+        retval = (*jenv)->CallIntMethod(jenv, ctxRef, sendCbMethodId,
+                                (jobject)(*g_cachedSSLObj), outData, (jint)sz);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, outData);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, outData);
+    }
+
+    /* delete local refs, detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }

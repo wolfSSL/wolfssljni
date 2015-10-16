@@ -57,6 +57,9 @@ class MyGenCookieCallback implements WolfSSLGenCookieCallback
         out = new byte[digest.getDigestLength()];
 
         out = digest.digest();
+        if (sz > digest.getDigestLength())
+            sz = digest.getDigestLength();
+
         System.arraycopy(out, 0, buf, 0, sz);
 
         return buf.length;
