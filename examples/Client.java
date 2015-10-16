@@ -30,6 +30,7 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
 
@@ -476,11 +477,11 @@ public class Client {
             ule.printStackTrace();
         } catch (WolfSSLException wex) {
             wex.printStackTrace();
+        } catch (WolfSSLJNIException jex) {
+           jex.printStackTrace();
         } catch (CharacterCodingException cce) {
             cce.printStackTrace();
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -489,7 +490,9 @@ public class Client {
     void showPeer(WolfSSLSession ssl) {
 
         String altname;
+
         try {
+
             long peerCrtPtr = ssl.getPeerCertificate();
 
             if (peerCrtPtr != 0) {
@@ -504,7 +507,8 @@ public class Client {
 
             System.out.println("SSL version is " + ssl.getVersion());
             System.out.println("SSL cipher suite is " + ssl.cipherGetName());
-        } catch (Exception e) {
+
+        } catch (WolfSSLJNIException e) {
             e.printStackTrace();
         }
     }

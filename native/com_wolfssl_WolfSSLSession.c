@@ -216,7 +216,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setUsingNonblock
         return;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -238,7 +238,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getUsingNonblock
         return 0;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -260,7 +260,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getFd
         return 0;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -361,7 +361,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -471,7 +471,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetCurrentTimeout
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -492,7 +492,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -513,7 +513,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtls
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -539,7 +539,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         return SSL_FAILURE;
 
     /* get class references */
-    jclass excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     jclass inetsockaddr = (*jenv)->FindClass(jenv,
             "java/net/InetSocketAddress");
     jclass inetaddr = (*jenv)->FindClass(jenv, "java/net/InetAddress");
@@ -668,7 +668,7 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
     port = ntohs(peer.sin_port);
 
     /* create new InetSocketAddress with this IP/port info */
-    jclass excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     jclass isa = (*jenv)->FindClass(jenv, "java/net/InetSocketAddress");
     if (!isa) {
         if ((*jenv)->ExceptionOccurred(jenv))
@@ -720,7 +720,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sessionReused
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -740,7 +740,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -765,7 +765,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
         return NULL;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -797,7 +797,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
         return NULL;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -829,7 +829,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
         return NULL;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -853,7 +853,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getVersion
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -874,7 +874,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getCurrentCipher
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -900,7 +900,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_checkDomainName
         return SSL_FAILURE;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -934,7 +934,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
     }
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -975,7 +975,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
         return SSL_BAD_FILE;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1006,7 +1006,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateBuffer
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1038,7 +1038,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyBuffer
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1070,7 +1070,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainBuffer
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1098,7 +1098,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setGroupMessages
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1123,7 +1123,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOReadCtx
     internCtx*   myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1191,7 +1191,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOWriteCtx
     internCtx*   myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1259,7 +1259,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setGenCookieCtx
     internCtx*   myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1325,7 +1325,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_enableCRL
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1349,7 +1349,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableCRL
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1375,7 +1375,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
         return BAD_FUNC_ARG;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1407,7 +1407,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
     }
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1457,7 +1457,7 @@ void NativeMissingCRLCallback(const char* url)
     }
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1520,7 +1520,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_cipherGetName
     jclass excClass;
 
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1551,7 +1551,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getMacSecret
     const unsigned char* secret;
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1604,7 +1604,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteKey
     const unsigned char* key;
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1657,7 +1657,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteIV
     jclass excClass;
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1710,7 +1710,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteKey
     jclass excClass;
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1763,7 +1763,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteIV
     jclass excClass;
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1882,14 +1882,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTlsHmacInner
     }
 
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
         return -1;
     }
 
-    ret = wolfSSL_SetTlsHmacInner((WOLFSSL*)ssl, hmacInner, sz, content, verify);
+    ret = wolfSSL_SetTlsHmacInner((WOLFSSL*)ssl, hmacInner, sz,
+            content, verify);
 
     /* copy hmacInner back into inner jbyteArray */
     (*jenv)->SetByteArrayRegion(jenv, inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ,
@@ -1915,7 +1916,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setMacEncryptCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -1981,7 +1982,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setDecryptVerifyCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2047,7 +2048,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2113,7 +2114,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2179,7 +2180,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2245,7 +2246,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2311,7 +2312,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2377,7 +2378,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
     internCtx*     myCtx;
 
     /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2437,7 +2438,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskClientCb
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2459,7 +2460,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskServerCb
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);

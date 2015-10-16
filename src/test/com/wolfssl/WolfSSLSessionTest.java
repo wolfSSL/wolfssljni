@@ -63,7 +63,7 @@ public class WolfSSLSessionTest {
         System.out.print("\tfreeSSL()");
         try {
             ssl.freeSSL();
-        } catch (Exception e) {
+        } catch (WolfSSLJNIException e) {
             e.printStackTrace();
         }
         System.out.println("\t\t... passed");
