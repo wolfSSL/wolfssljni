@@ -42,27 +42,27 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
         MyAtomicEncCtx encCtx = (MyAtomicEncCtx) ctx;
         Cipher cipher = null;
 
-        /* example supports (d)tls AES */
-        if (ssl.getBulkCipher() != WolfSSL.wolfssl_aes) {
-            System.out.println("MyMacEncryptCallback not using AES");
-            return -1;
-        }
-
-        if (!ssl.getVersion().contains(tlsStr)) {
-            System.out.println("MyMacEncryptCallback not using (D)TLS");
-            return -1;
-        }
-
-        /* hmac, not needed if aead mode */
-        ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
-        int hmacType = ssl.getHmacType();
-        if (hmacType != WolfSSL.SHA) {
-            System.out.println("MyMacEncryptCallback example only "
-                    + "supports SHA1");
-            return -1;
-        }
-
         try {
+            /* example supports (d)tls AES */
+            if (ssl.getBulkCipher() != WolfSSL.wolfssl_aes) {
+                System.out.println("MyMacEncryptCallback not using AES");
+                return -1;
+            }
+
+            if (!ssl.getVersion().contains(tlsStr)) {
+                System.out.println("MyMacEncryptCallback not using (D)TLS");
+                return -1;
+            }
+
+            /* hmac, not needed if aead mode */
+            ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
+            int hmacType = ssl.getHmacType();
+            if (hmacType != WolfSSL.SHA) {
+                System.out.println("MyMacEncryptCallback example only "
+                        + "supports SHA1");
+                return -1;
+            }
+
             /* get Hmac SHA-1 key */
             SecretKeySpec signingKey = new SecretKeySpec(
                     ssl.getMacSecret(macVerify), "HmacSHA1");

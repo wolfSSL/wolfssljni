@@ -67,6 +67,7 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_newContext(JNIEnv* jenv,
         jclass jcl, jlong method)
 {
+    /* wolfSSL checks for NULL method ptr */
     return (jlong)wolfSSL_CTX_new((WOLFSSL_METHOD*)method);
 }
 
@@ -77,6 +78,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
     jclass excClass;
     const char* certFile;
 
+    if (!jenv)
+        return SSL_FAILURE;
+
     if (!file)
     {
         excClass = (*jenv)->FindClass(jenv, "java/lang/NullPointerException");
@@ -84,7 +88,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         /* throw NullPointerException */
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input certificate file is NULL");
@@ -109,16 +112,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyFile
     jclass excClass;
     const char* keyFile;
 
+    if (!jenv)
+        return SSL_FAILURE;
+
     if (!file)
     {
         excClass = (*jenv)->FindClass(jenv, "java/lang/NullPointerException");
-
-        /* clear out previous exception */
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         /* throw NullPointerException */
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input private key file is NULL");
@@ -144,16 +147,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyLocations
     const char* caFile;
     const char* caPath;
 
+    if (!jenv)
+        return SSL_FAILURE;
+
     if (!file && !path)
     {
         excClass = (*jenv)->FindClass(jenv, "java/lang/NullPointerException");
-
-        /* clear out previous exception */
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         /* throw NullPointerException */
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input file and path are both NULL");
@@ -191,17 +194,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainFile
     jclass excClass;
     const char* chainFile;
 
+    if (!jenv)
+        return SSL_FAILURE;
+
     /* throw exception if no input file */
     if (!file)
     {
         excClass = (*jenv)->FindClass(jenv, "java/lang/NullPointerException");
-
-        /* clear out previous exception */
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         /* throw NullPointerException */
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input certificate chain file is NULL");
@@ -274,7 +277,7 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     }
 
     /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
     if( (*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -428,10 +431,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCipherList
     jclass excClass;
     const char* cipherList;
 
+    if (!jenv)
+        return SSL_FAILURE;
+
     if (!list)
     {
         excClass = (*jenv)->FindClass(jenv, "java/lang/NullPointerException");
-        /* clear out previous exception */
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -1207,6 +1212,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
   (JNIEnv* jenv, jobject jcl, jlong ctx, jobject cb)
 {
     int ret = 0;
+    jclass excClass;
 
     if (!jenv || !ctx || !cb) {
         return BAD_FUNC_ARG;
@@ -1214,8 +1220,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
     /* store Java CRL callback Interface object */
     g_crlCtxCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
+
     if (!g_crlCtxCbIfaceObj) {
-        printf("error storing global missing CTX CRL callback interface\n");
+        excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "error storing global missing CTX CRL callback interface");
     }
 
     ret = wolfSSL_CTX_SetCRL_Cb((WOLFSSL_CTX*)ctx, NativeCtxMissingCRLCallback);
@@ -1306,12 +1319,14 @@ void NativeCtxMissingCRLCallback(const char* url)
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_enableOCSP
   (JNIEnv* jenv, jobject jcl, jlong ctx, jlong options)
 {
+    /* wolfSSL checks for null pointer */
     return wolfSSL_CTX_EnableOCSP((WOLFSSL_CTX*)ctx, options);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_disableOCSP
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {
+    /* wolfSSL checks for null pointer */
     return wolfSSL_CTX_DisableOCSP((WOLFSSL_CTX*)ctx);
 }
 
@@ -1321,6 +1336,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOverrideUrl
     jint ret = 0;
     jclass excClass;
     const char* url;
+
+    /* wolfSSL checks ctx for NULL */
+    if (!jenv)
+        return BAD_FUNC_ARG;
 
     if (urlString == NULL)
     {

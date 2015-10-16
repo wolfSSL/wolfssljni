@@ -349,7 +349,6 @@ public class WolfSSLContext {
      *                  </code>. Possible options are <b>SSL_FILETYPE_ASN1</b>,
      *                  for DER-encoded certificates, or <b>SSL_FILETYPE_PEM
      *                  </b> for PEM-encoded certificates.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success, otherwise
      *                  <code>SSL_FAILURE</code>. Possible failure causes
      *                  may be that the file is in the wrong format, the
@@ -357,10 +356,12 @@ public class WolfSSLContext {
      *                  doesn't exist, can't be read, or is corrupted,
      *                  an out of memory condition occurs, or the Base16
      *                  decoding fails on the file.
-     * @see             WolfSSLSession#useCertificateFile(String, int)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws NullPointerException  Input file is null
+     * @see    WolfSSLSession#useCertificateFile(String, int)
      */
     public int useCertificateFile(String file, int format)
-        throws IllegalStateException {
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -381,7 +382,6 @@ public class WolfSSLContext {
      *                  </code>. Possible options are <b>SSL_FILETYPE_ASN1</b>,
      *                  for a DER-encoded key, or <b>SSL_FILETYPE_PEM
      *                  </b> for a PEM-encoded key.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success, otherwise
      *                  <code>SSL_FAILURE</code>. Possible failure causes
      *                  may be that the file is in the wrong format, the
@@ -390,10 +390,12 @@ public class WolfSSLContext {
      *                  an out of memory condition occurs, the Base16
      *                  decoding fails on the file, or the key file is
      *                  encrypted but no password is provided.
-     * @see             WolfSSLSession#usePrivateKeyFile(String, int)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws NullPointerException  Input file is null
+     * @see    WolfSSLSession#usePrivateKeyFile(String, int)
      */
     public int usePrivateKeyFile(String file, int format)
-        throws IllegalStateException {
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -420,7 +422,6 @@ public class WolfSSLContext {
      * @param file  path to the file containing PEM-formatted CA certificates
      * @param path  path to directory containing PEM-formatted CA certificates
      *              to load
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success. Otherwise<br>
      *              <code>SSL_FAILURE</code> if <b>ctx</b> is null, or if
      *              both <b>file</b> and <b>path</b> are null.<br>
@@ -436,15 +437,17 @@ public class WolfSSLContext {
      *              recieving buffer.<br>
      *              <code>BAD_PATH_ERROR</code> if the native opendir()
      *              function call fails when trying to open <b>path</b>.
-     * @see         #useCertificateFile(String, int)
-     * @see         #usePrivateKeyFile(String, int)
-     * @see         #useCertificateChainFile(String)
-     * @see         WolfSSLSession#useCertificateFile(String, int)
-     * @see         WolfSSLSession#usePrivateKeyFile(String, int)
-     * @see         WolfSSLSession#useCertificateChainFile(String)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws NullPointerException  Input file and path are null
+     * @see    #useCertificateFile(String, int)
+     * @see    #usePrivateKeyFile(String, int)
+     * @see    #useCertificateChainFile(String)
+     * @see    WolfSSLSession#useCertificateFile(String, int)
+     * @see    WolfSSLSession#usePrivateKeyFile(String, int)
+     * @see    WolfSSLSession#useCertificateChainFile(String)
      */
     public int loadVerifyLocations(String file, String path)
-        throws IllegalStateException {
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -462,17 +465,18 @@ public class WolfSSLContext {
      * @param file  path to the file containing the chain of certificates
      *              to be loaded into the wolfSSL SSL context. Certificates
      *              must be in PEM format.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <code>SSL_SUCCESS</code> on success, otherwise <code>
      *              SSL_FAILURE</code>. If the function call fails, possible
      *              causes might include: the file is in the wrong format,
      *              the file doesn't exist, can't be read, or is corrupted, or
      *              an out of memory condition occurs.
-     * @see         #useCertificateFile(String, int)
-     * @see         WolfSSLSession#useCertificateFile(String, int)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws NullPointerException  Input file is null
+     * @see    #useCertificateFile(String, int)
+     * @see    WolfSSLSession#useCertificateFile(String, int)
      */
     public int useCertificateChainFile(String file)
-        throws IllegalStateException {
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -553,7 +557,6 @@ public class WolfSSLContext {
      * @param sz    the size of the output buffer, <b>mem</b>
      * @param used  output parameter, the size of the cert cache in bytes is
      *              returned in the first element of this array.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <b><code>SSL_SUCCESS</code></b> on success,
      *              <b><code>SSL_FAILURE</code></b> on general failure,
      *              <b><code>BAD_FUNC_ARG</code></b> if null or negative
@@ -561,15 +564,17 @@ public class WolfSSLContext {
      *              <b><code>BAD_MUTEX_ERROR</code></b> if the CA mutex lock
      *              fails, <b><code>BUFFER_E</code></b> if the output buffer
      *              is too small.
-     * @see         WolfSSL#memsaveSessionCache(byte[], int)
-     * @see         WolfSSL#memrestoreSessionCache(byte[], int)
-     * @see         WolfSSL#getSessionCacheMemsize()
-     * @see         #memsaveCertCache(byte[], int, int[])
-     * @see         #memrestoreCertCache(byte[], int)
-     * @see         #getCertCacheMemsize()
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    WolfSSL#memsaveSessionCache(byte[], int)
+     * @see    WolfSSL#memrestoreSessionCache(byte[], int)
+     * @see    WolfSSL#getSessionCacheMemsize()
+     * @see    #memsaveCertCache(byte[], int, int[])
+     * @see    #memrestoreCertCache(byte[], int)
+     * @see    #getCertCacheMemsize()
      */
     public int memsaveCertCache(byte[] mem, int sz, int[] used)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -584,7 +589,6 @@ public class WolfSSLContext {
      * @param mem   memory buffer containing the stored certificate cache
      *              to restore
      * @param sz    size of the input memory buffer, <b>mem</b>
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return      <b><code>SSL_SUCCESS</code></b> upon success,
      *              <b><code>SSL_FAILURE</code></b> upon general failure,
      *              <b><code>BAD_FUNC_ARG</code></b> if null or negative
@@ -595,14 +599,16 @@ public class WolfSSLContext {
      *              memory header match failed,
      *              <b><code>BAD_MUTEX_ERROR</code></b> if the CA mutex lock
      *              failed.
-     * @see         WolfSSL#memsaveSessionCache(byte[], int)
-     * @see         WolfSSL#memrestoreSessionCache(byte[], int)
-     * @see         WolfSSL#getSessionCacheMemsize()
-     * @see         #memsaveCertCache(byte[], int, int[])
-     * @see         #getCertCacheMemsize()
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    WolfSSL#memsaveSessionCache(byte[], int)
+     * @see    WolfSSL#memrestoreSessionCache(byte[], int)
+     * @see    WolfSSL#getSessionCacheMemsize()
+     * @see    #memsaveCertCache(byte[], int, int[])
+     * @see    #getCertCacheMemsize()
      */
     public int memrestoreCertCache(byte[] mem, int sz)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -615,14 +621,14 @@ public class WolfSSLContext {
      * Use this method to get how big the output buffer needs to be in which
      * to save the current certifiate cache to memory.
      *
+     * @return size, in bytes, of how large the output buffer should be
+     *         to store the certificate cache into memory.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return      size, in bytes, of how large the output buffer should be
-     *              to store the certificate cache into memory.
-     * @see         WolfSSL#memsaveSessionCache(byte[], int)
-     * @see         WolfSSL#memrestoreSessionCache(byte[], int)
-     * @see         WolfSSL#getSessionCacheMemsize()
-     * @see         #memsaveCertCache(byte[], int, int[])
-     * @see         #memrestoreCertCache(byte[], int)
+     * @see    WolfSSL#memsaveSessionCache(byte[], int)
+     * @see    WolfSSL#memrestoreSessionCache(byte[], int)
+     * @see    WolfSSL#getSessionCacheMemsize()
+     * @see    #memsaveCertCache(byte[], int, int[])
+     * @see    #memrestoreCertCache(byte[], int)
      */
     public int getCertCacheMemsize()
         throws IllegalStateException {
@@ -653,12 +659,14 @@ public class WolfSSLContext {
      * @param list      null-terminated text string and colon-delimited list
      *                  of cipher suites to use with the specified SSL
      *                  context.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <code>SSL_SUCCESS</code> upon success. <code>
      *                  SSL_FAILURE</code> upon failure.
-     * @see             WolfSSLSession#setCipherList(String)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws NullPointerException  Input list is null
+     * @see    WolfSSLSession#setCipherList(String)
      */
-    public int setCipherList(String list) throws IllegalStateException {
+    public int setCipherList(String list)
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -680,7 +688,6 @@ public class WolfSSLContext {
      * @param sz        size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
      *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_FAILURE</code></b> upon general failure,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
@@ -694,16 +701,18 @@ public class WolfSSLContext {
      *                  <b><code>BAD_FUNC_ARG</code></b> will be returned
      *                  if invalid arguments are provided.
      *
-     * @see             #loadVerifyLocations(String, String)
-     * @see             #useCertificateBuffer(byte[], long, int)
-     * @see             #usePrivateKeyBuffer(byte[], long, int)
-     * @see             #useCertificateChainBuffer(byte[], long)
-     * @see             WolfSSLSession#useCertificateBuffer(byte[], long, int)
-     * @see             WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
-     * @see             WolfSSLSession#useCertificateChainBuffer(byte[], long)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    #loadVerifyLocations(String, String)
+     * @see    #useCertificateBuffer(byte[], long, int)
+     * @see    #usePrivateKeyBuffer(byte[], long, int)
+     * @see    #useCertificateChainBuffer(byte[], long)
+     * @see    WolfSSLSession#useCertificateBuffer(byte[], long, int)
+     * @see    WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateChainBuffer(byte[], long)
      */
     public int loadVerifyBuffer(byte[] in, long sz, int format)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -720,7 +729,6 @@ public class WolfSSLContext {
      * @param sz        size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
      *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_FAILURE</code></b> upon general failure,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
@@ -731,15 +739,17 @@ public class WolfSSLContext {
      *                  if Base16 decoding fails on the file, <b><code>
      *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
-     * @see             #loadVerifyBuffer(byte[], long, int)
-     * @see             #usePrivateKeyBuffer(byte[], long, int)
-     * @see             #useCertificateChainBuffer(byte[], long)
-     * @see             WolfSSLSession#useCertificateBuffer(byte[], long, int)
-     * @see             WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
-     * @see             WolfSSLSession#useCertificateChainBuffer(byte[], long)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    #loadVerifyBuffer(byte[], long, int)
+     * @see    #usePrivateKeyBuffer(byte[], long, int)
+     * @see    #useCertificateChainBuffer(byte[], long)
+     * @see    WolfSSLSession#useCertificateBuffer(byte[], long, int)
+     * @see    WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateChainBuffer(byte[], long)
      */
     public int useCertificateBuffer(byte[] in, long sz, int format)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -757,7 +767,6 @@ public class WolfSSLContext {
      * @param sz        the size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
      *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_FAILURE</code></b> upon general failure,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
@@ -770,15 +779,17 @@ public class WolfSSLContext {
      *                  encrypted but no password is provided, and <b><code>
      *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
-     * @see             #loadVerifyBuffer(byte[], long, int)
-     * @see             #useCertificateBuffer(byte[], long, int)
-     * @see             #useCertificateChainBuffer(byte[], long)
-     * @see             WolfSSLSession#useCertificateBuffer(byte[], long, int)
-     * @see             WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
-     * @see             WolfSSLSession#useCertificateChainBuffer(byte[], long)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    #loadVerifyBuffer(byte[], long, int)
+     * @see    #useCertificateBuffer(byte[], long, int)
+     * @see    #useCertificateChainBuffer(byte[], long)
+     * @see    WolfSSLSession#useCertificateBuffer(byte[], long, int)
+     * @see    WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateChainBuffer(byte[], long)
      */
     public int usePrivateKeyBuffer(byte[] in, long sz, int format)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -796,7 +807,6 @@ public class WolfSSLContext {
      * @param in        the input buffer containing the PEM-formatted
      *                  certificate chain to be loaded.
      * @param sz        the size of the input buffer, <b>in</b>
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success,
      *                  <b><code>SSL_FAILURE</code></b> upon general failure,
      *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
@@ -809,15 +819,17 @@ public class WolfSSLContext {
      *                  bigger than the receiving buffer, and <b><code>
      *                  BAD_FUNC_ARG</code></b> if invalid input arguments
      *                  are provided.
-     * @see             #loadVerifyBuffer(byte[], long, int)
-     * @see             #useCertificateBuffer(byte[], long, int)
-     * @see             #usePrivateKeyBuffer(byte[], long, int)
-     * @see             WolfSSLSession#useCertificateBuffer(byte[], long, int)
-     * @see             WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
-     * @see             WolfSSLSession#useCertificateChainBuffer(byte[], long)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
+     * @see    #loadVerifyBuffer(byte[], long, int)
+     * @see    #useCertificateBuffer(byte[], long, int)
+     * @see    #usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateBuffer(byte[], long, int)
+     * @see    WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateChainBuffer(byte[], long)
      */
     public int useCertificateChainBuffer(byte[] in, long sz)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -829,10 +841,10 @@ public class WolfSSLContext {
      * Turns on grouping of the handshake messages where possible using the
      * SSL context.
      *
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return          <b><code>SSL_SUCCESS</code></b> upon success. <b><code>
      *                  BAD_FUNC_ARG</code></b> if the input context is null.
-     * @see             WolfSSLSession#setGroupMessages()
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    WolfSSLSession#setGroupMessages()
      */
     public int setGroupMessages() throws IllegalStateException {
 
@@ -859,10 +871,11 @@ public class WolfSSLContext {
      *                  WolfSSLIORecvCallback#receiveCallback(WolfSSLSession,
      *                  byte[], int, long).
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             #setIOSend(WolfSSLIOSendCallback)
+     * @throws Exception Internal JNI error
+     * @see    #setIOSend(WolfSSLIOSendCallback)
      */
     public void setIORecv(WolfSSLIORecvCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -891,10 +904,11 @@ public class WolfSSLContext {
      *                  WolfSSLIOSendCallback#sendCallback(WolfSSLSession,
      *                  byte[], int, Object).
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             #setIORecv(WolfSSLIORecvCallback)
+     * @throws Exception Internal JNI error
+     * @see    #setIORecv(WolfSSLIORecvCallback)
      */
     public void setIOSend(WolfSSLIOSendCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -924,9 +938,10 @@ public class WolfSSLContext {
      *                  WolfSSLGenCookieCallback#genCookieCallback(
      *                  WolfSSLSession, byte[], int, Object).
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
      */
     public void setGenCookie(WolfSSLGenCookieCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -945,21 +960,21 @@ public class WolfSSLContext {
      * WOLFSSL_CRL_CHECKALL which performs CRL checking on each certificate
      * in the chain versus the leaf certificate only (which is default).
      *
-     * @param options   options to use when enabling CRL
+     * @param options  options to use when enabling CRL
+     * @return         <code>SSL_SUCCESS</code> upon success. <code>
+     *                 NOT_COMPILED_IN</code> if wolfSSL was not compiled
+     *                 with CRL enabled. <code>MEMORY_E</code> if an out
+     *                 of memory condition occurs. <code>BAD_FUNC_ARG</code>
+     *                 if a pointer is not provided, and <code>
+     *                 SSL_FAILURE</code> if the CRL context cannot be
+     *                 initialized properly.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return          <code>SSL_SUCCESS</code> upon success. <code>
-     *                  NOT_COMPILED_IN</code> if wolfSSL was not compiled
-     *                  with CRL enabled. <code>MEMORY_E</code> if an out
-     *                  of memory condition occurs. <code>BAD_FUNC_ARG</code>
-     *                  if a pointer is not provided, and <code>
-     *                  SSL_FAILURE</code> if the CRL context cannot be
-     *                  initialized properly.
-     * @see             WolfSSLSession#enableCRL(int)
-     * @see             WolfSSLSession#disableCRL()
-     * @see             WolfSSLSession#loadCRL(String, int, int)
-     * @see             WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
-     * @see             #disableCRL()
-     * @see             #setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    WolfSSLSession#enableCRL(int)
+     * @see    WolfSSLSession#disableCRL()
+     * @see    WolfSSLSession#loadCRL(String, int, int)
+     * @see    WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    #disableCRL()
+     * @see    #setCRLCb(WolfSSLMissingCRLCallback)
      */
     public int enableCRL(int options) throws IllegalStateException {
 
@@ -976,15 +991,15 @@ public class WolfSSLContext {
      * temporarily or permanently disable CRL checking for a given SSL
      * session object that previously had CRL checking enabled.
      *
+     * @return <code>SSL_SUCCESS</code> on success, <code>
+     *         BAD_FUNC_ARG</code> if pointer is not provided.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return      <code>SSL_SUCCESS</code> on success, <code>
-     *              BAD_FUNC_ARG</code> if pointer is not provided.
-     * @see         WolfSSLSession#enableCRL(int)
-     * @see         WolfSSLSession#disableCRL()
-     * @see         WolfSSLSession#loadCRL(String, int, int)
-     * @see         WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
-     * @see         #enableCRL(int)
-     * @see         #setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    WolfSSLSession#enableCRL(int)
+     * @see    WolfSSLSession#disableCRL()
+     * @see    WolfSSLSession#loadCRL(String, int, int)
+     * @see    WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    #enableCRL(int)
+     * @see    #setCRLCb(WolfSSLMissingCRLCallback)
      */
     public int disableCRL() throws IllegalStateException {
 
@@ -1001,37 +1016,37 @@ public class WolfSSLContext {
      * in either PEM or DER format, as specified by the <b>type</b>
      * parameter.
      *
-     * @param path      path to directory containing CRL files
-     * @param type      type of files in <b>path</b>, either <code>
-     *                  SSL_FILETYPE_PEM</code> or <code>SSL_FILETYPE_ASN1
-     *                  </code>.
-     * @param monitor   OR'd list of flags to indicate if wolfSSL should
-     *                  monitor the provided CRL directory for changes.
-     *                  Flag values include <code>WOLFSSL_CRL_MONITOR</code>
-     *                  to indicate that the directory should be monitored
-     *                  and <code>WOLFSSL_CRL_START_MON</code> to start the
-     *                  monitor.
+     * @param path     path to directory containing CRL files
+     * @param type     type of files in <b>path</b>, either <code>
+     *                 SSL_FILETYPE_PEM</code> or <code>SSL_FILETYPE_ASN1
+     *                 </code>.
+     * @param monitor  OR'd list of flags to indicate if wolfSSL should
+     *                 monitor the provided CRL directory for changes.
+     *                 Flag values include <code>WOLFSSL_CRL_MONITOR</code>
+     *                 to indicate that the directory should be monitored
+     *                 and <code>WOLFSSL_CRL_START_MON</code> to start the
+     *                 monitor.
+     * @return         <b><code>SSL_SUCCESS</code></b> upon success<br>
+     *                 <b><code>SSL_FATAL_ERROR</code></b> if enabling the
+     *                 internal CertManager fails<br>
+     *                 <b><code>BAD_FUNC_ARG</code></b> if the SSL pointer
+     *                 is null<br>
+     *                 <b><code>BAD_PATH_ERROR</code></b> if there is an
+     *                 error opening the provided directory<br>
+     *                 <b><code>MEMORY_E</code></b> if a memory error
+     *                 occurred<br>
+     *                 <b><code>MONITOR_RUNNING_E</code></b> if the CRL
+     *                 monitor is already running<br>
+     *                 <b><code>THREAD_CREATE_E</code></b> if there was an
+     *                 error when creating the CRL monitoring thread.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return          <b><code>SSL_SUCCESS</code></b> upon success<br>
-     *                  <b><code>SSL_FATAL_ERROR</code></b> if enabling the
-     *                  internal CertManager fails<br>
-     *                  <b><code>BAD_FUNC_ARG</code></b> if the SSL pointer
-     *                  is null<br>
-     *                  <b><code>BAD_PATH_ERROR</code></b> if there is an
-     *                  error opening the provided directory<br>
-     *                  <b><code>MEMORY_E</code></b> if a memory error
-     *                  occurred<br>
-     *                  <b><code>MONITOR_RUNNING_E</code></b> if the CRL
-     *                  monitor is already running<br>
-     *                  <b><code>THREAD_CREATE_E</code></b> if there was an
-     *                  error when creating the CRL monitoring thread.
-     * @see             WolfSSLSession#enableCRL(int)
-     * @see             WolfSSLSession#disableCRL()
-     * @see             WolfSSLSession#loadCRL(String, int, int)
-     * @see             WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
-     * @see             #enableCRL(int)
-     * @see             #disableCRL()
-     * @see             #setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    WolfSSLSession#enableCRL(int)
+     * @see    WolfSSLSession#disableCRL()
+     * @see    WolfSSLSession#loadCRL(String, int, int)
+     * @see    WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    #enableCRL(int)
+     * @see    #disableCRL()
+     * @see    #setCRLCb(WolfSSLMissingCRLCallback)
      */
     public int loadCRL(String path, int type, int monitor)
         throws IllegalStateException {
@@ -1046,21 +1061,21 @@ public class WolfSSLContext {
      * Registers CRL callback to be called when CRL lookup fails, using
      * specified Context.
      *
-     * @param cb        callback to be registered with SSL context, called
-     *                  when CRL lookup fails.
+     * @param cb callback to be registered with SSL context, called
+     *           when CRL lookup fails.
+     * @return   <b><code>SSL_SUCCESS</code></b> upon success,
+     *           <b><code>BAD_FUNC_ARG</code></b> if SSL pointer is null.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return          <b><code>SSL_SUCCESS</code></b> upon success,
-     *                  <b><code>BAD_FUNC_ARG</code></b> if SSL pointer is
-     *                  null.
-     * @see             WolfSSLSession#enableCRL(int)
-     * @see             WolfSSLSession#disableCRL()
-     * @see             WolfSSLSession#loadCRL(String, int, int)
-     * @see             WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
-     * @see             #enableCRL(int)
-     * @see             #disableCRL()
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#enableCRL(int)
+     * @see    WolfSSLSession#disableCRL()
+     * @see    WolfSSLSession#loadCRL(String, int, int)
+     * @see    WolfSSLSession#setCRLCb(WolfSSLMissingCRLCallback)
+     * @see    #enableCRL(int)
+     * @see    #disableCRL()
      */
     public int setCRLCb(WolfSSLMissingCRLCallback cb)
-        throws IllegalStateException{
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1079,7 +1094,6 @@ public class WolfSSLContext {
      * compiled with OCSP support (--enable-ocsp, #define HAVE_OCSP).
      *
      * @param options  value used to set the OCSP options
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return         <b><code>SSL_SUCCESS</code></b> upon success,
      *                 <b><code>SSL_FAILURE</code></b> upon failure,
      *                 <b><code>BAD_FUNC_ARG</code></b> if context is null,
@@ -1087,8 +1101,9 @@ public class WolfSSLContext {
      *                 <b><code>NOT_COMPILED_IN</code></b> when this function
      *                 has been called, but OCSP support was not enabled when
      *                 wolfSSL was compiled.
-     * @see            #disableOCSP
-     * @see            #setOCSPOverrideUrl(String)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    #disableOCSP
+     * @see    #setOCSPOverrideUrl(String)
      */
     public int enableOCSP(long options)
         throws IllegalStateException {
@@ -1101,11 +1116,11 @@ public class WolfSSLContext {
 
     /**
      * Disable OCSP for this context.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return  <b><code>SSL_SUCCESS</code></b> upon success,
      *          <b><code>BAD_FUNC_ARG</code></b> if context is null,
-     * @see     #enableOCSP(long)
-     * @see     #setOCSPOverrideUrl(String)
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    #enableOCSP(long)
+     * @see    #setOCSPOverrideUrl(String)
      */
     public int disableOCSP() throws IllegalStateException {
 
@@ -1121,17 +1136,19 @@ public class WolfSSLContext {
      * unless the WOLFSSL_OCSP_URL_OVERRIDE option is set using the
      * setOCSPOptions() method.
      *
-     * @param url   the OCSP override URL for wolfSSL to use
+     * @param url the OCSP override URL for wolfSSL to use
+     * @return    <b><code>SSL_SUCCESS</code></b> upon success,
+     *            <b><code>SSL_FAILURE</code></b> upon failure,
+     *            <b><code>NOT_COMPILED_IN</code></b> when this function has
+     *            been called, but OCSP support was not enabled when
+     *            wolfSSL was compiled.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return      <b><code>SSL_SUCCESS</code></b> upon success,
-     *              <b><code>SSL_FAILURE</code></b> upon failure,
-     *              <b><code>NOT_COMPILED_IN</code></b> when this function has
-     *              been called, but OCSP support was not enabled when
-     *              wolfSSL was compiled.
-     * @see         #enableOCSP(long)
-     * @see         #disableOCSP
+     * @throws NullPointerException  Input URL is null
+     * @see    #enableOCSP(long)
+     * @see    #disableOCSP
      */
-    public int setOCSPOverrideUrl(String url) throws IllegalStateException {
+    public int setOCSPOverrideUrl(String url)
+        throws IllegalStateException, NullPointerException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1161,10 +1178,11 @@ public class WolfSSLContext {
      *                  WolfSSLMacEncryptCallback.java, with
      *                  macEncryptCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             #setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
+     * @throws Exception Internal JNI error
+     * @see    #setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
      */
     public void setMacEncryptCb(WolfSSLMacEncryptCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1198,10 +1216,11 @@ public class WolfSSLContext {
      *                  WolfSSLDecryptVerifyCallback.java, inside
      *                  decryptVerifyCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             #setMacEncryptCb(WolfSSLMacEncryptCallback)
+     * @throws Exception Internal JNI error
+     * @see    #setMacEncryptCb(WolfSSLMacEncryptCallback)
      */
-    public void setDecryptVerifyCb(WolfSSLDecryptVerifyCallback
-           callback) throws IllegalStateException {
+    public void setDecryptVerifyCb(WolfSSLDecryptVerifyCallback callback)
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1232,10 +1251,11 @@ public class WolfSSLContext {
      *                  shown in WolfSSLEccSignCallback.java, inside
      *                  eccSignCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setEccSignCtx(Object)
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#setEccSignCtx(Object)
      */
     public void setEccSignCb(WolfSSLEccSignCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1266,10 +1286,11 @@ public class WolfSSLContext {
      *                  shown in WolfSSLEccVerifyCallback.java, inside
      *                  eccVerifyCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setEccVerifyCtx(Object)
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#setEccVerifyCtx(Object)
      */
     public void setEccVerifyCb(WolfSSLEccVerifyCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1300,10 +1321,11 @@ public class WolfSSLContext {
      *                  in WolfSSLRsaSignCallback.java, inside
      *                  rsaSignCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setRsaSignCtx(Object)
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#setRsaSignCtx(Object)
      */
     public void setRsaSignCb(WolfSSLRsaSignCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1334,10 +1356,11 @@ public class WolfSSLContext {
      *                  shown in WolfSSLRsaVerifyCallback.java, inside
      *                  rsaVerifyCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setRsaVerifyCtx(Object)
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#setRsaVerifyCtx(Object)
      */
     public void setRsaVerifyCb(WolfSSLRsaVerifyCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1368,10 +1391,11 @@ public class WolfSSLContext {
      *                  as shown in WolfSSLRsaEncCallback.java, inside
      *                  rsaEncCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setRsaEncCtx(Object)
+     * @throws Exception Internal JNI exception
+     * @see    WolfSSLSession#setRsaEncCtx(Object)
      */
     public void setRsaEncCb(WolfSSLRsaEncCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1401,10 +1425,11 @@ public class WolfSSLContext {
      *                  as shown in WolfSSLRsaDecCallback.java, inside
      *                  rsaDecCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @see             WolfSSLSession#setRsaDecCtx(Object)
+     * @throws Exception Internal JNI error
+     * @see    WolfSSLSession#setRsaDecCtx(Object)
      */
     public void setRsaDecCb(WolfSSLRsaDecCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1432,6 +1457,7 @@ public class WolfSSLContext {
      *                 WolfSSLPskClientCallback.java, inside
      *                 pskClientCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
      * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
      * @see    WolfSSLContext#usePskIdentityHint(String)
      * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
@@ -1441,7 +1467,7 @@ public class WolfSSLContext {
      * @see    WolfSSLSession#usePskIdentityHint(String)
      */
     public void setPskClientCb(WolfSSLPskClientCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1468,6 +1494,7 @@ public class WolfSSLContext {
      *                 WolfSSLPskServerCallback.java, inside
      *                 pskServerCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws Exception Internal JNI error
      * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
      * @see    WolfSSLContext#usePskIdentityHint(String)
      * @see    WolfSSLSession#setPskClientCb(WolfSSLPskClientCallback)
@@ -1477,7 +1504,7 @@ public class WolfSSLContext {
      * @see    WolfSSLSession#usePskIdentityHint(String)
      */
     public void setPskServerCb(WolfSSLPskServerCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, Exception {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -1493,9 +1520,9 @@ public class WolfSSLContext {
      * Sets the identity hint for this context.
      *
      * @param  hint  identity hint to be used for session.
-     * @throws IllegalStateException WolfSSLContext has been freed
      * @return <code>SSL_SUCCESS</code> upon success,
      *         <code>SSL_FAILURE</code> upon error.
+     * @throws IllegalStateException WolfSSLContext has been freed
      * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
      * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
      * @see    WolfSSLContext#usePskIdentityHint(String)

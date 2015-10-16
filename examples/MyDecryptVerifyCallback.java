@@ -57,12 +57,13 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
             return -1;
         }
 
-        if (!ssl.getVersion().contains(tlsStr)) {
-            System.out.println("MyDecryptVerifyCallback not using (D)TLS");
-            return -1;
-        }
-
         try {
+
+            if (!ssl.getVersion().contains(tlsStr)) {
+                System.out.println("MyDecryptVerifyCallback not using (D)TLS");
+                return -1;
+            }
+
             /* setup AES */
             if(!decCtx.isCipherSetup()) {
                 int keyLen = ssl.getKeySize();

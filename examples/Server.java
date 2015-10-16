@@ -503,6 +503,8 @@ public class Server {
             cce.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
     } /* end run() */
@@ -510,23 +512,31 @@ public class Server {
     void showPeer(WolfSSLSession ssl) {
 
         String altname;
-        long peerCrtPtr = ssl.getPeerCertificate();
+        long peerCrtPtr;
 
-        if (peerCrtPtr != 0) {
+        try {
 
-            System.out.println("issuer : " + ssl.getPeerX509Issuer(peerCrtPtr));
-            System.out.println("subject : " +
-                    ssl.getPeerX509Subject(peerCrtPtr));
+            peerCrtPtr = ssl.getPeerCertificate();
 
-            while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
-                System.out.println("altname = " + altname);
+            if (peerCrtPtr != 0) {
 
-        } else {
-            System.out.println("peer has no cert!\n");
+                System.out.println("issuer : " + ssl.getPeerX509Issuer(peerCrtPtr));
+                System.out.println("subject : " +
+                        ssl.getPeerX509Subject(peerCrtPtr));
+
+                while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
+                    System.out.println("altname = " + altname);
+
+            } else {
+                System.out.println("peer has no cert!\n");
+            }
+
+            System.out.println("SSL version is " + ssl.getVersion());
+            System.out.println("SSL cipher suite is " + ssl.cipherGetName());
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        System.out.println("SSL version is " + ssl.getVersion());
-        System.out.println("SSL cipher suite is " + ssl.cipherGetName());
     }
 
     void printUsage() {

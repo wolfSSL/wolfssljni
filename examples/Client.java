@@ -480,6 +480,8 @@ public class Client {
             cce.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
     } /* end run() */
@@ -487,18 +489,24 @@ public class Client {
     void showPeer(WolfSSLSession ssl) {
 
         String altname;
-        long peerCrtPtr = ssl.getPeerCertificate();
+        try {
+            long peerCrtPtr = ssl.getPeerCertificate();
 
-        if (peerCrtPtr != 0) {
-            System.out.println("issuer : " + ssl.getPeerX509Issuer(peerCrtPtr));
-            System.out.println("subject : " + ssl.getPeerX509Subject(peerCrtPtr));
+            if (peerCrtPtr != 0) {
+                System.out.println("issuer : " +
+                        ssl.getPeerX509Issuer(peerCrtPtr));
+                System.out.println("subject : " +
+                        ssl.getPeerX509Subject(peerCrtPtr));
 
-            while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
-                System.out.println("altname = " + altname);
+                while( (altname = ssl.getPeerX509AltName(peerCrtPtr)) != null)
+                    System.out.println("altname = " + altname);
+            }
+
+            System.out.println("SSL version is " + ssl.getVersion());
+            System.out.println("SSL cipher suite is " + ssl.cipherGetName());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        System.out.println("SSL version is " + ssl.getVersion());
-        System.out.println("SSL cipher suite is " + ssl.cipherGetName());
     }
 
     void printUsage() {
