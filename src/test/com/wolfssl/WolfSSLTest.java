@@ -59,14 +59,14 @@ public class WolfSSLTest {
             System.out.print("\tWolfSSL()");
             lib = new WolfSSL();
         } catch (UnsatisfiedLinkError ule) {
-            System.out.println("\t\t... failed");
+            System.out.println("\t\t\t... failed");
             fail("failed to load native JNI library");
         } catch (WolfSSLException we) {
-            System.out.println("\t\t... failed");
+            System.out.println("\t\t\t... failed");
             fail("failed to create WolfSSL object");
         }
 
-        System.out.println("\t\t... passed");
+        System.out.println("\t\t\t... passed");
     }
 
     public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
@@ -91,12 +91,12 @@ public class WolfSSLTest {
         System.out.print("\t" + name);
 
         if (method == 0) {
-            System.out.println("\t... failed");
+            System.out.println("\t\t... failed");
             fail("method test failed, method was null");
         } else if (method != WolfSSL.NOT_COMPILED_IN) {
             WolfSSL.nativeFree(method);
         }
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 }
 

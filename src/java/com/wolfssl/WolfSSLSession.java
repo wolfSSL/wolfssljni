@@ -1990,6 +1990,7 @@ public class WolfSSLSession {
      *                 WolfSSLPskClientCallback.java, inside
      *                 pskClientCallback().
      * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
      * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
      * @see    WolfSSLContext#usePskIdentityHint(String)
@@ -1998,7 +1999,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentityHint()
      */
     public void setPskClientCb(WolfSSLPskClientCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, WolfSSLJNIException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -2029,6 +2030,7 @@ public class WolfSSLSession {
      *                 WolfSSLPskServerCallback.java, inside
      *                 pskServerCallback().
      * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setPskClientCb(WolfSSLPskClientCallback)
      * @see    WolfSSLContext#setPskServerCb(WolfSSLPskServerCallback)
      * @see    WolfSSLContext#usePskIdentityHint(String)
@@ -2037,7 +2039,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentityHint()
      */
     public void setPskServerCb(WolfSSLPskServerCallback callback)
-        throws IllegalStateException {
+        throws IllegalStateException, WolfSSLJNIException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");

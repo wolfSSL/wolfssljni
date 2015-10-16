@@ -44,7 +44,7 @@ public class WolfCryptECCTest {
 
         System.out.print("\tECC()");
         ecc = new ECC();
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t\t\t... passed");
     }
 }
 

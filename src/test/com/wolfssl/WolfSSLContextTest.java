@@ -49,6 +49,9 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_useCertificateFile();
         test_WolfSSLContext_usePrivateKeyFile();
         test_WolfSSLContext_loadVerifyLocations();
+        test_WolfSSLContext_setPskClientCb();
+        test_WolfSSLContext_setPskServerCb();
+        test_WolfSSLContext_usePskIdentityHint();
         test_WolfSSLContext_free();
 
     }
@@ -70,15 +73,15 @@ public class WolfSSLContextTest {
                 try {
                     ctx = new WolfSSLContext(method);
                 } catch (WolfSSLException we) {
-                    System.out.println("\t... failed");
+                    System.out.println("\t\t... failed");
                     fail("failed to create WolfSSLContext object");
                 }
 
-                System.out.println("\t... passed");
+                System.out.println("\t\t... passed");
                 return;
             }
 
-            System.out.println("\t... failed");
+            System.out.println("\t\t... failed");
             fail("failure case improperly succeeded, WolfSSLContext()");
         }
     }
@@ -100,7 +103,7 @@ public class WolfSSLContextTest {
                  WolfSSL.SSL_SUCCESS,
                  "useCertificateFile(ctx, cliCert, SSL_FILETYPE_PEM)");
 
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 
     /* helper for testing WolfSSLContext.useCertificateFile() */
@@ -114,7 +117,7 @@ public class WolfSSLContextTest {
             result = sslCtx.useCertificateFile(filePath, type);
             if (result != cond)
             {
-                System.out.println("\t... failed");
+                System.out.println("\t\t... failed");
                 fail(name + " failed");
             }
 
@@ -146,7 +149,7 @@ public class WolfSSLContextTest {
         test_upkf(ctx, cliKey, WolfSSL.SSL_FILETYPE_PEM, WolfSSL.SSL_SUCCESS,
                  "usePrivateKeyFile(ctx, cliKey, SSL_FILETYPE_PEM)");
 
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 
     /* helper for testing WolfSSLContext.usePrivateKeyFile() */
@@ -160,7 +163,7 @@ public class WolfSSLContextTest {
             result = sslCtx.usePrivateKeyFile(filePath, type);
             if (result != cond)
             {
-                System.out.println("\t... failed");
+                System.out.println("\t\t... failed");
                 fail(name + " failed");
             }
 
@@ -191,7 +194,7 @@ public class WolfSSLContextTest {
         test_lvl(ctx, caCert, null, WolfSSL.SSL_SUCCESS,
                 "loadVerifyLocations(ctx, caCert, 0)");
 
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 
     /* helper for testing WolfSSLContext.loadVerifyLocations() */
@@ -205,7 +208,7 @@ public class WolfSSLContextTest {
             result = sslCtx.loadVerifyLocations(filePath, dirPath);
             if (result != cond)
             {
-                System.out.println("\t... failed");
+                System.out.println("\t\t... failed");
                 fail(name + " failed");
             }
 
@@ -220,11 +223,92 @@ public class WolfSSLContextTest {
         return;
     }
 
+    class TestPskClientCb implements WolfSSLPskClientCallback
+    {
+        public long pskClientCallback(WolfSSLSession ssl, String hint,
+                StringBuffer identity, long idMaxLen, byte[] key,
+                long keyMaxLen) {
+
+            /* set the client identity */
+            if (identity.length() != 0)
+                return 0;
+            identity.append("Client_identity");
+
+            /* set the client key, max key size is key.length */
+            key[0] = 26;
+            key[1] = 43;
+            key[2] = 60;
+            key[3] = 77;
+
+            /* return size of key */
+            return 4;
+        }
+    }
+
+    public void test_WolfSSLContext_setPskClientCb() {
+        System.out.print("\tsetPskClientCb()");
+        try {
+            TestPskClientCb pskClientCb = new TestPskClientCb();
+            ctx.setPskClientCb(pskClientCb);
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+        System.out.println("\t\t... passed");
+    }
+
+    class TestPskServerCb implements WolfSSLPskServerCallback
+    {
+        public long pskServerCallback(WolfSSLSession ssl, String identity,
+                byte[] key, long keyMaxLen) {
+
+            /* check the client identity */
+            if (!identity.equals("Client_identity"))
+                return 0;
+
+            /* set the server key, max key size is key.length */
+            key[0] = 26;
+            key[1] = 43;
+            key[2] = 60;
+            key[3] = 77;
+
+            /* return size of key */
+            return 4;
+        }
+    }
+
+    public void test_WolfSSLContext_setPskServerCb() {
+        System.out.print("\tsetPskServerCb()");
+        try {
+            TestPskServerCb pskServerCb = new TestPskServerCb();
+            ctx.setPskServerCb(pskServerCb);
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLContext_usePskIdentityHint() {
+        System.out.print("\tusePskIdentityHint()");
+        try {
+            int ret = ctx.usePskIdentityHint("wolfssl hint");
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("usePskIdentityHint failed");
+            }
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+        System.out.println("\t\t... passed");
+    }
+
     public void test_WolfSSLContext_free() {
 
         System.out.print("\tfree()");
         ctx.free();
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t\t\t... passed");
     }
 }
 

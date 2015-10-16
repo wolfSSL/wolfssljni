@@ -31,7 +31,7 @@ class MyPskServerCallback implements WolfSSLPskServerCallback
 
         System.out.println("PSK Server Callback:");
 
-        /* set the client identity */
+        /* check the client identity */
         System.out.println(" | PSK identity : " + identity);
         if (!identity.equals("Client_identity")) {
             System.out.println("Client PSK identity isn't what we expect!\n");

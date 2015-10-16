@@ -2438,7 +2438,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskClientCb
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -2460,7 +2461,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskServerCb
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);

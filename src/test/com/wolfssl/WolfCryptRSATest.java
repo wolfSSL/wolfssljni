@@ -44,7 +44,7 @@ public class WolfCryptRSATest {
 
         System.out.print("\tRSA()");
         rsa = new RSA();
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t\t\t... passed");
     }
 }
 
