@@ -12,7 +12,24 @@ when running java.sh. In this case, you should modify java.sh to match
 your environment.
 
 
-wolfSSL JNI Release 1.2.0 (06/02/2015)
+wolfSSL JNI Release 1.3.0 (TBD)
+
+Release 1.3.0 has bug fixes and new features including:
+
+- Added finalizers for WolfSSLContext and WolfSSLSession classes
+- Fix for SSLv3 now disabled by default in wolfSSL proper
+- SSLv3 now marked as @Deprecated
+- PSK (pre-shared key) support for client and server
+- Better error checking and exception handling
+- New WolfSSLJNIException class
+- WolfSSLSession now cached in native WOLFSSL struct for callbacks
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
+
+************ wolfSSL JNI Release 1.2.0 (06/02/2015)
 
 Release 1.2.0 has bug fixes and new features including:
 
