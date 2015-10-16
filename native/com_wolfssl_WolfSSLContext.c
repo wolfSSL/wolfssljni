@@ -1711,20 +1711,25 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         const unsigned char* decIn, unsigned int decSz, int content,
         int verify, unsigned int* padSz, void* ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
-    jmethodID  decryptVerifyMethodId;
-    jclass     excClass;
 
-    jobjectRefType refcheck;
-    internCtx*     myCtx = ctx;
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  decryptVerifyMethodId;
 
     jbyteArray j_decIn;
     jlongArray j_padSz;
 
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    if (!g_vm || !ssl || !decOut || !decIn || !padSz) {
         return -1;
     }
 
@@ -1737,12 +1742,10 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return -1;
         }
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return -1;
     }
 
     /* find exception class in case we need it */
@@ -1750,165 +1753,195 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
-
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference "
-                "in NativeDecryptVerifyCb");
-            return -1;
-        }
-
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID "
-                "in NativeDecryptVerifyCb");
-            return -1;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID "
-                "in NativeDecryptVerifyCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference "
-                "in NativeDecryptVerifyCb");
-            return -1;
-        }
-
-        /* call internal decrypt/verify callback */
-        decryptVerifyMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalDecryptVerifyCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
-
-        if (!decryptVerifyMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalDecryptVerifyCallback method "
-                    "from JNI\n");
-            retval = -1;
-        }
-
-        if (retval == 0)
-        {
-            /* create ByteBuffer to wrap decOut */
-            jobject decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut,
-                    decSz);
-            if (!decOutBB) {
-                printf("failed to create decOut ByteBuffer\n");
-                return -1;
-            }
-
-            /* create jbyteArray to hold decIn */
-            j_decIn = (*jenv)->NewByteArray(jenv, decSz);
-            if (!j_decIn)
-                return -1;
-
-            (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                return -1;
-            }
-
-            /* create jlongArray to hold padSz, since we need to use it as
-             * an OUTPUT parameter from Java. Only needs to have 1 element */
-            j_padSz = (*jenv)->NewLongArray(jenv, 1);
-            if (!j_padSz) {
-                printf("failed to create padSz longArray\n");
-                return -1;
-            }
-
-            /* call Java decrypt/verify callback, java layer handles
-             * adding decrypt/verify CTX reference */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, decryptVerifyMethodId,
-                    myCtx->obj, decOutBB, j_decIn, (jlong)decSz, content,
-                    verify, j_padSz);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                retval = -1;
-            }
-
-            if (retval == 0) {
-                /* copy j_padSz into padSz */
-                jlong tmpVal;
-                (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                    retval = -1;
-                }
-                *padSz = (unsigned int)tmpVal;
-            }
-
-            /* delete local refs */
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
-        }
-
-        /* detach JNIEnv from thread */
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativeMacEncryptCb");
         (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-    } else {
-        /* clear any existing exception before we throw another */
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeMacEncryptCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeDecryptVerifyCb");
-
+            "Can't get native WolfSSLContext field ID "
+            "in NativeDecryptVerifyCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID "
+            "in NativeDecryptVerifyCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference "
+            "in NativeDecryptVerifyCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call internal decrypt/verify callback */
+    decryptVerifyMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalDecryptVerifyCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
+
+    if (!decryptVerifyMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting internalDecryptVerifyCallback method "
+                "from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    if (retval == 0)
+    {
+        /* create ByteBuffer to wrap decOut */
+        jobject decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut,
+                decSz);
+        if (!decOutBB) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create decOut ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create jbyteArray to hold decIn */
+        j_decIn = (*jenv)->NewByteArray(jenv, decSz);
+        if (!j_decIn) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create decIn ByteArray");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create jlongArray to hold padSz, since we need to use it as
+         * an OUTPUT parameter from Java. Only needs to have 1 element */
+        j_padSz = (*jenv)->NewLongArray(jenv, 1);
+        if (!j_padSz) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create padSz longArray");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* call Java decrypt/verify callback, java layer handles
+         * adding decrypt/verify CTX reference */
+        retval = (*jenv)->CallIntMethod(jenv, ctxRef, decryptVerifyMethodId,
+                (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
+                content, verify, j_padSz);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            (*jenv)->DeleteLocalRef(jenv, j_padSz);
+            (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        if (retval == 0) {
+            /* copy j_padSz into padSz */
+            jlong tmpVal;
+            (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, ctxRef);
+                (*jenv)->DeleteLocalRef(jenv, decOutBB);
+                (*jenv)->DeleteLocalRef(jenv, j_decIn);
+                (*jenv)->DeleteLocalRef(jenv, j_padSz);
+                (*g_vm)->DetachCurrentThread(g_vm);
+                return -1;
+            }
+            *padSz = (unsigned int)tmpVal;
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, decOutBB);
+        (*jenv)->DeleteLocalRef(jenv, j_decIn);
+        (*jenv)->DeleteLocalRef(jenv, j_padSz);
+    }
+
+    /* delete local refs, detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }

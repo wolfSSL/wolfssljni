@@ -473,14 +473,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTlsHmacInner
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
- * Method:    setDecryptVerifyCtx
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setDecryptVerifyCtx
-  (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     com_wolfssl_WolfSSLSession
  * Method:    setEccSignCtx
  * Signature: (J)V
  */
