@@ -624,6 +624,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     JNIEnv*    jenv;                  /* JNI environment */
     jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
 
     static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
@@ -651,6 +652,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (vmret) {
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -660,7 +662,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -669,8 +672,9 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
-                "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+                "NativeIORecvCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -680,7 +684,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeIORecvCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -694,7 +699,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in NativeIORecvCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -710,7 +716,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeIORecvCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -724,7 +731,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeIORecvCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -735,7 +743,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             "Can't get native WolfSSLContext class reference in "
             "NativeIORecvCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -751,7 +760,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Error getting internalIORecvCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -761,7 +771,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Error getting internalIORecvCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -776,7 +787,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ExceptionClear(jenv);
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, inData);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -789,7 +801,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, inData);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
@@ -797,7 +810,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     /* delete local refs, detach JNIEnv from thread */
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
     (*jenv)->DeleteLocalRef(jenv, inData);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -830,6 +844,7 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     JNIEnv*    jenv;                  /* JNI environment */
     jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
 
     static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
@@ -857,6 +872,7 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (vmret) {
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -866,7 +882,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -875,8 +892,9 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
-                "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+                "NativeIOSendCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -885,7 +903,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (!sessClass) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -899,7 +918,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in NativeIOSendCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -915,7 +935,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeIOSendCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -929,7 +950,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeIOSendCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -940,7 +962,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             "Can't get native WolfSSLContext class reference in "
             "NativeIOSendCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -956,7 +979,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalIOSendCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
@@ -968,7 +992,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             (*jenv)->ThrowNew(jenv, excClass,
                     "Error getting internalIOSendCallback method from JNI");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
@@ -978,7 +1003,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, outData);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
@@ -992,7 +1018,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, outData);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
@@ -1002,7 +1029,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     /* delete local refs, detach JNIEnv from thread */
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -1036,6 +1064,7 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
 
     JNIEnv*    jenv;                  /* JNI environment */
     jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
 
     static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
@@ -1063,6 +1092,7 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         if (vmret) {
             return GEN_COOKIE_E;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return GEN_COOKIE_E;
     }
@@ -1072,7 +1102,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1082,7 +1113,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeGenCookieCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1092,7 +1124,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeGenCookieCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1107,7 +1140,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in "
             "NativeGenCookieCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1123,7 +1157,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeGenCookieCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1137,7 +1172,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeGenCookieCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1148,7 +1184,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
             "Can't get native WolfSSLContext class reference in "
             "NativeGenCookieCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1165,7 +1202,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalGenCookieCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return GEN_COOKIE_E;
     }
 
@@ -1177,7 +1215,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
             (*jenv)->ThrowNew(jenv, excClass,
                     "Error getting internalGenCookieCallback method from JNI");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return GEN_COOKIE_E;
         }
 
@@ -1191,7 +1230,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, inData);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return GEN_COOKIE_E;
         }
 
@@ -1204,7 +1244,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
                 (*jenv)->ExceptionClear(jenv);
                 (*jenv)->DeleteLocalRef(jenv, ctxRef);
                 (*jenv)->DeleteLocalRef(jenv, inData);
-                (*g_vm)->DetachCurrentThread(g_vm);
+                if (needsDetach)
+                    (*g_vm)->DetachCurrentThread(g_vm);
                 return GEN_COOKIE_E;
             }
         }
@@ -1215,7 +1256,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
 
     /* delete local refs, detach JNIEnv from thread */
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -1446,6 +1488,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
 
     JNIEnv*    jenv;                  /* JNI environment */
     jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
 
     static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
@@ -1474,6 +1517,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if (vmret) {
             return -1;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return -1;
     }
@@ -1483,7 +1527,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1493,7 +1538,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1503,7 +1549,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1518,7 +1565,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in "
             "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1534,7 +1582,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1549,7 +1598,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1560,7 +1610,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             "Can't get native WolfSSLContext class reference in "
             "NativeMacEncryptCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1578,7 +1629,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalMacEncryptCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         retval = -1;
     }
 
@@ -1593,7 +1645,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create macOut ByteBuffer");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1604,7 +1657,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
                     "failed to create macIn ByteBuffer");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, macOutBB);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1616,7 +1670,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, macOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_macIn);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1629,7 +1684,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, macOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_macIn);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1646,7 +1702,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->DeleteLocalRef(jenv, macOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_macIn);
             (*jenv)->DeleteLocalRef(jenv, encOutBB);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1665,7 +1722,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->DeleteLocalRef(jenv, j_macIn);
             (*jenv)->DeleteLocalRef(jenv, encOutBB);
             (*jenv)->DeleteLocalRef(jenv, encInBB);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1678,7 +1736,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
 
     /* detach JNIEnv from thread */
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -1716,6 +1775,7 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
 
     JNIEnv*    jenv;                  /* JNI environment */
     jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
 
     static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
@@ -1744,6 +1804,7 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if (vmret) {
             return -1;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return -1;
     }
@@ -1753,7 +1814,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1763,7 +1825,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1773,7 +1836,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeMacEncryptCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1788,7 +1852,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID "
             "in NativeDecryptVerifyCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1804,7 +1869,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID "
             "in NativeDecryptVerifyCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1818,7 +1884,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1829,7 +1896,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             "Can't get native WolfSSLContext class reference "
             "in NativeDecryptVerifyCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1847,7 +1915,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
                 "Error getting internalDecryptVerifyCallback method "
                 "from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
@@ -1860,7 +1929,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create decOut ByteBuffer");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1871,7 +1941,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
                     "failed to create decIn ByteArray");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1882,7 +1953,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, decOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_decIn);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1895,7 +1967,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, decOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_decIn);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1912,7 +1985,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->DeleteLocalRef(jenv, decOutBB);
             (*jenv)->DeleteLocalRef(jenv, j_decIn);
             (*jenv)->DeleteLocalRef(jenv, j_padSz);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
 
@@ -1927,7 +2001,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
                 (*jenv)->DeleteLocalRef(jenv, decOutBB);
                 (*jenv)->DeleteLocalRef(jenv, j_decIn);
                 (*jenv)->DeleteLocalRef(jenv, j_padSz);
-                (*g_vm)->DetachCurrentThread(g_vm);
+                if (needsDetach)
+                    (*g_vm)->DetachCurrentThread(g_vm);
                 return -1;
             }
             *padSz = (unsigned int)tmpVal;
@@ -1941,7 +2016,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
 
     /* delete local refs, detach JNIEnv from thread */
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -3328,6 +3404,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     jint        vmret  = 0;
     jlong       retval = 0;
     int         usingSSLCallback = 0;
+    int         needsDetach = 0;      /* Should we explicitly detach? */
 
     JNIEnv*     jenv;                 /* JNI environment */
     jclass      excClass;             /* class: WolfSSLJNIException */
@@ -3372,6 +3449,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         if (vmret) {
             return 0;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return 0;
     }
@@ -3381,7 +3459,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3391,7 +3470,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3401,7 +3481,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession class reference in "
                 "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3416,7 +3497,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLContext field ID in "
                 "NativePSKClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3432,7 +3514,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get getAssociatedContextPtr() method ID in "
                 "NativePSKClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3446,7 +3529,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         }
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get WolfSSLContext object in NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3457,7 +3541,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
                 "Can't get native WolfSSLContext class reference in "
                 "NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3476,7 +3561,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
                 "Can't get native internPskClientCb field ID in "
                 "NativePSKClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3511,7 +3597,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalPskClientCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3525,7 +3612,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error creating String for PSK client hint");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3540,7 +3628,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
                 "Error finding StringBuffer class for PSK client identity");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3557,7 +3646,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
                 "in NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3572,7 +3662,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
                 "Can't get StringBuffer object in NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3584,7 +3675,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
         (*jenv)->DeleteLocalRef(jenv, strBufObj);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3601,7 +3693,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
     } else {
@@ -3616,7 +3709,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
     }
@@ -3632,7 +3726,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
 
@@ -3650,7 +3745,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
 
@@ -3667,7 +3763,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
 
@@ -3681,7 +3778,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, bufString);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
         strcpy(identity, tmpString);
@@ -3694,7 +3792,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     (*jenv)->DeleteLocalRef(jenv, hintString);
     (*jenv)->DeleteLocalRef(jenv, strBufObj);
     (*jenv)->DeleteLocalRef(jenv, keyArray);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
@@ -3728,6 +3827,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     jint        vmret  = 0;
     jlong       retval = 0;
     int         usingSSLCallback = 0;
+    int         needsDetach = 0;     /* Should we explicitly detach? */
 
     JNIEnv*     jenv;                 /* JNI environment */
     jclass      excClass;             /* class: WolfSSLJNIException */
@@ -3766,6 +3866,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         if (vmret) {
             return 0;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return 0;
     }
@@ -3775,7 +3876,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3784,8 +3886,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
-                "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+                "NativePskServerCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3794,8 +3897,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     if (!sessClass) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession class reference in "
-                "NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+                "NativePskServerCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3810,7 +3914,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLContext field ID in "
                 "NativePSKClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3826,7 +3931,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get getAssociatedContextPtr() method ID in "
                 "NativePSKClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3839,8 +3945,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativePskClientCb");
-        (*g_vm)->DetachCurrentThread(g_vm);
+                "Can't get WolfSSLContext object in NativePskServerCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3849,9 +3956,10 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     if (!innerCtxClass) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLContext class reference in "
-                "NativePskClientCb");
+                "NativePskServerCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3870,7 +3978,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
                 "Can't get native internPskServerCb field ID in "
                 "NativePskServerCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3904,7 +4013,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalPskServerCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3918,7 +4028,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error creating String for PSK client identity");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3929,7 +4040,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
                 "Error creating jbyteArray for PSK server key");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, identityString);
-        (*g_vm)->DetachCurrentThread(g_vm);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return 0;
     }
 
@@ -3944,7 +4056,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
     } else {
@@ -3957,7 +4070,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
     }
@@ -3972,7 +4086,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            (*g_vm)->DetachCurrentThread(g_vm);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return 0;
         }
     }
@@ -3981,7 +4096,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
     (*jenv)->DeleteLocalRef(jenv, identityString);
     (*jenv)->DeleteLocalRef(jenv, keyArray);
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
