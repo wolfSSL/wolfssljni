@@ -118,6 +118,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
         return -1;
     }
 
+    /* set previous value of outSz */
+    jlong tmp;
+    (*jenv)->GetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
+    tmpOut = (unsigned int)tmp;
+
     wc_InitRng(&rng);
     wc_ecc_init(&myKey);
 
