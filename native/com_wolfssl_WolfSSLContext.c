@@ -3162,21 +3162,25 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         unsigned char* out, unsigned int* outSz, const unsigned char* keyDer,
         unsigned int keySz, void* ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
+
+    JNIEnv*    jenv;                  /* JNI Environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
     jmethodID  rsaEncMethodId;
-    jclass     excClass;
-
-    jobjectRefType refcheck;
-    internCtx*     myCtx = ctx;
-
     jintArray j_outSz;
 
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    if (!g_vm || !ssl || !in || !out || !outSz || !keyDer)
         return -1;
-    }
 
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -3187,12 +3191,11 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return -1;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return -1;
     }
 
     /* find exception class in case we need it */
@@ -3200,168 +3203,227 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativeRsaEncCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference "
-                "in NativeRsaEncCb");
-            return -1;
-        }
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeRsaEncCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID "
-                "in NativeRsaEncCb");
-            return -1;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID "
-                "in NativeRsaEncCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeRsaEncCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference "
-                "in NativeRsaEncCb");
-            return -1;
-        }
-
-        /* call internal RSA enc callback */
-        rsaEncMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalRsaEncCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
-                "JLjava/nio/ByteBuffer;[ILjava/nio/ByteBuffer;J)I");
-
-        if (!rsaEncMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalRsaEncCallback method "
-                    "from JNI\n");
-            retval = -1;
-        }
-
-        if (retval == 0)
-        {
-            /* create ByteBuffer to wrap 'in' */
-            jobject inBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)in,
-                    inSz);
-            if (!inBB) {
-                printf("failed to create rsaEnc in ByteBuffer\n");
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap 'out' */
-            jobject outBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)out,
-                    *outSz);
-            if (!outBB) {
-                printf("failed to create rsaEnc out ByteBuffer\n");
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap 'keyDer' */
-            jobject keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer,
-                    keySz);
-            if (!keyDerBB) {
-                printf("failed to create rsaEnc keyDer ByteBuffer\n");
-                return -1;
-            }
-
-            /* create jintArray to hold outSz, since we need to use it as
-             * an OUTPUT parameter from Java. Only needs to have 1 element */
-            j_outSz = (*jenv)->NewIntArray(jenv, 1);
-            if (!j_outSz) {
-                printf("failed to create result intArray\n");
-                return -1;
-            }
-            (*jenv)->SetIntArrayRegion(jenv, j_outSz, 0, 1, (jint*)outSz);
-
-            /* call Java RSA enc callback, java layer handles
-             * adding CTX reference */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, rsaEncMethodId,
-                    myCtx->obj, inBB, (jlong)inSz, outBB, j_outSz, keyDerBB,
-                    (jlong)keySz);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                retval = -1;
-            }
-
-            if (retval == 0) {
-                /* copy j_outSz into outSz */
-                jint tmpVal;
-                (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                    retval = -1;
-                }
-                *outSz = tmpVal;
-            }
-        }
-
-        /* detach JNIEnv from thread */
-        (*g_vm)->DetachCurrentThread(g_vm);
-
-    } else {
-        /* clear any existing exception before we throw another */
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeRsaEncCb");
-
+            "Can't get native WolfSSLContext field ID "
+            "in NativeRsaEncCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID "
+            "in NativeRsaEncCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeRsaEncCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference "
+            "in NativeRsaEncCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call internal RSA enc callback */
+    rsaEncMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalRsaEncCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
+            "JLjava/nio/ByteBuffer;[ILjava/nio/ByteBuffer;J)I");
+
+    if (!rsaEncMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalRsaEncCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'in' */
+    jobject inBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)in, inSz);
+    if (!inBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaEnc in ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'out' */
+    jobject outBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)out, *outSz);
+    if (!outBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaEnc out ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'keyDer' */
+    jobject keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer,
+            keySz);
+    if (!keyDerBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaEnc keyDer ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create jintArray to hold outSz, since we need to use it as
+     * an OUTPUT parameter from Java. Only needs to have 1 element */
+    j_outSz = (*jenv)->NewIntArray(jenv, 1);
+    if (!j_outSz) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create result intArray in RsaEncCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* copy outSz into j_outSz */
+    (*jenv)->SetIntArrayRegion(jenv, j_outSz, 0, 1, (jint*)outSz);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to set j_outSz intArray in RsaEncCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call Java RSA enc callback, java layer handles
+     * adding CTX reference */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, rsaEncMethodId,
+            (jobject)(*g_cachedSSLObj), inBB, (jlong)inSz, outBB, j_outSz,
+            keyDerBB, (jlong)keySz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    if (retval == 0) {
+        /* copy j_outSz into outSz */
+        jint tmpVal;
+        (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, inBB);
+            (*jenv)->DeleteLocalRef(jenv, outBB);
+            (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+            (*jenv)->DeleteLocalRef(jenv, j_outSz);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+        *outSz = tmpVal;
+    }
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, inBB);
+    (*jenv)->DeleteLocalRef(jenv, outBB);
+    (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+    (*jenv)->DeleteLocalRef(jenv, j_outSz);
+
+    /* detach JNIEnv from thread */
+    (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
