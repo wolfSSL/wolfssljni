@@ -2346,20 +2346,25 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
         const unsigned char* keyDer, unsigned int keySz, int* result,
         void* ctx)
 {
-    JNIEnv*    jenv;
     jint       retval = 0;
     jint       vmret  = 0;
+
+    JNIEnv*    jenv;                  /* JNI Environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
     jmethodID  eccVerifyMethodId;
-    jclass     excClass;
+    jintArray  j_result;
 
-    jobjectRefType refcheck;
-    internCtx*     myCtx = ctx;
-    jintArray      j_result;
-
-    if (!g_vm) {
-        printf("Global JavaVM reference is null!\n");
+    if (!g_vm || !ssl || !sig || !hash || !keyDer || !result)
         return -1;
-    }
 
     /* get JavaEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -2370,12 +2375,11 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
         if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
-        } else {
-            printf("Attached JNIEnv to thread\n");
+            return -1;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
-        printf("Error getting JNIEnv from JavaVM, ret = %d\n", vmret);
+        return -1;
     }
 
     /* find exception class in case we need it */
@@ -2383,170 +2387,210 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        printf("can't find WolfSSLJNIException class, NativeEccVerifyCb\n");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
-    /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, myCtx->obj);
-    if (refcheck == 2) {
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativeEccVerifyCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-        /* lookup WolfSSLSession class from global object ref */
-        jclass sessClass = (*jenv)->GetObjectClass(jenv, myCtx->obj);
-        if (!sessClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference "
-                "in NativeEccVerifyCb");
-            return -1;
-        }
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeEccVerifyCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
 
-        /* lookup WolfSSLContext private member fieldID */
-        jfieldID ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-                "Lcom/wolfssl/WolfSSLContext;");
-        if (!ctxFid) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID "
-                "in NativeEccVerifyCb");
-            return -1;
-        }
-
-        /* find getContextPtr() method */
-        jmethodID getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
-        if (!getCtxMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID "
-                "in NativeEccVerifyCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext ctx object from Java land */
-        jobject ctxref = (*jenv)->CallObjectMethod(jenv, myCtx->obj,
-                getCtxMethodId);
-        if (!ctxref) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativeEccVerifyCb");
-            return -1;
-        }
-
-        /* get WolfSSLContext class reference from Java land */
-        jclass innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxref);
-        if (!innerCtxClass) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference "
-                "in NativeEccVerifyCb");
-            return -1;
-        }
-
-        /* call internal ECC verify callback */
-        eccVerifyMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalEccVerifyCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
-                "JLjava/nio/ByteBuffer;JLjava/nio/ByteBuffer;J[I)I");
-
-        if (!eccVerifyMethodId) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            printf("Error getting internalEccVerifyCallback method "
-                    "from JNI\n");
-            retval = -1;
-        }
-
-        if (retval == 0)
-        {
-            /* create ByteBuffer to wrap 'sig' */
-            jobject sigBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)sig,
-                    sigSz);
-            if (!sigBB) {
-                printf("failed to create eccVerify out ByteBuffer\n");
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap 'hash' */
-            jobject hashBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)hash,
-                    hashSz);
-            if (!hashBB) {
-                printf("failed to create eccVerify hash ByteBuffer\n");
-                return -1;
-            }
-
-            /* create ByteBuffer to wrap 'keyDer' */
-            jobject keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer,
-                    keySz);
-            if (!keyDerBB) {
-                printf("failed to create eccVerify keyDer ByteBuffer\n");
-                return -1;
-            }
-
-            /* create jintArray to hold result, since we need to use it as
-             * an OUTPUT parameter from Java. Only needs to have 1 element */
-            j_result = (*jenv)->NewIntArray(jenv, 1);
-            if (!j_result) {
-                printf("failed to create result intArray\n");
-                return -1;
-            }
-
-            /* call Java ECC verify callback, java layer handles
-             * adding CTX reference */
-            retval = (*jenv)->CallIntMethod(jenv, ctxref, eccVerifyMethodId,
-                    myCtx->obj, sigBB, (jlong)sigSz, hashBB, (jlong)hashSz,
-                    keyDerBB, (jlong)keySz, j_result);
-
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                printf("exception occurred in EccVerifyCb\n");
-                retval = -1;
-            }
-
-            if (retval == 0) {
-                /* copy j_result into result */
-                jint tmpVal;
-                (*jenv)->GetIntArrayRegion(jenv, j_result, 0, 1, &tmpVal);
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                    printf("failed during j_result copy, NativeEccVerifyCb\n");
-                    retval = -1;
-                }
-                *result = tmpVal;
-            }
-        }
-
-        /* detach JNIEnv from thread */
-        (*g_vm)->DetachCurrentThread(g_vm);
-
-    } else {
-        /* clear any existing exception before we throw another */
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
-
         (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeEccVerifyCb");
-
+            "Can't get native WolfSSLContext field ID "
+            "in NativeEccVerifyCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID "
+            "in NativeEccVerifyCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    if (!ctxRef) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeEccVerifyCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference "
+            "in NativeEccVerifyCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call internal ECC verify callback */
+    eccVerifyMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalEccVerifyCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
+            "JLjava/nio/ByteBuffer;JLjava/nio/ByteBuffer;J[I)I");
+
+    if (!eccVerifyMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalEccVerifyCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'sig' */
+    jobject sigBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)sig, sigSz);
+    if (!sigBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to create eccVerify out ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'hash' */
+    jobject hashBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)hash, hashSz);
+    if (!hashBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to create eccVerify hash ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'keyDer' */
+    jobject keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer,
+            keySz);
+    if (!keyDerBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to create eccVerify keyDer ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, hashBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* create jintArray to hold result, since we need to use it as
+     * an OUTPUT parameter from Java. Only needs to have 1 element */
+    j_result = (*jenv)->NewIntArray(jenv, 1);
+    if (!j_result) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to create result intArray in EccVerifyCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, hashBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call Java ECC verify callback, java layer handles
+     * adding CTX reference */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, eccVerifyMethodId,
+            (jobject)(*g_cachedSSLObj), sigBB, (jlong)sigSz, hashBB,
+            (jlong)hashSz, keyDerBB, (jlong)keySz, j_result);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, hashBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_result);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* copy j_result into result */
+    jint tmpVal;
+    (*jenv)->GetIntArrayRegion(jenv, j_result, 0, 1, &tmpVal);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, hashBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_result);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+    *result = tmpVal;
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, sigBB);
+    (*jenv)->DeleteLocalRef(jenv, hashBB);
+    (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+    (*jenv)->DeleteLocalRef(jenv, j_result);
+
+    /* detach JNIEnv from thread */
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
