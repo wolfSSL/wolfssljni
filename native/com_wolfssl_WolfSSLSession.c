@@ -52,6 +52,11 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
     if (sslPtr != 0) {
         /* create global reference to WolfSSLSession jobject */
         g_cachedObj = (jobject*)malloc(sizeof(jobject));
+        if (!g_cachedObj) {
+            printf("error mallocing memory in newSSL\n");
+            wolfSSL_free((WOLFSSL*)sslPtr);
+            return SSL_FAILURE;
+        }
         *g_cachedObj = (*jenv)->NewGlobalRef(jenv, jcl);
         if (!*g_cachedObj) {
             printf("error storing global WolfSSLSession object\n");
