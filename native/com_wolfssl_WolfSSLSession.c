@@ -41,7 +41,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
 {
     int ret;
     jlong sslPtr;
-    static jobject g_cachedObj;
+    jobject* g_cachedObj;
 
     if (!jenv)
         return SSL_FAILURE;
@@ -51,14 +51,15 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
 
     if (sslPtr != 0) {
         /* create global reference to WolfSSLSession jobject */
-        g_cachedObj = (*jenv)->NewGlobalRef(jenv, jcl);
-        if (!g_cachedObj) {
+        g_cachedObj = (jobject*)malloc(sizeof(jobject));
+        *g_cachedObj = (*jenv)->NewGlobalRef(jenv, jcl);
+        if (!*g_cachedObj) {
             printf("error storing global WolfSSLSession object\n");
             wolfSSL_free((WOLFSSL*)sslPtr);
             return SSL_FAILURE;
         }
         /* cache associated WolfSSLSession jobject in native WOLFSSL */
-        ret = wolfSSL_set_jobject((WOLFSSL*)sslPtr, &g_cachedObj);
+        ret = wolfSSL_set_jobject((WOLFSSL*)sslPtr, g_cachedObj);
         if (ret != SSL_SUCCESS) {
             printf("error storing jobject in wolfSSL native session\n");
             wolfSSL_free((WOLFSSL*)sslPtr);
@@ -356,7 +357,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    static jobject* g_cachedSSLObj;
+    jobject* g_cachedSSLObj;
     jclass excClass;
 
     if (!ssl) {
@@ -373,8 +374,9 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
 
     /* delete global WolfSSLSession object reference */
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
-    if (g_cachedSSLObj != 0) {
+    if (g_cachedSSLObj != NULL) {
         (*jenv)->DeleteGlobalRef(jenv, (jobject)(*g_cachedSSLObj));
+        free(g_cachedSSLObj);
     }
 
     /* native cleanup */
@@ -503,9 +505,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
   (JNIEnv* jenv, jobject jcl, jlong ssl, jobject peer)
 {
     int ret;
-    jstring ipAddr;
+    jstring ipAddr = NULL;
     struct sockaddr_in sa;
-    const char* ipAddress;
+    const char* ipAddress = NULL;
 
     if (!jenv || !ssl || !peer)
         return SSL_FAILURE;
