@@ -23,7 +23,6 @@
     #include <wolfssl/options.h>
 #endif
 
-#include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include "com_wolfssl_wolfcrypt_ECC.h"
