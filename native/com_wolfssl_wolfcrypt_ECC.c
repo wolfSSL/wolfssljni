@@ -19,10 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __ANDROID__
-    #include <wolfssl/options.h>
-#endif
-
+#include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include "com_wolfssl_wolfcrypt_ECC.h"
