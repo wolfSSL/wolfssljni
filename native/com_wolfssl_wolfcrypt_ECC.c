@@ -1,6 +1,6 @@
 /* com_wolfssl_wolfcrypt_ECC.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
