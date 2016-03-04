@@ -21,9 +21,6 @@
 
 package com.wolfssl;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
-
 /**
  * Base class which wraps the native WolfSSL embedded SSL library.
  * This class contains library init and cleanup methods, general callback

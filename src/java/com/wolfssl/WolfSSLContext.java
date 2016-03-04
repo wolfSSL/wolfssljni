@@ -26,8 +26,6 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.nio.ByteBuffer;
 
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
 
 /**
  * Wraps a native WolfSSL context object and contains methods directly related

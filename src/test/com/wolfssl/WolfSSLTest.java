@@ -27,7 +27,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
-import com.wolfssl.WolfSSL;
 
 /* suppress SSLv3 deprecation warnings, meant for end user not tests */
 @SuppressWarnings("deprecation")

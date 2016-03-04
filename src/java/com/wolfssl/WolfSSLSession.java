@@ -25,8 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.DatagramSocket;
 
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
 
 /**
  * Wraps a native WolfSSL session object and contains methods directly related
