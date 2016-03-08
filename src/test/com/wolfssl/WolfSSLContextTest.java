@@ -22,10 +22,8 @@
 package com.wolfssl;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
-
+import org.junit.BeforeClass;
 
 public class WolfSSLContextTest {
 
@@ -39,12 +37,21 @@ public class WolfSSLContextTest {
 
     WolfSSLContext ctx;
 
+    @BeforeClass
+    public static void loadLibrary() {
+        try {
+            WolfSSL.loadLibrary();
+        } catch (UnsatisfiedLinkError ule) {
+            fail("failed to load native JNI library");
+        }
+    }
+
     @Test
     public void testWolfSSLContext() throws WolfSSLException {
 
         System.out.println("WolfSSLContext Class");
 
-        test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
+        test_WolfSSLContext_new(WolfSSL.TLSv1_2_ServerMethod());
         test_WolfSSLContext_useCertificateFile();
         test_WolfSSLContext_usePrivateKeyFile();
         test_WolfSSLContext_loadVerifyLocations();
