@@ -21,7 +21,6 @@
 
 import java.io.*;
 import java.net.*;
-import java.nio.*;
 import com.wolfssl.*;
 
 class MyRecvCallback implements WolfSSLIORecvCallback

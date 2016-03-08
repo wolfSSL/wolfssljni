@@ -19,10 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-import java.io.*;
-import java.net.*;
-import com.wolfssl.*;
-
 class MyRsaEncCtx
 {
     /* stub for now, not needed by example RSA encrypt callback */

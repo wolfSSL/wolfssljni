@@ -21,7 +21,6 @@
 
 import java.io.*;
 import java.net.*;
-import java.nio.*;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CharacterCodingException;
@@ -31,8 +30,6 @@ import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
-import com.wolfssl.WolfSSLIOSendCallback;
-import com.wolfssl.WolfSSLIORecvCallback;
 
 /* suppress SSLv3 deprecation warnings, meant for end user not examples */
 @SuppressWarnings("deprecation")
