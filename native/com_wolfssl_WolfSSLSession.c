@@ -762,9 +762,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
-    jclass excClass;
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* issuer;
     jstring retString;
 
@@ -794,26 +794,16 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
     return retString;
 
 #else
-
-    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return NULL;
-    }
-    (*jenv)->ThrowNew(jenv, excClass,
-            "wolfSSL not compiled with KEEP_PEER_CERT and/or SESSION_CERTS");
     return NULL;
-
 #endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
-    jclass excClass;
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* subject;
     jstring retString;
 
@@ -842,25 +832,15 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
     return retString;
 
 #else
-
-    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return NULL;
-    }
-    (*jenv)->ThrowNew(jenv, excClass,
-            "wolfSSL not compiled with KEEP_PEER_CERT and/or SESSION_CERTS");
     return NULL;
-
 #endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
-    jclass excClass;
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* altname;
     jstring retString;
 
@@ -886,17 +866,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
     return retString;
 
 #else
-
-    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return NULL;
-    }
-    (*jenv)->ThrowNew(jenv, excClass,
-            "wolfSSL not compiled with KEEP_PEER_CERT and/or SESSION_CERTS");
     return NULL;
-
 #endif
 }
 
