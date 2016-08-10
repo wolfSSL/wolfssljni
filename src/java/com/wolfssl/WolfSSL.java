@@ -587,5 +587,12 @@ public class WolfSSL {
      */
     public static native int getHmacMaxSize();
 
+    /**
+     * Checks if CRL support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledCRL();
+
 } /* end WolfSSL */
 

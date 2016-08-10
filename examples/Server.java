@@ -351,38 +351,40 @@ public class Server {
                 }
 
                 /* enable/load CRL functionality */
-                ret = ssl.enableCRL(0);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to enable CRL, ret = "
-                            + ret);
-                    System.exit(1);
-                }
-                if (crlDirMonitor == 1) {
-                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
-                            (WolfSSL.WOLFSSL_CRL_MONITOR |
-                            WolfSSL.WOLFSSL_CRL_START_MON));
-                    if (ret == WolfSSL.MONITOR_RUNNING_E) {
-                        System.out.println("CRL monitor already running, " +
-                                "continuing");
-                    } else if (ret != WolfSSL.SSL_SUCCESS) {
-                        System.out.println("failed to start CRL monitor, ret = "
+                if (WolfSSL.isEnabledCRL() == 1) {
+                    ret = ssl.enableCRL(0);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to enable CRL, ret = "
                                 + ret);
                         System.exit(1);
                     }
-                } else {
-                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                    if (crlDirMonitor == 1) {
+                        ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
+                                (WolfSSL.WOLFSSL_CRL_MONITOR |
+                                WolfSSL.WOLFSSL_CRL_START_MON));
+                        if (ret == WolfSSL.MONITOR_RUNNING_E) {
+                            System.out.println("CRL monitor already running, " +
+                                    "continuing");
+                        } else if (ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("failed to start CRL monitor, ret = "
+                                    + ret);
+                            System.exit(1);
+                        }
+                    } else {
+                        ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("failed to load CRL, ret = " + ret);
+                            System.exit(1);
+                        }
+                    }
+
+                    MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
+                    ret = ssl.setCRLCb(crlCb);
                     if (ret != WolfSSL.SSL_SUCCESS) {
-                        System.out.println("failed to load CRL, ret = " + ret);
+                        System.out.println("failed to set CRL callback, ret = "
+                                + ret);
                         System.exit(1);
                     }
-                }
-
-                MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
-                ret = ssl.setCRLCb(crlCb);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to set CRL callback, ret = "
-                            + ret);
-                    System.exit(1);
                 }
 
                 if (useIOCallbacks || (doDTLS == 1)) {

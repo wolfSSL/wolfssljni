@@ -391,6 +391,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
   (JNIEnv *, jclass);
 
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledCRL
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

@@ -409,3 +409,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
     return MAX_DIGEST_SIZE;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_CRL
+    return 1;
+#else
+    return 0;
+#endif
+}
+

@@ -340,22 +340,24 @@ public class Client {
             ssl = new WolfSSLSession(sslCtx);
 
             /* enable/load CRL functionality */
-            ret = ssl.enableCRL(WolfSSL.WOLFSSL_CRL_CHECKALL);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("failed to enable CRL check");
-                System.exit(1);
-            }
-            ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("can't load CRL, check CRL file and date " +
-                        "validity");
-                System.exit(1);
-            }
-            MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
-            ret = ssl.setCRLCb(crlCb);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("can't set CRL callback");
-                System.exit(1);
+            if (WolfSSL.isEnabledCRL() == 1) {
+                ret = ssl.enableCRL(WolfSSL.WOLFSSL_CRL_CHECKALL);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to enable CRL check");
+                    System.exit(1);
+                }
+                ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("can't load CRL, check CRL file and " +
+                            "date validity");
+                    System.exit(1);
+                }
+                MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
+                ret = ssl.setCRLCb(crlCb);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("can't set CRL callback");
+                    System.exit(1);
+                }
             }
 
             /* open Socket */
