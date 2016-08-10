@@ -119,25 +119,41 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod(
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#ifdef WOLFSSL_DTLS
     return (jlong)wolfDTLSv1_client_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#ifdef WOLFSSL_DTLS
     return (jlong)wolfDTLSv1_server_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#ifdef WOLFSSL_DTLS
     return (jlong)wolfDTLSv1_2_client_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#ifdef WOLFSSL_DTLS
     return (jlong)wolfDTLSv1_2_server_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ServerMethod
@@ -293,6 +309,7 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
   (JNIEnv* jenv, jclass jcl, jbyteArray mem, jint sz)
 {
+#ifdef PERSIST_SESSION_CACHE
     int ret;
     int cacheSz;
     char memBuf[sz];
@@ -316,11 +333,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
     }
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
   (JNIEnv* jenv, jclass jcl, jbyteArray mem, jint sz)
 {
+#ifdef PERSIST_SESSION_CACHE
     int ret;
     char memBuf[sz];
 
@@ -336,17 +357,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
 
     ret = wolfSSL_memrestore_session_cache(memBuf, sz);
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSessionCacheMemsize
   (JNIEnv* jenv, jclass jcl)
 {
+#ifdef PERSIST_SESSION_CACHE
     return wolfSSL_get_session_cache_memsize();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
     int* outSz = NULL;
     const unsigned char* derCert;
     jbyteArray out = NULL;
@@ -369,6 +398,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
     } else {
         return NULL;
     }
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize

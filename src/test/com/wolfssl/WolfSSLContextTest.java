@@ -251,8 +251,11 @@ public class WolfSSLContextTest {
             TestPskClientCb pskClientCb = new TestPskClientCb();
             ctx.setPskClientCb(pskClientCb);
         } catch (Exception e) {
-            System.out.println("\t\t... failed");
-            e.printStackTrace();
+            if (!e.getMessage().equals("wolfSSL not compiled with PSK " +
+                        "support")) {
+                System.out.println("\t\t... failed");
+                e.printStackTrace();
+            }
         }
         System.out.println("\t\t... passed");
     }
@@ -283,8 +286,11 @@ public class WolfSSLContextTest {
             TestPskServerCb pskServerCb = new TestPskServerCb();
             ctx.setPskServerCb(pskServerCb);
         } catch (Exception e) {
-            System.out.println("\t\t... failed");
-            e.printStackTrace();
+            if (!e.getMessage().equals("wolfSSL not compiled with PSK " +
+                        "support")) {
+                System.out.println("\t\t... failed");
+                e.printStackTrace();
+            }
         }
         System.out.println("\t\t... passed");
     }
@@ -293,7 +299,8 @@ public class WolfSSLContextTest {
         System.out.print("\tusePskIdentityHint()");
         try {
             int ret = ctx.usePskIdentityHint("wolfssl hint");
-            if (ret != WolfSSL.SSL_SUCCESS) {
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
                 System.out.println("\t\t... failed");
                 fail("usePskIdentityHint failed");
             }
