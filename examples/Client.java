@@ -82,106 +82,131 @@ public class Client {
         String host = "localhost";
         int port    =  11111;
 
-        /* pull in command line options from user */
-        for (int i = 0; i < args.length; i++)
-        {
-            String arg = args[i];
-
-            if (arg.equals("-?")) {
-                printUsage();
-
-            } else if (arg.equals("-h")) {
-                if (args.length < i+2)
-                    printUsage();
-                host = args[++i];
-
-            } else if (arg.equals("-p")) {
-                if (args.length < i+2)
-                    printUsage();
-                port = Integer.parseInt(args[++i]);
-
-            } else if (arg.equals("-v")) {
-                if (args.length < i+2)
-                    printUsage();
-                sslVersion = Integer.parseInt(args[++i]);
-                if (sslVersion < 0 || sslVersion > 3) {
-                    printUsage();
-                }
-
-            } else if (arg.equals("-l")) {
-                if (args.length < i+2)
-                    printUsage();
-                cipherList = args[++i];
-
-            } else if (arg.equals("-c")) {
-                if (args.length < i+2)
-                    printUsage();
-                clientCert = args[++i];
-
-            } else if (arg.equals("-k")) {
-                if (args.length < i+2)
-                    printUsage();
-                clientKey = args[++i];
-
-            } else if (arg.equals("-b")) {
-                if (args.length < i+2)
-                  printUsage();
-                benchmark = Integer.parseInt(args[++i]);
-                if (benchmark < 0 || benchmark > 1000000)
-                    printUsage();
-
-            } else if (arg.equals("-A")) {
-                if (args.length < i+2)
-                    printUsage();
-                caCert = args[++i];
-
-            } else if (arg.equals("-d")) {
-                verifyPeer = 0;
-
-            } else if (arg.equals("-u")) {
-                doDTLS = 1;
-
-            } else if (arg.equals("-s")) {
-                usePsk = 1;
-
-            } else if (arg.equals("-iocb")) {
-                useIOCallbacks = true;
-
-            } else if (arg.equals("-logtest")) {
-                logCallback = 1;
-
-            } else if (arg.equals("-o")) {
-                useOcsp = 1;
-
-            } else if (arg.equals("-O")) {
-                if (args.length < i+2)
-                    printUsage();
-                useOcsp = 1;
-                ocspUrl = args[++i];
-
-            } else if (arg.equals("-U")) {
-                useAtomic = 1;
-
-            } else if (arg.equals("-P")) {
-                pkCallbacks = 1;
-
-            } else {
-                printUsage();
-            }
-        }
-
-        /* sort out DTLS versus TLS versions */
-        if (doDTLS == 1) {
-            if (sslVersion == 3)
-                sslVersion = -2;
-            else
-                sslVersion = -1;
-        }
-
         try {
 
             /* load JNI library */
             WolfSSL.loadLibrary();
+
+            /* pull in command line options from user */
+            for (int i = 0; i < args.length; i++)
+            {
+                String arg = args[i];
+
+                if (arg.equals("-?")) {
+                    printUsage();
+
+                } else if (arg.equals("-h")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    host = args[++i];
+
+                } else if (arg.equals("-p")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    port = Integer.parseInt(args[++i]);
+
+                } else if (arg.equals("-v")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    sslVersion = Integer.parseInt(args[++i]);
+                    if (sslVersion < 0 || sslVersion > 3) {
+                        printUsage();
+                    }
+
+                } else if (arg.equals("-l")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    cipherList = args[++i];
+
+                } else if (arg.equals("-c")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    clientCert = args[++i];
+
+                } else if (arg.equals("-k")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    clientKey = args[++i];
+
+                } else if (arg.equals("-b")) {
+                    if (args.length < i+2)
+                      printUsage();
+                    benchmark = Integer.parseInt(args[++i]);
+                    if (benchmark < 0 || benchmark > 1000000)
+                        printUsage();
+
+                } else if (arg.equals("-A")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    caCert = args[++i];
+
+                } else if (arg.equals("-d")) {
+                    verifyPeer = 0;
+
+                } else if (arg.equals("-u")) {
+                    doDTLS = 1;
+
+                } else if (arg.equals("-s")) {
+                    if (WolfSSL.isEnabledPSK() == 0) {
+                        System.out.println("PSK support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    usePsk = 1;
+
+                } else if (arg.equals("-iocb")) {
+                    useIOCallbacks = true;
+
+                } else if (arg.equals("-logtest")) {
+                    logCallback = 1;
+
+                } else if (arg.equals("-o")) {
+                    if (WolfSSL.isEnabledOCSP() == 0) {
+                        System.out.println("OCSP support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    useOcsp = 1;
+
+                } else if (arg.equals("-O")) {
+                    if (WolfSSL.isEnabledOCSP() == 0) {
+                        System.out.println("OCSP support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    if (args.length < i+2)
+                        printUsage();
+                    useOcsp = 1;
+                    ocspUrl = args[++i];
+
+                } else if (arg.equals("-U")) {
+                    if (WolfSSL.isEnabledAtomicUser() == 0) {
+                        System.out.println("Atomic User support not enabled " +
+                                           "in wolfSSL");
+                        System.exit(1);
+                    }
+                    useAtomic = 1;
+
+                } else if (arg.equals("-P")) {
+                    if (WolfSSL.isEnabledPKCallbacks() == 0) {
+                        System.out.println("Public Key callback support not " +
+                                           "enabled in wolfSSL");
+                        System.exit(1);
+                    }
+                    pkCallbacks = 1;
+
+                } else {
+                    printUsage();
+                }
+            }
+
+            /* sort out DTLS versus TLS versions */
+            if (doDTLS == 1) {
+                if (sslVersion == 3)
+                    sslVersion = -2;
+                else
+                    sslVersion = -1;
+            }
 
             /* init library */
             WolfSSL sslLib = new WolfSSL();
@@ -531,17 +556,23 @@ public class Client {
                 "../certs/ca-cert.pem");
         System.out.println("-b <num>\tBenchmark <num> connections and print" +
                 " stats");
-        System.out.println("-s\t\tUse pre shared keys");
+        if (WolfSSL.isEnabledPSK() == 1)
+            System.out.println("-s\t\tUse pre shared keys");
         System.out.println("-d\t\tDisable peer checks");
-        System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
-            ", -v 3 for DTLSv1.2");
+        if (WolfSSL.isEnabledDTLS() == 1)
+            System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 " +
+                    "(default), -v 3 for DTLSv1.2");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
-        System.out.println("-o\t\tPerform OCSP lookup on peer certificate");
-        System.out.println("-O <url>\tPerform OCSP lookup using <url> " +
-                "as responder");
-        System.out.println("-U\t\tEnable Atomic User Record Layer Callbacks");
-        System.out.println("-P\t\tPublic Key Callbacks");
+        if (WolfSSL.isEnabledOCSP() == 1) {
+            System.out.println("-o\t\tPerform OCSP lookup on peer certificate");
+            System.out.println("-O <url>\tPerform OCSP lookup using <url> " +
+                    "as responder");
+        }
+        if (WolfSSL.isEnabledAtomicUser() == 1)
+            System.out.println("-U\t\tEnable Atomic User Record Layer Callbacks");
+        if (WolfSSL.isEnabledPKCallbacks() == 1)
+            System.out.println("-P\t\tPublic Key Callbacks");
         System.exit(1);
     }
 

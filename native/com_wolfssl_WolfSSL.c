@@ -419,3 +419,63 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRLMonitor
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_CRL_MONITOR
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledOCSP
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_OCSP
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPSK
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifndef NO_PSK
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef WOLFSSL_DTLS
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef ATOMIC_USER
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_PK_CALLBACKS
+    return 1;
+#else
+    return 0;
+#endif
+}
+

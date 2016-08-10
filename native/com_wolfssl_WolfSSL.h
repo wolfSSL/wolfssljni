@@ -399,6 +399,54 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
   (JNIEnv *, jclass);
 
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledCRLMonitor
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRLMonitor
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledOCSP
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledOCSP
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledPSK
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPSK
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledDTLS
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledAtomicUser
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledPKCallbacks
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif
