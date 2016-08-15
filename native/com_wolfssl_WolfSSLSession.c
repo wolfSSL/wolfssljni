@@ -28,8 +28,10 @@
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
 
+#ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
+#endif
 
 /* custom native fn prototypes */
 void NativeMissingCRLCallback(const char* url);
@@ -151,6 +153,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
   (JNIEnv* jenv, jobject jcl, jlong ssl, jstring file, jint format)
 {
+#ifdef OPENSSL_EXTRA
     jint ret = 0;
     const char* certFile;
 
@@ -168,11 +171,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, certFile);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
   (JNIEnv* jenv, jobject jcl, jlong ssl, jstring file, jint format)
 {
+#ifdef OPENSSL_EXTRA
     jint ret = 0;
     const char* keyFile;
 
@@ -190,11 +197,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, keyFile);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainFile
   (JNIEnv* jenv, jobject jcl, jlong ssl, jstring file)
 {
+#ifdef OPENSSL_EXTRA
     jint ret = 0;
     const char* chainFile;
 
@@ -211,6 +222,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, chainFile);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setUsingNonblock
@@ -447,6 +461,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCipherList
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetCurrentTimeout
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#if !defined(WOLFSSL_LEANPSK) && defined(WOLFSSL_DTLS)
     jclass excClass;
 
     if (!ssl) {
@@ -463,11 +478,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetCurrentTimeout
     }
 
     return wolfSSL_dtls_get_current_timeout((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#if !defined(WOLFSSL_LEANPSK) && defined(WOLFSSL_DTLS)
     jclass excClass;
 
     if (!ssl) {
@@ -484,6 +503,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
     }
 
     return wolfSSL_dtls_got_timeout((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtls
@@ -716,6 +738,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sessionReused
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef KEEP_PEER_CERT
     jclass excClass;
 
     if (!ssl) {
@@ -731,14 +754,20 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
     }
 
     return (long)wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
+
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* issuer;
     jstring retString;
-    jclass excClass;
+
 
     if (!x509)
         return NULL;
@@ -763,14 +792,20 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
     XFREE(issuer, 0, DYNAMIC_TYPE_OPENSSL);
 
     return retString;
+
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
+
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* subject;
     jstring retString;
-    jclass excClass;
 
     if (!x509)
         return NULL;
@@ -795,14 +830,19 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
 
     return retString;
+
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong x509)
 {
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    jclass excClass;
     char* altname;
     jstring retString;
-    jclass excClass;
 
     if (!x509)
         return NULL;
@@ -824,6 +864,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
 
     retString = (*jenv)->NewStringUTF(jenv, altname);
     return retString;
+
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getVersion
@@ -1094,6 +1138,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setGroupMessages
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_enableCRL
   (JNIEnv* jenv, jobject jcl, jlong ssl, jint options)
 {
+#ifdef HAVE_CRL
     jclass excClass;
 
     if (!jenv)
@@ -1113,11 +1158,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_enableCRL
     }
 
     return wolfSSL_EnableCRL((WOLFSSL*)ssl, options);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableCRL
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef HAVE_CRL
     jclass excClass;
 
     if (!jenv)
@@ -1137,11 +1186,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableCRL
     }
 
     return wolfSSL_DisableCRL((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
   (JNIEnv* jenv, jobject jcl, jlong ssl, jstring path, jint type, jint monitor)
 {
+#ifdef HAVE_CRL
     int ret;
     const char* crlPath;
     jclass excClass;
@@ -1169,11 +1222,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
     (*jenv)->ReleaseStringUTFChars(jenv, path, crlPath);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
   (JNIEnv* jenv, jobject jcl, jlong ssl, jobject cb)
 {
+#ifdef HAVE_CRL
     int    ret = 0;
     jclass excClass;
 
@@ -1206,7 +1263,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
     ret = wolfSSL_SetCRL_Cb((WOLFSSL*)ssl, NativeMissingCRLCallback);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
+
+#ifdef HAVE_CRL
 
 void NativeMissingCRLCallback(const char* url)
 {
@@ -1287,6 +1349,8 @@ void NativeMissingCRLCallback(const char* url)
     }
 }
 
+#endif /* HAVE_CRL */
+
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_cipherGetName
   (JNIEnv* jenv, jclass jcl, jlong ssl)
 {
@@ -1320,10 +1384,12 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_cipherGetName
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getMacSecret
   (JNIEnv* jenv, jobject jcl, jlong ssl, jint verify)
 {
+    jclass excClass;
+#ifdef ATOMIC_USER
     int macLength;
     jbyteArray retSecret;
-    jclass excClass;
     const unsigned char* secret;
+#endif
 
     /* find exception class */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1332,6 +1398,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getMacSecret
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
+
+#ifdef ATOMIC_USER
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1368,15 +1436,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getMacSecret
     } else {
         return NULL;
     }
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with ATOMIC_USER");
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteKey
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    jclass excClass;
+#ifdef ATOMIC_USER
     int keyLength;
     jbyteArray retKey;
-    jclass excClass;
     const unsigned char* key;
+#endif
 
     /* find exception class */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1385,6 +1460,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteKey
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
+
+#ifdef ATOMIC_USER
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1421,15 +1498,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteKey
     } else {
         return NULL;
     }
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with ATOMIC_USER");
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteIV
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    jclass excClass;
+#ifdef ATOMIC_USER
     jbyteArray retIV;
     const unsigned char* iv;
     int ivLength;
-    jclass excClass;
+#endif
 
     /* find exception class */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1438,6 +1522,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteIV
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
+
+#ifdef ATOMIC_USER
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1474,15 +1560,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientWriteIV
     } else {
         return NULL;
     }
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with ATOMIC_USER");
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteKey
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    jclass excClass;
+#ifdef ATOMIC_USER
     jbyteArray retKey;
     const unsigned char* key;
     int keyLength;
-    jclass excClass;
+#endif
 
     /* find exception class */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1491,6 +1584,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteKey
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
+
+#ifdef ATOMIC_USER
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1527,15 +1622,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteKey
     } else {
         return NULL;
     }
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with ATOMIC_USER");
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteIV
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    jclass excClass;
+#ifdef ATOMIC_USER
     jbyteArray retIV;
     const unsigned char* iv;
     int ivLength;
-    jclass excClass;
+#endif
 
     /* find exception class */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1544,6 +1646,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteIV
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
+
+#ifdef ATOMIC_USER
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1580,55 +1684,88 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getServerWriteIV
     } else {
         return NULL;
     }
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with ATOMIC_USER");
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getKeySize
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetKeySize((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getSide
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetSide((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_isTLSv1_11
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_IsTLSv1_1((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getBulkCipher
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetBulkCipher((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getCipherBlockSize
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetCipherBlockSize((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getAeadMacSize
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetAeadMacSize((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getHmacSize
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetHmacSize((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getHmacType
@@ -1641,8 +1778,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getHmacType
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getCipherType
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetCipherType((WOLFSSL*)ssl);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTlsHmacInner
@@ -1684,11 +1825,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTlsHmacInner
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+    jclass         sslClass;
 
     void*          eccSignCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1697,6 +1840,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1745,16 +1890,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
     }
 
     wolfSSL_SetEccSignCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or ECC");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+    jclass         sslClass;
 
     void*          eccVerifyCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1763,6 +1915,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1811,16 +1965,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
     }
 
     wolfSSL_SetEccVerifyCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or ECC");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    jclass         sslClass;
 
     void*          rsaSignCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1829,6 +1990,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1877,16 +2040,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
     }
 
     wolfSSL_SetRsaSignCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or RSA support");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    jclass         sslClass;
 
     void*          rsaVerifyCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1895,6 +2065,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -1943,16 +2115,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
     }
 
     wolfSSL_SetRsaVerifyCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or RSA support");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    jclass         sslClass;
 
     void*          rsaEncCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -1961,6 +2140,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -2009,16 +2190,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
     }
 
     wolfSSL_SetRsaEncCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or RSA support");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
-    jclass         sslClass;
     jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    jclass         sslClass;
 
     void*          rsaDecCtx;
     internCtx*     myCtx;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -2027,6 +2215,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
         (*jenv)->ExceptionClear(jenv);
         return;
     }
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
 
     if (!ssl) {
         (*jenv)->ThrowNew(jenv, excClass,
@@ -2075,6 +2265,11 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
     }
 
     wolfSSL_SetRsaDecCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or RSA support");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskClientCb
@@ -2089,6 +2284,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskClientCb
         return;
     }
 
+#ifndef NO_PSK
+
     if (ssl) {
         /* set PSK client callback */
         wolfSSL_set_psk_client_callback((WOLFSSL*)ssl, NativePskClientCb);
@@ -2098,6 +2295,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskClientCb
                 "NativePskClientCb");
         return;
     }
+
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PSK support");
+    return;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskServerCb
@@ -2112,6 +2315,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskServerCb
         return;
     }
 
+#ifndef NO_PSK
+
     if (ssl) {
         /* set PSK server callback */
         wolfSSL_set_psk_server_callback((WOLFSSL*)ssl, NativePskServerCb);
@@ -2121,31 +2326,46 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setPskServerCb
                 "NativePskServerCb");
         return;
     }
+
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PSK support");
+    return;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentityHint
   (JNIEnv* jenv, jobject obj, jlong ssl)
 {
+#ifndef NO_PSK
     if (!jenv || !ssl)
         return NULL;
 
     return (*jenv)->NewStringUTF(jenv,
             wolfSSL_get_psk_identity_hint((WOLFSSL*)ssl));
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentity
   (JNIEnv* jenv, jobject obj, jlong ssl)
 {
+#ifndef NO_PSK
     if (!jenv || !ssl)
         return NULL;
 
     return (*jenv)->NewStringUTF(jenv,
             wolfSSL_get_psk_identity((WOLFSSL*)ssl));
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
   (JNIEnv* jenv, jobject obj, jlong ssl, jstring hint)
 {
+#ifndef NO_PSK
     jint ret;
     const char* nativeHint;
 
@@ -2159,5 +2379,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
     (*jenv)->ReleaseStringUTFChars(jenv, hint, nativeHint);
 
     return ret;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 

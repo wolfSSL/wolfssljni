@@ -84,100 +84,135 @@ public class Server {
         /* server info */
         int port    =  11111;
 
-        /* pull in command line options from user */
-        for (int i = 0; i < args.length; i++)
-        {
-            String arg = args[i];
-
-            if (arg.equals("-?")) {
-                printUsage();
-
-            } else if (arg.equals("-p")) {
-                if (args.length < i+2)
-                    printUsage();
-                port = Integer.parseInt(args[++i]);
-
-            } else if (arg.equals("-v")) {
-                if (args.length < i+2)
-                    printUsage();
-                sslVersion = Integer.parseInt(args[++i]);
-                if (sslVersion < 0 || sslVersion > 3) {
-                    printUsage();
-                }
-
-            } else if (arg.equals("-l")) {
-                if (args.length < i+2)
-                    printUsage();
-                cipherList = args[++i];
-
-            } else if (arg.equals("-c")) {
-                if (args.length < i+2)
-                    printUsage();
-                serverCert = args[++i];
-
-            } else if (arg.equals("-k")) {
-                if (args.length < i+2)
-                    printUsage();
-                serverKey = args[++i];
-
-            } else if (arg.equals("-A")) {
-                if (args.length < i+2)
-                    printUsage();
-                caCert = args[++i];
-
-            } else if (arg.equals("-d")) {
-                verifyPeer = 0;
-
-            } else if (arg.equals("-u")) {
-                doDTLS = 1;
-
-            } else if (arg.equals("-s")) {
-                usePsk = 1;
-
-            } else if (arg.equals("-iocb")) {
-                useIOCallbacks = true;
-
-            } else if (arg.equals("-logtest")) {
-                logCallback = 1;
-
-            } else if (arg.equals("-o")) {
-                useOcsp = 1;
-
-            } else if (arg.equals("-O")) {
-                if (args.length < i+2)
-                    printUsage();
-                useOcsp = 1;
-                ocspUrl = args[i++];
-
-            } else if (arg.equals("-U")) {
-                useAtomic = 1;
-
-            } else if (arg.equals("-P")) {
-                pkCallbacks = 1;
-
-            } else if (arg.equals("-m")) {
-                crlDirMonitor = 1;
-
-            } else if (arg.equals("-I")) {
-                sendPskIdentityHint = 0;
-
-            } else {
-                printUsage();
-            }
-        }
-
-        /* sort out DTLS versus TLS versions */
-        if (doDTLS == 1) {
-            if (sslVersion == 3)
-                sslVersion = -2;
-            else
-                sslVersion = -1;
-        }
-
         try {
 
             /* load JNI library */
             WolfSSL.loadLibrary();
+
+            /* pull in command line options from user */
+            for (int i = 0; i < args.length; i++)
+            {
+                String arg = args[i];
+
+                if (arg.equals("-?")) {
+                    printUsage();
+
+                } else if (arg.equals("-p")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    port = Integer.parseInt(args[++i]);
+
+                } else if (arg.equals("-v")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    sslVersion = Integer.parseInt(args[++i]);
+                    if (sslVersion < 0 || sslVersion > 3) {
+                        printUsage();
+                    }
+
+                } else if (arg.equals("-l")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    cipherList = args[++i];
+
+                } else if (arg.equals("-c")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    serverCert = args[++i];
+
+                } else if (arg.equals("-k")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    serverKey = args[++i];
+
+                } else if (arg.equals("-A")) {
+                    if (args.length < i+2)
+                        printUsage();
+                    caCert = args[++i];
+
+                } else if (arg.equals("-d")) {
+                    verifyPeer = 0;
+
+                } else if (arg.equals("-u")) {
+                    doDTLS = 1;
+
+                } else if (arg.equals("-s")) {
+                    if (WolfSSL.isEnabledPSK() == 0) {
+                        System.out.println("PSK support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    usePsk = 1;
+
+                } else if (arg.equals("-iocb")) {
+                    useIOCallbacks = true;
+
+                } else if (arg.equals("-logtest")) {
+                    logCallback = 1;
+
+                } else if (arg.equals("-o")) {
+                    if (WolfSSL.isEnabledOCSP() == 0) {
+                        System.out.println("OCSP support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    useOcsp = 1;
+
+                } else if (arg.equals("-O")) {
+                    if (WolfSSL.isEnabledOCSP() == 0) {
+                        System.out.println("OCSP support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    if (args.length < i+2)
+                        printUsage();
+                    useOcsp = 1;
+                    ocspUrl = args[i++];
+
+                } else if (arg.equals("-U")) {
+                    if (WolfSSL.isEnabledAtomicUser() == 0) {
+                        System.out.println("Atomic User support not enabled " +
+                                           "in wolfSSL");
+                        System.exit(1);
+                    }
+                    useAtomic = 1;
+
+                } else if (arg.equals("-P")) {
+                    if (WolfSSL.isEnabledPKCallbacks() == 0) {
+                        System.out.println("Public Key callback support not " +
+                                           "enabled in wolfSSL");
+                        System.exit(1);
+                    }
+                    pkCallbacks = 1;
+
+                } else if (arg.equals("-m")) {
+                    if (WolfSSL.isEnabledCRLMonitor() == 0) {
+                        System.out.println("CRL monitor support not enabled " +
+                                           "in wolfSSL");
+                        System.exit(1);
+                    }
+                    crlDirMonitor = 1;
+
+                } else if (arg.equals("-I")) {
+                    if (WolfSSL.isEnabledPSK() == 0) {
+                        System.out.println("PSK support not enabled in " +
+                                           "wolfSSL");
+                        System.exit(1);
+                    }
+                    sendPskIdentityHint = 0;
+
+                } else {
+                    printUsage();
+                }
+            }
+
+            /* sort out DTLS versus TLS versions */
+            if (doDTLS == 1) {
+                if (sslVersion == 3)
+                    sslVersion = -2;
+                else
+                    sslVersion = -1;
+            }
 
             /* init library */
             WolfSSL sslLib = new WolfSSL();
@@ -351,38 +386,40 @@ public class Server {
                 }
 
                 /* enable/load CRL functionality */
-                ret = ssl.enableCRL(0);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to enable CRL, ret = "
-                            + ret);
-                    System.exit(1);
-                }
-                if (crlDirMonitor == 1) {
-                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
-                            (WolfSSL.WOLFSSL_CRL_MONITOR |
-                            WolfSSL.WOLFSSL_CRL_START_MON));
-                    if (ret == WolfSSL.MONITOR_RUNNING_E) {
-                        System.out.println("CRL monitor already running, " +
-                                "continuing");
-                    } else if (ret != WolfSSL.SSL_SUCCESS) {
-                        System.out.println("failed to start CRL monitor, ret = "
+                if (WolfSSL.isEnabledCRL() == 1) {
+                    ret = ssl.enableCRL(0);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to enable CRL, ret = "
                                 + ret);
                         System.exit(1);
                     }
-                } else {
-                    ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                    if (crlDirMonitor == 1) {
+                        ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM,
+                                (WolfSSL.WOLFSSL_CRL_MONITOR |
+                                WolfSSL.WOLFSSL_CRL_START_MON));
+                        if (ret == WolfSSL.MONITOR_RUNNING_E) {
+                            System.out.println("CRL monitor already running, " +
+                                    "continuing");
+                        } else if (ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("failed to start CRL monitor, ret = "
+                                    + ret);
+                            System.exit(1);
+                        }
+                    } else {
+                        ret = ssl.loadCRL(crlPemDir, WolfSSL.SSL_FILETYPE_PEM, 0);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("failed to load CRL, ret = " + ret);
+                            System.exit(1);
+                        }
+                    }
+
+                    MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
+                    ret = ssl.setCRLCb(crlCb);
                     if (ret != WolfSSL.SSL_SUCCESS) {
-                        System.out.println("failed to load CRL, ret = " + ret);
+                        System.out.println("failed to set CRL callback, ret = "
+                                + ret);
                         System.exit(1);
                     }
-                }
-
-                MyMissingCRLCallback crlCb = new MyMissingCRLCallback();
-                ret = ssl.setCRLCb(crlCb);
-                if (ret != WolfSSL.SSL_SUCCESS) {
-                    System.out.println("failed to set CRL callback, ret = "
-                            + ret);
-                    System.exit(1);
                 }
 
                 if (useIOCallbacks || (doDTLS == 1)) {
@@ -556,17 +593,24 @@ public class Server {
         System.out.println("-A <file>\tCertificate Authority file,\tdefault " +
                 "../certs/client-cert.pem");
         System.out.println("-d\t\tDisable peer checks");
-        System.out.println("-s\t\tUse pre shared keys");
-        System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
-            ", -v 3 for DTLSv1.2");
+        if (WolfSSL.isEnabledPSK() == 1)
+            System.out.println("-s\t\tUse pre shared keys");
+        if (WolfSSL.isEnabledDTLS() == 1)
+            System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 (default)" +
+                ", -v 3 for DTLSv1.2");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
-        System.out.println("-o\t\tPerform OCSP lookup on peer certificate");
-        System.out.println("-O <url>\tPerform OCSP lookup using <url> " +
-                "as responder");
-        System.out.println("-U\t\tAtomic User Record Layer Callbacks");
-        System.out.println("-P\t\tPublic Key Callbacks");
-        System.out.println("-m\t\tEnable CRL directory monitor");
+        if (WolfSSL.isEnabledOCSP() == 1) {
+            System.out.println("-o\t\tPerform OCSP lookup on peer certificate");
+            System.out.println("-O <url>\tPerform OCSP lookup using <url> " +
+                    "as responder");
+        }
+        if (WolfSSL.isEnabledAtomicUser() == 1)
+            System.out.println("-U\t\tAtomic User Record Layer Callbacks");
+        if (WolfSSL.isEnabledPKCallbacks() == 1)
+            System.out.println("-P\t\tPublic Key Callbacks");
+        if (WolfSSL.isEnabledCRLMonitor() == 1)
+            System.out.println("-m\t\tEnable CRL directory monitor");
         System.exit(1);
     }
 

@@ -587,5 +587,57 @@ public class WolfSSL {
      */
     public static native int getHmacMaxSize();
 
+    /* ------------------------- isEnabled methods -------------------------- */
+
+    /**
+     * Checks if CRL support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledCRL();
+
+    /**
+     * Checks if CRL Monitor support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledCRLMonitor();
+
+    /**
+     * Checks if OCSP support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledOCSP();
+
+    /**
+     * Checks if PSK support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledPSK();
+
+    /**
+     * Checks if DTLS support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledDTLS();
+
+    /**
+     * Checks if Atomic User support is enabled in wolfSSL native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledAtomicUser();
+
+    /**
+     * Checks if Public Key Callback support is enabled in wolfSSL
+     * native library.
+     *
+     * @return 1 if enabled, 0 if not compiled in
+     */
+    public static native int isEnabledPKCallbacks();
+
 } /* end WolfSSL */
 
