@@ -236,6 +236,10 @@ public class WolfSSL {
 
     /**
      * Loads JNI library; must be called prior to any other calls in this class.
+     *
+     * The native library is expected to be be called "wolfssl", and must be
+     * on the system library search path.
+     *
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
@@ -243,13 +247,38 @@ public class WolfSSL {
     }
 
     /**
-     * Load JNI library; must be called prior to any other calls in this
-     * package.
-     * @param  libPath path to native JNI library
+     * Load JNI library with a specific name; must be called prior to any
+     * other calls in this package.
+     *
+     * The native library needs to be located on the system library search
+     * path.
+     *
+     * @param  libName name of native JNI library
      * @throws UnsatisfiedLinkError if the library is not found.
      */
-    public static void loadLibrary(String libPath) throws UnsatisfiedLinkError {
-        System.loadLibrary(libPath);
+    public static void loadLibrary(String libName) throws UnsatisfiedLinkError {
+        System.loadLibrary(libName);
+    }
+
+    /**
+     * Loads dynamic JNI library from a specific path; must be called prior to
+     * any other calls in this package.
+     *
+     * This function gives the application more control over the exact native
+     * library being loaded, as both WolfSSL.loadLibrary() and
+     * WolfSSL.loadLibrary(String libName) search for a library on the system
+     * library search path. This function allows the appliation to specify
+     * a specific absolute path to the native library file to load, thus
+     * guaranteeing the exact library loaded and helping to prevent against
+     * malicious attackers from attempting to override the library being
+     * loaded.
+     *
+     * @param  libPath complete path name to the native dynamic JNI library
+     * @throws UnsatisfiedLinkError if the library is not found.
+     */
+    public static void loadLibraryAbsolute(String libPath)
+        throws UnsatisfiedLinkError {
+        System.load(libPath);
     }
 
     /* ---------------- native SSL/TLS version functions ---------------- */
