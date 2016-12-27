@@ -379,8 +379,9 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     jobject* g_cachedSSLObj;
     jclass excClass;
 
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+
     if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -398,8 +399,21 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
         free(g_cachedSSLObj);
     }
 
+    /* reset internal pointer to NULL to prevent accidental usage */
+    if (wolfSSL_set_jobject((WOLFSSL*)ssl, NULL) != SSL_SUCCESS) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return;
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error reseting internal wolfSSL JNI pointer to NULL, freeSSL");
+        return;
+    }
+
     /* native cleanup */
     wolfSSL_free((WOLFSSL*)ssl);
+    ssl = 0;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
