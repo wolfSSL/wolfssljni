@@ -83,13 +83,21 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)wolfTLSv1_server_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)wolfTLSv1_client_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
