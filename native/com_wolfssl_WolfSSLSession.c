@@ -1972,6 +1972,82 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
 #endif
 }
 
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSharedSecretCtx
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    jclass         excClass;
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+    jclass         sslClass;
+
+    void*          eccSharedSecretCtx;
+    internCtx*     myCtx;
+#endif
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+
+    if (!ssl) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Input WolfSSLSession object was null in "
+            "setEccSharedSecretCtx");
+        return;
+    }
+
+    /* get WolfSSLSession class from object ref */
+    sslClass = (*jenv)->GetObjectClass(jenv, jcl);
+    if (!sslClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get WolfSSLSession object class");
+        return;
+    }
+
+    /* free existing memory if it already exists, before we malloc again */
+    eccSharedSecretCtx =
+        (internCtx*) wolfSSL_GetEccSharedSecretCtx((WOLFSSL*)ssl);
+
+    /* note: if CTX has not been set up yet, wolfSSL defaults to NULL */
+    if (eccSharedSecretCtx != NULL) {
+        myCtx = (internCtx*)eccSharedSecretCtx;
+        if (myCtx->active == 1) {
+            (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
+            free(myCtx);
+        }
+    }
+
+    /* allocate memory for internal JNI object reference */
+    myCtx = malloc(sizeof(internCtx));
+    if (!myCtx) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Unable to allocate memory for ECC shared secret context\n");
+        return;
+    }
+
+    /* set CTX as active */
+    myCtx->active = 1;
+
+    /* store global ref to WolfSSLSession object */
+    myCtx->obj = (*jenv)->NewGlobalRef(jenv, jcl);
+    if (!myCtx->obj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+               "Unable to store WolfSSLSession object as global reference");
+        return;
+    }
+
+    wolfSSL_SetEccSharedSecretCtx((WOLFSSL*) ssl, myCtx);
+#else
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callbacks and/or ECC");
+    return;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

@@ -249,6 +249,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccVerifyCb
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setEccSharedSecretCb
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccSharedSecretCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    setRsaSignCb
  * Signature: (J)V
  */

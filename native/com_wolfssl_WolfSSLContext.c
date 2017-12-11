@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -54,6 +55,9 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
         unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
         const unsigned char* keyDer, unsigned int keySz, int* result,
         void* ctx);
+int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
+        unsigned char* publicKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen, int side, void* ctx);
 int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         unsigned char* out, unsigned int* outSz, const unsigned char* keyDer,
         unsigned int keySz, void* ctx);
@@ -66,6 +70,77 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
 int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
         unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
         void* ctx);
+
+/* get JavaEnv from JavaVM
+ * sets needDetach == 1 if DeteachCurrentThread() needs to be called
+ * upon caller exit/cleanup
+ * return 0 on success, negative on error */
+static int GetJNIEnvFromVM(JavaVM* vm, JNIEnv** jenv, int* needsDetach)
+{
+    jint ret;
+
+    ret = (int)((*vm)->GetEnv(vm, (void**)jenv, JNI_VERSION_1_6));
+    if (ret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        ret = (*vm)->AttachCurrentThread(vm, jenv, NULL);
+#else
+        ret = (*vm)->AttachCurrentThread(vm, (void**)jenv, NULL);
+#endif
+        if (ret) {
+            return -1;
+        }
+        *needsDetach = 1;
+    } else if (ret != JNI_OK) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/* check is exception has occurred, if so describes and clears it.
+ * returns 0 if no exception occurred, 1 if occurred. */
+static int CheckException(JNIEnv* jenv)
+{
+    int ret = 0;
+
+    if (jenv == NULL)
+        return ret;
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        ret = 1;
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+    }
+
+    return ret;
+}
+
+/* throw WolfSSLJNIException with given message, detach current
+ * thread from VM if needsDetach is set to 1 */
+static void throwWolfSSLJNIExceptionWithMsg(JNIEnv* jenv, const char* msg,
+                                            int needsDetach)
+{
+    jclass class = NULL;
+
+    if (g_vm == NULL || jenv == NULL || msg == NULL)
+        return;
+
+    class = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return;
+    }
+
+    (*jenv)->ThrowNew(jenv, class, msg);
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
+
+    return;
+}
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_newContext(JNIEnv* jenv,
         jclass jcl, jlong method)
@@ -739,11 +814,8 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeIORecvCb");
         if (needsDetach)
@@ -958,11 +1030,8 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeIOSendCb");
         if (needsDetach)
@@ -1185,11 +1254,8 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     /* get WolfSSLContext(ctx) object from WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeGenCookieCb");
         if (needsDetach)
@@ -1679,11 +1745,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     ctxRef = (*jenv)->CallObjectMethod(jenv,
             (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeMacEncryptCb");
         if (needsDetach)
@@ -1941,11 +2004,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
         if (needsDetach)
@@ -2228,11 +2288,8 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeEccSignCb");
         if (needsDetach)
@@ -2527,11 +2584,8 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeEccVerifyCb");
         if (needsDetach)
@@ -2664,6 +2718,447 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
     (*jenv)->DeleteLocalRef(jenv, hashBB);
     (*jenv)->DeleteLocalRef(jenv, keyDerBB);
     (*jenv)->DeleteLocalRef(jenv, j_result);
+
+    /* detach JNIEnv from thread */
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
+
+    return retval;
+}
+
+#endif /* HAVE_PK_CALLBACKS */
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccSharedSecretCb
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+    if(ctx) {
+        /* set ECC shared secret callback */
+        wolfSSL_CTX_SetEccSharedSecretCb((WOLFSSL_CTX*)ctx,
+                NativeEccSharedSecretCb);
+
+    } else {
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+                "Input WolfSSLContext object was null when setting "
+                "EccSharedSecretCb", 0);
+    }
+#else
+    throwWolfSSLJNIExceptionWithMsg(jenv,
+             "wolfSSL not compiled with PK Callback support "
+             "(HAVE_PK_CALLBACKS)", 0);
+#endif
+}
+
+/* get WolfSSLContext from WolfSSLSession ID, storing context in ctxRef.
+ * return 0 on success, negative on error */
+static int GetWolfSSLContextFromSessionObj(JNIEnv* jenv, jobject* sessObj,
+                                    jobject* ctxRef)
+{
+    jclass     sessClass;       /* WolfSSLSession class */
+    jmethodID  getCtxMethodId;  /* WolfSSLSession->getAssCtxPtr() ID */
+
+    if (jenv == NULL || sessObj == NULL || ctxRef == NULL)
+        return BAD_FUNC_ARG;
+
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*sessObj));
+    if (!sessClass) {
+        printf("Can't get native WolfSSLSession class reference in "
+               "GetWolfSSLContextFromSessionObj");
+        return -1;
+    }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+                "getAssociatedContextPtr",
+                "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        CheckException(jenv);
+        printf("Can't get getAssociatedContextPtr() methodID in "
+               "GetWolfSSLContextFromSessionObj");
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    *ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*sessObj),
+                                        getCtxMethodId);
+    CheckException(jenv);
+    if (!(*ctxRef)) {
+        printf("Can't get WolfSSLContext object in "
+               "GetWolfSSLContextFromSessionObj");
+        return -1;
+    }
+
+    return 0;
+}
+
+/* Get MethodID from provided object, method name, and method signature.
+ * Stores MethodID in mid.
+ * return 0 on success, negative on error. */
+static int GetMethodIDFromObject(JNIEnv* jenv, jobject obj,
+               const char* methodName, const char* methodSig,
+               jmethodID* mid)
+{
+    jclass class;
+
+    if (jenv == NULL || methodName == NULL || methodSig == NULL)
+        return BAD_FUNC_ARG;
+
+    class = (*jenv)->GetObjectClass(jenv, obj);
+    if (!class) {
+        printf("GetObjectClass failed in GetMethodIDFromObject");
+        return -1;
+    }
+
+    *mid = (*jenv)->GetMethodID(jenv, class, methodName, methodSig);
+    if (*mid == NULL) {
+        printf("GetMethodID failed in GetMethodIDFromObject");
+        CheckException(jenv);
+        return -1;
+    }
+
+    return 0;
+}
+
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+
+/* Java JCE uses ECC public keys that are DER formatted with a header
+ * that specifies the key type and curve. wolfSSL requires a raw ECC
+ * public key for ECC shared secret callback.  This function strips off
+ * the header, giving the callback the raw key.
+ *
+ * publicKeyDer - IN/OUT ECC DER public key, ECC raw public key
+ * pubKeySz     - size of publicKeyDer buffer
+ *
+ * returns size of new publicKeyDer contents
+ */
+static int StripEccPublicDerHeaderInline(byte* publicKeyDer, word32 pubKeySz)
+{
+    int ret = 0;
+    word32 idx = 0;
+    word32 keySz = 0;
+    ecc_key tmpKey;
+
+    if (publicKeyDer == NULL)
+        return BAD_FUNC_ARG;
+
+    /* DER encoded header will start with 0x30 sequence */
+    if (publicKeyDer[0] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+
+        keySz = pubKeySz;
+
+        ret = wc_ecc_init(&tmpKey);
+        if (ret < 0)
+            return ret;
+
+        ret = wc_EccPublicKeyDecode(publicKeyDer, &idx,
+                                    &tmpKey, pubKeySz);
+        if (ret < 0) {
+            wc_ecc_free(&tmpKey);
+            return ret;
+        }
+
+        ret = wc_ecc_export_x963(&tmpKey, publicKeyDer, &keySz);
+        if (ret < 0) {
+            wc_ecc_free(&tmpKey);
+            return ret;
+        }
+
+        wc_ecc_free(&tmpKey);
+        return keySz;
+    }
+
+    return ret;
+}
+
+int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
+        unsigned char* publicKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen, int side, void* ctx)
+{
+    int        ret;
+    jint       retval = 0;
+
+    JNIEnv*    jenv = NULL;           /* JNI Environment */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jmethodID  eccSharedSecretMethodId;
+
+    jbyteArray j_pubKeyDerSz;
+    jbyteArray j_outSz;
+
+    jclass     eccKeyClass;
+    jmethodID  eccKeyMethodId;
+    jobject    eccKeyObject;
+
+    ecc_key    tmpKey;                /* tmp key, used in conversion */
+    byte*      tmpKeyDer;             /* tmp der buffer, used in conversion */
+    word32     tmpKeyDerSz;           /* stores size of tmpKeyDer */
+
+    jobject pubKeyDerBB;
+
+    if (!g_vm || !ssl || !otherKey || !publicKeyDer || !pubKeySz ||
+        !out || !outlen)
+        return -1;
+
+    /* get JavaEnv from JavaVM */
+    ret = GetJNIEnvFromVM(g_vm, &jenv, &needsDetach);
+    if (ret != 0)
+        return ret;
+
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+            "Can't get WolfSSLSession reference in NativeEccSharedSecretCb",
+            needsDetach);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ret = GetWolfSSLContextFromSessionObj(jenv, g_cachedSSLObj, &ctxRef);
+    if (ret != 0) {
+        CheckException(jenv);
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+            "Unable to get WolfSSLContext reference", needsDetach);
+        return ret;
+    }
+
+    /* find internal ecc shared secret callback */
+    ret = GetMethodIDFromObject(jenv, ctxRef,
+            "internalEccSharedSecretCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Lcom/wolfssl/wolfcrypt/EccKey;"
+            "Ljava/nio/ByteBuffer;[JLjava/nio/ByteBuffer;[JI)I",
+            &eccSharedSecretMethodId);
+
+    if (ret != 0) {
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+            "GetMethodIDFromObject failed in NativeEccSharedSecretCb",
+            needsDetach);
+        return -1;
+    }
+
+    /* SETUP: otherKey - holds server's public key on client end, otherwise
+     * holds server's private key on server end. */
+
+    /* find EccKey class */
+    eccKeyClass = (*jenv)->FindClass(jenv, "com/wolfssl/wolfcrypt/EccKey");
+    if (!eccKeyClass) {
+        CheckException(jenv);
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+                "Error finding EccKey class for ECC shared secret callback",
+                needsDetach);
+        return -1;
+    }
+
+    /* find EccKey constructor */
+    eccKeyMethodId = (*jenv)->GetMethodID(jenv, eccKeyClass,
+                                          "<init>", "(J)V");
+    if (!eccKeyMethodId) {
+        CheckException(jenv);
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+                "Error getting EccKey constructor method ID in "
+                "ECC shared secret callback", needsDetach);
+        return -1;
+    }
+
+    /* create new EccKey object to return otherKey */
+    eccKeyObject = (*jenv)->NewObject(jenv, eccKeyClass, eccKeyMethodId,
+                                      (jlong)otherKey);
+    if (!eccKeyObject) {
+        CheckException(jenv);
+        throwWolfSSLJNIExceptionWithMsg(jenv,
+                "Error creating EccKey object in native ECC "
+                "shared secret callback", needsDetach);
+        return -1;
+    }
+
+    /* SETUP: publicKeyDer - create ByteBuffer to wrap publicKeyDer.
+     * publicKeyDer is an output buffer for client's public key to be
+     * placed (client side), otherwise it contains the client's public
+     * key (server side) */
+    if (side == WOLFSSL_SERVER_END) {
+
+        /* publicKeyDer is ECC public key without DER header. Add header
+         * back on here before giving to Java callback, since we know
+         * curve details now */
+
+        retval = wc_ecc_init(&tmpKey);
+        if (retval != 0) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to init "
+                "eccSharedSecret tmpKey", needsDetach);
+            return -1;
+        }
+
+        retval = wc_ecc_import_x963_ex(publicKeyDer, *pubKeySz, &tmpKey,
+                                       otherKey->dp->id);
+        if (retval != 0) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            wc_ecc_free(&tmpKey);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to import "
+                "eccSharedSecret publicKeyDer", needsDetach);
+            return -1;
+        }
+
+        tmpKeyDer = (byte*)XMALLOC(ECC_BUFSIZE, otherKey->heap,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+        if (!tmpKeyDer) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            wc_ecc_free(&tmpKey);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to allocate "
+                "eccSharedSecret tmpKeyDer", needsDetach);
+            return -1;
+        }
+
+        tmpKeyDerSz = wc_EccPublicKeyToDer(&tmpKey, tmpKeyDer, ECC_BUFSIZE, 1);
+        if (tmpKeyDer <= 0) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            wc_ecc_free(&tmpKey);
+            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to export "
+                "eccSharedSecret public key to DER", needsDetach);
+            return -1;
+        }
+
+        wc_ecc_free(&tmpKey);
+
+        pubKeyDerBB = (*jenv)->NewDirectByteBuffer(jenv, tmpKeyDer,
+                                                   tmpKeyDerSz);
+        if (!pubKeyDerBB) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
+                "eccSharedSecret publicKeyDer ByteBuffer", needsDetach);
+            return -1;
+        }
+
+    } else {
+        /* CLIENT side */
+        pubKeyDerBB = (*jenv)->NewDirectByteBuffer(jenv, publicKeyDer,
+                *pubKeySz);
+        if (!pubKeyDerBB) {
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+            throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
+                "eccSharedSecret publicKeyDer ByteBuffer", needsDetach);
+            return -1;
+        }
+    }
+
+    /* SETUP: publicKeyDerSz
+     * create jlongArray to hold publicKeyDerSz, since we need to use it as an
+     * OUTPUT parameter from Java. Only needs to have 1 element. */
+    j_pubKeyDerSz = (*jenv)->NewLongArray(jenv, 1);
+    if (!j_pubKeyDerSz) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+        (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
+        if (side == WOLFSSL_SERVER_END)
+            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
+            "eccSharedSecret array for publicKeyDerSz", needsDetach);
+        return -1;
+    }
+
+    /* SETUP: out
+     * create ByteBuffer to wrap out */
+    jobject outBB = (*jenv)->NewDirectByteBuffer(jenv, out, *outlen);
+    if (!outBB) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+        (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+        if (side == WOLFSSL_SERVER_END)
+            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
+            "eccSharedSecret out ByteBuffer", needsDetach);
+        return -1;
+    }
+
+    /* SETUP: outSz
+     * create jlongArray to hold outSz, since we need to use it as an
+     * OUTPUT parameter from Java. Only needs to have 1 element. */
+    j_outSz = (*jenv)->NewLongArray(jenv, 1);
+    if (!j_outSz) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+        (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+        if (side == WOLFSSL_SERVER_END)
+            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
+            "eccSharedSecret array for outSz", needsDetach);
+        return -1;
+    }
+
+    /* call Java ECC shared secret callback, java layer handles
+     * adding shared secret CTX reference */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, eccSharedSecretMethodId,
+            (jobject)(*g_cachedSSLObj), eccKeyObject, pubKeyDerBB,
+            j_pubKeyDerSz, outBB, j_outSz, (jint)side);
+
+    CheckException(jenv);
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
+    (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
+    if (side == WOLFSSL_SERVER_END) {
+        XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    if (retval == 0) {
+        /* copy j_outSz into outlen, j_pubKeyDerSz into pubKeySz */
+        jlong tmpVal;
+        (*jenv)->GetLongArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
+        if (CheckException(jenv)) {
+            (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+            (*jenv)->DeleteLocalRef(jenv, j_outSz);
+            (*jenv)->DeleteLocalRef(jenv, outBB);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+        *outlen = (unsigned int)tmpVal;
+
+        if (side == WOLFSSL_CLIENT_END) {
+            (*jenv)->GetLongArrayRegion(jenv, j_pubKeyDerSz, 0, 1, &tmpVal);
+            if (CheckException(jenv)) {
+                (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+                (*jenv)->DeleteLocalRef(jenv, j_outSz);
+                (*jenv)->DeleteLocalRef(jenv, outBB);
+                if (needsDetach)
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                return -1;
+            }
+            *pubKeySz = (unsigned int)tmpVal;
+
+            /* attempt to strip off DER header if present, wolfSSL
+             * requires raw ECC public key. ret is 0 if header not detected */
+            ret = StripEccPublicDerHeaderInline(publicKeyDer, *pubKeySz);
+            if (ret < 0) {
+                (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+                (*jenv)->DeleteLocalRef(jenv, j_outSz);
+                (*jenv)->DeleteLocalRef(jenv, outBB);
+                if (needsDetach)
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                return -1;
+            } else if (ret > 0) {
+                *pubKeySz = ret;
+            }
+        }
+    }
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+    (*jenv)->DeleteLocalRef(jenv, j_outSz);
+    (*jenv)->DeleteLocalRef(jenv, outBB);
 
     /* detach JNIEnv from thread */
     if (needsDetach)
@@ -2812,11 +3307,8 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeRsaSignCb");
         if (needsDetach)
@@ -3114,11 +3606,8 @@ int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeRsaVerifyCb");
         if (needsDetach)
@@ -3363,11 +3852,8 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeRsaEncCb");
         if (needsDetach)
@@ -3658,11 +4144,8 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeRsaDecCb");
         if (needsDetach)
@@ -3929,11 +4412,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get WolfSSLContext object in NativePskClientCb");
         if (needsDetach)
@@ -4159,11 +4639,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
 
         bufString = (jstring) (*jenv)->CallObjectMethod(jenv,
                 strBufObj, toStringId);
+        CheckException(jenv);
         if (!bufString) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
             (*jenv)->ThrowNew(jenv, excClass,
                     "Error getting String from StringBuffer in PSK CB");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
@@ -4354,11 +4831,8 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
             getCtxMethodId);
+    CheckException(jenv);
     if (!ctxRef) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get WolfSSLContext object in NativePskServerCb");
         if (needsDetach)
