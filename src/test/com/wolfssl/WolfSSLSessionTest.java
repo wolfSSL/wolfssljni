@@ -26,6 +26,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.net.Socket;
+
 import com.wolfssl.WolfSSL;
 
 public class WolfSSLSessionTest {
@@ -37,6 +39,9 @@ public class WolfSSLSessionTest {
     public final static String cliKey  = "./examples/certs/client-key.pem";
     public final static String caCert  = "./examples/certs/ca-cert.pem";
     public final static String bogusFile = "/dev/null";
+
+    public final static String exampleHost = "www.example.com";
+    public final static int examplePort = 443;
 
     WolfSSLContext ctx;
     WolfSSLSession ssl;
@@ -58,7 +63,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_getPskIdentityHint();
         test_WolfSSLSession_getPskIdentity();
         test_WolfSSLSession_freeSSL();
-
+        test_WolfSSLSession_UseAfterFree();
     }
 
     public void test_WolfSSLSession_new() {
@@ -316,6 +321,7 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_freeSSL() {
 
         System.out.print("\tfreeSSL()");
+
         try {
             ssl.freeSSL();
         } catch (WolfSSLJNIException e) {
@@ -323,6 +329,63 @@ public class WolfSSLSessionTest {
             e.printStackTrace();
         }
         System.out.println("\t\t\t... passed");
+    }
+
+    public void test_WolfSSLSession_UseAfterFree() {
+
+        int ret;
+        WolfSSL sslLib = null;
+        WolfSSLContext sslCtx = null;
+        WolfSSLSession ssl = null;
+        Socket sock = null;
+
+        System.out.print("\tTesting use after free");
+
+        try {
+
+            /* setup library, context, session, socket */
+            sslLib = new WolfSSL();
+            sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
+            sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+            ssl = new WolfSSLSession(sslCtx);
+
+            sock = new Socket(exampleHost, examplePort);
+            ret = ssl.setFd(sock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                ssl.freeSSL();
+                sslCtx.free();
+                fail("Failed to set file descriptor");
+            }
+
+            /* successful connection test */
+            ret = ssl.connect();
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                ssl.freeSSL();
+                sslCtx.free();
+                fail("Failed WolfSSL.connect() to " + exampleHost);
+            }
+
+            ssl.freeSSL();
+            sslCtx.free();
+
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+            return;
+        }
+
+        try {
+            /* this should fail, use after free */
+            ret = ssl.connect();
+        } catch (IllegalStateException ise) {
+            System.out.println("\t\t... passed");
+            return;
+        }
+
+        /* fail here means WolfSSLSession was used after free without
+         * exception thrown */
+        System.out.println("\t\t... failed");
+        fail("WolfSSLSession was able to be used after freed");
     }
 }
 
