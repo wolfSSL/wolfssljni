@@ -26,6 +26,7 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.nio.ByteBuffer;
 
+import com.wolfssl.wolfcrypt.EccKey;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 
@@ -57,6 +58,9 @@ public class WolfSSLContext {
     /* user-registered ECC sign/verify callbacks */
     private WolfSSLEccSignCallback internEccSignCb = null;
     private WolfSSLEccVerifyCallback internEccVerifyCb = null;
+
+    /* user-registered ECC shared secret callback */
+    private WolfSSLEccSharedSecretCallback internEccSharedSecretCb = null;
 
     /* user-registered RSA sign/verify callbacks */
     private WolfSSLRsaSignCallback internRsaSignCb = null;
@@ -213,6 +217,20 @@ public class WolfSSLContext {
         return ret;
     }
 
+    private int internalEccSharedSecretCallback(WolfSSLSession ssl,
+            EccKey otherKey, ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+            ByteBuffer out, long[] outSz, int side)
+    {
+        int ret;
+
+        /* call user-registered ecc shared secret method */
+        ret = internEccSharedSecretCb.eccSharedSecretCallback(ssl,
+                otherKey, pubKeyDer, pubKeyDerSz, out, outSz, side,
+                ssl.getEccSharedSecretCtx());
+
+        return ret;
+    }
+
     private int internalRsaSignCallback(WolfSSLSession ssl, ByteBuffer in,
             long inSz, ByteBuffer out, int[] outSz, ByteBuffer keyDer,
             long keySz)
@@ -327,6 +345,7 @@ public class WolfSSLContext {
     private native void setDecryptVerifyCb(long ctx);
     private native void setEccSignCb(long ctx);
     private native void setEccVerifyCb(long ctx);
+    private native void setEccSharedSecretCb(long ctx);
     private native void setRsaSignCb(long ctx);
     private native void setRsaVerifyCb(long ctx);
     private native void setRsaEncCb(long ctx);
@@ -1301,6 +1320,56 @@ public class WolfSSLContext {
 
         /* register internal callback with native library */
         setEccVerifyCb(getContextPtr());
+    }
+
+    /**
+     * Allows caller to set the Public Key Callback for ECC shared secret.
+     * The callback should return 0 for success or a negative value for an
+     * error.
+     *
+     * The <b>ssl</b> and <b>ctx</b> pointers are available for
+     * the users convenience.
+     *
+     * <b>otherKey</b> is ByteBuffer with behavior that
+     * depends on if the callback is called from the client or server side.
+     * If <b>side</b> indicates client side, <b>otherKey</b> holds the server
+     * public key for use with shared secret generation. If <b>side</b>
+     * indicates server side, <b>otherKey</b> holds the server's private key.
+     *
+     * <b>pubKeyDer</b> behavior is also dependent on side. On the client side,
+     * it is used as output for the client to write a DER-encoded public key.
+     * On the server side, it is used as an input buffer containing a
+     * DER-encoded public key of the peer (client).
+     *
+     * <b>out</b> is where the generated shared secret should be placed.
+     *
+     * <b>side</b> represents the side from which this callback was called.
+     * Can be either WolfSSL.WOLFSSL_CLIENT_END or WolfSSL.WOLFSSL_SERVER_END.
+     *
+     * An example callback can be found in
+     * examples/MyEccSharedSecretCallback.java
+     *
+     * @param callback  object to be registered as the ECC shared secret
+     *                  callback for the WolfSSL context. The signature of this
+     *                  object and corresponding method must match that as
+     *                  shown in WolfSSLEccSharedSecretCallback.java, inside
+     *                  eccSharedSecretCallback().
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#setEccSignCtx(Object)
+     * @see    WolfSSLSession#setEccVerifyCtx(Object)
+     */
+    public void setEccSharedSecretCb(WolfSSLEccSharedSecretCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set ecc shared secret callback */
+        internEccSharedSecretCb = callback;
+
+        /* register internal callback with native library */
+        setEccSharedSecretCb(getContextPtr());
     }
 
     /**

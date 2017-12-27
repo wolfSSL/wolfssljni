@@ -46,6 +46,7 @@ public class WolfSSLSession {
     private Object decryptVerifyCtx;
     private Object eccSignCtx;
     private Object eccVerifyCtx;
+    private Object eccSharedSecretCtx;
     private Object rsaSignCtx;
     private Object rsaVerifyCtx;
     private Object rsaEncCtx;
@@ -120,6 +121,10 @@ public class WolfSSLSession {
 
     Object getEccVerifyCtx() {
         return this.eccVerifyCtx;
+    }
+
+    Object getEccSharedSecretCtx() {
+        return this.eccSharedSecretCtx;
     }
 
     Object getRsaSignCtx() {
@@ -229,6 +234,7 @@ public class WolfSSLSession {
             int content, int verify);
     private native void setEccSignCtx(long ssl);
     private native void setEccVerifyCtx(long ssl);
+    private native void setEccSharedSecretCtx(long ssl);
     private native void setRsaSignCtx(long ssl);
     private native void setRsaVerifyCtx(long ssl);
     private native void setRsaEncCtx(long ssl);
@@ -1876,6 +1882,26 @@ public class WolfSSLSession {
 
         eccVerifyCtx = ctx;
         setEccVerifyCtx(getSessionPtr());
+    }
+
+    /**
+     * Allows caller to set the Public Key ECC Shared Secret Callback Context.
+     *
+     * @param ctx   context object to be registered with the SSL session's
+     *              ECC shared secret method.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
+     * @see    WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
+     */
+    public void setEccSharedSecretCtx(Object ctx)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        eccSharedSecretCtx = ctx;
+        setEccSharedSecretCtx(getSessionPtr());
     }
 
     /**

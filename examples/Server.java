@@ -472,12 +472,18 @@ public class Server {
                     /* ECC */
                     MyEccSignCallback eccSign = new MyEccSignCallback();
                     MyEccVerifyCallback eccVerify = new MyEccVerifyCallback();
+                    MyEccSharedSecretCallback eccSharedSecret =
+                        new MyEccSharedSecretCallback();
                     MyEccSignCtx eccSignCtx = new MyEccSignCtx();
                     MyEccVerifyCtx eccVerifyCtx = new MyEccVerifyCtx();
+                    MyEccSharedSecretCtx eccSharedSecretCtx =
+                        new MyEccSharedSecretCtx();
                     sslCtx.setEccSignCb(eccSign);
                     sslCtx.setEccVerifyCb(eccVerify);
+                    sslCtx.setEccSharedSecretCb(eccSharedSecret);
                     ssl.setEccSignCtx(eccSignCtx);
                     ssl.setEccVerifyCtx(eccVerifyCtx);
+                    ssl.setEccSharedSecretCtx(eccSharedSecretCtx);
 
                     /* RSA */
                     MyRsaSignCallback rsaSign = new MyRsaSignCallback();

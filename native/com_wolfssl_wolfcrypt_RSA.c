@@ -72,6 +72,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
                 &myKey, &rng);
         if (ret > 0) {
             /* save and convert to 0 for success */
+            tmpOut = ret;
             (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
             ret = 0;
         }

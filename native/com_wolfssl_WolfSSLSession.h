@@ -489,6 +489,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setEccSharedSecretCtx
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSharedSecretCtx
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setRsaSignCtx
  * Signature: (J)V
  */
