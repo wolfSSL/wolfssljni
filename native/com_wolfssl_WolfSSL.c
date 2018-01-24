@@ -179,7 +179,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ClientMethod
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
   (JNIEnv* jenv, jclass jcl, jlong errNumber)
 {
-    char buffer[80];
+    char buffer[WOLFSSL_MAX_ERROR_SZ];
     jstring retString;
 
     wolfSSL_ERR_error_string(errNumber, buffer);
