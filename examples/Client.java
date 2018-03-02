@@ -325,6 +325,15 @@ public class Client {
                 }
             }
 
+            /* register I/O callbacks, I/O ctx setup is later */
+            if (useIOCallbacks || (doDTLS == 1)) {
+                MyRecvCallback rcb = new MyRecvCallback();
+                MySendCallback scb = new MySendCallback();
+                sslCtx.setIORecv(rcb);
+                sslCtx.setIOSend(scb);
+                System.out.println("Registered I/O callbacks");
+            }
+
             if (benchmark != 0) {
                 int times = benchmark;
                 int i = 0;
@@ -407,16 +416,12 @@ public class Client {
             }
 
             if (useIOCallbacks || (doDTLS == 1)) {
-                /* register I/O callbacks */
-                MyRecvCallback rcb = new MyRecvCallback();
-                MySendCallback scb = new MySendCallback();
+                /* register I/O callback user context */
                 MyIOCtx ioctx = new MyIOCtx(outstream, instream, dsock,
                         hostAddr, port);
-                sslCtx.setIORecv(rcb);
-                sslCtx.setIOSend(scb);
                 ssl.setIOReadCtx(ioctx);
                 ssl.setIOWriteCtx(ioctx);
-                System.out.println("Registered I/O callbacks");
+                System.out.println("Registered I/O callback user contexts");
 
             } else {
 
