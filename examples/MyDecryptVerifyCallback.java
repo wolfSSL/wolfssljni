@@ -41,6 +41,7 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
         int ivExtra  = 0;
         long pad     = 0;
         long padByte = 0;
+        String hmacString;
         String tlsStr   = "TLS";
         byte[] keyBytes = null;
         byte[] ivBytes  = null;
@@ -113,18 +114,32 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
 
             ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
             int hmacType = ssl.getHmacType();
-            if (hmacType != WolfSSL.SHA) {
-                System.out.println("MyMacEncryptCallback example only "
-                        + "supports SHA1");
-                return -1;
+
+            switch (hmacType) {
+                case WolfSSL.SHA:
+                    hmacString = "HmacSHA1";
+                    break;
+                case WolfSSL.SHA256:
+                    hmacString = "HmacSHA256";
+                    break;
+                case WolfSSL.SHA384:
+                    hmacString = "HmacSHA384";
+                    break;
+                case WolfSSL.SHA512:
+                    hmacString = "HmacSHA512";
+                    break;
+                default:
+                    System.out.println("Unsupported HMAC hash type in " +
+                            "MyDecryptVerifyCallback");
+                    return -1;
             }
 
             /* get Hmac SHA-1 key */
             SecretKeySpec signingKey = new SecretKeySpec(
-                    ssl.getMacSecret(macVerify), "HmacSHA1");
+                    ssl.getMacSecret(macVerify), hmacString);
 
             /* get Hmac SHA-1 instance and initialize with signing key */
-            Mac mac = Mac.getInstance("HmacSHA1");
+            Mac mac = Mac.getInstance(hmacString);
             mac.init(signingKey);
 
             /* get tmp array for encrypted MAC */

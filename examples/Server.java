@@ -353,6 +353,15 @@ public class Server {
                 }
             }
 
+            /* register atomic record layer callbacks, ctx setup later */
+            if (useAtomic == 1) {
+                MyMacEncryptCallback mecb = new MyMacEncryptCallback();
+                MyDecryptVerifyCallback dvcb =
+                    new MyDecryptVerifyCallback();
+                sslCtx.setMacEncryptCb(mecb);
+                sslCtx.setDecryptVerifyCb(dvcb);
+            }
+
             /* create server socket, later if DTLS */
             if (doDTLS == 0) {
                 serverSocket = new ServerSocket(port);
@@ -467,14 +476,9 @@ public class Server {
                 }
 
                 if (useAtomic == 1) {
-                    /* register atomic record layer callbacks */
-                    MyMacEncryptCallback mecb = new MyMacEncryptCallback();
-                    MyDecryptVerifyCallback dvcb =
-                        new MyDecryptVerifyCallback();
+                    /* register atomic record layer callback user contexts */
                     MyAtomicEncCtx encCtx = new MyAtomicEncCtx();
                     MyAtomicDecCtx decCtx = new MyAtomicDecCtx();
-                    sslCtx.setMacEncryptCb(mecb);
-                    sslCtx.setDecryptVerifyCb(dvcb);
                     ssl.setMacEncryptCtx(encCtx);
                     ssl.setDecryptVerifyCtx(decCtx);
                 }

@@ -136,18 +136,18 @@ public class WolfSSL {
     public final static int WOLFSSL_TLS_HMAC_INNER_SZ = 13;
 
     /* GetBulkCipher enum, pulled in from ssl.h for Atomic Record layer */
-    public final static int wolfssl_cipher_null = 0;
-    public final static int wolfssl_rc4         = 1;
-    public final static int wolfssl_rc2         = 2;
-    public final static int wolfssl_des         = 3;
-    public final static int wolfssl_triple_des  = 4;
-    public final static int wolfssl_des40       = 5;
-    public final static int wolfssl_idea        = 6;
-    public final static int wolfssl_aes         = 7;
-    public final static int wolfssl_aes_gcm     = 8;
-    public final static int wolfssl_aes_ccm     = 9;
-    public final static int wolfssl_hc128       = 10;
-    public final static int wolfssl_rabbit      = 11;
+    public static int wolfssl_cipher_null;
+    public static int wolfssl_rc4;
+    public static int wolfssl_rc2;
+    public static int wolfssl_des;
+    public static int wolfssl_triple_des;
+    public static int wolfssl_des40;
+    public static int wolfssl_idea;
+    public static int wolfssl_aes;
+    public static int wolfssl_aes_gcm;
+    public static int wolfssl_aes_ccm;
+    public static int wolfssl_hc128;
+    public static int wolfssl_rabbit;
 
     /* wolfSSL error codes, pulled in from wolfssl/error.h wolfSSL_ErrorCodes */
     public final static int GEN_COOKIE_E    =   -277;
@@ -224,6 +224,20 @@ public class WolfSSL {
             throw new WolfSSLException("Failed to initialize wolfSSL library: "
                     + ret);
         }
+
+        /* initialize enum values */
+        wolfssl_aes         = getBulkCipherAlgorithmEnumAES();
+        wolfssl_cipher_null = getBulkCipherAlgorithmEnumNULL();
+        wolfssl_rc4         = getBulkCipherAlgorithmEnumRC4();
+        wolfssl_rc2         = getBulkCipherAlgorithmEnumRC2();
+        wolfssl_des         = getBulkCipherAlgorithmEnumDES();
+        wolfssl_triple_des  = getBulkCipherAlgorithmEnumDES();
+        wolfssl_des40       = getBulkCipherAlgorithmEnumDES40();
+        wolfssl_idea        = getBulkCipherAlgorithmEnumIDEA();
+        wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
+        wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
+        wolfssl_hc128       = getBulkCipherAlgorithmEnumHC128();
+        wolfssl_rabbit      = getBulkCipherAlgorithmEnumRABBIT();
     }
 
     /* ------------------- private/protected methods -------------------- */
@@ -231,6 +245,21 @@ public class WolfSSL {
     private native int init();
 
     static native void nativeFree(long ptr);
+
+    static native int getBulkCipherAlgorithmEnumNULL();
+    static native int getBulkCipherAlgorithmEnumRC4();
+    static native int getBulkCipherAlgorithmEnumRC2();
+    static native int getBulkCipherAlgorithmEnumDES();
+    static native int getBulkCipherAlgorithmEnum3DES();
+    static native int getBulkCipherAlgorithmEnumDES40();
+    static native int getBulkCipherAlgorithmEnumIDEA();
+    static native int getBulkCipherAlgorithmEnumAES();
+    static native int getBulkCipherAlgorithmEnumAESGCM();
+    static native int getBulkCipherAlgorithmEnumAESCCM();
+    static native int getBulkCipherAlgorithmEnumCHACHA();
+    static native int getBulkCipherAlgorithmEnumCAMELLIA();
+    static native int getBulkCipherAlgorithmEnumHC128();
+    static native int getBulkCipherAlgorithmEnumRABBIT();
 
     /* ------------------------- Java methods --------------------------- */
 

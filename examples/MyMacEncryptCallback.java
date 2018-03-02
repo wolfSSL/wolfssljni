@@ -34,6 +34,7 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
             byte[] macIn, long macInSz, int macContent, int macVerify,
             ByteBuffer encOut, ByteBuffer encIn, long encSz, Object ctx) {
 
+        String hmacString;
         String tlsStr   = "TLS";
         byte[] keyBytes  = null;
         byte[] ivBytes   = null;
@@ -44,6 +45,7 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
 
         try {
             /* example supports (d)tls AES */
+            System.out.println("ssl.getBulkCipher() = " + ssl.getBulkCipher());
             if (ssl.getBulkCipher() != WolfSSL.wolfssl_aes) {
                 System.out.println("MyMacEncryptCallback not using AES");
                 return -1;
@@ -54,21 +56,36 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
                 return -1;
             }
 
-            /* hmac, not needed if aead mode */
-            ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
             int hmacType = ssl.getHmacType();
-            if (hmacType != WolfSSL.SHA) {
-                System.out.println("MyMacEncryptCallback example only "
-                        + "supports SHA1");
-                return -1;
+            switch (hmacType) {
+                case WolfSSL.SHA:
+                    hmacString = "HmacSHA1";
+                    break;
+                case WolfSSL.SHA256:
+                    hmacString = "HmacSHA256";
+                    break;
+                case WolfSSL.SHA384:
+                    hmacString = "HmacSHA384";
+                    break;
+                case WolfSSL.SHA512:
+                    hmacString = "HmacSHA512";
+                    break;
+                default:
+                    System.out.println("Unsupported HMAC hash type in " +
+                            "MyMacEncryptCallback");
+                    return -1;
             }
 
-            /* get Hmac SHA-1 key */
-            SecretKeySpec signingKey = new SecretKeySpec(
-                    ssl.getMacSecret(macVerify), "HmacSHA1");
+            /* hmac, not needed if aead mode */
+            ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
 
-            /* get Hmac SHA-1 instance and initialize with signing key */
-            Mac mac = Mac.getInstance("HmacSHA1");
+            /* get Hmac key */
+            byte[] macSecret = ssl.getMacSecret(macVerify);
+            SecretKeySpec signingKey = new SecretKeySpec(
+                    macSecret, hmacString);
+
+            /* get Hmac instance and initialize with signing key */
+            Mac mac = Mac.getInstance(hmacString);
             mac.init(signingKey);
 
             /* compute Hmac on signing data */
