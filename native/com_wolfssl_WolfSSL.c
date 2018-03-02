@@ -60,6 +60,95 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
         free((void*)ptr);
 }
 
+/* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumNULL
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_cipher_null;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC4
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_rc4;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC2
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_rc2;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_des;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnum3DES
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_triple_des;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES40
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_des40;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_IDEA
+    return wolfssl_idea;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAES
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_aes;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESGCM
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_aes_gcm;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESCCM
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_aes_ccm;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCHACHA
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_chacha;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELLIA
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_camellia;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumHC128
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_hc128;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
+  (JNIEnv* jenv, jclass jcl)
+{
+    return wolfssl_rabbit;
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {

@@ -105,30 +105,6 @@ extern "C" {
 #define com_wolfssl_WolfSSL_WOLFSSL_AEAD_TYPE 4L
 #undef com_wolfssl_WolfSSL_WOLFSSL_TLS_HMAC_INNER_SZ
 #define com_wolfssl_WolfSSL_WOLFSSL_TLS_HMAC_INNER_SZ 13L
-#undef com_wolfssl_WolfSSL_wolfssl_cipher_null
-#define com_wolfssl_WolfSSL_wolfssl_cipher_null 0L
-#undef com_wolfssl_WolfSSL_wolfssl_rc4
-#define com_wolfssl_WolfSSL_wolfssl_rc4 1L
-#undef com_wolfssl_WolfSSL_wolfssl_rc2
-#define com_wolfssl_WolfSSL_wolfssl_rc2 2L
-#undef com_wolfssl_WolfSSL_wolfssl_des
-#define com_wolfssl_WolfSSL_wolfssl_des 3L
-#undef com_wolfssl_WolfSSL_wolfssl_triple_des
-#define com_wolfssl_WolfSSL_wolfssl_triple_des 4L
-#undef com_wolfssl_WolfSSL_wolfssl_des40
-#define com_wolfssl_WolfSSL_wolfssl_des40 5L
-#undef com_wolfssl_WolfSSL_wolfssl_idea
-#define com_wolfssl_WolfSSL_wolfssl_idea 6L
-#undef com_wolfssl_WolfSSL_wolfssl_aes
-#define com_wolfssl_WolfSSL_wolfssl_aes 7L
-#undef com_wolfssl_WolfSSL_wolfssl_aes_gcm
-#define com_wolfssl_WolfSSL_wolfssl_aes_gcm 8L
-#undef com_wolfssl_WolfSSL_wolfssl_aes_ccm
-#define com_wolfssl_WolfSSL_wolfssl_aes_ccm 9L
-#undef com_wolfssl_WolfSSL_wolfssl_hc128
-#define com_wolfssl_WolfSSL_wolfssl_hc128 10L
-#undef com_wolfssl_WolfSSL_wolfssl_rabbit
-#define com_wolfssl_WolfSSL_wolfssl_rabbit 11L
 #undef com_wolfssl_WolfSSL_GEN_COOKIE_E
 #define com_wolfssl_WolfSSL_GEN_COOKIE_E -277L
 #undef com_wolfssl_WolfSSL_SSL_SENT_SHUTDOWN
@@ -198,6 +174,118 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
  */
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
   (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumNULL
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumNULL
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumRC4
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC4
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumRC2
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC2
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumDES
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnum3DES
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnum3DES
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumDES40
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES40
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumIDEA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumAES
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAES
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumAESGCM
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESGCM
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumAESCCM
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESCCM
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumCHACHA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCHACHA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumCAMELLIA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELLIA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumHC128
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumHC128
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getBulkCipherAlgorithmEnumRABBIT
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
+  (JNIEnv *, jclass);
 
 /*
  * Class:     com_wolfssl_WolfSSL
