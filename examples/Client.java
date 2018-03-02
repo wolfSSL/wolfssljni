@@ -342,6 +342,29 @@ public class Client {
                 sslCtx.setDecryptVerifyCb(dvcb);
             }
 
+            /* register public key callbacks, ctx setup is later */
+            if (pkCallbacks == 1) {
+
+                /* ECC */
+                MyEccSignCallback eccSign = new MyEccSignCallback();
+                MyEccVerifyCallback eccVerify = new MyEccVerifyCallback();
+                MyEccSharedSecretCallback eccSharedSecret =
+                    new MyEccSharedSecretCallback();
+                sslCtx.setEccSignCb(eccSign);
+                sslCtx.setEccVerifyCb(eccVerify);
+                sslCtx.setEccSharedSecretCb(eccSharedSecret);
+
+                /* RSA */
+                MyRsaSignCallback rsaSign = new MyRsaSignCallback();
+                MyRsaVerifyCallback rsaVerify = new MyRsaVerifyCallback();
+                MyRsaEncCallback rsaEnc = new MyRsaEncCallback();
+                MyRsaDecCallback rsaDec = new MyRsaDecCallback();
+                sslCtx.setRsaSignCb(rsaSign);
+                sslCtx.setRsaVerifyCb(rsaVerify);
+                sslCtx.setRsaEncCb(rsaEnc);
+                sslCtx.setRsaDecCb(rsaDec);
+            }
+
             if (benchmark != 0) {
                 int times = benchmark;
                 int i = 0;
@@ -452,37 +475,22 @@ public class Client {
             }
 
             if (pkCallbacks == 1) {
-                /* register public key callbacks */
+                /* register public key callback user contexts */
 
                 /* ECC */
-                MyEccSignCallback eccSign = new MyEccSignCallback();
-                MyEccVerifyCallback eccVerify = new MyEccVerifyCallback();
-                MyEccSharedSecretCallback eccSharedSecret =
-                    new MyEccSharedSecretCallback();
                 MyEccSignCtx eccSignCtx = new MyEccSignCtx();
                 MyEccVerifyCtx eccVerifyCtx = new MyEccVerifyCtx();
                 MyEccSharedSecretCtx eccSharedSecretCtx =
                     new MyEccSharedSecretCtx();
-                sslCtx.setEccSignCb(eccSign);
-                sslCtx.setEccVerifyCb(eccVerify);
-                sslCtx.setEccSharedSecretCb(eccSharedSecret);
                 ssl.setEccSignCtx(eccSignCtx);
                 ssl.setEccVerifyCtx(eccVerifyCtx);
                 ssl.setEccSharedSecretCtx(eccSharedSecretCtx);
 
                 /* RSA */
-                MyRsaSignCallback rsaSign = new MyRsaSignCallback();
-                MyRsaVerifyCallback rsaVerify = new MyRsaVerifyCallback();
-                MyRsaEncCallback rsaEnc = new MyRsaEncCallback();
-                MyRsaDecCallback rsaDec = new MyRsaDecCallback();
                 MyRsaSignCtx rsaSignCtx = new MyRsaSignCtx();
                 MyRsaVerifyCtx rsaVerifyCtx = new MyRsaVerifyCtx();
                 MyRsaEncCtx rsaEncCtx = new MyRsaEncCtx();
                 MyRsaDecCtx rsaDecCtx = new MyRsaDecCtx();
-                sslCtx.setRsaSignCb(rsaSign);
-                sslCtx.setRsaVerifyCb(rsaVerify);
-                sslCtx.setRsaEncCb(rsaEnc);
-                sslCtx.setRsaDecCb(rsaDec);
                 ssl.setRsaSignCtx(rsaSignCtx);
                 ssl.setRsaVerifyCtx(rsaVerifyCtx);
                 ssl.setRsaEncCtx(rsaEncCtx);
