@@ -36,8 +36,8 @@ public final class WolfSSLProvider extends Provider {
 
         // 3 listed adds for JSSE in Provider.java
         //addEngine("KeyManagerFactory",                  false, null);
-        put("SSLContext", WolfSSLContext.class.getName());
-        //addEngine("TrustManagerFactory",                false, null);
+        put("SSLContext", "com.wolfssl.provider.jsse.WolfSSLContext");
+        put("TrustManagerFactory", "com.wolfssl.provider.jsse.WolfSSLTrustManager");
     }
 }
 
