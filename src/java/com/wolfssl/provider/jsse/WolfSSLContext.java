@@ -33,6 +33,20 @@ import javax.net.ssl.TrustManager;
 
 public class WolfSSLContext extends SSLContextSpi {
 
+    enum TLS_VERSION {
+        TLSv1,
+        TLSv1_1,
+        TLSv1_2,
+        TLSv1_3,
+        SSLv23
+    };
+    
+    private TLS_VERSION currentVersion = TLS_VERSION.SSLv23;
+    
+    private WolfSSLContext(TLS_VERSION version) {
+        this.currentVersion = version;
+    }
+    
     @Override
     protected void engineInit(KeyManager[] arg0, TrustManager[] arg1, SecureRandom arg2) throws KeyManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -68,5 +82,27 @@ public class WolfSSLContext extends SSLContextSpi {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
+    public static final class TLSV1_Context extends WolfSSLContext {
+        public TLSV1_Context() {
+            super(TLS_VERSION.TLSv1);
+        }
+    }
     
+    public static final class TLSV11_Context extends WolfSSLContext {
+        public TLSV11_Context() {
+            super(TLS_VERSION.TLSv1_1);
+        }
+    }
+    
+    public static final class TLSV12_Context extends WolfSSLContext {
+        public TLSV12_Context() {
+            super(TLS_VERSION.TLSv1_2);
+        }
+    }
+    
+    public static final class TLSV23_Context extends WolfSSLContext {
+        public TLSV23_Context() {
+            super(TLS_VERSION.SSLv23);
+        }
+    }
 }
