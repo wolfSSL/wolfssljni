@@ -34,8 +34,10 @@ public final class WolfSSLProvider extends Provider {
     public WolfSSLProvider() {
         super("wolfJSSE", 1.0, "wolfSSL JSSE Provider");
 
-        // 3 listed adds for JSSE in Provider.java
-        //addEngine("KeyManagerFactory",                  false, null);
+        /* Key Factory */
+        /* put("KeyManagerFactory", "NA"); */
+
+        /* TLS connection Contexts */
         put("SSLContext.TLSV1",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV1_Context");
         put("SSLContext.TLSV1.1",
@@ -45,6 +47,7 @@ public final class WolfSSLProvider extends Provider {
         put("SSLContext.TLS",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV23_Context");
         
+        /* Trust Factory */
         put("TrustManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
     }

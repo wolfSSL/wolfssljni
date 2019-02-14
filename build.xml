@@ -66,7 +66,7 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, javah, javadoc, examples, test"/>
+    <target name="build" depends="init, compile, jar, jar-jsse, javah, javadoc, examples, test"/>
 
     <target name="javah">
         <javah destdir="${native.dir}" force="yes" classpathref="classpath">
@@ -106,7 +106,16 @@
     </target>
 
     <target name="jar">
-        <jar jarfile="${lib.dir}/wolfssl.jar" basedir="${build.dir}"></jar>
+        <jar jarfile="${lib.dir}/wolfssl.jar">
+            <fileset dir="${build.dir}">
+                <include name="com/wolfssl/*.class"/>
+                <include name="com/wolfssl/wolfcrypt/*.class"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="jar-jsse">
+        <jar jarfile="${lib.dir}/wolfssl-jsse.jar" basedir="${build.dir}"></jar>
     </target>
 
     <target name="javadoc" description="generate documentation">
