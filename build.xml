@@ -24,8 +24,8 @@
     <property name="reports.dir" value="build/reports"/>
 
     <!-- These paths should be relative to JUNIT_HOME -->
-    <property name="junit4" value="junit-4.12.jar" />
-    <property name="hamcrest-core" value="hamcrest-core-1.3.jar" />
+    <property name="junit4" value="junit-4.13-beta-2.jar" />
+    <property name="hamcrest-core" value="hamcrest-all-1.3.jar" />
     <property name="ant-junit4" value="ant/ant-junit4.jar" />
 
     <property environment="env"/>
@@ -66,22 +66,12 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, jar-jsse, javah, javadoc, examples, test"/>
-
-    <target name="javah">
-        <javah destdir="${native.dir}" force="yes" classpathref="classpath">
-            <class name="com.wolfssl.WolfSSL"/>
-            <class name="com.wolfssl.WolfSSLSession"/>
-            <class name="com.wolfssl.WolfSSLContext"/>
-            <class name="com.wolfssl.wolfcrypt.ECC"/>
-            <class name="com.wolfssl.wolfcrypt.RSA"/>
-            <class name="com.wolfssl.wolfcrypt.EccKey"/>
-        </javah>
-    </target>
+    <target name="build" depends="init, compile, jar, jar-jsse, javadoc, examples, test"/>
 
     <target name="compile">
         <javac srcdir="${src.dir}"
                destdir="${build.dir}"
+               nativeheaderdir="${native.dir}"
                debug="${java.debug}"
                debuglevel="${java.debuglevel}"
                deprecation="${java.deprecation}"
