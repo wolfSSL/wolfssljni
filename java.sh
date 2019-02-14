@@ -12,7 +12,11 @@ if [ "$OS" == "Darwin" ] ; then
     jniLibName="libwolfssl.jnilib"
     cflags="-DHAVE_ECC"
 elif [ "$OS" == "Linux" ] ; then
-    javaHome=`echo $(dirname $(dirname $(dirname $(readlink -f $(which java)))))`
+    javaHome=`echo $(dirname $(dirname $(readlink -f $(which java))))`
+    if [ ! -d "$javaHome/include" ]
+    then
+        javaHome=`echo $(dirname $javaHome)`
+    fi
     javaIncludes="-I$javaHome/include -I$javaHome/include/linux"
     javaLibs="-shared"
     jniLibName="libwolfSSL.so"
