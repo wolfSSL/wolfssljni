@@ -29,6 +29,19 @@ import javax.net.ssl.SSLSession;
 
 public class WolfSSLEngine extends SSLEngine {
 
+    private String host = null;
+    private int port = 0;
+
+    protected WolfSSLEngine() {
+        super();
+    }
+
+    protected WolfSSLEngine(String host, int port) {
+        super();
+        this.host = host;
+        this.port = port;
+    }
+
     @Override
     public SSLEngineResult wrap(ByteBuffer[] arg0, int arg1, int arg2, ByteBuffer arg3) throws SSLException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.

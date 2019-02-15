@@ -29,8 +29,11 @@ import java.io.IOException;
 
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
-    private WolfSSLServerSocketFactory() {
+    private WolfSSLParameters params = null;
+
+    public WolfSSLServerSocketFactory(WolfSSLParameters parameters) {
         super();
+        this.params = parameters;
     }
 
     @Override

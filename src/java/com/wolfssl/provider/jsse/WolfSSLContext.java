@@ -21,65 +21,98 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.security.KeyManagementException;
-import java.security.SecureRandom;
-import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContextSpi;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.security.SecureRandom;
+
+import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
+
+import java.lang.IllegalArgumentException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 public class WolfSSLContext extends SSLContextSpi {
 
-    enum TLS_VERSION {
-        TLSv1,
-        TLSv1_1,
-        TLSv1_2,
-        TLSv1_3,
-        SSLv23
-    };
-    
     private TLS_VERSION currentVersion = TLS_VERSION.SSLv23;
+    private WolfSSLParameters params = null;
     
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
     }
-    
+
     @Override
-    protected void engineInit(KeyManager[] arg0, TrustManager[] arg1, SecureRandom arg2) throws KeyManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected void engineInit(KeyManager[] km, TrustManager[] tm,
+        SecureRandom sr) throws KeyManagementException {
+
+        try {
+            params = new WolfSSLParameters(km, tm, sr, currentVersion);
+
+        } catch (IllegalArgumentException iae) {
+            throw new KeyManagementException(iae);
+        }
     }
 
     @Override
-    protected SSLSocketFactory engineGetSocketFactory() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected SSLSocketFactory engineGetSocketFactory()
+        throws IllegalStateException {
+
+        if (params == null) {
+            throw new IllegalStateException("SSLContext must be initialized " +
+                "before use, please call init()");
+        }
+
+        return new WolfSSLSocketFactory(params);
     }
 
     @Override
     protected SSLServerSocketFactory engineGetServerSocketFactory() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+
+        if (params == null) {
+            throw new IllegalStateException("SSLContext must be initialized " +
+                "before use, please call init()");
+        }
+
+        return new WolfSSLServerSocketFactory(params);
     }
 
     @Override
     protected SSLEngine engineCreateSSLEngine() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+
+        if (params == null) {
+            throw new IllegalStateException("SSLContext must be initialized " +
+                "before use, please call init()");
+        }
+
+        return new WolfSSLEngine();
     }
 
     @Override
-    protected SSLEngine engineCreateSSLEngine(String arg0, int arg1) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected SSLEngine engineCreateSSLEngine(String host, int port) {
+
+        if (params == null) {
+            throw new IllegalStateException("SSLContext must be initialized " +
+                "before use, please call init()");
+        }
+
+        return new WolfSSLEngine(host, port);
     }
 
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
     
     public static final class TLSV1_Context extends WolfSSLContext {

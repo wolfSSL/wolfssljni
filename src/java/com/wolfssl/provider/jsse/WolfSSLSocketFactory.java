@@ -25,14 +25,22 @@ import java.net.InetAddress;
 import java.io.InputStream;
 import java.net.Socket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.TrustManager;
+import java.security.SecureRandom;
+
+import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
 
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
-    private WolfSSLSocketFactory() {
+    private WolfSSLParameters params = null;
+
+    public WolfSSLSocketFactory(WolfSSLParameters parameters) {
         super();
+        this.params = parameters;
     }
 
     @Override
