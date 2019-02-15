@@ -1,4 +1,4 @@
-/* WolfSSLContextTest.java
+/* provider_server.java
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -18,8 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
-
-package com.wolfssl.provider.jsse.test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -43,9 +41,9 @@ import javax.net.ServerSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-public class server {
-    public server(){}
-    
+public class provider_server {
+    public provider_server(){}
+
     public void test_server() throws NoSuchAlgorithmException, KeyManagementException,
             IOException, KeyStoreException, CertificateException,
             UnrecoverableKeyException {
@@ -67,9 +65,9 @@ public class server {
         OutputStream out;
         
         pKey = KeyStore.getInstance("JKS");
-        pKey.load(new FileInputStream("server.jks"), psw);
+        pKey.load(new FileInputStream("../provider/server.jks"), psw);
         cert = KeyStore.getInstance("JKS");
-        cert.load(new FileInputStream("server.jks"), psw);
+        cert.load(new FileInputStream("../provider/server.jks"), psw);
         
         /* trust manager (certificates) */
         tm = TrustManagerFactory.getInstance("SunX509");
@@ -116,11 +114,11 @@ public class server {
     }
     
     public static void main(String[] args) {
-        server t = new server();
+        provider_server t = new provider_server();
         try {
             t.test_server();
         } catch (Exception ex) {
-            Logger.getLogger(server.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(provider_server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }
