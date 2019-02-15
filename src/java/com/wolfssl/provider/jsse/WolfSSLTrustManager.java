@@ -30,9 +30,13 @@ import javax.net.ssl.TrustManagerFactorySpi;
 
 public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
+    public WolfSSLTrustManager() {}
+    
+    private KeyStore store;
+    
     @Override
-    protected void engineInit(KeyStore arg0) throws KeyStoreException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected void engineInit(KeyStore in) throws KeyStoreException {
+       this.store = in;
     }
 
     @Override
@@ -42,7 +46,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
     @Override
     protected TrustManager[] engineGetTrustManagers() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /* array of WolfSSLX509Trust objects to use */
+        TrustManager[] tm = {new WolfSSLTrustX509(this.store)};
+        return tm;
     }
     
 }
