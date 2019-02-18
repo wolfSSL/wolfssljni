@@ -26,6 +26,7 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -35,6 +36,9 @@ import java.util.logging.Logger;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
+import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.WolfSSL;
+        
 public class provider_trustmanager {
     public provider_trustmanager(){}
 
@@ -51,6 +55,12 @@ public class provider_trustmanager {
         X509Certificate CAs[];
         X509Certificate chain[];
         
+ 
+        
+        System.out.printf("Inserted wolfSSL at position %d\n",
+                Security.insertProviderAt(new WolfSSLProvider(), 1));
+
+        
         in = new FileInputStream("../certs/server-cert.pem");
         serv = (X509Certificate)CertificateFactory.getInstance("X.509").generateCertificate(in);
 
@@ -62,7 +72,7 @@ public class provider_trustmanager {
         cert.load(new FileInputStream("../provider/server.jks"), psw);
         
         /* trust manager (certificates) */
-        tm = TrustManagerFactory.getInstance("SunX509");
+        tm = TrustManagerFactory.getInstance("X509");
         tm.init(cert);
         System.out.printf("Provider name = %s\n", tm.getProvider().getName());
 
@@ -78,7 +88,7 @@ public class provider_trustmanager {
         
         try {
             chain[0] = servEcc;
-            X509tm.checkServerTrusted(chain, "RSA");
+            X509tm.checkServerTrusted(chain, "ECC");
         }
         catch (Exception ex) {
             System.out.println("Found exception success");
@@ -87,7 +97,10 @@ public class provider_trustmanager {
     
     public static void main(String[] args) {
         provider_trustmanager t = new provider_trustmanager();
-        try {
+        try {        
+            WolfSSL.loadLibrary();
+            //WolfSSL ssl = new WolfSSL();
+            //ssl.debuggingON();
             t.test_trustmanager();
         } catch (Exception ex) {
             Logger.getLogger(provider_trustmanager.class.getName()).log(Level.SEVERE, null, ex);
