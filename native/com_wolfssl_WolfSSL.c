@@ -149,6 +149,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
     return wolfssl_rabbit;
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
+  (JNIEnv* jenv, jclass jcl)
+{
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {

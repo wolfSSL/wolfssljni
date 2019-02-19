@@ -313,6 +313,15 @@ public class WolfSSL {
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
+     * Tests if TLS 1.0 has been compiled into the native wolfSSL library.
+     * TLS 1.0 is disabled by default in native wolfSSL, unless the user
+     * has configured wolfSSL with "--enable-tls10".
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv1Enabled();
+
+    /**
      * Indicates that the application is a server and will only support the
      * SSL 3.0 protocol.
      * This method allocates memory for and initializes a new native
