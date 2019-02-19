@@ -50,6 +50,8 @@ public final class WolfSSLProvider extends Provider {
         /* Trust Factory */
         put("TrustManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
+        put("TrustManagerFactory.SunX509",
+                "com.wolfssl.provider.jsse.WolfSSLTrustManager");
     }
 }
 
