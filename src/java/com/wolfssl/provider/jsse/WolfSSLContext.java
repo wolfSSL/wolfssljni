@@ -35,6 +35,8 @@ import java.security.SecureRandom;
 
 import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
 
+import com.wolfssl.WolfSSLException;
+
 import java.lang.IllegalArgumentException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -69,7 +71,12 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        return new WolfSSLSocketFactory(params);
+        try {
+            return new WolfSSLSocketFactory(params);
+
+        } catch (WolfSSLException we) {
+            throw new IllegalStateException(we);
+        }
     }
 
     @Override

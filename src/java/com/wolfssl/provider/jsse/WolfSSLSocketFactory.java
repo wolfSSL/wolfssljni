@@ -31,16 +31,48 @@ import java.security.SecureRandom;
 
 import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLException;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
 
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     private WolfSSLParameters params = null;
+    private WolfSSLContext ctx = null;
 
-    public WolfSSLSocketFactory(WolfSSLParameters parameters) {
+    public WolfSSLSocketFactory(WolfSSLParameters parameters)
+        throws WolfSSLException {
         super();
+
+        long method = 0;
         this.params = parameters;
+
+        switch (params.getProtocolVersion()) {
+            case TLSv1:
+                method = WolfSSL.TLSv1_ClientMethod();
+                break;
+            case TLSv1_1:
+                method = WolfSSL.TLSv1_1_ClientMethod();
+                break;
+            case TLSv1_2:
+                method = WolfSSL.TLSv1_2_ClientMethod();
+                break;
+            case SSLv23:
+                method = WolfSSL.SSLv23_ClientMethod();
+                break;
+            default:
+                throw new IllegalArgumentException(
+                    "Invalid SSL/TLS protocol version");
+        }
+
+        if (method == WolfSSL.NOT_COMPILED_IN) {
+            throw new IllegalArgumentException("Protocol version not " +
+                "compiled into native wolfSSL library");
+        }
+        ctx = new WolfSSLContext(method);
     }
 
     @Override
