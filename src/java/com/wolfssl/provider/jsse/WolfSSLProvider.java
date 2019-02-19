@@ -39,7 +39,10 @@ public final class WolfSSLProvider extends Provider {
         WolfSSL.loadLibrary();
 
         /* Key Factory */
-        /* put("KeyManagerFactory", "NA"); */
+        put("KeyManagerFactory.X509",
+                "com.wolfssl.provider.jsse.WolfSSLKeyManager");
+        put("KeyManagerFactory.SunX509",
+                "com.wolfssl.provider.jsse.WolfSSLKeyManager");
 
         /* TLS connection Contexts */
         if (WolfSSL.TLSv1Enabled()) {
