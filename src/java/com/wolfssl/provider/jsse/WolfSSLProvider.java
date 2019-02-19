@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse;
 
 import java.security.Provider;
+import com.wolfssl.WolfSSL;
 
 /**
  * wolfSSL JSSE Provider implementation
@@ -34,12 +35,17 @@ public final class WolfSSLProvider extends Provider {
     public WolfSSLProvider() {
         super("wolfJSSE", 1.0, "wolfSSL JSSE Provider");
 
+        /* load native wolfSSLJNI library */
+        WolfSSL.loadLibrary();
+
         /* Key Factory */
         /* put("KeyManagerFactory", "NA"); */
 
         /* TLS connection Contexts */
-        put("SSLContext.TLSV1",
-                "com.wolfssl.provider.jsse.WolfSSLContext$TLSV1_Context");
+        if (WolfSSL.TLSv1Enabled()) {
+            put("SSLContext.TLSV1",
+                    "com.wolfssl.provider.jsse.WolfSSLContext$TLSV1_Context");
+        }
         put("SSLContext.TLSV1.1",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV11_Context");
         put("SSLContext.TLSV1.2",
