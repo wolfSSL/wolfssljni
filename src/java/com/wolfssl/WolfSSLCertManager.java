@@ -1,4 +1,4 @@
-/* WolfSSL.java
+/* WolfSSLCertManager.java
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
