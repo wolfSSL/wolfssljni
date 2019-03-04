@@ -99,7 +99,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         if (sock != null) {
             if (sock.isConnected() == true) {
                 SSLSocket ssl = (SSLSocket)sock;
-                String proto = ssl.getApplicationProtocol();
+                //String proto = ssl.getApplicationProtocol();
             }
         }
         return all[0];

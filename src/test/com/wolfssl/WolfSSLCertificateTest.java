@@ -40,6 +40,7 @@ public class WolfSSLCertificateTest {
     public final static int TEST_SUCCESS =  0;
 
     public final static String cliCert = "./examples/certs/client-cert.der";
+    public final static String external = "./examples/certs/ca-google-root.der";
     public final static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
     
@@ -54,7 +55,18 @@ public class WolfSSLCertificateTest {
         test_notAfter();
         test_getVersion();
         test_getSignature();
+        test_isCA();
+        test_getIssuer();
+        test_getSubject();
+        test_getPubkey();
+        test_getPubkeyType();
+        test_getPathLen();
+        test_getSignatureType();
+        test_verify();
+        test_getSignatureOID();
+        test_getKeyUsage();
         test_toString();
+        test_free();
     }
     
     
@@ -190,8 +202,8 @@ public class WolfSSLCertificateTest {
             (byte)0x4F, (byte)0x15, (byte)0x0B, (byte)0x8B, (byte)0x1D,
             (byte)0xB4
         };
-        System.out.print("\tgetSignature");
         int i;
+        System.out.print("\tgetSignature");
         for (i = 0; i < sig.length && i < expected.length; i++) {
             if (sig[i] != expected[i]) {
                 System.out.println("\t\t\t... failed");
@@ -201,9 +213,219 @@ public class WolfSSLCertificateTest {
         System.out.println("\t\t\t... passed");
     }
     
-    public void test_toString() {
-        System.out.print("\ttoString");
+    public void test_isCA() {
+        System.out.print("\tisCA");
+        if (this.cert.isCA() != 1) {
+            System.out.println("\t\t\t\t... failed");
+            fail("Expected isCA to be set");      
+        }
+        System.out.println("\t\t\t\t... passed");
+    }
+    
+    public void test_getSubject() {
+        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+        
+        System.out.print("\tgetSubject");
+        if (!cert.getSubject().equals(expected)) {
+            System.out.println("\t\t\t... failed");
+            fail("Unexpected subject");   
+        }
         System.out.println("\t\t\t... passed");
-        System.out.println("" + cert.toString());
+    }
+    
+    public void test_getIssuer() {
+        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+        
+        System.out.print("\tgetIssuer");
+        if (!cert.getIssuer().equals(expected)) {
+            System.out.println("\t\t\t... failed");
+            fail("Unexpected issuer");   
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_getPubkey() {
+        byte[] expected = new byte[] {
+            (byte)0x30, (byte)0x82, (byte)0x01, (byte)0x0A, (byte)0x02,
+            (byte)0x82, (byte)0x01, (byte)0x01, (byte)0x00, (byte)0xC3,
+            (byte)0x03, (byte)0xD1, (byte)0x2B, (byte)0xFE, (byte)0x39,
+            (byte)0xA4, (byte)0x32, (byte)0x45, (byte)0x3B, (byte)0x53,
+            (byte)0xC8, (byte)0x84, (byte)0x2B, (byte)0x2A, (byte)0x7C,
+            (byte)0x74, (byte)0x9A, (byte)0xBD, (byte)0xAA, (byte)0x2A,
+            (byte)0x52, (byte)0x07, (byte)0x47, (byte)0xD6, (byte)0xA6,
+            (byte)0x36, (byte)0xB2, (byte)0x07, (byte)0x32, (byte)0x8E,
+            (byte)0xD0, (byte)0xBA, (byte)0x69, (byte)0x7B, (byte)0xC6,
+            (byte)0xC3, (byte)0x44, (byte)0x9E, (byte)0xD4, (byte)0x81,
+            (byte)0x48, (byte)0xFD, (byte)0x2D, (byte)0x68, (byte)0xA2,
+            (byte)0x8B, (byte)0x67, (byte)0xBB, (byte)0xA1, (byte)0x75,
+            (byte)0xC8, (byte)0x36, (byte)0x2C, (byte)0x4A, (byte)0xD2,
+            (byte)0x1B, (byte)0xF7, (byte)0x8B, (byte)0xBA, (byte)0xCF,
+            (byte)0x0D, (byte)0xF9, (byte)0xEF, (byte)0xEC, (byte)0xF1,
+            (byte)0x81, (byte)0x1E, (byte)0x7B, (byte)0x9B, (byte)0x03,
+            (byte)0x47, (byte)0x9A, (byte)0xBF, (byte)0x65, (byte)0xCC,
+            (byte)0x7F, (byte)0x65, (byte)0x24, (byte)0x69, (byte)0xA6,
+            (byte)0xE8, (byte)0x14, (byte)0x89, (byte)0x5B, (byte)0xE4,
+            (byte)0x34, (byte)0xF7, (byte)0xC5, (byte)0xB0, (byte)0x14,
+            (byte)0x93, (byte)0xF5, (byte)0x67, (byte)0x7B, (byte)0x3A,
+            (byte)0x7A, (byte)0x78, (byte)0xE1, (byte)0x01, (byte)0x56,
+            (byte)0x56, (byte)0x91, (byte)0xA6, (byte)0x13, (byte)0x42,
+            (byte)0x8D, (byte)0xD2, (byte)0x3C, (byte)0x40, (byte)0x9C,
+            (byte)0x4C, (byte)0xEF, (byte)0xD1, (byte)0x86, (byte)0xDF,
+            (byte)0x37, (byte)0x51, (byte)0x1B, (byte)0x0C, (byte)0xA1,
+            (byte)0x3B, (byte)0xF5, (byte)0xF1, (byte)0xA3, (byte)0x4A,
+            (byte)0x35, (byte)0xE4, (byte)0xE1, (byte)0xCE, (byte)0x96,
+            (byte)0xDF, (byte)0x1B, (byte)0x7E, (byte)0xBF, (byte)0x4E,
+            (byte)0x97, (byte)0xD0, (byte)0x10, (byte)0xE8, (byte)0xA8,
+            (byte)0x08, (byte)0x30, (byte)0x81, (byte)0xAF, (byte)0x20,
+            (byte)0x0B, (byte)0x43, (byte)0x14, (byte)0xC5, (byte)0x74,
+            (byte)0x67, (byte)0xB4, (byte)0x32, (byte)0x82, (byte)0x6F,
+            (byte)0x8D, (byte)0x86, (byte)0xC2, (byte)0x88, (byte)0x40,
+            (byte)0x99, (byte)0x36, (byte)0x83, (byte)0xBA, (byte)0x1E,
+            (byte)0x40, (byte)0x72, (byte)0x22, (byte)0x17, (byte)0xD7,
+            (byte)0x52, (byte)0x65, (byte)0x24, (byte)0x73, (byte)0xB0,
+            (byte)0xCE, (byte)0xEF, (byte)0x19, (byte)0xCD, (byte)0xAE,
+            (byte)0xFF, (byte)0x78, (byte)0x6C, (byte)0x7B, (byte)0xC0,
+            (byte)0x12, (byte)0x03, (byte)0xD4, (byte)0x4E, (byte)0x72,
+            (byte)0x0D, (byte)0x50, (byte)0x6D, (byte)0x3B, (byte)0xA3,
+            (byte)0x3B, (byte)0xA3, (byte)0x99, (byte)0x5E, (byte)0x9D,
+            (byte)0xC8, (byte)0xD9, (byte)0x0C, (byte)0x85, (byte)0xB3,
+            (byte)0xD9, (byte)0x8A, (byte)0xD9, (byte)0x54, (byte)0x26,
+            (byte)0xDB, (byte)0x6D, (byte)0xFA, (byte)0xAC, (byte)0xBB,
+            (byte)0xFF, (byte)0x25, (byte)0x4C, (byte)0xC4, (byte)0xD1,
+            (byte)0x79, (byte)0xF4, (byte)0x71, (byte)0xD3, (byte)0x86,
+            (byte)0x40, (byte)0x18, (byte)0x13, (byte)0xB0, (byte)0x63,
+            (byte)0xB5, (byte)0x72, (byte)0x4E, (byte)0x30, (byte)0xC4,
+            (byte)0x97, (byte)0x84, (byte)0x86, (byte)0x2D, (byte)0x56,
+            (byte)0x2F, (byte)0xD7, (byte)0x15, (byte)0xF7, (byte)0x7F,
+            (byte)0xC0, (byte)0xAE, (byte)0xF5, (byte)0xFC, (byte)0x5B,
+            (byte)0xE5, (byte)0xFB, (byte)0xA1, (byte)0xBA, (byte)0xD3,
+            (byte)0x02, (byte)0x03, (byte)0x01, (byte)0x00, (byte)0x01
+        };
+        int i;
+        byte[] pub;
+        
+        System.out.print("\tgetPubkey");
+        pub = cert.getPubkey();
+        for (i = 0; i < pub.length && i < expected.length; i++) {
+            if (pub[i] != expected[i]) {
+                System.out.println("\t\t\t... failed");
+                fail("Unexpected public key value");
+            }
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_getPubkeyType() {
+        String expected = "RSA";
+        System.out.print("\tgetPubkeyType");
+        if (!expected.equals(this.cert.getPubkeyType())) {
+                System.out.println("\t\t\t... failed");
+                fail("Unexpected public key type value");            
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_getPathLen() {
+        int expected = -1;
+        System.out.print("\tgetPathLen");
+        if (this.cert.getPathLen() != expected) {
+                System.out.println("\t\t\t... failed");
+                fail("Unexpected path length value");            
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_getSignatureType() {
+        String expected = "SHA256withRSA";
+        System.out.print("\tgetSignatureType");
+        if (!expected.equals(this.cert.getSignatureType())) {
+                System.out.println("\t\t... failed");
+                fail("Unexpected signature type");            
+        }
+        System.out.println("\t\t... passed");
+    }
+    
+    public void test_verify() {
+        byte[] pubkey;
+        
+        System.out.print("\tverify");
+        pubkey = this.cert.getPubkey();
+        if (pubkey == null) {
+            System.out.println("\t\t\t\t... failed");
+            fail("Could not get public key");              
+        }
+        
+        if (this.cert.verify(pubkey, pubkey.length) != true) {
+            System.out.println("\t\t\t\t... failed");
+            fail("Verify signature failed");            
+        }
+        System.out.println("\t\t\t\t... passed");        
+    }
+    
+    public void test_getSignatureOID() {
+        System.out.print("\tgetSignatureOID");
+        
+        /* make sure is sha256WithRSAEncryption OID */
+        if (!this.cert.getSignatureOID().equals("1.2.840.113549.1.1.11")) {
+            System.out.println("\t\t\t... failed");
+            fail("Could not get public key");              
+        }
+        System.out.println("\t\t\t... passed");             
+    }
+    
+    public void test_getKeyUsage() {
+        WolfSSLCertificate ext;
+        boolean[] expected = {
+            false, false, false, false, false, true, true, false, false
+        };
+                
+        System.out.print("\tgetKeyUsage");
+        if (this.cert.getKeyUsage() != null) {
+            System.out.println("\t\t\t... failed");
+            fail("Found key usage extension when not expecting any");     
+        }
+        
+        /* test with certificate that has key usage extension */
+        try {
+            int i;
+            boolean[] kuse;
+            
+            ext = new WolfSSLCertificate(this.external);
+            kuse = ext.getKeyUsage();
+            if (kuse == null) {
+                System.out.println("\t\t\t... failed");
+                fail("Did not find key usage extension");                 
+            }
+            
+            for (i = 0; i < kuse.length; i++) {
+                if (kuse[i] != expected[i]) {
+                    System.out.println("\t\t\t... failed");
+                    fail("Found wrong key usage extension");  
+                }
+            }
+            ext.free();
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("\t\t\t... failed");
+            fail("Error loading external certificate");  
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_toString() {
+        String s;
+        System.out.print("\ttoString");
+        s =  cert.toString();
+        if (s == null) {
+            System.out.println("\t\t\t... failed");
+            fail("Error getting certificate string");
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_free() {
+        System.out.print("\tfree");
+        this.cert.free();
+        System.out.println("\t\t\t\t... passed");
     }
 }

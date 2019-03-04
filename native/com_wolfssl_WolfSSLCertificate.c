@@ -22,6 +22,9 @@
 #include <stdio.h>
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/openssl/evp.h> /* for EVP_PKEY functions */
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -42,7 +45,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_d2i_1X509
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)buff);
@@ -52,7 +55,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_d2i_1X509
 
         (*jenv)->ThrowNew(jenv, excClass,
                 "Failed to get byte region in native d2i_X509");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     return (jlong)wolfSSL_d2i_X509(NULL, &pt, sz);
@@ -147,12 +150,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1version
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signature
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
-    int sz;
+    int sz = 0;
     unsigned char* buf;
     jbyteArray ret;
 
     if (wolfSSL_X509_get_signature((WOLFSSL_X509*)x509, NULL, &sz) !=
             WOLFSSL_SUCCESS) {
+        printf("first get signature call failed\n");
         return NULL;
     }
 
@@ -160,17 +164,20 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
     if (!ret) {
         (*jenv)->ThrowNew(jenv, jcl,
             "Failed to create byte array in native X509_get_signature");
+        printf("could not create new byte array\n");
         return NULL;
     }
 
     buf = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
+        printf("malloc failed\n");
         return NULL;
     }
 
     if (wolfSSL_X509_get_signature((WOLFSSL_X509*)x509, buf, &sz) !=
             WOLFSSL_SUCCESS) {
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        printf("get signature failed\n");
         return NULL;
     }
 
@@ -179,10 +186,74 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        printf("set byte array region failed\n");
         return NULL;
     }
 
     return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signature_1type
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    int type = wolfSSL_X509_get_signature_type((WOLFSSL_X509*)x509);
+
+    switch (type) {
+        case CTC_SHAwDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHAwithDSA");
+        case CTC_MD2wRSA:
+            return (*jenv)->NewStringUTF(jenv, "MD2withRSA");
+        case CTC_MD5wRSA:
+            return (*jenv)->NewStringUTF(jenv, "MD5withRSA");
+        case CTC_SHAwRSA:
+            return (*jenv)->NewStringUTF(jenv, "SHAwithRSA");
+        case CTC_SHAwECDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHAwithECDSA");
+        case CTC_SHA224wRSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA244withRSA");
+        case CTC_SHA224wECDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA244withECDSA");
+        case CTC_SHA256wRSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA256withRSA");
+        case CTC_SHA256wECDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA256withECDSA");
+        case CTC_SHA384wRSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA384withRSA");
+        case CTC_SHA384wECDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA384withECDSA");
+        case CTC_SHA512wRSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA512withRSA");
+        case CTC_SHA512wECDSA:
+            return (*jenv)->NewStringUTF(jenv, "SHA512withECDSA");
+        case CTC_ED25519:
+            return (*jenv)->NewStringUTF(jenv, "ED25519");
+
+        default:
+            (*jenv)->ThrowNew(jenv, jcl, "Unknown signature type");
+            return NULL;
+    }
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signature_1OID
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    WOLFSSL_ASN1_OBJECT* obj;
+    char oid[40];
+    int  oidSz = sizeof(oid);
+    int  nid;
+
+    nid = wolfSSL_X509_get_signature_nid((WOLFSSL_X509*)x509);
+    obj = wolfSSL_OBJ_nid2obj(nid);
+    if (obj == NULL) {
+        return NULL;
+    }
+
+    oidSz = wolfSSL_OBJ_obj2txt(oid, oidSz, obj, 1);
+    if (oidSz <= 0) {
+        return NULL;
+    }
+    wolfSSL_ASN1_OBJECT_free(obj);
+    return (*jenv)->NewStringUTF(jenv, oid);
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
@@ -210,6 +281,271 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
     return ret;
 }
 
-//wolfSSL_X509_get_subjectCN
-//wolfSSL_X509_get_signature_type
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1isCA
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    return (jint)wolfSSL_X509_get_isCA((WOLFSSL_X509*)x509);
+}
 
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1name
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    WOLFSSL_X509_NAME* name = NULL;
+
+    name = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)x509);
+    if (name != NULL) {
+        jstring ret = NULL;
+        char* subj = wolfSSL_X509_NAME_oneline(name, NULL, 0);
+        if (subj == NULL) {
+            return NULL;
+        }
+        ret = (*jenv)->NewStringUTF(jenv, subj);
+        XFREE(subj, NULL, DYNAMIC_TYPE_OPENSSL);
+        return ret;
+    }
+    return NULL;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    WOLFSSL_X509_NAME* name = NULL;
+
+    name = wolfSSL_X509_get_issuer_name((WOLFSSL_X509*)x509);
+    if (name != NULL) {
+        jstring ret = NULL;
+        char* isur = wolfSSL_X509_NAME_oneline(name, NULL, 0);
+        if (isur == NULL) {
+            return NULL;
+        }
+        ret = (*jenv)->NewStringUTF(jenv, isur);
+        XFREE(isur, NULL, DYNAMIC_TYPE_OPENSSL);
+        return ret;
+    }
+    return NULL;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    int sz = 0;
+    unsigned char* buf;
+    jbyteArray ret;
+
+    if (wolfSSL_X509_get_pubkey_buffer((WOLFSSL_X509*)x509, NULL, &sz) !=
+            WOLFSSL_SUCCESS) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewByteArray(jenv, sz);
+    if (!ret) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native X509_get_signature");
+        return NULL;
+    }
+
+    buf = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    if (wolfSSL_X509_get_pubkey_buffer((WOLFSSL_X509*)x509, buf, &sz) !=
+            WOLFSSL_SUCCESS) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)buf);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey_1type
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    int type;
+
+    type = wolfSSL_X509_get_pubkey_type((WOLFSSL_X509*)x509);
+    switch (type) {
+        case RSAk:
+            return (*jenv)->NewStringUTF(jenv, "RSA");
+        case ECDSAk:
+            return (*jenv)->NewStringUTF(jenv, "ECC");
+        case DSAk:
+            return (*jenv)->NewStringUTF(jenv, "DSA");
+        case ED25519k:
+            return (*jenv)->NewStringUTF(jenv, "EdDSA");
+        default:
+            (*jenv)->ThrowNew(jenv, jcl, "Unknown public key type");
+            return NULL;
+    }
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pathLength
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    if (wolfSSL_X509_get_isSet_pathLength((WOLFSSL_X509*)x509)) {
+        return (jint)wolfSSL_X509_get_pathLength((WOLFSSL_X509*)x509);
+    }
+    else {
+        return (jint)-1;
+    }
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1verify
+  (JNIEnv* jenv, jclass jcl, jlong x509, jbyteArray pubKey, jint pubKeySz)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    int sz = (int)pubKeySz;
+    int ret;
+    unsigned char buff[sz];
+    unsigned char* ptr = buff;
+
+    if (!jenv || !pubKey || (sz < 0))
+        return BAD_FUNC_ARG;
+
+    /* find exception class */
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return WOLFSSL_FAILURE;
+    }
+
+    (*jenv)->GetByteArrayRegion(jenv, pubKey, 0, sz, (jbyte*)buff);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to get byte region in native wolfSSL_X509_verify");
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey = wolfSSL_d2i_PUBKEY(NULL, &ptr, sz);
+    if (pkey == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_X509_verify((WOLFSSL_X509*)x509, pkey);
+    wolfSSL_EVP_PKEY_free(pkey);
+    return ret;
+
+}
+
+/* getter function for WOLFSSL_ASN1_OBJECT element */
+static unsigned char* getOBJData(WOLFSSL_ASN1_OBJECT* obj)
+{
+    if (obj) return obj->obj;
+    return NULL;
+}
+
+/* getter function for WOLFSSL_ASN1_OBJECT size */
+static unsigned int getOBJSize(WOLFSSL_ASN1_OBJECT* obj)
+{
+    if (obj) return obj->objSz;
+    return 0;
+}
+
+JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1key_1usage
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    WOLFSSL_STACK* sk;
+    WOLFSSL_ASN1_OBJECT* obj;
+    jbooleanArray ret = NULL;
+    jboolean values[8];
+    int nid = NID_key_usage;
+
+    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)x509, nid, NULL, NULL);
+    if (sk == NULL) {
+        /* either error case or no extension was found */
+        return NULL;
+    }
+
+    obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+    if (obj != NULL) {
+        unsigned short kuse = *(unsigned short*)getOBJData(obj);
+
+        wolfSSL_ASN1_OBJECT_free(obj);
+        ret = (*jenv)->NewBooleanArray(jenv, 9);
+        if (!ret) {
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to create boolean array in native X509_get_key_usage");
+            return NULL;
+        }
+
+        values[0] = (kuse & KEYUSE_DIGITAL_SIG)? JNI_TRUE : JNI_FALSE;
+        values[1] = (kuse & KEYUSE_CONTENT_COMMIT)? JNI_TRUE : JNI_FALSE;
+        values[2] = (kuse & KEYUSE_KEY_ENCIPHER)? JNI_TRUE : JNI_FALSE;
+        values[3] = (kuse & KEYUSE_DATA_ENCIPHER)? JNI_TRUE : JNI_FALSE;
+        values[4] = (kuse & KEYUSE_KEY_AGREE)? JNI_TRUE : JNI_FALSE;
+        values[5] = (kuse & KEYUSE_KEY_CERT_SIGN)? JNI_TRUE : JNI_FALSE;
+        values[6] = (kuse & KEYUSE_CRL_SIGN)? JNI_TRUE : JNI_FALSE;
+        values[7] = (kuse & KEYUSE_ENCIPHER_ONLY)? JNI_TRUE : JNI_FALSE;
+        values[8] = (kuse & KEYUSE_DECIPHER_ONLY)? JNI_TRUE : JNI_FALSE;
+
+        (*jenv)->SetBooleanArrayRegion(jenv, ret, 0, 9, values);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl,
+                    "Failed to set boolean region getting key usage");
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            return NULL;
+        }
+    }
+    wolfSSL_sk_ASN1_OBJECT_free(sk);
+    return ret;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
+  (JNIEnv* jenv, jclass jcl, jlong x509, jstring oid)
+{
+    int nid;
+    WOLFSSL_STACK* sk;
+    WOLFSSL_ASN1_OBJECT* obj;
+    jbyteArray ret = NULL;
+
+    nid = wolfSSL_OBJ_txt2nid(oid);
+    if (nid == NID_undef) {
+        return NULL;
+    }
+
+    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)x509, nid, NULL, NULL);
+    if (sk == NULL) {
+        /* extension was not found or error was encountered */
+        return NULL;
+    }
+    obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+    if (obj != NULL) {
+        unsigned char* data = getOBJData(obj);
+        unsigned int sz = getOBJSize(obj);
+
+        ret = (*jenv)->NewByteArray(jenv, sz);
+        if (!ret) {
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to create byte array in native X509_get_extension");
+            return NULL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)data);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return NULL;
+        }
+    }
+    return ret;
+}
+//int wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509* x509, int nid)
+//wolfSSL_X509_get_subjectCN
+//wolfSSL_X509_ext_get_critical_by_NID
+//wolfSSL_X509_get_keyUsage
