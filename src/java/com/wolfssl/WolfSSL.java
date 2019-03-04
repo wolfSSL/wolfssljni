@@ -310,7 +310,7 @@ public class WolfSSL {
         System.load(libPath);
     }
 
-    /* ---------------- native SSL/TLS version functions ---------------- */
+    /* --------------- native feature detection functions --------------- */
 
     /**
      * Tests if TLS 1.0 has been compiled into the native wolfSSL library.
@@ -320,6 +320,22 @@ public class WolfSSL {
      * @return 1 if enabled, otherwise 0 if not compiled in.
      */
     public static native boolean TLSv1Enabled();
+
+    /**
+     * Tests if ECC support has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean EccEnabled();
+
+    /**
+     * Tests if RSA support has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean RsaEnabled();
+
+    /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
      * Indicates that the application is a server and will only support the
