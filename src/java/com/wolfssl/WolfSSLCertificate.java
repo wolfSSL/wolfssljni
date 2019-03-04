@@ -56,6 +56,7 @@ public class WolfSSLCertificate {
     static native int X509_verify(long x509, byte[] pubKey, int pubKeySz);
     static native boolean[] X509_get_key_usage(long x509);
     static native byte[] X509_get_extension(long x509, String oid);
+    static native int X509_is_extension_set(long x509, String oid);
     
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
         x509Ptr = d2i_X509(der, der.length);
@@ -193,6 +194,15 @@ public class WolfSSLCertificate {
             return null;
         }
         return X509_get_extension(this.x509Ptr, oid);
+    }
+    
+    /* returns 1 if extension OID is set but not critical
+     * returns 2 if extension OID is set and is critical
+     * return  0 if not set
+     * return negative value on error
+     */
+    public int getExtensionSet(String oid) {
+        return X509_is_extension_set(this.x509Ptr, oid);
     }
     
     @Override

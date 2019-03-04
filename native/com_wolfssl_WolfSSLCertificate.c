@@ -444,7 +444,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1verify
 /* getter function for WOLFSSL_ASN1_OBJECT element */
 static unsigned char* getOBJData(WOLFSSL_ASN1_OBJECT* obj)
 {
-    if (obj) return obj->obj;
+    if (obj) return (unsigned char*)obj->obj;
     return NULL;
 }
 
@@ -507,13 +507,15 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
-  (JNIEnv* jenv, jclass jcl, jlong x509, jstring oid)
+  (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
 {
     int nid;
     WOLFSSL_STACK* sk;
     WOLFSSL_ASN1_OBJECT* obj;
     jbyteArray ret = NULL;
+    const char* oid;
 
+    oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
     nid = wolfSSL_OBJ_txt2nid(oid);
     if (nid == NID_undef) {
         return NULL;
@@ -545,7 +547,35 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
     }
     return ret;
 }
-//int wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509* x509, int nid)
+
+/* returns 2 if extension OID is set and is critical
+ * returns 1 if extension OID is set but not critical
+ * return  0 if not set
+ * return negative value on error
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1set
+  (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
+{
+    int nid;
+    const char* oid;
+
+    oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
+    nid = wolfSSL_OBJ_txt2nid(oid);
+    if (nid == NID_undef) {
+        return -1;
+    }
+
+    if (wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, nid)) {
+        if (wolfSSL_X509_ext_get_critical_by_NID((WOLFSSL_X509*)x509, nid)) {
+            return 2;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+
+
 //wolfSSL_X509_get_subjectCN
-//wolfSSL_X509_ext_get_critical_by_NID
 //wolfSSL_X509_get_keyUsage

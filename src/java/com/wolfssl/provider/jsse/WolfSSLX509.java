@@ -41,11 +41,19 @@ import com.wolfssl.WolfSSLException;
 import java.security.Provider;
 import java.security.Security;
 import java.security.Signature;
+import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WolfSSLX509 extends X509Certificate {
     private WolfSSLCertificate cert;
+    private String[] extensionOid = {
+        "2.5.29.19", /* basic constraint */
+        "2.5.29.17", /* subject alt names */
+        "2.5.29.35", /* auth key ID */
+        "2.5.29.14", /* subject key ID */
+        "2.5.29.15"  /* key usage */
+    };
     
     public WolfSSLX509(byte[] der){
         try {
@@ -225,16 +233,54 @@ public class WolfSSLX509 extends X509Certificate {
         return null;
     }
 
+    /* If unsupported critical extension is found then wolfSSL should not parse
+     * the certificate. */
     public boolean hasUnsupportedCriticalExtension() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
+    /* currently supports :
+     *  "2.5.29.19" basic constraint
+     *  "2.5.29.17",  subject alt names
+     *  "2.5.29.35",  auth key ID
+     *  "2.5.29.14",  subject key ID
+     *  "2.5.29.15"   key usage
+     */
     public Set<String> getCriticalExtensionOIDs() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int i;
+        Set<String> ret = null;
+        
+        for (i = 0; i < this.extensionOid.length; i++) {
+            if (this.cert.getExtensionSet(this.extensionOid[i]) == 2) {
+                if (ret == null) {
+                    ret = new HashSet<String>();
+                }
+                ret.add(this.extensionOid[i]);
+            }
+        }
+        
+        return ret;
     }
 
+    /* currently supports :
+     *  "2.5.29.19" basic constraint
+     *  "2.5.29.17",  subject alt names
+     *  "2.5.29.35",  auth key ID
+     *  "2.5.29.14",  subject key ID
+     *  "2.5.29.15"   key usage
+     */
     public Set<String> getNonCriticalExtensionOIDs() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int i;
+        Set<String> ret = null;
+        
+        for (i = 0; i < this.extensionOid.length; i++) {
+            if (ret == null) {
+                ret = new HashSet<String>();
+            }
+            ret.add(this.extensionOid[i]);
+        }
+        
+        return ret;
     }
 
     

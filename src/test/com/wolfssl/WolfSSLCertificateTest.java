@@ -65,6 +65,7 @@ public class WolfSSLCertificateTest {
         test_verify();
         test_getSignatureOID();
         test_getKeyUsage();
+        test_getExtensionSet();
         test_toString();
         test_free();
     }
@@ -408,6 +409,21 @@ public class WolfSSLCertificateTest {
             Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
             System.out.println("\t\t\t... failed");
             fail("Error loading external certificate");  
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
+    public void test_getExtensionSet() {
+        System.out.print("\tgetExtensionSet");
+        
+        if (this.cert.getExtensionSet("2.5.29.19") != 1) {
+            System.out.println("\t\t\t... failed");
+            fail("Error with basic constraint extension");
+        }
+        
+        if (this.cert.getExtensionSet("2.5.29.14") != 1) {
+            System.out.println("\t\t\t... failed");
+            fail("Error with subject key ID extension");
         }
         System.out.println("\t\t\t... passed");
     }
