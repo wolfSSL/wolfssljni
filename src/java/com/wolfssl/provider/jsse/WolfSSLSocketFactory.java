@@ -183,36 +183,32 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     @Override
     public Socket createSocket() throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLSocket(ctx, params);
     }
 
     @Override
     public Socket createSocket(InetAddress host, int port)
         throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLSocket(ctx, params, host, port);
     }
 
     @Override
     public Socket createSocket(InetAddress address, int port,
         InetAddress localAddress, int localPort) throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLSocket(ctx, params, address, port,
+            localAddress, localPort);
     }
 
     @Override
     public Socket createSocket(String host, int port)
         throws IOException, UnknownHostException {
-        /* TODO */
-        return null;
+        return new WolfSSLSocket(ctx, params, host, port);
     }
 
     @Override
     public Socket createSocket(String host, int port, InetAddress localHost,
         int localPort) throws IOException, UnknownHostException {
-        /* TODO */
-        return null;
+        return new WolfSSLSocket(ctx, params, host, port, localHost, localPort);
     }
 
     @Override
