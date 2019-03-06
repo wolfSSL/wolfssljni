@@ -33,7 +33,7 @@ import org.junit.Test;
 
 /**
  *
- * @author sweetness
+ * @author wolfSSL
  */
 public class WolfSSLCertificateTest {
     public final static int TEST_FAIL    = -1;

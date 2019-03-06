@@ -85,6 +85,10 @@ public class WolfSSLCertificate {
         this.active = true;
     }
     
+    public WolfSSLCertificate(long x509) throws WolfSSLException {
+        x509Ptr = x509;
+        this.active = true;
+    }
     
     /* return DER encoding of certificate */
     public byte[] getDer() {
