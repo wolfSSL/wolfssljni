@@ -51,8 +51,9 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLContextTest {
 
+    public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
-    public final static char[] serverJKSPass = "wolfSSL test".toCharArray();
+    public final static char[] jksPass = "wolfSSL test".toCharArray();
 
     private static String allProtocols[] = {
         "TLSV1",
@@ -138,9 +139,9 @@ public class WolfSSLContextTest {
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(serverJKS), serverJKSPass);
+            pKey.load(new FileInputStream(clientJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(serverJKS), serverJKSPass);
+            cert.load(new FileInputStream(clientJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
@@ -148,7 +149,7 @@ public class WolfSSLContextTest {
 
             /* load private key */
             km = KeyManagerFactory.getInstance("SunX509");
-            km.init(pKey, serverJKSPass);
+            km.init(pKey, jksPass);
 
         } catch (KeyStoreException kse) {
             throw new Exception(kse);
@@ -164,7 +165,10 @@ public class WolfSSLContextTest {
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
             SSLSocketFactory sf = ctx.getSocketFactory();
+
         }
+
+        System.out.println("\t\t... passed");
     }
 }
 

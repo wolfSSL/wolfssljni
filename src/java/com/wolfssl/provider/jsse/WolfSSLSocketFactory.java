@@ -24,6 +24,7 @@ package com.wolfssl.provider.jsse;
 import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -83,7 +84,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
         try {
             LoadTrustedRootCerts();
-            LoadClientKeyAndCert();
+            LoadClientKeyAndCertChain();
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
@@ -121,7 +122,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         }
     }
 
-    private void LoadClientKeyAndCert() throws Exception {
+    private void LoadClientKeyAndCertChain() throws Exception {
 
         X509KeyManager km = params.getX509KeyManager();
 
@@ -143,7 +144,9 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         /* client private key */
         PrivateKey privKey = km.getPrivateKey(alias);
         byte[] privKeyEncoded = privKey.getEncoded();
-        /* TODO: check PrivateKey.getFormat() is acceptable before loading */
+        if (!privKey.getFormat().equals("PKCS#8")) {
+            throw new Exception("Private key is not in PKCS#8 format");
+        }
 
         try {
             ctx.usePrivateKeyBuffer(privKeyEncoded, privKeyEncoded.length,
@@ -152,10 +155,20 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             throw new Exception("Error loading client private key");
         }
 
-        /* client certificate */
+        /* client certificate chain */
         X509Certificate[] cert = km.getCertificateChain(alias);
-        /* TODO: convert cert[] to byte array, load with
-           ctx.useCertificateBuffer() */
+        ByteArrayOutputStream certStream = new ByteArrayOutputStream();
+        for (int i = 0; i < cert.length; i++) {
+            /* concatenate certs into single byte array */
+            certStream.write(cert[i].getTBSCertificate());
+        }
+        byte certChain[] = certStream.toByteArray();
+
+        try {
+            ctx.useCertificateChainBuffer(certChain, certChain.length);
+        } catch (WolfSSLJNIException e) {
+            throw new Exception("Error loading client certificate chain");
+        }
     }
 
     @Override
