@@ -52,6 +52,7 @@ public class WolfSSLParameters {
     private X509KeyManager km = null;
     private X509TrustManager tm = null;
     private SecureRandom sr = null;
+    private String alias = null;
     
     protected WolfSSLParameters(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
@@ -166,6 +167,14 @@ public class WolfSSLParameters {
 
     protected TLS_VERSION getProtocolVersion() {
         return this.currentVersion;
+    }
+    
+    protected void setCertAlias(String in) {
+        this.alias = in;
+    }
+    
+    protected String getCertAlias() {
+        return this.alias;
     }
 }
 

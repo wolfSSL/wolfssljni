@@ -140,6 +140,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         keyStrings = keyAlgos.toArray(keyStrings);
 
         String alias = km.chooseClientAlias(keyStrings, null, null);
+        params.setCertAlias(alias);
 
         /* client private key */
         PrivateKey privKey = km.getPrivateKey(alias);

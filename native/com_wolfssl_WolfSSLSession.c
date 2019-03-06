@@ -453,6 +453,35 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
     return (jlong)wolfSSL_get_session((WOLFSSL*)ssl);
 }
 
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
+  (JNIEnv* jenv, jobject jcl, jlong session)
+{
+    unsigned int sz;
+    const unsigned char* id;
+    jbyteArray ret;
+
+    id = wolfSSL_SESSION_get_id((WOLFSSL_SESSION*)session, &sz);
+    if (id == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewByteArray(jenv, sz);
+    if (!ret) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native getSessionID");
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)id);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    return ret;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
   (JNIEnv* jenv, jobject jcl, jlong ssl, jlong t)
 {
@@ -2496,5 +2525,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
 #else
     return NOT_COMPILED_IN;
 #endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    if (wolfSSL_is_init_finished((WOLFSSL*)ssl)) {
+        return JNI_TRUE;
+    }
+    else {
+        return JNI_FALSE;
+    }
 }
 

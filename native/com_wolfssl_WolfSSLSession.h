@@ -153,6 +153,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSessionID
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setTimeout
  * Signature: (JJ)I
  */
@@ -598,6 +606,14 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentity
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
   (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    handshakeDone
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
+  (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus
 }

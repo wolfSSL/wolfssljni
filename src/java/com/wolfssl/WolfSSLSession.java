@@ -188,6 +188,7 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private native byte[] getSessionID(long session);
     private native int setTimeout(long ssl, long t);
     private native long getTimeout(long ssl);
     private native int setSessTimeout(long session, long t);
@@ -248,6 +249,7 @@ public class WolfSSLSession {
     private native String getPskIdentityHint(long ssl);
     private native String getPskIdentity(long ssl);
     private native int usePskIdentityHint(long ssl, String hint);
+    private native boolean handshakeDone(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -749,7 +751,22 @@ public class WolfSSLSession {
 
         return getSession(getSessionPtr());
     }
-    
+
+    /**
+     * Returns the session ID.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return      the session ID
+     * @see         #setSession(long)
+     */
+    public byte[] getSessionID() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getSessionID(getSession());
+    }
+
     /**
      * Gets the cache size is set at compile time.
      * This function returns the current cache size which has been set at compile
@@ -2215,6 +2232,16 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return usePskIdentityHint(getSessionPtr(), hint);
+    }
+    
+    /**
+     * Used to determine if the handshake has been completed.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return true if the handshake is completed -- false if not.
+     */
+    public boolean handshakeDone() {
+        return handshakeDone(getSessionPtr());
     }
 
     @Override

@@ -575,7 +575,3 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
     return 0;
 }
 
-
-
-//wolfSSL_X509_get_subjectCN
-//wolfSSL_X509_get_keyUsage

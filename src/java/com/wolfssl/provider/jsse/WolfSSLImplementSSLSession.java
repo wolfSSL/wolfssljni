@@ -36,6 +36,7 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionBindingEvent;
 import javax.net.ssl.SSLSessionBindingListener;
 import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.X509KeyManager;
 import javax.security.cert.X509Certificate;
 
 /**
@@ -44,6 +45,7 @@ import javax.security.cert.X509Certificate;
  */
 public class WolfSSLImplementSSLSession implements SSLSession {
     private final WolfSSLSession ssl;
+    private final WolfSSLParameters params;
     private boolean valid;
     private final HashMap<String, Object> binding;
     private final int port;
@@ -51,10 +53,12 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     Date creation;
     Date accessed; /* when new connection was made using session */
     
-    public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host) {
+    public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
+            WolfSSLParameters params) {
         this.ssl = in;
         this.port = port;
         this.host = host;
+        this.params = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
         binding = new HashMap();
         
@@ -63,7 +67,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
     
     public byte[] getId() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return this.ssl.getSessionID();
     }
 
     public SSLSessionContext getSessionContext() {
@@ -148,7 +152,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     public Certificate[] getLocalCertificates() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        X509KeyManager km = params.getX509KeyManager();
+        return km.getCertificateChain(params.getCertAlias());
     }
 
     public X509Certificate[] getPeerCertificateChain() throws SSLPeerUnverifiedException {
@@ -156,7 +161,15 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     public Principal getPeerPrincipal() throws SSLPeerUnverifiedException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        try {
+            WolfSSLX509 x509 = new WolfSSLX509(this.ssl.getPeerCertificate());
+            return x509.getSubjectDN();
+        } catch (IllegalStateException ex) {
+            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (WolfSSLJNIException ex) {
+            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     public Principal getLocalPrincipal() {
@@ -217,7 +230,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         }
 
         public Enumeration<byte[]> getIds() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            throw new UnsupportedOperationException("Not supported yet.");
         }
 
         public void setSessionTimeout(int in) throws IllegalArgumentException {

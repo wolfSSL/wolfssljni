@@ -63,6 +63,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_getPskIdentityHint();
         test_WolfSSLSession_getPskIdentity();
         test_WolfSSLSession_timeout();
+        test_WolfSSLSession_status();
         test_WolfSSLSession_freeSSL();
         test_WolfSSLSession_UseAfterFree();
     }
@@ -324,6 +325,15 @@ public class WolfSSLSessionTest {
         System.out.print("\ttimeout()");
         ssl.setTimeout(5);
         if (ssl.getTimeout() != 5) {
+            System.out.println("\t\t\t... failed");
+        }
+        System.out.println("\t\t\t... passed");
+    }
+
+    public void test_WolfSSLSession_status() {
+
+        System.out.print("\tstatus()");
+        if (ssl.handshakeDone() == true) {
             System.out.println("\t\t\t... failed");
         }
         System.out.println("\t\t\t... passed");
