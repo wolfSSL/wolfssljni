@@ -68,6 +68,45 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
     return (jbyteArray)wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &sz);
 }
 
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+    jbyteArray ret;
+    int sz;
+    const unsigned char* tbs;
+
+    tbs = wolfSSL_X509_get_tbs((WOLFSSL_X509*)x509, &sz);
+    if (tbs == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewByteArray(jenv, sz);
+    if (!ret) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native X509_get_tbs");
+        return NULL;
+    }
+
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)tbs);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to set byte region in native X509_get_tbs");
+        return NULL;
+    }
+    return ret;
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1free
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
@@ -156,7 +195,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
 
     if (wolfSSL_X509_get_signature((WOLFSSL_X509*)x509, NULL, &sz) !=
             WOLFSSL_SUCCESS) {
-        printf("first get signature call failed\n");
         return NULL;
     }
 
@@ -164,20 +202,17 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
     if (!ret) {
         (*jenv)->ThrowNew(jenv, jcl,
             "Failed to create byte array in native X509_get_signature");
-        printf("could not create new byte array\n");
         return NULL;
     }
 
     buf = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
-        printf("malloc failed\n");
         return NULL;
     }
 
     if (wolfSSL_X509_get_signature((WOLFSSL_X509*)x509, buf, &sz) !=
             WOLFSSL_SUCCESS) {
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        printf("get signature failed\n");
         return NULL;
     }
 
@@ -186,7 +221,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        printf("set byte array region failed\n");
         return NULL;
     }
 

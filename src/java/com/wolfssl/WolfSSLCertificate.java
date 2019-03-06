@@ -38,6 +38,7 @@ public class WolfSSLCertificate {
     
     static native long d2i_X509(byte[] der, int len);
     static native byte[] X509_get_der(long x509);
+    static native byte[] X509_get_tbs(long x509);
     static native void X509_free(long x509);
     static native int X509_get_serial_number(long x509, byte[] out);
     static native String X509_notBefore(long x509);
@@ -93,6 +94,11 @@ public class WolfSSLCertificate {
     /* return DER encoding of certificate */
     public byte[] getDer() {
         return X509_get_der(this.x509Ptr);
+    }
+    
+    /* return the buffer that is To Be Signed */
+    public byte[] getTbs() {
+        return X509_get_tbs(this.x509Ptr);
     }
     
     public BigInteger getSerial() {

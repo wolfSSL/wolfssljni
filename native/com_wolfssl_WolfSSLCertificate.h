@@ -25,6 +25,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_tbs
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_free
  * Signature: (J)V
  */
