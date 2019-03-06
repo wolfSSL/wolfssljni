@@ -289,6 +289,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getEnabledCipherSuites
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    TLSv1Enabled
  * Signature: ()Z
  */

@@ -173,14 +173,12 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     @Override
     public String[] getDefaultCipherSuites() {
-        /* TODO */
-        return null;
+        return WolfSSL.getCiphers();
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
-        /* TODO */
-        return null;
+        return getDefaultCipherSuites();
     }
 
     @Override

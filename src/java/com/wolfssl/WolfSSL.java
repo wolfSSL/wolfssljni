@@ -261,6 +261,8 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumHC128();
     static native int getBulkCipherAlgorithmEnumRABBIT();
 
+    static native String getEnabledCipherSuites();
+
     /* ------------------------- Java methods --------------------------- */
 
     /**
@@ -669,6 +671,17 @@ public class WolfSSL {
      * @return  value of native MAX_DIGEST_SIZE define
      */
     public static native int getHmacMaxSize();
+
+    public static String[] getCiphers() {
+
+        String cipherSuites = getEnabledCipherSuites();
+        if (cipherSuites == null)
+            return null;
+
+        String[] suiteArray = cipherSuites.split(":");
+
+        return suiteArray;
+    }
 
     /* ------------------------- isEnabled methods -------------------------- */
 
