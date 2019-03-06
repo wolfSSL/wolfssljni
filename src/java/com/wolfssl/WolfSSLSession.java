@@ -188,6 +188,10 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private native int setTimeout(long ssl, long t);
+    private native long getTimeout(long ssl);
+    private native int setSessTimeout(long session, long t);
+    private native long getSessTimeout(long session);
     private native int setCipherList(long ssl, String list);
     private native int dtlsGetCurrentTimeout(long ssl);
     private native int dtlsGotTimeout(long ssl);
@@ -744,6 +748,87 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return getSession(getSessionPtr());
+    }
+    
+    /**
+     * Gets the cache size is set at compile time.
+     * This function returns the current cache size which has been set at compile
+     * time.
+     *
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public long getCacheSize() throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return this.getAssociatedContextPtr().getCacheSize();
+    }
+    
+    /**
+     * Sets the timeout in seconds in the given WOLFSSL_SESSION.
+     *
+     * @param t time in seconds to set
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long setSessTimeout(long t) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setSessTimeout(this.getSession(), t);
+    }
+    
+    /**
+     * Gets the timeout in seconds in the given WOLFSSL_SESSION.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return current timeout in seconds
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long getSessTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getSessTimeout(this.getSession());
+    }
+    
+    /**
+     * Sets the timeout in seconds in the given SSL object.
+     *
+     * @param t time in seconds to set
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long setTimeout(long t) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setTimeout(getSessionPtr(), t);
+    }
+    
+    /**
+     * Gets the timeout in seconds in the given SSL object.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return current timeout in seconds
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long getTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getTimeout(getSessionPtr());
     }
 
     /**

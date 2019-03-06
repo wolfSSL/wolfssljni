@@ -517,6 +517,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_getCertCacheMemsize
 #endif
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_setCacheSize
+  (JNIEnv* jenv, jobject jcl, jlong ctx, jlong sz)
+{
+    return wolfSSL_CTX_sess_set_cache_size((WOLFSSL_CTX*)ctx, sz);
+}
+
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_getCacheSize
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    return wolfSSL_CTX_sess_get_cache_size((WOLFSSL_CTX*)ctx);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCipherList
   (JNIEnv* jenv, jobject jcl, jlong ctx, jstring list)
 {

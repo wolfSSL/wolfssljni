@@ -62,6 +62,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_usePskIdentityHint();
         test_WolfSSLSession_getPskIdentityHint();
         test_WolfSSLSession_getPskIdentity();
+        test_WolfSSLSession_timeout();
         test_WolfSSLSession_freeSSL();
         test_WolfSSLSession_UseAfterFree();
     }
@@ -317,7 +318,17 @@ public class WolfSSLSessionTest {
         }
         System.out.println("\t\t... passed");
     }
+    
+    public void test_WolfSSLSession_timeout() {
 
+        System.out.print("\ttimeout()");
+        ssl.setTimeout(5);
+        if (ssl.getTimeout() != 5) {
+            System.out.println("\t\t\t... failed");
+        }
+        System.out.println("\t\t\t... passed");
+    }
+    
     public void test_WolfSSLSession_freeSSL() {
 
         System.out.print("\tfreeSSL()");

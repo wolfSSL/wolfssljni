@@ -20,6 +20,8 @@
  */
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import java.security.Principal;
@@ -41,11 +43,11 @@ import javax.security.cert.X509Certificate;
  * @author wolfSSL
  */
 public class WolfSSLImplementSSLSession implements SSLSession {
-    private WolfSSLSession ssl;
+    private final WolfSSLSession ssl;
     private boolean valid;
-    private HashMap<String, Object> binding;
-    private int port;
-    private String host;
+    private final HashMap<String, Object> binding;
+    private final int port;
+    private final String host;
     Date creation;
     Date accessed; /* when new connection was made using session */
     
@@ -218,20 +220,23 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
-        public void setSessionTimeout(int arg0) throws IllegalArgumentException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        public void setSessionTimeout(int in) throws IllegalArgumentException {
+            if (this.ssl.setSessTimeout((long)in) != WolfSSL.SSL_SUCCESS) {
+                throw new IllegalArgumentException();
+            }
         }
 
         public int getSessionTimeout() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            return (int)this.ssl.getSessTimeout();
         }
 
-        public void setSessionCacheSize(int arg0) throws IllegalArgumentException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /* set during compile time with wolfSSL */
+        public void setSessionCacheSize(int in) throws IllegalArgumentException {
+            throw new UnsupportedOperationException("Not supported. Cache size is set at compile time with wolfSSL");
         }
 
         public int getSessionCacheSize() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            return (int)this.ssl.getCacheSize();
         }
         
     }

@@ -153,6 +153,38 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setTimeout
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
+  (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getTimeout
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getTimeout
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSessTimeout
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
+  (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSessTimeout
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSessTimeout
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setCipherList
  * Signature: (JLjava/lang/String;)I
  */

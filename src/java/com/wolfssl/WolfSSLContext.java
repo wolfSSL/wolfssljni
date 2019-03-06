@@ -322,6 +322,8 @@ public class WolfSSLContext {
             int[] used);
     private native int memrestoreCertCache(long ctx, byte[] mem, int sz);
     private native int getCertCacheMemsize(long ctx);
+    private native long setCacheSize(long ctx, long sz);
+    private native long getCacheSize(long ctx);
     private native int setCipherList(long ctx, String list);
     private native int loadVerifyBuffer(long ctx, byte[] in, long sz,
             int format);
@@ -657,6 +659,38 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         return getCertCacheMemsize(getContextPtr());
+    }
+    
+    /**
+     * Cache size is set at compile time.This function returns the current cache
+     * size which has been set at compile time.
+     * An example of macros to set cache size are HUGE_SESSION_CACHE and
+     * SMALL_SESSION_CACHE.
+     *
+     * @param sz unused size to set cache as
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long setCacheSize(long sz) throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        
+        return setCacheSize(getContextPtr(), sz);
+    }
+    
+    /**
+     * Gets the cache size is set at compile time.
+     * This function returns the current cache size which has been set at compile
+     * time.
+     *
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long getCacheSize() throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        
+        return getCacheSize(getContextPtr());
     }
 
     /**
