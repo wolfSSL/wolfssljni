@@ -115,6 +115,18 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER 4L
 #undef com_wolfssl_WolfSSL_SSL_OP_NO_SSLv2
 #define com_wolfssl_WolfSSL_SSL_OP_NO_SSLv2 8L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_SSLv3
+#define com_wolfssl_WolfSSL_SSL_OP_NO_SSLv3 4096L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1 8192L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_1
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_1 67108864L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_2
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_2 134217728L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_COMPRESSION
+#define com_wolfssl_WolfSSL_SSL_OP_NO_COMPRESSION 268435456L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_3
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_3 536870912L
 #undef com_wolfssl_WolfSSL_SSL_HANDSHAKE_FAILURE
 #define com_wolfssl_WolfSSL_SSL_HANDSHAKE_FAILURE 101L
 #undef com_wolfssl_WolfSSL_SSL_R_TLSV1_ALERT_UNKNOWN_CA

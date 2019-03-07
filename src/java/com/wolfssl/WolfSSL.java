@@ -156,6 +156,12 @@ public class WolfSSL {
     public final static int SSL_RECEIVED_SHUTDOWN               = 2;
     public final static int SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4;
     public final static int SSL_OP_NO_SSLv2                     = 8;
+    public final static int SSL_OP_NO_SSLv3                     = 0x00001000;
+    public final static int SSL_OP_NO_TLSv1                     = 0x00002000;
+    public final static int SSL_OP_NO_TLSv1_1                   = 0x04000000;
+    public final static int SSL_OP_NO_TLSv1_2                   = 0x08000000;
+    public final static int SSL_OP_NO_COMPRESSION               = 0x10000000;
+    public final static int SSL_OP_NO_TLSv1_3                   = 0x20000000;
 
     public final static int SSL_HANDSHAKE_FAILURE                 = 101;
     public final static int SSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102;

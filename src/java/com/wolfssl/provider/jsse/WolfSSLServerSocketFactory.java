@@ -29,9 +29,9 @@ import java.io.IOException;
 
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
-    private WolfSSLParameters params = null;
+    private WolfSSLAuthStore params = null;
 
-    public WolfSSLServerSocketFactory(WolfSSLParameters parameters) {
+    public WolfSSLServerSocketFactory(WolfSSLAuthStore parameters) {
         super();
         this.params = parameters;
     }

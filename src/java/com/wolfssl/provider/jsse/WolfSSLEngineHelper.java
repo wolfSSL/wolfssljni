@@ -38,7 +38,7 @@ public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
     private final com.wolfssl.WolfSSLContext ctx;
     private WolfSSLImplementSSLSession session = null;
-    private final WolfSSLParameters params;
+    private final WolfSSLAuthStore params;
     
     /* enabled cipher suites / protocols , all if null */
     private String[] cipherSuites = null;
@@ -50,7 +50,7 @@ public class WolfSSLEngineHelper {
     private boolean sessionCreation;
     
     protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLSession ssl, WolfSSLParameters params) {
+            WolfSSLSession ssl, WolfSSLAuthStore params) {
         this.ctx = ctx;
         this.ssl = ssl;
         this.params = params;
@@ -58,7 +58,7 @@ public class WolfSSLEngineHelper {
     }
     
     protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLSession ssl, WolfSSLParameters params, int port, String host) {
+            WolfSSLSession ssl, WolfSSLAuthStore params, int port, String host) {
         this.ctx = ctx;
         this.ssl = ssl;
         this.params = params;

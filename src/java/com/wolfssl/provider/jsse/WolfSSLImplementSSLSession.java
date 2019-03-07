@@ -45,7 +45,7 @@ import javax.security.cert.X509Certificate;
  */
 public class WolfSSLImplementSSLSession implements SSLSession {
     private final WolfSSLSession ssl;
-    private final WolfSSLParameters params;
+    private final WolfSSLAuthStore params;
     private boolean valid;
     private final HashMap<String, Object> binding;
     private final int port;
@@ -54,7 +54,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     Date accessed; /* when new connection was made using session */
     
     public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
-            WolfSSLParameters params) {
+            WolfSSLAuthStore params) {
         this.ssl = in;
         this.port = port;
         this.host = host;
@@ -66,7 +66,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
     
-    public WolfSSLImplementSSLSession (WolfSSLSession in, WolfSSLParameters params) {
+    public WolfSSLImplementSSLSession (WolfSSLSession in, WolfSSLAuthStore params) {
         this.ssl = in;
         this.port = 0;
         this.host = null;
@@ -262,6 +262,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             this.ssl = ssl;
         }
 
+        /* rework as session cache */
         public SSLSession getSession(byte[] arg0) {
             return session;
         }

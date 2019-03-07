@@ -1,4 +1,4 @@
-/* WolfSSLParameters.java
+/* WolfSSLAuthStore.java
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -36,7 +36,7 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Helper class used to store common settings, objects, etc.
  */
-public class WolfSSLParameters {
+public class WolfSSLAuthStore {
 
     static enum TLS_VERSION {
         INVALID,
@@ -54,7 +54,7 @@ public class WolfSSLParameters {
     private SecureRandom sr = null;
     private String alias = null;
     
-    protected WolfSSLParameters(KeyManager[] keyman, TrustManager[] trustman,
+    protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
 

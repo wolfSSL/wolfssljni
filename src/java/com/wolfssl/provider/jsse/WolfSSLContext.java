@@ -33,18 +33,20 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import java.security.SecureRandom;
 
-import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
+import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 import com.wolfssl.WolfSSLException;
 
 import java.lang.IllegalArgumentException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class WolfSSLContext extends SSLContextSpi {
 
     private TLS_VERSION currentVersion = TLS_VERSION.SSLv23;
-    private WolfSSLParameters params = null;
+    private WolfSSLAuthStore params = null;
     
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
@@ -55,7 +57,7 @@ public class WolfSSLContext extends SSLContextSpi {
         SecureRandom sr) throws KeyManagementException {
 
         try {
-            params = new WolfSSLParameters(km, tm, sr, currentVersion);
+            params = new WolfSSLAuthStore(km, tm, sr, currentVersion);
 
         } catch (IllegalArgumentException iae) {
             throw new KeyManagementException(iae);
@@ -98,7 +100,12 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        return new WolfSSLEngine();
+        try {
+            return new WolfSSLEngine();
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     @Override
@@ -109,7 +116,12 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        return new WolfSSLEngine(host, port);
+        try {
+            return new WolfSSLEngine(host, port);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     @Override

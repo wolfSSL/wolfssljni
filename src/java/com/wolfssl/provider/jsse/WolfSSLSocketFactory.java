@@ -38,7 +38,7 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateEncodingException;
 
-import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
+import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -48,10 +48,10 @@ import com.wolfssl.WolfSSLJNIException;
 
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
-    private WolfSSLParameters params = null;
+    private WolfSSLAuthStore params = null;
     private WolfSSLContext ctx = null;
 
-    public WolfSSLSocketFactory(WolfSSLParameters parameters)
+    public WolfSSLSocketFactory(WolfSSLAuthStore parameters)
         throws WolfSSLException {
         super();
 

@@ -21,6 +21,9 @@
 
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLSession;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -31,17 +34,33 @@ public class WolfSSLEngine extends SSLEngine {
 
     private String host = null;
     private int port = 0;
+    private WolfSSLEngineHelper EngineHelper;
+    private WolfSSLSession ssl;
+    private com.wolfssl.WolfSSLContext ctx;
+    private WolfSSLAuthStore params;
 
-    protected WolfSSLEngine() {
+    public WolfSSLEngine() throws WolfSSLException {
+        throw new WolfSSLException("bad constructor");
+    }
+    
+    public WolfSSLEngine(String host, int port) throws WolfSSLException {
+        throw new WolfSSLException("bad constructor");
+    }
+        
+    public WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLAuthStore params) throws WolfSSLException {
         super();
+        this.ctx = ctx;
+        this.params = params;
+        initSSL();
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
-    protected WolfSSLEngine(String host, int port) {
-        super();
-        this.host = host;
-        this.port = port;
+    private void initSSL() throws WolfSSLException {
+        ssl = new WolfSSLSession(ctx);
+        // @TODO set io callbacks
     }
-
+        
     @Override
     public SSLEngineResult wrap(ByteBuffer[] arg0, int arg1, int arg2, ByteBuffer arg3) throws SSLException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -79,42 +98,42 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public String[] getSupportedCipherSuites() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getCiphers();
     }
 
     @Override
-    public void setEnabledCipherSuites(String[] arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setEnabledCipherSuites(String[] suites) {
+        EngineHelper.setCiphers(suites);
     }
 
     @Override
     public String[] getSupportedProtocols() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getAllProtocols();
     }
 
     @Override
     public String[] getEnabledProtocols() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getProtocols();
     }
 
     @Override
-    public void setEnabledProtocols(String[] arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setEnabledProtocols(String[] protocols) {
+        EngineHelper.setProtocols(protocols);
     }
 
     @Override
     public SSLSession getSession() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getSession();
     }
 
     @Override
     public void beginHandshake() throws SSLException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        EngineHelper.doHandshake();
     }
 
     @Override
@@ -123,43 +142,43 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public void setUseClientMode(boolean arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setUseClientMode(boolean mode) {
+        EngineHelper.setUseClientMode(mode);
     }
 
     @Override
     public boolean getUseClientMode() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getUseClientMode();
     }
 
     @Override
-    public void setNeedClientAuth(boolean arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setNeedClientAuth(boolean need) {
+        EngineHelper.setNeedClientAuth(need);
     }
 
     @Override
     public boolean getNeedClientAuth() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getNeedClientAuth();
     }
 
     @Override
-    public void setWantClientAuth(boolean arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setWantClientAuth(boolean want) {
+        EngineHelper.setWantClientAuth(want);
     }
 
     @Override
     public boolean getWantClientAuth() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getWantClientAuth();
     }
 
     @Override
-    public void setEnableSessionCreation(boolean arg0) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public void setEnableSessionCreation(boolean flag) {
+        EngineHelper.setEnableSessionCreation(flag);
     }
 
     @Override
     public boolean getEnableSessionCreation() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return EngineHelper.getEnableSessionCreation();
     }
     
 }
