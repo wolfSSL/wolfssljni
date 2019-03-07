@@ -232,6 +232,19 @@ public class WolfSSLX509 extends X509Certificate {
     public String toString() {
         return this.cert.toString();
     }
+    
+    public void free() {
+        this.cert.free();
+    }
+    
+    @Override
+    public void finalize() throws Throwable {
+        try {
+            this.free();
+        } finally {
+            super.finalize();
+        }
+    }
 
     @Override
     public PublicKey getPublicKey() {

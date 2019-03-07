@@ -157,7 +157,16 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     public X509Certificate[] getPeerCertificateChain() throws SSLPeerUnverifiedException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        WolfSSLX509X x509;
+        try {
+            x509 = new WolfSSLX509X(this.ssl.getPeerCertificate());
+            return new X509Certificate[]{ (X509Certificate)x509 };
+        } catch (IllegalStateException ex) {
+            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (WolfSSLJNIException ex) {
+            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     public Principal getPeerPrincipal() throws SSLPeerUnverifiedException {
@@ -173,7 +182,19 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     public Principal getLocalPrincipal() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int i;
+        
+        X509KeyManager km = params.getX509KeyManager();
+        java.security.cert.X509Certificate[] certs =
+                km.getCertificateChain(params.getCertAlias());
+        
+        for (i = 0; i < certs.length; i++) {
+            if (certs[i].getBasicConstraints() < 0) {
+                /* is not a CA treat as end of chain */
+                return certs[i].getSubjectDN();
+            }
+        }
+        return null;
     }
 
     public String getCipherSuite() {
