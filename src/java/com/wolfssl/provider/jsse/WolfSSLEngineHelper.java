@@ -160,7 +160,8 @@ public class WolfSSLEngineHelper {
         return this.sessionCreation;
     }
     
-    /* start or continue handshake */
+    /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
+     * WolfSSL.SSL_FAILURE */
     protected int doHandshake() {
         if (this.sessionCreation == false) {
             //new handshakes can not be made in this case. Need a check though

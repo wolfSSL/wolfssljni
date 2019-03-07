@@ -37,6 +37,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.HandshakeCompletedEvent;
 import java.security.SecureRandom;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -66,6 +67,8 @@ public class WolfSSLSocket extends SSLSocket {
     private Socket socket = null;
     private boolean autoClose;
     private InetSocketAddress address = null;
+
+    private ArrayList<HandshakeCompletedListener> hsListeners = null;
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters)
         throws IOException {
@@ -200,19 +203,53 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     public void addHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
-        /* TODO */
+
+        if (listener == null) {
+            throw new IllegalArgumentException("HandshakeCompletedListener " +
+                "is null");
+        }
+
+        if (hsListeners == null) {
+            hsListeners = new ArrayList<HandshakeCompletedListener>();
+        }
+
+        hsListeners.add(listener);
     }
 
     @Override
     public void removeHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
-        /* TODO */
+
+        if (listener == null) {
+            throw new IllegalArgumentException("HandshakeCompletedListener " +
+                "is null");
+        }
+
+        if (hsListeners != null) {
+            boolean removed = hsListeners.remove(listener);
+            if (removed == false) {
+                throw new IllegalArgumentException(
+                    "HandshakeCompletedListener not a registered listener");
+            }
+        }
     }
 
     @Override
     public void startHandshake() throws IOException {
+        int ret;
+
         /* TODO checking return value and any additional steps */
-        EngineHelper.doHandshake();
+        ret = EngineHelper.doHandshake();
+
+        /* notify handshake completed listeners */
+        if (ret == WolfSSL.SSL_SUCCESS && hsListeners != null) {
+            HandshakeCompletedEvent event = new HandshakeCompletedEvent(
+                this, EngineHelper.getSession());
+
+            for (int i = 0; i < hsListeners.size(); i++) {
+                hsListeners.get(i).handshakeCompleted(event);
+            }
+        }
     }
 
     @Override
