@@ -102,7 +102,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         for (int i = 0; i < caList.length; i++) {
 
             try {
-                byte[] derCert = caList[i].getTBSCertificate();
+                byte[] derCert = caList[i].getEncoded();
 
                 ctx.loadVerifyBuffer(derCert, derCert.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
@@ -161,7 +161,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         ByteArrayOutputStream certStream = new ByteArrayOutputStream();
         for (int i = 0; i < cert.length; i++) {
             /* concatenate certs into single byte array */
-            certStream.write(cert[i].getTBSCertificate());
+            certStream.write(cert[i].getEncoded());
         }
         byte certChain[] = certStream.toByteArray();
 
@@ -215,8 +215,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(Socket s, String host, int port,
         boolean autoClose) throws IOException {
-        /* TODO */
-        return null;
+        /* TODO: finish downstream implementation */
+        return new WolfSSLSocket(ctx, params, s, host, port, autoClose);
     }
 
     @Override

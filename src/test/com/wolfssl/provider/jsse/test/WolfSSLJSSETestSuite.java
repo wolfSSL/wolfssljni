@@ -28,6 +28,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
     WolfSSLContextTest.class,
     WolfSSLSocketFactoryTest.class,
+    WolfSSLSocketTest.class,
 })
 
 

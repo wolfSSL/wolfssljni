@@ -28,6 +28,8 @@ import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.InetSocketAddress;
+import java.lang.StringBuilder;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.HandshakeCompletedListener;
@@ -44,6 +46,7 @@ import com.wolfssl.provider.jsse.WolfSSLParameters.TLS_VERSION;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 
@@ -51,12 +54,23 @@ import com.wolfssl.WolfSSLJNIException;
 public class WolfSSLSocket extends SSLSocket {
 
     private WolfSSLParameters params = null;
+
+    /* WOLFSSL_CTX reference, passed down to this class */
     private WolfSSLContext ctx = null;
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters) {
+    /* WOLFSSL reference, created in this class */
+    private WolfSSLSession ssl = null;
+
+    private Socket socket = null;
+    private boolean autoClose;
+    private InetSocketAddress address = null;
+
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters)
+        throws IOException {
         super();
         this.ctx = context;
         this.params = parameters;
+        initSSL();
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -64,6 +78,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port);
         this.ctx = context;
         this.params = parameters;
+        initSSL();
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -72,6 +87,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(address, port, localAddress, localPort);
         this.ctx = context;
         this.params = parameters;
+        initSSL();
     } 
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -79,6 +95,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port);
         this.ctx = context;
         this.params = parameters;
+        initSSL();
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -87,24 +104,70 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port, localHost, localPort);
         this.ctx = context;
         this.params = parameters;
+        initSSL();
+    }
+
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
+        Socket s, String host, int port, boolean autoClose) throws IOException {
+        super();
+        this.ctx = context;
+        this.params = parameters;
+        this.socket = s;
+        this.autoClose = autoClose;
+        this.address = new InetSocketAddress(host, port);
+        initSSL();
+    }
+
+    private void initSSL() throws IOException {
+
+        try {
+            /* initialize WolfSSLSession object, which wraps the native
+             * WOLFSSL structure. */
+            ssl = new WolfSSLSession(ctx);
+
+            if (this.socket == null) {
+                ssl.setFd(this);
+            } else {
+                ssl.setFd(this.socket);
+            }
+
+        } catch (WolfSSLException we) {
+            throw new IOException(we);
+        }
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
-        /* TODO */
-        return null;
+        return WolfSSL.getCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
-        /* TODO */
-        return null;
+        return getSupportedCipherSuites();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
-        /* TODO */
+
+        try {
+            String list = null;
+            StringBuilder sb = new StringBuilder();
+
+            for (String s : suites) {
+                sb.append(s);
+                sb.append(":");
+            }
+
+            /* remove last : */
+            sb.deleteCharAt(sb.length());
+            list = sb.toString();
+
+            ssl.setCipherList(list);
+
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     @Override
