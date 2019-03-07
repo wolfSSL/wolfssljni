@@ -20,6 +20,7 @@
  */
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
 import java.io.IOException;
@@ -53,29 +54,28 @@ public class WolfSSLEngineHelper {
         this.ctx = ctx;
         this.ssl = ssl;
         this.params = params;
+        this.session = new WolfSSLImplementSSLSession(ssl, params);
+    }
+    
+    protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLSession ssl, WolfSSLParameters params, int port, String host) {
+        this.ctx = ctx;
+        this.ssl = ssl;
+        this.params = params;
+        this.session = new WolfSSLImplementSSLSession(ssl, port, host, params);
     }
     
     protected WolfSSLSession getWolfSSLSession() {
         return ssl;
     }
-    
-    protected WolfSSLImplementSSLSession getSession(int port, String host) {
-        if (session == null) {
-            session = new WolfSSLImplementSSLSession(ssl, port, host, params);
-        }
-        return session;
-    }
-    
+
     protected WolfSSLImplementSSLSession getSession() {
-        if (session == null) {
-            session = new WolfSSLImplementSSLSession(ssl, params);
-        }
         return session;
     }
     
     /* gets all supported cipher suites */
     protected String[] getAllCiphers() {
-        return null;
+        return WolfSSL.getCiphers();
     }
     
     /* gets all enabled cipher suites */
@@ -129,6 +129,7 @@ public class WolfSSLEngineHelper {
     
     protected void setUseClientMode(boolean mode) {
         this.clientMode = mode;
+        //if true than should be a client, otherwise a server
     }
     
     protected boolean getUseClientMode() {
@@ -161,6 +162,16 @@ public class WolfSSLEngineHelper {
     
     /* start or continue handshake */
     protected int doHandshake() {
-        return 0;
+        if (this.sessionCreation == false) {
+            //new handshakes can not be made in this case. Need a check though
+            //to allow resumption @TODO
+            return WolfSSL.SSL_FAILURE;
+        }
+        if (this.ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+            return this.ssl.accept();
+        }
+        else {
+            return this.ssl.connect();
+        }
     }
 }

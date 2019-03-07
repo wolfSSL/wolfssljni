@@ -86,7 +86,8 @@ public class WolfSSLSocket extends SSLSocket {
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
+        port, host.getHostAddress());
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -109,7 +110,8 @@ public class WolfSSLSocket extends SSLSocket {
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
+        port, host);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -121,7 +123,8 @@ public class WolfSSLSocket extends SSLSocket {
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
+        port, host);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -135,7 +138,8 @@ public class WolfSSLSocket extends SSLSocket {
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
+        port, host);
     }
 
     private void initSSL() throws IOException {
