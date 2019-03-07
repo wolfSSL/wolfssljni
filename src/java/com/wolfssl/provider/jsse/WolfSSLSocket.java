@@ -207,7 +207,8 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void startHandshake() throws IOException {
-        /* TODO */
+        /* TODO checking return value and any additional steps */
+        EngineHelper.doHandshake();
     }
 
     @Override

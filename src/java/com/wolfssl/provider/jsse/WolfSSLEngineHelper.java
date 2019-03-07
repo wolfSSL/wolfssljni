@@ -38,7 +38,16 @@ public class WolfSSLEngineHelper {
     private final com.wolfssl.WolfSSLContext ctx;
     private WolfSSLImplementSSLSession session = null;
     private final WolfSSLParameters params;
-        
+    
+    /* enabled cipher suites / protocols , all if null */
+    private String[] cipherSuites = null;
+    private String[] protocols = null;
+    
+    private boolean clientMode;
+    private boolean clientAuth = false;
+    private boolean clientWantAuth = false;
+    private boolean sessionCreation;
+    
     protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
             WolfSSLSession ssl, WolfSSLParameters params) {
         this.ctx = ctx;
@@ -71,8 +80,12 @@ public class WolfSSLEngineHelper {
     
     /* gets all enabled cipher suites */
     protected String[] getCiphers() {
-        return null;
+        if (this.cipherSuites == null) {
+            return getAllCiphers();
+        }
+        return this.cipherSuites;
     }
+    
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
         try {
             String list;
@@ -92,15 +105,20 @@ public class WolfSSLEngineHelper {
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException(e);
         }
+        this.cipherSuites = suites;
     }
     
     protected void setProtocols(String[] p) {
-        
+        //SSL_set_options i.e. SSL_OP_NO_TLSv1_3
+        this.protocols = p;
     }
     
     /* gets enabled protocols */
     protected String[] getProtocols() {
-        return null;
+        if (this.protocols == null) {
+            return getAllProtocols();
+        }
+        return this.protocols;
     }
     
     /* gets all supported protocols */
@@ -110,39 +128,39 @@ public class WolfSSLEngineHelper {
     
     
     protected void setUseClientMode(boolean mode) {
-        
+        this.clientMode = mode;
     }
     
     protected boolean getUseClientMode() {
-        return false;
+        return this.clientMode;
     }
     
     protected void setNeedClientAuth(boolean need) {
-        
+        this.clientAuth = need;
     }
     
     protected boolean getNeedClientAuth() {
-        return false;
+        return this.clientAuth;
     }
     
     protected void setWantClientAuth(boolean want) {
-        
+        this.clientWantAuth = want;
     }
     
     protected boolean getWantClientAuth() {
-        return false;
+        return this.clientWantAuth;
     }
     
     protected void setEnableSessionCreation(boolean flag) {
-        
+        this.sessionCreation = flag;
     }
     
     protected boolean getEnableSessionCreation() {
-        return false;
+        return this.sessionCreation;
     }
     
     /* start or continue handshake */
-    protected int doHandshaed() {
+    protected int doHandshake() {
         return 0;
     }
 }
