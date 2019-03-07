@@ -61,6 +61,8 @@ public class WolfSSLSocket extends SSLSocket {
     /* WOLFSSL reference, created in this class */
     private WolfSSLSession ssl = null;
 
+    private WolfSSLEngineHelper EngineHelper = null;
+    
     private Socket socket = null;
     private boolean autoClose;
     private InetSocketAddress address = null;
@@ -71,6 +73,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.params = parameters;
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -79,6 +84,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.params = parameters;
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -88,6 +96,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.params = parameters;
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     } 
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -96,6 +107,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.params = parameters;
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -105,6 +119,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.params = parameters;
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLParameters parameters,
@@ -116,6 +133,9 @@ public class WolfSSLSocket extends SSLSocket {
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
         initSSL();
+        
+        /* get helper class for common methods */
+        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
     }
 
     private void initSSL() throws IOException {
@@ -138,60 +158,39 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public String[] getSupportedCipherSuites() {
-        return WolfSSL.getCiphers();
+        return EngineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
-        return getSupportedCipherSuites();
+        return EngineHelper.getCiphers();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
-
-        try {
-            String list = null;
-            StringBuilder sb = new StringBuilder();
-
-            for (String s : suites) {
-                sb.append(s);
-                sb.append(":");
-            }
-
-            /* remove last : */
-            sb.deleteCharAt(sb.length());
-            list = sb.toString();
-
-            ssl.setCipherList(list);
-
-        } catch (IllegalStateException e) {
-            throw new IllegalArgumentException(e);
-        }
+        EngineHelper.setCiphers(suites);
     }
 
     @Override
     public String[] getSupportedProtocols() {
-        /* TODO */
-        return null;
+        return EngineHelper.getAllProtocols();
     }
 
     @Override
     public String[] getEnabledProtocols() {
-        /* TODO */
-        return null;
+        return EngineHelper.getProtocols();
     }
 
     @Override
     public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
-        /* TODO */
+        EngineHelper.setProtocols(protocols);
     }
 
     @Override
     public SSLSession getSession() {
-        /* TODO */
-        return null;
+        return EngineHelper.getSession();
     }
 
     @Override
@@ -213,46 +212,42 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void setUseClientMode(boolean mode) throws IllegalArgumentException {
-        /* TODO */
+        EngineHelper.setUseClientMode(mode);
     }
 
     @Override
     public boolean getUseClientMode() {
-        /* TODO */
-        return false;
+        return EngineHelper.getUseClientMode();
     }
 
     @Override
     public void setNeedClientAuth(boolean need) {
-        /* TODO */
+        EngineHelper.setNeedClientAuth(need);
     }
 
     @Override
     public boolean getNeedClientAuth() {
-        /* TODO */
-        return false;
+        return EngineHelper.getNeedClientAuth();
     }
 
     @Override
     public void setWantClientAuth(boolean want) {
-        /* TODO */
+        EngineHelper.setWantClientAuth(want);
     }
 
     @Override
     public boolean getWantClientAuth() {
-        /* TODO */
-        return false;
+        return EngineHelper.getWantClientAuth();
     }
 
     @Override
     public void setEnableSessionCreation(boolean flag) {
-        /* TODO */
+        EngineHelper.setEnableSessionCreation(flag);
     }
 
     @Override
     public boolean getEnableSessionCreation() {
-        /* TODO */
-        return false;
+        return EngineHelper.getEnableSessionCreation();
     }
 }
 

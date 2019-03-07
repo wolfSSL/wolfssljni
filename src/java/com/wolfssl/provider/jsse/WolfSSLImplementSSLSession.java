@@ -66,6 +66,18 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
     
+    public WolfSSLImplementSSLSession (WolfSSLSession in, WolfSSLParameters params) {
+        this.ssl = in;
+        this.port = 0;
+        this.host = null;
+        this.params = params;
+        this.valid = true; /* flag if joining or resuming session is allowed */
+        binding = new HashMap();
+        
+        creation = new Date();
+        accessed = new Date();
+    }
+    
     public byte[] getId() {
         return this.ssl.getSessionID();
     }
@@ -228,11 +240,15 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     public int getPacketBufferSize() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return 16394; /* 2^14, max size by standard, enum MAX_RECORD_SIZE */
     }
 
     public int getApplicationBufferSize() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /* 16394 - (38 + 64)
+         * max added to msg, mac + pad  from RECORD_HEADER_SZ + BLOCK_SZ (pad) +
+         * Max digest sz + BLOC_SZ (iv) + pad byte (1)
+         */
+        return 16292;
     }
     
     
@@ -266,7 +282,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
         /* set during compile time with wolfSSL */
         public void setSessionCacheSize(int in) throws IllegalArgumentException {
-            throw new UnsupportedOperationException("Not supported. Cache size is set at compile time with wolfSSL");
+            throw new UnsupportedOperationException("Not supported. Cache size is"
+                    + " set at compile time with wolfSSL");
         }
 
         public int getSessionCacheSize() {
