@@ -253,6 +253,7 @@ public class WolfSSLSession {
     private native void setConnectState(long ssl);
     private native void setAcceptState(long ssl);
     private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
+    private native long setOptions(long ssl, long op);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2312,6 +2313,23 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         setVerify(getSessionPtr(), mode, callback);
+    }
+
+    /**
+     * Sets the options to use for the WOLFSSL structure.Example options are WolfSSL.SSL_OP_NO_SSLv3
+     *
+     *
+     * @param op      bit mask of options to set
+     * @return returns the revised options bit mask on success
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long setOptions(long op)
+            throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setOptions(getSessionPtr(), op);
     }
     
     @Override

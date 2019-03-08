@@ -2624,6 +2624,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    if (!jenv || !ssl)
+        return JNI_FALSE;
+
     if (wolfSSL_is_init_finished((WOLFSSL*)ssl)) {
         return JNI_TRUE;
     }
@@ -2635,18 +2638,27 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    if (!jenv || !ssl)
+        return;
+
     wolfSSL_set_connect_state((WOLFSSL*)ssl);
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
+    if (!jenv || !ssl)
+        return;
+
     wolfSSL_set_accept_state((WOLFSSL*)ssl);
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
   (JNIEnv* jenv, jobject jcl, jlong ssl, jint mode, jobject callbackIface)
 {
+    if (!jenv || !ssl)
+        return;
+
     if (!callbackIface) {
         wolfSSL_set_verify((WOLFSSL*)ssl, mode, NULL);
     } else {
@@ -2660,5 +2672,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
         /* set verify mode, register Java callback with wolfSSL */
         wolfSSL_set_verify((WOLFSSL*)ssl, mode, NativeSSLVerifyCallback);
     }
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jlong op)
+{
+    if (!jenv || !ssl)
+        return 0;
+
+    return wolfSSL_set_options((WOLFSSL*)ssl, op);
 }
 

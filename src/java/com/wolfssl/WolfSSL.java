@@ -740,6 +740,14 @@ public class WolfSSL {
      * @return 1 if enabled, 0 if not compiled in
      */
     public static native int isEnabledPKCallbacks();
+    
+    /**
+     * Checks which protocols where built into wolfSSL
+     *
+     * @return an array of Strings for supported protocols
+     */
+    public static native String[] getProtocols();
+    
 
 } /* end WolfSSL */
 

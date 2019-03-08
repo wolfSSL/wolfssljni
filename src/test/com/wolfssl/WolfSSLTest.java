@@ -49,6 +49,7 @@ public class WolfSSLTest {
         System.out.println("WolfSSL Class");
 
         test_WolfSSL_new(lib);
+        test_WolfSSL_protocol();
         test_WolfSSL_Method_Allocators(lib);
 
     }
@@ -69,6 +70,17 @@ public class WolfSSLTest {
         System.out.println("\t\t\t... passed");
     }
 
+    public void test_WolfSSL_protocol() {
+        String[] p = WolfSSL.getProtocols();
+        
+        System.out.print("\tWolfSSL_protocol()");
+        if (p == null) {
+            System.out.println("\t\t... failed");
+            fail("failed to get protocols");
+        }
+        System.out.println("\t\t... passed");
+    }
+    
     public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
         tstMethod(lib.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
         tstMethod(lib.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
