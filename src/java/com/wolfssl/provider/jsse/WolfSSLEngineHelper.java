@@ -24,6 +24,7 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
 import java.io.IOException;
+import javax.net.ssl.SSLParameters;
 
 /**
  * This is a helper function to account for similar methods between SSLSocket
@@ -36,9 +37,8 @@ import java.io.IOException;
  */
 public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
-    private final com.wolfssl.WolfSSLContext ctx;
     private WolfSSLImplementSSLSession session = null;
-    private final WolfSSLAuthStore params;
+    private SSLParameters params;
     
     /* enabled cipher suites / protocols , all if null */
     private String[] cipherSuites = null;
@@ -49,20 +49,18 @@ public class WolfSSLEngineHelper {
     private boolean clientWantAuth = false;
     private boolean sessionCreation;
     
-    protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLSession ssl, WolfSSLAuthStore params) {
-        this.ctx = ctx;
+    protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
+            SSLParameters params) {
         this.ssl = ssl;
         this.params = params;
-        this.session = new WolfSSLImplementSSLSession(ssl, params);
+        this.session = new WolfSSLImplementSSLSession(ssl, store);
     }
     
-    protected WolfSSLEngineHelper(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLSession ssl, WolfSSLAuthStore params, int port, String host) {
-        this.ctx = ctx;
+    protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
+            SSLParameters params, int port, String host) {
         this.ssl = ssl;
         this.params = params;
-        this.session = new WolfSSLImplementSSLSession(ssl, port, host, params);
+        this.session = new WolfSSLImplementSSLSession(ssl, port, host, store);
     }
     
     protected WolfSSLSession getWolfSSLSession() {

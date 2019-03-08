@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
 public class WolfSSLEngine extends SSLEngine {
@@ -37,23 +38,36 @@ public class WolfSSLEngine extends SSLEngine {
     private WolfSSLEngineHelper EngineHelper;
     private WolfSSLSession ssl;
     private com.wolfssl.WolfSSLContext ctx;
-    private WolfSSLAuthStore params;
+    private WolfSSLAuthStore authStore;
+    private SSLParameters params;
 
-    public WolfSSLEngine() throws WolfSSLException {
-        throw new WolfSSLException("bad constructor");
+    public WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
+            SSLParameters params)
+            throws WolfSSLException {
+            this.ctx = ctx;
+            this.authStore = auth;
+            this.params = params;
+            initSSL();
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params);
     }
     
-    public WolfSSLEngine(String host, int port) throws WolfSSLException {
-        throw new WolfSSLException("bad constructor");
+    public WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
+            SSLParameters params, String host, int port) throws WolfSSLException {
+            this.ctx = ctx;
+            this.authStore = auth;
+            this.params = params;
+            this.host = host;
+            this.port = port;
+            initSSL();
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params);
     }
         
     public WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore params) throws WolfSSLException {
+            WolfSSLAuthStore authStore) throws WolfSSLException {
         super();
-        this.ctx = ctx;
-        this.params = params;
-        initSSL();
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+
     }
 
     private void initSSL() throws WolfSSLException {

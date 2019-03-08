@@ -44,134 +44,24 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import javax.net.ssl.SSLParameters;
 
 
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
-    private WolfSSLAuthStore params = null;
+    private WolfSSLAuthStore authStore = null;
     private WolfSSLContext ctx = null;
+    private SSLParameters params;
 
-    public WolfSSLSocketFactory(WolfSSLAuthStore parameters)
+    public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLAuthStore authStore, SSLParameters params)
         throws WolfSSLException {
         super();
-
-        long method = 0;
-        this.params = parameters;
-
-        switch (params.getProtocolVersion()) {
-            case TLSv1:
-                method = WolfSSL.TLSv1_ClientMethod();
-                break;
-            case TLSv1_1:
-                method = WolfSSL.TLSv1_1_ClientMethod();
-                break;
-            case TLSv1_2:
-                method = WolfSSL.TLSv1_2_ClientMethod();
-                break;
-            case SSLv23:
-                method = WolfSSL.SSLv23_ClientMethod();
-                break;
-            default:
-                throw new IllegalArgumentException(
-                    "Invalid SSL/TLS protocol version");
-        }
-
-        if (method == WolfSSL.NOT_COMPILED_IN) {
-            throw new IllegalArgumentException("Protocol version not " +
-                "compiled into native wolfSSL library");
-        }
-        ctx = new WolfSSLContext(method);
-
-        try {
-            LoadTrustedRootCerts();
-            LoadClientKeyAndCertChain();
-
-        } catch (Exception e) {
-            throw new IllegalArgumentException(e);
-        }
+        this.ctx = ctx;
+        this.authStore = authStore;
+        this.params = params;
     }
-
-    private void LoadTrustedRootCerts() {
-
-        int loadedCACount = 0;
-
-        /* extract root certs from X509TrustManager */
-        X509TrustManager tm = params.getX509TrustManager();
-        X509Certificate[] caList =  tm.getAcceptedIssuers();
-
-        for (int i = 0; i < caList.length; i++) {
-
-            try {
-                byte[] derCert = caList[i].getEncoded();
-
-                ctx.loadVerifyBuffer(derCert, derCert.length,
-                    WolfSSL.SSL_FILETYPE_ASN1);
-
-                loadedCACount++;
-
-            } catch (CertificateEncodingException ce) {
-                /* skip loading if encoding error is encountered */
-            } catch (WolfSSLJNIException we) {
-                /* skip loading if wolfSSL fails to load der encoding */
-            }
-
-            if (loadedCACount == 0) {
-                throw new IllegalArgumentException("wolfSSL failed to load " +
-                    "any trusted CA certificates from TrustManager");
-            }
-        }
-    }
-
-    private void LoadClientKeyAndCertChain() throws Exception {
-
-        X509KeyManager km = params.getX509KeyManager();
-
-        /* We only load keys from algorithms enabled in native wolfSSL,
-         * and in the priority order of ECC first, then RSA */
-        ArrayList<String> keyAlgos = new ArrayList<String>();
-        if (WolfSSL.EccEnabled()) {
-            keyAlgos.add("ECC");
-        }
-        if (WolfSSL.RsaEnabled()) {
-            keyAlgos.add("RSA");
-        }
-
-        String[] keyStrings = new String[keyAlgos.size()];
-        keyStrings = keyAlgos.toArray(keyStrings);
-
-        String alias = km.chooseClientAlias(keyStrings, null, null);
-        params.setCertAlias(alias);
-
-        /* client private key */
-        PrivateKey privKey = km.getPrivateKey(alias);
-        byte[] privKeyEncoded = privKey.getEncoded();
-        if (!privKey.getFormat().equals("PKCS#8")) {
-            throw new Exception("Private key is not in PKCS#8 format");
-        }
-
-        try {
-            ctx.usePrivateKeyBuffer(privKeyEncoded, privKeyEncoded.length,
-                WolfSSL.SSL_FILETYPE_ASN1);
-        } catch (WolfSSLJNIException e) {
-            throw new Exception("Error loading client private key");
-        }
-
-        /* client certificate chain */
-        X509Certificate[] cert = km.getCertificateChain(alias);
-        ByteArrayOutputStream certStream = new ByteArrayOutputStream();
-        for (int i = 0; i < cert.length; i++) {
-            /* concatenate certs into single byte array */
-            certStream.write(cert[i].getEncoded());
-        }
-        byte certChain[] = certStream.toByteArray();
-
-        try {
-            ctx.useCertificateChainBuffer(certChain, certChain.length);
-        } catch (WolfSSLJNIException e) {
-            throw new Exception("Error loading client certificate chain");
-        }
-    }
-
+    
     @Override
     public String[] getDefaultCipherSuites() {
         return WolfSSL.getCiphers();
@@ -184,39 +74,39 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     @Override
     public Socket createSocket() throws IOException {
-        return new WolfSSLSocket(ctx, params);
+        return new WolfSSLSocket(ctx, authStore, params);
     }
 
     @Override
     public Socket createSocket(InetAddress host, int port)
         throws IOException {
-        return new WolfSSLSocket(ctx, params, host, port);
+        return new WolfSSLSocket(ctx, authStore, params, host, port);
     }
 
     @Override
     public Socket createSocket(InetAddress address, int port,
         InetAddress localAddress, int localPort) throws IOException {
-        return new WolfSSLSocket(ctx, params, address, port,
+        return new WolfSSLSocket(ctx, authStore, params, address, port,
             localAddress, localPort);
     }
 
     @Override
     public Socket createSocket(String host, int port)
         throws IOException, UnknownHostException {
-        return new WolfSSLSocket(ctx, params, host, port);
+        return new WolfSSLSocket(ctx, authStore, params, host, port);
     }
 
     @Override
     public Socket createSocket(String host, int port, InetAddress localHost,
         int localPort) throws IOException, UnknownHostException {
-        return new WolfSSLSocket(ctx, params, host, port, localHost, localPort);
+        return new WolfSSLSocket(ctx, authStore, params, host, port, localHost, localPort);
     }
 
     @Override
     public Socket createSocket(Socket s, String host, int port,
         boolean autoClose) throws IOException {
         /* TODO: finish downstream implementation */
-        return new WolfSSLSocket(ctx, params, s, host, port, autoClose);
+        return new WolfSSLSocket(ctx, authStore, params, s, host, port, autoClose);
     }
 
     @Override

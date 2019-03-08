@@ -50,17 +50,20 @@ import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import javax.net.ssl.SSLParameters;
 
 
 public class WolfSSLSocket extends SSLSocket {
 
-    private WolfSSLAuthStore params = null;
+    private WolfSSLAuthStore authStore = null;
 
     /* WOLFSSL_CTX reference, passed down to this class */
     private WolfSSLContext ctx = null;
 
     /* WOLFSSL reference, created in this class */
     private WolfSSLSession ssl = null;
+    
+    private SSLParameters params = null;
 
     private WolfSSLEngineHelper EngineHelper = null;
     
@@ -70,79 +73,90 @@ public class WolfSSLSocket extends SSLSocket {
 
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters)
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params)
         throws IOException {
         super();
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore, this.params);
     }
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters,
-        InetAddress host, int port) throws IOException {
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, InetAddress host, int port) throws IOException {
         super(host, port);
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
-        port, host.getHostAddress());
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params, port, host.getHostAddress());
     }
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters,
-        InetAddress address, int port, InetAddress localAddress, int localPort)
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, InetAddress address, int port,
+            InetAddress localAddress, int localPort)
         throws IOException {
         super(address, port, localAddress, localPort);
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params);
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params);
     } 
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters,
-        String host, int port) throws IOException {
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, String host, int port) throws IOException {
         super(host, port);
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
-        port, host);
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params, port, host);
     }
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters,
-        String host, int port, InetAddress localHost, int localPort)
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, String host, int port, InetAddress localHost,
+            int localPort)
         throws IOException {
         super(host, port, localHost, localPort);
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
-        port, host);
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params, port, host);
     }
 
-    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore parameters,
-        Socket s, String host, int port, boolean autoClose) throws IOException {
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, Socket s, String host, int port,
+            boolean autoClose) throws IOException {
         super();
         this.ctx = context;
-        this.params = parameters;
+        this.authStore = authStore;
+        this.params = params;
         this.socket = s;
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
         initSSL();
         
         /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ctx, this.ssl, this.params,
-        port, host);
+        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                this.params, port, host);
     }
 
     private void initSSL() throws IOException {
