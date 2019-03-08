@@ -2538,3 +2538,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
     }
 }
 
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    wolfSSL_set_connect_state((WOLFSSL*)ssl);
+}
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    wolfSSL_set_accept_state((WOLFSSL*)ssl);
+}

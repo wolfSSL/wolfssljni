@@ -615,6 +615,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setConnectState
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setAcceptState
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

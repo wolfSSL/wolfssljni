@@ -250,6 +250,8 @@ public class WolfSSLSession {
     private native String getPskIdentity(long ssl);
     private native int usePskIdentityHint(long ssl, String hint);
     private native boolean handshakeDone(long ssl);
+    private native void setConnectState(long ssl);
+    private native void setAcceptState(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2241,9 +2243,33 @@ public class WolfSSLSession {
      * @return true if the handshake is completed -- false if not.
      */
     public boolean handshakeDone() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
         return handshakeDone(getSessionPtr());
     }
 
+    /**
+     * Sets the WOLFSSL to be a client
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public void setConnectState() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        setConnectState(getSessionPtr());
+    }
+    
+    /**
+     * Sets the WOLFSSL to be a server
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed\
+     */
+    public void setAcceptState() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        setConnectState(getSessionPtr());
+    }
+    
     @Override
     protected void finalize() throws Throwable
     {

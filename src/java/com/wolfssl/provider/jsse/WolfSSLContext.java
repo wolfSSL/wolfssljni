@@ -185,6 +185,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
         try {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);
+            params = new SSLParameters();
             createCtx();
         } catch (IllegalArgumentException iae) {
             throw new KeyManagementException(iae);

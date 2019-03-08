@@ -50,6 +50,8 @@ import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLParameters;
 
 
@@ -82,8 +84,12 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params;
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore, this.params);
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore, this.params);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
@@ -94,9 +100,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params;
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params, port, host.getHostAddress());
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params, port, host.getHostAddress());
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
@@ -109,9 +119,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params;
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params);
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     } 
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
@@ -122,9 +136,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params;
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params, port, host);
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params, port, host);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
@@ -137,9 +155,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params;
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params, port, host);
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params, port, host);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
@@ -154,9 +176,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.address = new InetSocketAddress(host, port);
         initSSL();
         
-        /* get helper class for common methods */
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params, port, host);
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params, port, host);
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     private void initSSL() throws IOException {
