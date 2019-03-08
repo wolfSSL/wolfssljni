@@ -631,6 +631,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setVerify
+ * Signature: (JILcom/wolfssl/WolfSSLVerifyCallback;)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
+  (JNIEnv *, jobject, jlong, jint, jobject);
+
 #ifdef __cplusplus
 }
 #endif

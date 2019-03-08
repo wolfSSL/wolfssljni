@@ -535,7 +535,7 @@ public class WolfSSLContext {
      * the client fails to send a certificate when requested to do so (when
      * using SSL_VERIFY_PEER on the SSL server).
      *
-     * @param mode      session timeout value in seconds
+     * @param mode      verification type
      * @param callback  custom verification callback to register with the SSL
      *                  session. If no callback is desired, <code>null</code>
      *                  may be used.

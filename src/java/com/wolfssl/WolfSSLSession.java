@@ -252,6 +252,7 @@ public class WolfSSLSession {
     private native boolean handshakeDone(long ssl);
     private native void setConnectState(long ssl);
     private native void setAcceptState(long ssl);
+    private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2267,7 +2268,50 @@ public class WolfSSLSession {
     public void setAcceptState() {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-        setConnectState(getSessionPtr());
+        setAcceptState(getSessionPtr());
+    }
+    
+    /**
+     * Sets the verification method for remote peers and also allows a
+     * verify callback to be registered with the SSL session.
+     * If no verify callback is desired, null can be used for <code>
+     * callback</code>.
+     * <p>
+     * The verification <b>mode</b> of peer certificates is a logically
+     * OR'd list of flags. The possible flag values include:
+     * <p>
+     * <code>SSL_VERIFY_NONE</code><br>
+     * <b>Client mode:</b> the client will not verify the certificate
+     * received from teh server and the handshake will continue as normal.<br>
+     * <b>Server mode:</b> the server will not send a certificate request to
+     * the client. As such, client verification will not be enabled.
+     * <p>
+     * <code>SSL_VERIFY_PEER</code><br>
+     * <b>Client mode:</b> the client will verify the certificate received
+     * from the server during the handshake. This is turned on by default in
+     * wolfSSL, therefore, using this option has no effect.<br>
+     * <b>Server mode:</b> the server will send a certificate request to the
+     * client and verify the client certificate received.
+     * <p>
+     * <code>SSL_VERIFY_FAIL_IF_NO_PEER_CERT</code><br>
+     * <b>Client mode:</b> no effect when used on the client side.<br>
+     * <b>Server mode:</b> the verification will fail on the server side if
+     * the client fails to send a certificate when requested to do so (when
+     * using SSL_VERIFY_PEER on the SSL server).
+     *
+     * @param mode      verification type
+     * @param callback  custom verification callback to register with the SSL
+     *                  session. If no callback is desired, <code>null</code>
+     *                  may be used.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public void setVerify(int mode, WolfSSLVerifyCallback callback)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        setVerify(getSessionPtr(), mode, callback);
     }
     
     @Override

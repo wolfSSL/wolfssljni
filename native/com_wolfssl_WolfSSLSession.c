@@ -28,6 +28,7 @@
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
 
+static jobject g_verifySSLCbIfaceObj;
 #ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
@@ -35,6 +36,99 @@ static jobject g_crlCbIfaceObj;
 
 /* custom native fn prototypes */
 void NativeMissingCRLCallback(const char* url);
+int  NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store);
+
+int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
+{
+    JNIEnv*   jenv;
+    jint      vmret  = 0;
+    jint      retval = -1;
+    jclass    excClass;
+    jmethodID verifyMethod;
+    jobjectRefType refcheck;
+
+    if (!g_vm) {
+        /* we can't throw an exception yet, so just return 0 (failure) */
+        return 0;
+    }
+
+    /* get JNIEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -101;    /* failed to attach JNIEnv to thread */
+        }
+    } else if (vmret != JNI_OK) {
+        return -102;        /* unable to get JNIEnv from JavaVM */
+    }
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    if( (*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return -103;
+    }
+
+    /* check if our stored object reference is valid */
+    refcheck = (*jenv)->GetObjectRefType(jenv, g_verifySSLCbIfaceObj);
+    if (refcheck == 2) {
+
+        /* lookup WolfSSLVerifyCallback class from global object ref */
+        jclass verifyClass = (*jenv)->GetObjectClass(jenv, g_verifySSLCbIfaceObj);
+        if (!verifyClass) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLVerifyCallback class reference");
+            return -104;
+        }
+
+        verifyMethod = (*jenv)->GetMethodID(jenv, verifyClass,
+                                            "verifyCallback", "(IJ)I");
+        if (verifyMethod == 0) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting verifyCallback method from JNI");
+            return -105;
+        }
+
+        retval = (*jenv)->CallIntMethod(jenv, g_verifySSLCbIfaceObj,
+                verifyMethod, preverify_ok, (jlong) store);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            /* exception occurred on the Java side during method call */
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return -106;
+        }
+
+    } else {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Object reference invalid in NativeSSLVerifyCallback");
+        return -1;
+    }
+
+    return retval;
+}
+
 
 /* jni functions */
 
@@ -2549,3 +2643,22 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
 {
     wolfSSL_set_accept_state((WOLFSSL*)ssl);
 }
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jint mode, jobject callbackIface)
+{
+    if (!callbackIface) {
+        wolfSSL_set_verify((WOLFSSL*)ssl, mode, NULL);
+    } else {
+
+        /* store Java verify Interface object */
+        g_verifySSLCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callbackIface);
+        if (!g_verifySSLCbIfaceObj) {
+            printf("error storing global callback interface\n");
+        }
+
+        /* set verify mode, register Java callback with wolfSSL */
+        wolfSSL_set_verify((WOLFSSL*)ssl, mode, NativeSSLVerifyCallback);
+    }
+}
+

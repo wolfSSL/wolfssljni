@@ -115,6 +115,12 @@ public class WolfSSLEngineHelper {
     
     protected void setUseClientMode(boolean mode) {
         this.clientMode = mode;
+        if (this.clientMode) {
+            this.ssl.setConnectState();
+        }
+        else {
+            this.ssl.setAcceptState();
+        }
     }
     
     protected boolean getUseClientMode() {
