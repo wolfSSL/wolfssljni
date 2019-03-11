@@ -349,6 +349,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    TLSv1_ServerMethod
  * Signature: ()J
  */
@@ -361,6 +369,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
   (JNIEnv *, jclass);
 
 /*
@@ -381,6 +397,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_2_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    TLSv1_2_ServerMethod
  * Signature: ()J
  */
@@ -393,6 +417,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    DTLSv1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
   (JNIEnv *, jclass);
 
 /*
@@ -413,6 +445,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    DTLSv1_2_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    DTLSv1_2_ServerMethod
  * Signature: ()J
  */
@@ -425,6 +465,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    SSLv23_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1Method
   (JNIEnv *, jclass);
 
 /*

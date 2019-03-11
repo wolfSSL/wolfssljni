@@ -67,16 +67,16 @@ public class WolfSSLContext extends SSLContextSpi {
 
         switch (this.currentVersion) {
             case TLSv1:
-                method = WolfSSL.TLSv1_ClientMethod();
+                method = WolfSSL.TLSv1_Method();
                 break;
             case TLSv1_1:
-                method = WolfSSL.TLSv1_1_ClientMethod();
+                method = WolfSSL.TLSv1_1_Method();
                 break;
             case TLSv1_2:
-                method = WolfSSL.TLSv1_2_ClientMethod();
+                method = WolfSSL.TLSv1_2_Method();
                 break;
             case SSLv23:
-                method = WolfSSL.SSLv23_ClientMethod();
+                method = WolfSSL.SSLv23_Method();
                 break;
             default:
                 throw new IllegalArgumentException(
