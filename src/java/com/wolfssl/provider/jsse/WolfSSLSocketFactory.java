@@ -73,39 +73,41 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     @Override
     public Socket createSocket() throws IOException {
-        return new WolfSSLSocket(ctx, authStore, params);
+        return new WolfSSLSocket(ctx, authStore, params, true);
     }
 
     @Override
     public Socket createSocket(InetAddress host, int port)
         throws IOException {
-        return new WolfSSLSocket(ctx, authStore, params, host, port);
+        return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
 
     @Override
     public Socket createSocket(InetAddress address, int port,
         InetAddress localAddress, int localPort) throws IOException {
-        return new WolfSSLSocket(ctx, authStore, params, address, port,
-            localAddress, localPort);
+        return new WolfSSLSocket(ctx, authStore, params,
+            true, address, port, localAddress, localPort);
     }
 
     @Override
     public Socket createSocket(String host, int port)
         throws IOException, UnknownHostException {
-        return new WolfSSLSocket(ctx, authStore, params, host, port);
+        return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
 
     @Override
     public Socket createSocket(String host, int port, InetAddress localHost,
         int localPort) throws IOException, UnknownHostException {
-        return new WolfSSLSocket(ctx, authStore, params, host, port, localHost, localPort);
+        return new WolfSSLSocket(ctx, authStore, params,
+            true, host, port, localHost, localPort);
     }
 
     @Override
     public Socket createSocket(Socket s, String host, int port,
         boolean autoClose) throws IOException {
         /* TODO: finish downstream implementation */
-        return new WolfSSLSocket(ctx, authStore, params, s, host, port, autoClose);
+        return new WolfSSLSocket(ctx, authStore, params,
+            true, s, host, port, autoClose);
     }
 
     @Override

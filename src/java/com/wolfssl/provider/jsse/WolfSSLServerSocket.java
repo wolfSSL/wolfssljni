@@ -27,6 +27,7 @@ import java.net.InetAddress;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLParameters;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 
 public class WolfSSLServerSocket extends SSLServerSocket {
@@ -38,7 +39,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
             SSLParameters params) throws IOException {
 
         super();
-        socket = new WolfSSLSocket(context, authStore, params);
+        socket = new WolfSSLSocket(context, authStore, params, false);
     }
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -46,7 +47,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port);
-        socket = new WolfSSLSocket(context, authStore, params);
+        socket = new WolfSSLSocket(context, authStore, params, false);
     }
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -55,7 +56,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port, backlog);
-        socket = new WolfSSLSocket(context, authStore, params);
+        socket = new WolfSSLSocket(context, authStore, params, false);
     } 
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -64,7 +65,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port, backlog, address);
-        socket = new WolfSSLSocket(context, authStore, params);
+        socket = new WolfSSLSocket(context, authStore, params, false);
     }
 
     @Override

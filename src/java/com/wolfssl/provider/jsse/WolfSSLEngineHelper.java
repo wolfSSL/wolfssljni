@@ -40,9 +40,9 @@ public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
     private WolfSSLImplementSSLSession session = null;
     private SSLParameters params;
-    
+
     private boolean clientMode;
-    private boolean sessionCreation;
+    private boolean sessionCreation = true;
     
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params) throws WolfSSLException {
@@ -56,7 +56,8 @@ public class WolfSSLEngineHelper {
     }
     
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            SSLParameters params, int port, String host) throws WolfSSLException {
+            SSLParameters params, int port, String host)
+            throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
@@ -106,8 +107,7 @@ public class WolfSSLEngineHelper {
     protected String[] getAllProtocols() {
         return WolfSSL.getProtocols();
     }
-    
-    
+
     protected void setUseClientMode(boolean mode) {
         this.clientMode = mode;
         if (this.clientMode) {
@@ -223,10 +223,10 @@ public class WolfSSLEngineHelper {
         int mask = WolfSSL.SSL_VERIFY_NONE;
 
         /* default to client side authenticating the server connecting to */
-        if (this.ssl.getSide() == WolfSSL.WOLFSSL_CLIENT_END) {
+        if (this.clientMode) {
             mask = WolfSSL.SSL_VERIFY_PEER;
         }
-        
+
         if (this.params.getWantClientAuth()) {
             mask |= WolfSSL.SSL_VERIFY_PEER;
         }
@@ -253,22 +253,16 @@ public class WolfSSLEngineHelper {
     /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
      * WolfSSL.SSL_FAILURE */
     protected int doHandshake() {
-        int side;
         
         if (this.sessionCreation == false) {
             /* new handshakes can not be made in this case. */
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
-        
-        side = this.ssl.getSide();
-        switch (side) {
-            case WolfSSL.WOLFSSL_SERVER_END:
-                return this.ssl.accept();
-            case WolfSSL.WOLFSSL_CLIENT_END:
-                return this.ssl.connect();
-            default:
-                /* side was not set! */
-                return WolfSSL.SSL_UNKNOWN;
+
+        if (this.clientMode) {
+            return this.ssl.connect();
+        } else {
+            return this.ssl.accept();
         }
     }
     
