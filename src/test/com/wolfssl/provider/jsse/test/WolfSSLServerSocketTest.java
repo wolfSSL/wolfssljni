@@ -1,4 +1,4 @@
-/* WolfSSLSocketFactoryTest.java
+/* WolfSSLServerSocketTest.java
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -28,34 +28,29 @@ import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
-
-import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
-
 import java.io.FileInputStream;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManagerFactory;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.security.Security;
-import java.security.Provider;
-import java.security.KeyStore;
-
 import java.io.IOException;
 import java.io.FileNotFoundException;
-import java.security.KeyStoreException;
-import java.security.KeyManagementException;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
+import java.security.KeyStore;
+import java.security.Security;
+import java.security.Provider;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
-public class WolfSSLSocketFactoryTest {
+public class WolfSSLServerSocketTest {
 
-    public final static String clientJKS = "./examples/provider/client.jks";
-    public final static char[] jksPass = "wolfSSL test".toCharArray();
+    private final static String serverJKS = "./examples/provider/server.jks";
+    private final static char[] jksPass = "wolfSSL test".toCharArray();
+    private final static int serverPort = 11118;
 
     private static String allProtocols[] = {
         "TLSV1",
@@ -67,9 +62,9 @@ public class WolfSSLSocketFactoryTest {
     private static ArrayList<String> enabledProtocols =
         new ArrayList<String>();
 
-    /* list of SSLSocketFactories for each protocol supported */
-    private static ArrayList<SSLSocketFactory> sockFactories =
-        new ArrayList<SSLSocketFactory>();
+    /* list of SSLServerSocketFactories for each protocol supported */
+    private static ArrayList<SSLServerSocketFactory> sockFactories =
+        new ArrayList<SSLServerSocketFactory>();
 
     @BeforeClass
     public static void testSetupSocketFactory() throws NoSuchProviderException,
@@ -81,7 +76,7 @@ public class WolfSSLSocketFactoryTest {
         TrustManagerFactory tm;
         KeyStore pKey, cert;
 
-        System.out.println("WolfSSLSocketFactory Class");
+        System.out.println("WolfSSLServerSocket Class");
 
         /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
@@ -103,9 +98,9 @@ public class WolfSSLSocketFactoryTest {
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(clientJKS), jksPass);
+            pKey.load(new FileInputStream(serverJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(clientJKS), jksPass);
+            cert.load(new FileInputStream(serverJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
@@ -128,43 +123,28 @@ public class WolfSSLSocketFactoryTest {
 
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
-            SSLSocketFactory sf = ctx.getSocketFactory();
+            SSLServerSocketFactory sf = ctx.getServerSocketFactory();
             sockFactories.add(sf);
         }
     }
 
     @Test
-    public void testGetDefaultCipherSuites()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
-
-        System.out.print("\tgetDefaultCipherSuites()");
-
-        for (int i = 0; i < sockFactories.size(); i++) {
-            SSLSocketFactory sf = sockFactories.get(i);
-            String[] cipherSuites = sf.getDefaultCipherSuites();
-
-            if (cipherSuites == null) {
-                System.out.println("\t... failed");
-                fail("SSLSocketFactory.getDefaultCipherSuites() failed");
-            }
-        }
-
-        System.out.println("\t... passed");
-    }
-
-    @Test
     public void testGetSupportedCipherSuites()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               IOException {
 
         System.out.print("\tgetSupportedCipherSuites()");
 
         for (int i = 0; i < sockFactories.size(); i++) {
-            SSLSocketFactory sf = sockFactories.get(i);
-            String[] cipherSuites = sf.getSupportedCipherSuites();
+            SSLServerSocketFactory sf = sockFactories.get(i);
+            SSLServerSocket s = (SSLServerSocket)sf.createServerSocket(
+                serverPort);
+            String[] cipherSuites = s.getSupportedCipherSuites();
+            s.close();
 
             if (cipherSuites == null) {
                 System.out.println("\t... failed");
-                fail("SSLSocketFactory.getSupportedCipherSuites() failed");
+                fail("SSLServerSocket.getSupportedCipherSuites() failed");
             }
         }
 
@@ -172,52 +152,27 @@ public class WolfSSLSocketFactoryTest {
     }
 
     @Test
-    public void testCreateSocket()
+    public void testGetEnabledCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                IOException {
 
-        System.out.print("\tcreateSocket()");
+        int port = 11118;
+        System.out.print("\tgetEnabledCipherSuites()");
 
         for (int i = 0; i < sockFactories.size(); i++) {
-            String addrStr = "www.example.com";
-            InetAddress addr = InetAddress.getByName("www.example.com");
-            int port = 443;
-            SSLSocketFactory sf = sockFactories.get(i);
-            SSLSocket s = null;
+            SSLServerSocketFactory sf = sockFactories.get(i);
+            SSLServerSocket s = (SSLServerSocket)sf.createServerSocket(
+                serverPort);
+            String[] cipherSuites = s.getEnabledCipherSuites();
+            s.close();
 
-            try {
-
-                /* no arguments */
-                s = (SSLSocket)sf.createSocket();
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLSocketFactory.createSocket() failed");
-                }
-                s.close();
-
-                /* InetAddress, int */
-                s = (SSLSocket)sf.createSocket(addr, port);
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLSocketFactory.createSocket(Ii) failed");
-                }
-                s.close();
-
-                /* String, int */
-                s = (SSLSocket)sf.createSocket(addrStr, port);
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLSocketFactory.createSocket(Si) failed");
-                }
-                s.close();
-
-            } catch (SocketException e) {
-                System.out.println("\t\t\t... failed");
-                throw e;
+            if (cipherSuites == null) {
+                System.out.println("\t... failed");
+                fail("SSLServerSocket.getEnabledCipherSuites() failed");
             }
         }
 
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t... passed");
     }
 }
 

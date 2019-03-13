@@ -29,6 +29,8 @@ import org.junit.runners.Suite;
     WolfSSLContextTest.class,
     WolfSSLSocketFactoryTest.class,
     WolfSSLSocketTest.class,
+    WolfSSLServerSocketFactoryTest.class,
+    WolfSSLServerSocketTest.class,
 })
 
 
