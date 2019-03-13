@@ -271,4 +271,30 @@ public class WolfSSLEngineHelper {
                 return WolfSSL.SSL_UNKNOWN;
         }
     }
+    
+    
+    /**
+     * Creates a new SSLPArameters class with the same settings as the one passed
+     * in.
+     * 
+     * @param in SSLParameters settings to copy
+     * @return new parameters object holding same settings as "in" 
+     */
+    protected static SSLParameters decoupleParams(SSLParameters in) {
+        SSLParameters ret = new SSLParameters();
+        
+        ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
+        ret.setApplicationProtocols(in.getApplicationProtocols());
+        ret.setCipherSuites(in.getCipherSuites());
+        ret.setEnableRetransmissions(in.getEnableRetransmissions());
+        ret.setEndpointIdentificationAlgorithm(in.getEndpointIdentificationAlgorithm());
+        ret.setMaximumPacketSize(in.getMaximumPacketSize());
+        ret.setNeedClientAuth(in.getNeedClientAuth());
+        ret.setProtocols(in.getProtocols());
+        ret.setSNIMatchers(in.getSNIMatchers());
+        ret.setServerNames(in.getServerNames());
+        ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
+        ret.setWantClientAuth(in.getWantClientAuth());
+        return ret;
+    }
 }

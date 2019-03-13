@@ -81,7 +81,7 @@ public class WolfSSLSocket extends SSLSocket {
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
         
         try {
@@ -97,7 +97,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
         
         try {
@@ -116,7 +116,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(address, port, localAddress, localPort);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
         
         try {
@@ -133,7 +133,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
         
         try {
@@ -152,7 +152,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port, localHost, localPort);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
         
         try {
@@ -170,7 +170,7 @@ public class WolfSSLSocket extends SSLSocket {
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = params;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
         this.socket = s;
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
