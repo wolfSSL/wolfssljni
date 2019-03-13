@@ -33,6 +33,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLParameters;
 import java.security.SecureRandom;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -44,7 +45,6 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
-import javax.net.ssl.SSLParameters;
 
 
 public class WolfSSLSocketFactory extends SSLSocketFactory {
@@ -54,8 +54,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     private SSLParameters params;
 
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore authStore, SSLParameters params)
-        throws WolfSSLException {
+            WolfSSLAuthStore authStore, SSLParameters params) {
         super();
         this.ctx = ctx;
         this.authStore = authStore;

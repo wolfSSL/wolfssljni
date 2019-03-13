@@ -21,57 +21,60 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
-
 import java.io.IOException;
+import java.net.InetAddress;
+import javax.net.ssl.SSLServerSocketFactory;
+import java.net.ServerSocket;
+import javax.net.ssl.SSLParameters;
+
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLContext;
 
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
-    private WolfSSLAuthStore params = null;
+    private WolfSSLAuthStore authStore = null;
+    private WolfSSLContext ctx = null;
+    private SSLParameters params;
 
-    public WolfSSLServerSocketFactory(WolfSSLAuthStore parameters) {
+    public WolfSSLServerSocketFactory(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLAuthStore authStore, SSLParameters params) {
         super();
-        this.params = parameters;
+        this.ctx = ctx;
+        this.authStore = authStore;
+        this.params = params;
     }
 
     @Override
     public String[] getDefaultCipherSuites() {
-        /* TODO */
-        return null;
+        return WolfSSL.getCiphers();
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
-        /* TODO */
-        return null;
+        return getDefaultCipherSuites();
     }
 
     @Override
     public ServerSocket createServerSocket() throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLServerSocket(ctx, authStore, params);
     }
 
     @Override
     public ServerSocket createServerSocket(int port) throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLServerSocket(ctx, authStore, params, port);
     }
 
     @Override
     public ServerSocket createServerSocket(int port, int backlog)
         throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLServerSocket(ctx, authStore, params, port, backlog);
     }
 
     @Override
     public ServerSocket createServerSocket(int port, int backlog,
         InetAddress ifAddress) throws IOException {
-        /* TODO */
-        return null;
+        return new WolfSSLServerSocket(ctx, authStore, params, port,
+            backlog, ifAddress);
     }
 }
 

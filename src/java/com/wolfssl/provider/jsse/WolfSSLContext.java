@@ -204,12 +204,7 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        try {
-            return new WolfSSLSocketFactory(this.ctx, authStore, params);
-
-        } catch (WolfSSLException we) {
-            throw new IllegalStateException(we);
-        }
+        return new WolfSSLSocketFactory(this.ctx, authStore, params);
     }
 
     @Override
@@ -220,7 +215,8 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        return new WolfSSLServerSocketFactory(authStore);
+        return new WolfSSLServerSocketFactory(this.ctx, this.authStore,
+            this.params);
     }
 
     @Override
