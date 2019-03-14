@@ -46,6 +46,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -131,6 +132,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void LoadClientKeyAndCertChain() throws Exception {
 
+        int ret, offset;
         X509KeyManager km = authStore.getX509KeyManager();
 
         /* We only load keys from algorithms enabled in native wolfSSL,
@@ -156,11 +158,19 @@ public class WolfSSLContext extends SSLContextSpi {
             throw new Exception("Private key is not in PKCS#8 format");
         }
 
-        try {
-            ctx.usePrivateKeyBuffer(privKeyEncoded, privKeyEncoded.length,
-                WolfSSL.SSL_FILETYPE_ASN1);
-        } catch (WolfSSLJNIException e) {
-            throw new Exception("Error loading client private key");
+        /* skip past PKCS#8 offset */
+        offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
+            privKeyEncoded.length);
+
+        byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
+            offset, privKeyEncoded.length);
+
+        ret = ctx.usePrivateKeyBuffer(privKeyTraditional,
+            privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLJNIException("Failed to load private key " +
+                "buffer, err = " + ret);
         }
 
         /* client certificate chain */
@@ -172,10 +182,12 @@ public class WolfSSLContext extends SSLContextSpi {
         }
         byte certChain[] = certStream.toByteArray();
 
-        try {
-            ctx.useCertificateChainBuffer(certChain, certChain.length);
-        } catch (WolfSSLJNIException e) {
-            throw new Exception("Error loading client certificate chain");
+        ret = ctx.useCertificateChainBufferFormat(certChain,
+            certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLJNIException("Failed to load certificate " +
+                "chain buffer, err = " + ret);
         }
     }
 
