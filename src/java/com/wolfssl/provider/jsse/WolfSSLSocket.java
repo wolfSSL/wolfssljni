@@ -39,6 +39,7 @@ import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.SSLHandshakeException;
 import java.security.SecureRandom;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -311,6 +312,20 @@ public class WolfSSLSocket extends SSLSocket {
 
         /* TODO checking return value and any additional steps */
         ret = EngineHelper.doHandshake();
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+
+            if (ret == WolfSSL.SSL_HANDSHAKE_FAILURE) {
+                throw new SSLHandshakeException("This session is not " +
+                    "allowed to create new sessions");
+            }
+
+            int err = ssl.getError(ret);
+            String errStr = WolfSSL.getErrorString(err);
+
+            throw new SSLHandshakeException(errStr + " (error code: " +
+                err + ")");
+        }
 
         /* notify handshake completed listeners */
         if (ret == WolfSSL.SSL_SUCCESS && hsListeners != null) {
