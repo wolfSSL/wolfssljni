@@ -25,6 +25,7 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
@@ -545,6 +546,32 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSessionCacheMemsize
 #else
     return NOT_COMPILED_IN;
 #endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
+  (JNIEnv* jenv, jclass jcl, jbyteArray in, jlong idx, jlong sz)
+{
+    int ret;
+    word32 inOutIdx;
+    unsigned char inBuf[sz];
+
+    if (!jenv || !in || (sz <= 0))
+        return BAD_FUNC_ARG;
+
+    (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)inBuf);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    inOutIdx = (word32)idx;
+    ret = wc_GetPkcs8TraditionalOffset(inBuf, &inOutIdx, (word32)sz);
+
+    if (ret < 0)
+        return ret;
+
+    return (int)inOutIdx;
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer

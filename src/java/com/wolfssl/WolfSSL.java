@@ -742,6 +742,21 @@ public class WolfSSL {
     public static native int getSessionCacheMemsize();
 
     /**
+     * Strips off PKCS#8 header from byte array.
+     * This function starts reading the input array for a PKCS#8 header,
+     * beginning at input offset, idx. If found, it returns the offset of
+     * the inner traditional data.
+     *
+     * @param in  input buffer containing PKCS#8 formatted key
+     * @param idx index/offset into input array to begin reading
+     * @param sz  size of input array
+     * @return    offset where the traditional key begins, or negative on
+     *            failure.
+     */
+    public static native int getPkcs8TraditionalOffset(byte[] in, long idx,
+        long sz);
+
+    /**
      * Returns the DER-encoded form of the certificate pointed to by
      * x509.
      *

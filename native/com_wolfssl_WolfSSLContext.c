@@ -689,6 +689,38 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
             buff, sz);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBufferFormat
+  (JNIEnv* jenv, jobject jcl, jlong ctx, jbyteArray in, jlong sz, jint format)
+{
+    unsigned char buff[sz];
+
+    if (!jenv || !ctx || !in || (sz < 0))
+        return BAD_FUNC_ARG;
+
+    /* find exception class */
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)buff);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to get byte region in native "
+                "useCertificateChainBufferFormat");
+        return SSL_FAILURE;
+    }
+
+    return wolfSSL_CTX_use_certificate_chain_buffer_format((WOLFSSL_CTX*)ctx,
+            buff, sz, format);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroupMessages
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {

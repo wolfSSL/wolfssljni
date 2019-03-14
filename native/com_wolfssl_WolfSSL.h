@@ -557,6 +557,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSessionCacheMemsize
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getPkcs8TraditionalOffset
+ * Signature: ([BJJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
+  (JNIEnv *, jclass, jbyteArray, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    x509_getDer
  * Signature: (J)[B
  */
