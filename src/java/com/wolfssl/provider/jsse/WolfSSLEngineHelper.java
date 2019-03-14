@@ -52,7 +52,7 @@ public class WolfSSLEngineHelper {
         
         this.ssl = ssl;
         this.params = params;
-        this.session = new WolfSSLImplementSSLSession(ssl, store);
+        this.session = store.getSession(ssl);
     }
     
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
@@ -64,7 +64,7 @@ public class WolfSSLEngineHelper {
         
         this.ssl = ssl;
         this.params = params;
-        this.session = new WolfSSLImplementSSLSession(ssl, port, host, store);
+        this.session = store.getSession(ssl, port, host);
     }
     
     protected WolfSSLSession getWolfSSLSession() {

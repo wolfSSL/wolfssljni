@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSLSession;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.X509KeyManager;
@@ -175,6 +176,20 @@ public class WolfSSLAuthStore {
     
     protected String getCertAlias() {
         return this.alias;
+    }
+    
+        /** Returns either an existing session to use or creates a new session
+     */
+    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl, int port, String host) {
+        /* @TODO session management, for now just always creating a new one */
+        return new WolfSSLImplementSSLSession(ssl, port, host, this);
+    }
+    
+    /** Returns a new session, does not check/save for resumption
+     */
+    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
+        /* @TODO session management, for now just always creating a new one */
+       return new WolfSSLImplementSSLSession(ssl, this);
     }
 }
 
