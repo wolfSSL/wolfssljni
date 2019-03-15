@@ -58,6 +58,7 @@ public class WolfSSLContext extends SSLContextSpi {
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
     private SSLParameters params = null;
+    private WolfSSLDebug debug;
     
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
@@ -89,6 +90,10 @@ public class WolfSSLContext extends SSLContextSpi {
                 "compiled into native wolfSSL library");
         }
         ctx = new com.wolfssl.WolfSSLContext(method);
+
+        if (debug.DEBUG) {
+            log("created new native WOLFSSL_CTX");
+        }
 
         try {
             LoadTrustedRootCerts();
@@ -126,6 +131,10 @@ public class WolfSSLContext extends SSLContextSpi {
             if (loadedCACount == 0) {
                 throw new IllegalArgumentException("wolfSSL failed to load " +
                     "any trusted CA certificates from TrustManager");
+            }
+
+            if (debug.DEBUG) {
+                log("loaded trusted root certs from TrustManager");
             }
         }
     }
@@ -173,6 +182,10 @@ public class WolfSSLContext extends SSLContextSpi {
                 "buffer, err = " + ret);
         }
 
+        if (debug.DEBUG) {
+            log("loaded private key from KeyManager");
+        }
+
         /* client certificate chain */
         X509Certificate[] cert = km.getCertificateChain(alias);
         ByteArrayOutputStream certStream = new ByteArrayOutputStream();
@@ -188,6 +201,10 @@ public class WolfSSLContext extends SSLContextSpi {
         if (ret != WolfSSL.SSL_SUCCESS) {
             throw new WolfSSLJNIException("Failed to load certificate " +
                 "chain buffer, err = " + ret);
+        }
+
+        if (debug.DEBUG) {
+            log("loaded certificate chain from KeyManager");
         }
     }
 
@@ -295,5 +312,9 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
         }
+    }
+
+    private void log(String msg) {
+        debug.print("[WolfSSLContext] " + msg);
     }
 }

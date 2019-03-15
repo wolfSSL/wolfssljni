@@ -79,6 +79,7 @@ public class WolfSSLSocket extends SSLSocket {
     private WolfSSLOutputStream outStream;
 
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
+    private WolfSSLDebug debug;
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
             SSLParameters params, boolean clientMode)
@@ -220,15 +221,31 @@ public class WolfSSLSocket extends SSLSocket {
              * WOLFSSL structure. */
             ssl = new WolfSSLSession(ctx);
 
+            if (debug.DEBUG) {
+                log("created new native WOLFSSL");
+            }
+
             if (this.socket == null) {
                 ssl.setFd(this);
+
+                if (debug.DEBUG)
+                    log("registered SSLSocket with native wolfSSL");
+
             } else {
                 ssl.setFd(this.socket);
+
+                if (debug.DEBUG)
+                    log("registered Socket with native wolfSSL");
             }
+
 
             /* set up I/O streams */
             this.inStream = new WolfSSLInputStream(ssl);
             this.outStream = new WolfSSLOutputStream(ssl);
+
+            if (debug.DEBUG) {
+                log("created default Input/Output streams");
+            }
 
         } catch (WolfSSLException we) {
             throw new IOException(we);
@@ -392,13 +409,24 @@ public class WolfSSLSocket extends SSLSocket {
     public void close() throws IOException {
         try {
             if (ssl != null) {
+                if (debug.DEBUG) {
+                    log("shutting down SSL/TLS connection");
+                }
                 ssl.shutdownSSL();
             }
             super.close();
 
+            if (debug.DEBUG) {
+                log("socket closed");
+            }
+
         } catch (IllegalStateException e) {
             throw new IOException(e);
         }
+    }
+
+    private void log(String msg) {
+        debug.print("[WolfSSLSocket] " + msg);
     }
 }
 

@@ -40,9 +40,11 @@ public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
     private WolfSSLImplementSSLSession session = null;
     private SSLParameters params;
+    private WolfSSLDebug debug;
 
     private boolean clientMode;
     private boolean sessionCreation = true;
+
     
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params) throws WolfSSLException {
@@ -256,12 +258,22 @@ public class WolfSSLEngineHelper {
         
         if (this.sessionCreation == false) {
             /* new handshakes can not be made in this case. */
+            if (debug.DEBUG) {
+                log("session created not allowed for this session");
+            }
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
 
         if (this.clientMode) {
+            if (debug.DEBUG) {
+                log("calling native wolfSSL_connect()");
+            }
             return this.ssl.connect();
+
         } else {
+            if (debug.DEBUG) {
+                log("calling native wolfSSL_accept()");
+            }
             return this.ssl.accept();
         }
     }
@@ -290,5 +302,9 @@ public class WolfSSLEngineHelper {
         ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         ret.setWantClientAuth(in.getWantClientAuth());
         return ret;
+    }
+
+    private void log(String msg) {
+        debug.print("[WolfSSLEngineHelper] " + msg);
     }
 }
