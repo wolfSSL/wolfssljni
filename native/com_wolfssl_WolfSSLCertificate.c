@@ -495,7 +495,7 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
     WOLFSSL_STACK* sk;
     WOLFSSL_ASN1_OBJECT* obj;
     jbooleanArray ret = NULL;
-    jboolean values[8];
+    jboolean values[9];
     int nid = NID_key_usage;
 
     sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)x509, nid, NULL, NULL);

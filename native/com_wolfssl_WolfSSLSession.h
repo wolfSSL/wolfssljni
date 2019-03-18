@@ -647,6 +647,22 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
   (JNIEnv *, jobject, jlong, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setIORecv
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIORecv
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setIOSend
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOSend
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

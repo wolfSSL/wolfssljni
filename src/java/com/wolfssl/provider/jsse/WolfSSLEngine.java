@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLIOSendCallback;
@@ -32,6 +33,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
+import javax.net.ssl.SSLEngineResult.HandshakeStatus;
+import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
@@ -109,9 +112,17 @@ public class WolfSSLEngine extends SSLEngine {
         if (ssl == null) {
             throw new WolfSSLException("Issue creating WOLFSSL structure");
         }
-        ssl.setIOReadCtx(ctx);
+        ssl.setIOReadCtx(this);
+        ssl.setIOWriteCtx(this);
     }
-        
+
+    @Override
+    public SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
+            throws SSLException {
+        return wrap(new ByteBuffer[] { in }, 0, 1, out);
+    }
+    
+    
     @Override
     public SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
@@ -119,7 +130,11 @@ public class WolfSSLEngine extends SSLEngine {
         ByteBuffer tmp;
         byte[] msg;
         
-        if (ofst < len || len > (in.length - ofst) || out == null) {
+        /* for sslengineresults return */
+        Status status = SSLEngineResult.Status.OK;
+        HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        
+        if (ofst + len > in.length || out == null) {
             throw new SSLException("bad arguments");
         }
         
@@ -127,25 +142,50 @@ public class WolfSSLEngine extends SSLEngine {
         for (i = ofst; i < len; i++) {
             max += in[i].remaining();
         }
+        System.out.println("buffer max = " + max);
         tmp = ByteBuffer.allocate(max);
 
         for (i = ofst; i < len; i++) {
             tmp.put(in[i]);
         }
+        System.out.println("getting byte version of input");
         msg = new byte[max];
+        tmp.rewind();
         tmp.get(msg);
+        System.out.println("calling wolfssl write");
         ret = this.ssl.write(msg, max);
         if (ret <= 0) {
             //@TODO handle error
             System.out.println("need to handle error case");
-            return null;
+            
+            switch (ret) {
+                case WolfSSL.SSL_ERROR_WANT_READ:
+                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+                    break;
+                case WolfSSL.SSL_ERROR_WANT_WRITE:
+                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    break;
+                case WolfSSL.SSL_ERROR_WANT_ACCEPT:
+                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+                    break;
+                case WolfSSL.SSL_ERROR_WANT_CONNECT:
+                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    break;
+                default:
+                    
+            }
         }
         out.put(this.toSend);
  
-        return new SSLEngineResult(SSLEngineResult.Status.OK,
-                SSLEngineResult.HandshakeStatus.FINISHED, ret, this.toSend.length);
+        return new SSLEngineResult(status, hs, ret, this.toSend.length);
     }
 
+    @Override
+    public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
+            throws SSLException {
+        return unwrap(in, new ByteBuffer[] { out }, 0, 1);
+    }
+    
     @Override
     public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out, int ofst,
             int length) throws SSLException {
@@ -311,6 +351,7 @@ public class WolfSSLEngine extends SSLEngine {
         int totalSz, idx = 0;
         byte[] tmp;
         
+        System.out.println("setout callback");
         totalSz = toSend.length;
         if (this.toSend != null) {
             totalSz += this.toSend.length;
@@ -328,7 +369,11 @@ public class WolfSSLEngine extends SSLEngine {
     /* reads from buffer toRead */
     protected int setIn(byte[] toRead, int sz) {
         int max = (sz < toReadSz)? sz : toReadSz;
-        System.arraycopy(this.toRead, 0, toRead, 0, max);
+        
+        System.out.println("setin callback");
+        if (this.toRead != null) {
+            System.arraycopy(this.toRead, 0, toRead, 0, max);
+        }
         
         /* readjust plain text buffer after reading from it */
         if (max < this.toReadSz) {

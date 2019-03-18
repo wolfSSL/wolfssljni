@@ -58,6 +58,12 @@ public class WolfSSLSession {
     /* user-registered PSK callbacks, also at WolfSSLContext level */
     private WolfSSLPskClientCallback internPskClientCb = null;
     private WolfSSLPskServerCallback internPskServerCb = null;
+    
+    /* user-registerd I/O callbacks, called by internal WolfSSLSession
+     * I/O callback. This is done in order to pass references to
+     * WolfSSLSession object */
+    private WolfSSLIORecvCallback internRecvSSLCb;
+    private WolfSSLIOSendCallback internSendSSLCb;
 
     /* is this context active, or has it been freed? */
     private boolean active = false;
@@ -254,6 +260,8 @@ public class WolfSSLSession {
     private native void setAcceptState(long ssl);
     private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
     private native long setOptions(long ssl, long op);
+    private native void setIORecv(long ssl);
+    private native void setIOSend(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2330,6 +2338,95 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return setOptions(getSessionPtr(), op);
+    }
+    
+        /**
+     * Registers a receive callback for wolfSSL to get input data.
+     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
+     * This uses the system's TCP recv() function. The user can register a
+     * function to get input from memory, some other network module, or from
+     * anywhere. Please see the EmbedReceive() function in src/io.c as a
+     * guide for how the function should work and for error codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_READ</b> should be returned for
+     * non-blocking receive when no data is ready.
+     *
+     * @param callback  method to be registered as the receive callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLIORecvCallback#receiveCallback(WolfSSLSession,
+     *                  byte[], int, long).
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIOSend(WolfSSLIOSendCallback)
+     */
+    public void setIORecv(WolfSSLIORecvCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set user I/O recv */
+        internRecvSSLCb = callback;
+
+        /* register internal callback with native library */
+        setIORecv(getSessionPtr());
+    }
+
+    /**
+     * Registers a send callback for wolfSSL to write output data.
+     * By default, wolfSSL uses EmbedSend() in src/io.c as the callback,
+     * which uses the system's TCP send() function. The user can register
+     * a function to send output to memory, some other network module, or
+     * to anywhere. Please see the EmbedSend() function in src/io.c as a
+     * guide for how the function should work and for error codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_WRITE</b> should be returned for
+     * non-blocking send when the action cannot be taken yet.
+     *
+     * @param callback  method to be registered as the send callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLIOSendCallback#sendCallback(WolfSSLSession,
+     *                  byte[], int, Object).
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIORecv(WolfSSLIORecvCallback)
+     */
+    public void setIOSend(WolfSSLIOSendCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set user I/O send */
+        internSendSSLCb = callback;
+
+        /* register internal callback with native library */
+        setIOSend(getSessionPtr());
+    }
+    
+        /* this will be registered with native wolfSSL library */
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internRecvSSLCb.receiveCallback(ssl, buf, sz,
+                    ssl.getIOReadCtx());
+
+        return ret;
+    }
+
+    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internSendSSLCb.sendCallback(ssl, buf, sz,
+                    ssl.getIOWriteCtx());
+
+        return ret;
     }
     
     @Override

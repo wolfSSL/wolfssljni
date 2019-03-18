@@ -27,6 +27,7 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
     WolfSSLContextTest.class,
+    WolfSSLEngineTest.class,
     WolfSSLSocketFactoryTest.class,
     WolfSSLSocketTest.class,
     WolfSSLServerSocketFactoryTest.class,
