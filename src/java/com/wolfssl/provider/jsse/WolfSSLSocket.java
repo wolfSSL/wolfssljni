@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -312,6 +313,10 @@ public class WolfSSLSocket extends SSLSocket {
     public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
         EngineHelper.setCiphers(suites);
+
+        if (debug.DEBUG) {
+            log("enabled cipher suites set to: " + Arrays.toString(suites));
+        }
     }
 
     @Override
@@ -328,6 +333,10 @@ public class WolfSSLSocket extends SSLSocket {
     public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
         EngineHelper.setProtocols(protocols);
+
+        if (debug.DEBUG) {
+            log("enabled protocols set to: " + Arrays.toString(protocols));
+        }
     }
 
     @Override
@@ -349,6 +358,10 @@ public class WolfSSLSocket extends SSLSocket {
         }
 
         hsListeners.add(listener);
+
+        if (debug.DEBUG) {
+            log("registered new HandshakeCompletedListener");
+        }
     }
 
     @Override
@@ -366,6 +379,10 @@ public class WolfSSLSocket extends SSLSocket {
                 throw new IllegalArgumentException(
                     "HandshakeCompletedListener not a registered listener");
             }
+        }
+
+        if (debug.DEBUG) {
+            log("removed HandshakeCompletedListener");
         }
     }
 
@@ -399,11 +416,20 @@ public class WolfSSLSocket extends SSLSocket {
                 hsListeners.get(i).handshakeCompleted(event);
             }
         }
+
+        if (debug.DEBUG) {
+            log("completed SSL/TLS handshake, listeners notified");
+        }
+
     }
 
     @Override
     public void setUseClientMode(boolean mode) throws IllegalArgumentException {
         EngineHelper.setUseClientMode(mode);
+
+        if (debug.DEBUG) {
+            log("socket client mode set to: " + mode);
+        }
     }
 
     @Override
@@ -414,6 +440,10 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     public void setNeedClientAuth(boolean need) {
         EngineHelper.setNeedClientAuth(need);
+
+        if (debug.DEBUG) {
+            log("socket needClientAuth set to: " + need);
+        }
     }
 
     @Override
@@ -424,6 +454,10 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     public void setWantClientAuth(boolean want) {
         EngineHelper.setWantClientAuth(want);
+
+        if (debug.DEBUG) {
+            log("socket wantClientAuth set to: " + want);
+        }
     }
 
     @Override
@@ -434,6 +468,10 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     public void setEnableSessionCreation(boolean flag) {
         EngineHelper.setEnableSessionCreation(flag);
+
+        if (debug.DEBUG) {
+            log("socket session creation set to: " + flag);
+        }
     }
 
     @Override

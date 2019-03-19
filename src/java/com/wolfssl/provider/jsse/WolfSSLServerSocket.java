@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse;
 
+import java.util.Arrays;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.InetAddress;
@@ -39,6 +40,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     private boolean clientMode = false;
     private boolean enableSessionCreation = true;
     private WolfSSLSocket socket = null;
+    private WolfSSLDebug debug;
 
     public WolfSSLServerSocket(WolfSSLContext context,
             WolfSSLAuthStore authStore,
@@ -106,6 +108,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* set in SSLParameters, WolfSSLSocket should pull from there if set */
         params.setCipherSuites(suites);
+
+        if (debug.DEBUG) {
+            log("enabled cipher suites set to: " + Arrays.toString(suites));
+        }
     }
 
     @Override
@@ -132,11 +138,19 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
         params.setProtocols(protocols);
+
+        if (debug.DEBUG) {
+            log("enabled protocols set to: " + Arrays.toString(protocols));
+        }
     }
 
     @Override
     public void setNeedClientAuth(boolean need) {
         params.setNeedClientAuth(need);
+
+        if (debug.DEBUG) {
+            log("need client auth set to: " + need);
+        }
     }
 
     @Override
@@ -147,6 +161,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     public void setWantClientAuth(boolean want) {
         params.setWantClientAuth(want);
+
+        if (debug.DEBUG) {
+            log("want client auth set to: " + want);
+        }
     }
 
     @Override
@@ -157,6 +175,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     public void setUseClientMode(boolean mode) throws IllegalArgumentException {
         clientMode = mode;
+
+        if (debug.DEBUG) {
+            log("use client mode set to: " + mode);
+        }
     }
 
     @Override
@@ -167,6 +189,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     public void setEnableSessionCreation(boolean flag) {
         enableSessionCreation = flag;
+
+        if (debug.DEBUG) {
+            log("enable session creation set to: " + flag);
+        }
     }
 
     @Override
@@ -182,6 +208,11 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         Socket sock = new Socket();
         implAccept(sock);
 
+        if (debug.DEBUG) {
+            log("Socket connected to client: " +
+                sock.getInetAddress().getHostAddress());
+        }
+
         /* create new WolfSSLSocket wrapping connected Socket */
         socket = new WolfSSLSocket(context, authStore, params,
             clientMode, sock, true);
@@ -191,6 +222,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         socket.startHandshake();
 
         return socket;
+    }
+
+    private void log(String msg) {
+        debug.print("[WolfSSLServerSocket] " + msg);
     }
 }
 
