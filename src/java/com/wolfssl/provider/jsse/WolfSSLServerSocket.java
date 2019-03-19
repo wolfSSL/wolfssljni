@@ -219,8 +219,6 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         socket.setEnableSessionCreation(enableSessionCreation);
 
-        socket.startHandshake();
-
         return socket;
     }
 
