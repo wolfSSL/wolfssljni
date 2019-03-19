@@ -2686,8 +2686,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
     return wolfSSL_set_options((WOLFSSL*)ssl, op);
 }
 
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIORecv(JNIEnv* jenv,
-        jobject jcl, jlong ssl)
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
+    (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class */
     jclass excClass = (*jenv)->FindClass(jenv,
@@ -2837,7 +2837,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     return retval;
 }
 
-JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setIOSend
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIOSend
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     /* find exception class in case we need it */

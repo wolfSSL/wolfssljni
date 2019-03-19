@@ -29,6 +29,7 @@ import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLEngine;
@@ -38,6 +39,8 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class WolfSSLEngine extends SSLEngine {
 
@@ -51,8 +54,8 @@ public class WolfSSLEngine extends SSLEngine {
     private byte[] toSend; /* encrypted packet to send */
     private byte[] toRead; /* encrypted packet comming in */
     private int toReadSz = 0;
-    
-    private int READ_SIZE = 2048; /* how much to read at once */
+    private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+    private boolean waiting = false;
 
     static private SendCB sendCb = null;
     static private RecvCB recvCb = null;
@@ -102,16 +105,29 @@ public class WolfSSLEngine extends SSLEngine {
         if (recvCb == null) {
             recvCb = new RecvCB();
         }
-        ctx.setIORecv(recvCb);
-        ctx.setIOSend(sendCb);
+        //System.out.println("setting io callbacks for SSL Engine");
+        ssl.setIORecv(recvCb);
+        //System.out.println("set recv callback");
+        ssl.setIOSend(sendCb);
+        //System.out.println("set send callback");
     }
     
     private void initSSL() throws WolfSSLException, WolfSSLJNIException {
-        setCallbacks();
+        /* @TODO for testing still cettins ctx cbio */
+        if (sendCb == null) {
+            sendCb = new SendCB();
+        }
+        if (recvCb == null) {
+            recvCb = new RecvCB();
+        }
+//        ctx.setIORecv(recvCb);
+//        ctx.setIOSend(sendCb);
+        
         ssl = new WolfSSLSession(ctx);
         if (ssl == null) {
             throw new WolfSSLException("Issue creating WOLFSSL structure");
         }
+        setCallbacks();
         ssl.setIOReadCtx(this);
         ssl.setIOWriteCtx(this);
     }
@@ -126,58 +142,87 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
-        int i, max = 0, ret;
+        int i, max = 0, ret, idx = 0, pro = 0;
         ByteBuffer tmp;
         byte[] msg;
+        int pos[] = new int[len];
         
         /* for sslengineresults return */
         Status status = SSLEngineResult.Status.OK;
-        HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
-        
         if (ofst + len > in.length || out == null) {
             throw new SSLException("bad arguments");
         }
         
         /* get buffer size */
-        for (i = ofst; i < len; i++) {
+        for (i = ofst; i < ofst + len; i++) {
             max += in[i].remaining();
         }
-        System.out.println("buffer max = " + max);
+        //System.out.println("buffer max = " + max);
         tmp = ByteBuffer.allocate(max);
 
         for (i = ofst; i < len; i++) {
+            pos[idx++] = in[i].position();
             tmp.put(in[i]);
         }
-        System.out.println("getting byte version of input");
+        //System.out.println("getting byte version of input");
         msg = new byte[max];
         tmp.rewind();
         tmp.get(msg);
-        System.out.println("calling wolfssl write");
+        //System.out.println("calling wolfssl write");
         ret = this.ssl.write(msg, max);
         if (ret <= 0) {
             //@TODO handle error
-            System.out.println("need to handle error case");
+            int err = ssl.getError(ret);
+            //System.out.println("need to handle error case err = " + err);
             
-            switch (ret) {
+            switch (err) {
                 case WolfSSL.SSL_ERROR_WANT_READ:
-                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    waiting = true;
                     break;
                 case WolfSSL.SSL_ERROR_WANT_WRITE:
-                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
-                    break;
-                case WolfSSL.SSL_ERROR_WANT_ACCEPT:
                     hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                    break;
-                case WolfSSL.SSL_ERROR_WANT_CONNECT:
-                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    waiting = false;
                     break;
                 default:
-                    
+                    throw new SSLException("wolfSSL error case " + ret);
             }
         }
-        out.put(this.toSend);
+        
+        /* if the handshake is not done then reset input buffer postions */
+        if (!ssl.handshakeDone()) {
+            idx = 0;
+            //System.out.println("trying to reset positions");
+            for (i = ofst; i < ofst + len; i++) {
+                in[i].position(pos[idx++]);
+            }
+        }
+
+        if (this.toSend != null) {
+            //System.out.println("returning packet of size %d\n" + this.toSend.length);
+            max = out.remaining();
+            if (this.toSend.length > max) {
+                /* partial read from toSend */
+                int nSz = this.toSend.length - max;
+                System.arraycopy(this.toSend, 0, msg, 0, max);
+                out.put(msg);
+                pro = max;
+                System.arraycopy(this.toSend, max, this.toSend, 0, nSz);
+                this.toSend = Arrays.copyOf(this.toSend, nSz);
+            }
+            else {
+                /* read all from toSend */
+                out.put(this.toSend);
+                pro = this.toSend.length;
+                this.toSend = null;
+            }
+        }
  
-        return new SSLEngineResult(status, hs, ret, this.toSend.length);
+        /* consumed no bytes */
+        if (ret < 0) {
+            ret = 0;
+        }
+        return new SSLEngineResult(status, hs, ret, pro);
     }
 
     @Override
@@ -189,8 +234,11 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out, int ofst,
             int length) throws SSLException {
-        int i, ret, sz, idx = 0, max = 0;
+        int i, ret, sz, idx = 0, max = 0, pos, cns = 0;
         byte[] tmp;
+        
+        /* for sslengineresults return */
+        Status status = SSLEngineResult.Status.OK;
         
         if (in == null || out == null || ofst + length > out.length) {
             throw new IllegalArgumentException();
@@ -203,7 +251,8 @@ public class WolfSSLEngine extends SSLEngine {
             max += out[i + ofst].remaining();
         }
         
-        sz = in.remaining();
+        sz = cns = in.remaining();
+        pos = in.position();
         if (sz > 0) {
             /* add new encrypted input to the read buffer for wolfSSL_read call */
             tmp = new byte[sz];
@@ -212,11 +261,35 @@ public class WolfSSLEngine extends SSLEngine {
         }
         
         tmp = new byte[max];
+        //System.out.println("calling ssl read");
         ret = this.ssl.read(tmp, max);
         if (ret <= 0) {
-            //@TODO handle error
+            int err = ssl.getError(ret);
+// 
+//            if (ssl.handshakeDone()) {
+//                in.position(pos); /* no data was consumed from buffer */
+//                cns = 0;
+//                System.out.println("reset positiong to " + pos + "remaning now is " + in.remaining());
+//            }
+            
+            switch (err) {
+                case WolfSSL.SSL_ERROR_WANT_READ:
+                    break;
+                case WolfSSL.SSL_ERROR_WANT_WRITE:
+                    break;
+             
+                default:
+                    throw new SSLException("wolfSSL error case " + ret);
+            }
         }
         
+        if (waiting && this.toReadSz > 0) {
+            hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;  
+        }
+        else {
+            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP; 
+        }
+
         for (i = 0; i < ret;) {
             if (idx >= length) { /* no more output buffers left */
                 break;
@@ -228,8 +301,7 @@ public class WolfSSLEngine extends SSLEngine {
             idx++;
         }
         
-        return new SSLEngineResult(SSLEngineResult.Status.OK,
-                SSLEngineResult.HandshakeStatus.FINISHED, ret, this.toSend.length);
+        return new SSLEngineResult(status, hs, cns, i);
     }
 
     @Override
@@ -302,7 +374,10 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        if (ssl.handshakeDone()) {
+            return SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        }
+        return hs;
     }
 
     @Override
@@ -347,12 +422,11 @@ public class WolfSSLEngine extends SSLEngine {
     
     /* encrypted packet ready to be sent out. Copies buffer to end of to send
      * queue */
-    protected int setOut(byte[] toSend, int sz) {
-        int totalSz, idx = 0;
+    protected int setOut(byte[] in, int sz) {
+        int totalSz = sz, idx = 0;
         byte[] tmp;
         
-        System.out.println("setout callback");
-        totalSz = toSend.length;
+        //System.out.println("setout callback, adding " + sz + " bytes to toSend");
         if (this.toSend != null) {
             totalSz += this.toSend.length;
         }
@@ -361,8 +435,10 @@ public class WolfSSLEngine extends SSLEngine {
             System.arraycopy(this.toSend, 0, tmp, idx, this.toSend.length);
             idx += this.toSend.length;
         }
-        System.arraycopy(toSend, 0, tmp, idx, toSend.length);
-        return toSend.length;
+        System.arraycopy(in, 0, tmp, idx, in.length);
+        this.toSend = tmp;
+        //System.out.println("Added " + sz + " bytes toSend length now " + this.toSend.length);
+        return sz;
     }
     
     
@@ -370,19 +446,23 @@ public class WolfSSLEngine extends SSLEngine {
     protected int setIn(byte[] toRead, int sz) {
         int max = (sz < toReadSz)? sz : toReadSz;
         
-        System.out.println("setin callback");
-        if (this.toRead != null) {
-            System.arraycopy(this.toRead, 0, toRead, 0, max);
+        //System.out.println("setin callback");
+        if (this.toRead == null || this.toReadSz == 0) {
+            /* nothing to be read */
+            //System.out.println("No buffer to read returning want read");
+            return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
         }
-        
-        /* readjust plain text buffer after reading from it */
+        System.arraycopy(this.toRead, 0, toRead, 0, max);
+
         if (max < this.toReadSz) {
             int left = this.toReadSz - max;
-            System.arraycopy(this.toRead, max, this.toRead, max, left);
+            System.arraycopy(this.toRead, max, this.toRead, 0, left);
             this.toReadSz = left;
+            //System.out.println("reading " + max + " from toRead : " + left + " bytes left");
         }
         else {
             /* read all from buffer */
+            //System.out.println("read all " + max + " bytes from toRead ");
             this.toRead = null;
             this.toReadSz = 0;
         }
@@ -394,10 +474,16 @@ public class WolfSSLEngine extends SSLEngine {
         byte[] combined;
         
         combined = new byte[in.length + toReadSz];
-        System.arraycopy(toRead, 0, combined, 0, toReadSz);
+        if (toRead != null && toReadSz > 0) {
+            System.arraycopy(toRead, 0, combined, 0, toReadSz);
+        }
         System.arraycopy(in, 0, combined, toReadSz, in.length);
         toRead = combined;
         toReadSz += in.length;
+    }
+    
+    private void log(String msg) {
+        WolfSSLDebug.print("[WolfSSLSocket] " + msg);
     }
  
     private class SendCB implements WolfSSLIOSendCallback {

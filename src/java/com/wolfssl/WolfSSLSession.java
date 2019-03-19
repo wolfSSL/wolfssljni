@@ -260,8 +260,8 @@ public class WolfSSLSession {
     private native void setAcceptState(long ssl);
     private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
     private native long setOptions(long ssl, long op);
-    private native void setIORecv(long ssl);
-    private native void setIOSend(long ssl);
+    private native void setSSLIORecv(long ssl);
+    private native void setSSLIOSend(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2340,7 +2340,7 @@ public class WolfSSLSession {
         return setOptions(getSessionPtr(), op);
     }
     
-        /**
+    /**
      * Registers a receive callback for wolfSSL to get input data.
      * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
      * This uses the system's TCP recv() function. The user can register a
@@ -2362,7 +2362,6 @@ public class WolfSSLSession {
      */
     public void setIORecv(WolfSSLIORecvCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
-
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
@@ -2370,7 +2369,7 @@ public class WolfSSLSession {
         internRecvSSLCb = callback;
 
         /* register internal callback with native library */
-        setIORecv(getSessionPtr());
+        setSSLIORecv(getSessionPtr());
     }
 
     /**
@@ -2403,7 +2402,7 @@ public class WolfSSLSession {
         internSendSSLCb = callback;
 
         /* register internal callback with native library */
-        setIOSend(getSessionPtr());
+        setSSLIOSend(getSessionPtr());
     }
     
         /* this will be registered with native wolfSSL library */
