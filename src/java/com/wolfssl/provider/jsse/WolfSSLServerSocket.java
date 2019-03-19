@@ -32,6 +32,12 @@ import com.wolfssl.WolfSSLContext;
 
 public class WolfSSLServerSocket extends SSLServerSocket {
 
+    private WolfSSLContext context = null;
+    private WolfSSLAuthStore authStore = null;
+    private SSLParameters params = null;
+
+    private boolean clientMode = false;
+    private boolean enableSessionCreation = true;
     private WolfSSLSocket socket = null;
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -39,7 +45,11 @@ public class WolfSSLServerSocket extends SSLServerSocket {
             SSLParameters params) throws IOException {
 
         super();
-        socket = new WolfSSLSocket(context, authStore, params, false);
+
+        /* defer creating WolfSSLSocket until accept() is called */
+        this.context = context;
+        this.authStore = authStore;
+        this.params = params;
     }
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -47,7 +57,11 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port);
-        socket = new WolfSSLSocket(context, authStore, params, false);
+
+        /* defer creating WolfSSLSocket until accept() is called */
+        this.context = context;
+        this.authStore = authStore;
+        this.params = params;
     }
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -56,7 +70,11 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port, backlog);
-        socket = new WolfSSLSocket(context, authStore, params, false);
+
+        /* defer creating WolfSSLSocket until accept() is called */
+        this.context = context;
+        this.authStore = authStore;
+        this.params = params;
     } 
 
     public WolfSSLServerSocket(WolfSSLContext context,
@@ -65,87 +83,112 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port, backlog, address);
-        socket = new WolfSSLSocket(context, authStore, params, false);
+
+        /* defer creating WolfSSLSocket until accept() is called */
+        this.context = context;
+        this.authStore = authStore;
+        this.params = params;
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
-        return socket.getEnabledCipherSuites();
+
+        String[] suites = params.getCipherSuites();
+        if (suites != null)
+            return suites;
+
+        return WolfSSL.getCiphers();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
-        socket.setEnabledCipherSuites(suites);
+
+        /* set in SSLParameters, WolfSSLSocket should pull from there if set */
+        params.setCipherSuites(suites);
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
-        return socket.getSupportedCipherSuites();
+        return getEnabledCipherSuites();
     }
 
     @Override
     public String[] getSupportedProtocols() {
-        return socket.getSupportedProtocols();
+
+        String[] protos = params.getProtocols();
+        if (protos != null)
+            return protos;
+
+        return WolfSSL.getProtocols();
     }
 
     @Override
     public String[] getEnabledProtocols() {
-        return socket.getEnabledProtocols();
+        return getSupportedProtocols();
     }
 
     @Override
     public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
-        socket.setEnabledProtocols(protocols);
+        params.setProtocols(protocols);
     }
 
     @Override
     public void setNeedClientAuth(boolean need) {
-        socket.setNeedClientAuth(need);
+        params.setNeedClientAuth(need);
     }
 
     @Override
     public boolean getNeedClientAuth() {
-        return socket.getNeedClientAuth();
+        return params.getNeedClientAuth();
     }
 
     @Override
     public void setWantClientAuth(boolean want) {
-        socket.setWantClientAuth(want);
+        params.setWantClientAuth(want);
     }
 
     @Override
     public boolean getWantClientAuth() {
-        return socket.getWantClientAuth();
+        return params.getWantClientAuth();
     }
 
     @Override
     public void setUseClientMode(boolean mode) throws IllegalArgumentException {
-        socket.setUseClientMode(mode);
+        clientMode = mode;
     }
 
     @Override
     public boolean getUseClientMode() {
-        return socket.getUseClientMode();
+        return clientMode;
     }
 
     @Override
     public void setEnableSessionCreation(boolean flag) {
-        socket.setEnableSessionCreation(flag);
+        enableSessionCreation = flag;
     }
 
     @Override
     public boolean getEnableSessionCreation() {
-        return socket.getEnableSessionCreation();
+        return enableSessionCreation;
     }
 
     @Override
     public Socket accept() throws IOException {
 
         /* protected method inherited from ServerSocket, returns
-           a connected (WolfSSLSocket) socket */
-        implAccept(socket);
+           a connected socket */
+        Socket sock = new Socket();
+        implAccept(sock);
+
+        /* create new WolfSSLSocket wrapping connected Socket */
+        socket = new WolfSSLSocket(context, authStore, params,
+            clientMode, sock, true);
+
+        socket.setEnableSessionCreation(enableSessionCreation);
+
+        socket.startHandshake();
 
         return socket;
     }

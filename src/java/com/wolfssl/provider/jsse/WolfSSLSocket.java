@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.net.InetAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.net.InetSocketAddress;
 import java.lang.StringBuilder;
@@ -89,6 +90,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
+        /* don't call setFd() yet since we don't have a connected socket */
         
         try {
             /* get helper class for common methods */
@@ -111,7 +113,8 @@ public class WolfSSLSocket extends SSLSocket {
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
-        
+        setFd();
+
         try {
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -133,7 +136,8 @@ public class WolfSSLSocket extends SSLSocket {
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
-        
+        setFd();
+
         try {
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -154,7 +158,8 @@ public class WolfSSLSocket extends SSLSocket {
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
-        
+        setFd();
+
         try {
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -176,7 +181,8 @@ public class WolfSSLSocket extends SSLSocket {
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
         initSSL();
-        
+        setFd();
+
         try {
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -200,11 +206,12 @@ public class WolfSSLSocket extends SSLSocket {
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
         initSSL();
-        
+        setFd();
+
         try {
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                    this.params, port, host);
+                    this.params);
             EngineHelper.setUseClientMode(clientMode);
 
         } catch (WolfSSLException ex) {
@@ -213,8 +220,33 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    private void initSSL()
-        throws IOException {
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+            SSLParameters params, boolean clientMode, Socket s,
+            boolean autoClose) throws IOException {
+        super();
+        this.ctx = context;
+        this.authStore = authStore;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.socket = s;
+        this.autoClose = autoClose;
+        initSSL();
+        setFd();
+
+        try {
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params);
+            EngineHelper.setUseClientMode(clientMode);
+
+        } catch (WolfSSLException ex) {
+            Logger.getLogger(WolfSSLSocket.class.getName()).log(Level.SEVERE,
+                null, ex);
+        }
+    }
+
+    private void initSSL() throws IOException {
+
+        int ret;
 
         try {
             /* initialize WolfSSLSession object, which wraps the native
@@ -224,20 +256,6 @@ public class WolfSSLSocket extends SSLSocket {
             if (debug.DEBUG) {
                 log("created new native WOLFSSL");
             }
-
-            if (this.socket == null) {
-                ssl.setFd(this);
-
-                if (debug.DEBUG)
-                    log("registered SSLSocket with native wolfSSL");
-
-            } else {
-                ssl.setFd(this.socket);
-
-                if (debug.DEBUG)
-                    log("registered Socket with native wolfSSL");
-            }
-
 
             /* set up I/O streams */
             this.inStream = new WolfSSLInputStream(ssl);
@@ -249,6 +267,34 @@ public class WolfSSLSocket extends SSLSocket {
 
         } catch (WolfSSLException we) {
             throw new IOException(we);
+        }
+    }
+
+    private void setFd() throws IOException {
+
+        int ret;
+
+        if (ssl == null) {
+            throw new IllegalArgumentException("WolfSSLSession object is null");
+        }
+
+        if (this.socket == null) {
+            ret = ssl.setFd(this);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new IOException("Failed to set native Socket fd");
+            }
+
+            if (debug.DEBUG)
+                log("registered SSLSocket with native wolfSSL");
+
+        } else {
+            ret = ssl.setFd(this.socket);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new IOException("Failed to set native Socket fd");
+            }
+
+            if (debug.DEBUG)
+                log("registered Socket with native wolfSSL");
         }
     }
 
@@ -422,6 +468,53 @@ public class WolfSSLSocket extends SSLSocket {
 
         } catch (IllegalStateException e) {
             throw new IOException(e);
+        }
+    }
+
+    @Override
+    public void connect(SocketAddress endpoint) throws IOException {
+
+        if (!(endpoint instanceof InetSocketAddress)) {
+            throw new IllegalArgumentException("endpoint is not of type " +
+                "InetSocketAddress");
+        }
+
+        if (this.socket != null) {
+            this.socket.connect(endpoint);
+        } else {
+            super.connect(endpoint);
+        }
+
+        this.address = (InetSocketAddress)endpoint;
+
+        /* if user is calling after WolfSSLSession creation, register
+           socket fd with native wolfSSL */
+        if (ssl != null) {
+            setFd();
+        }
+    }
+
+    @Override
+    public void connect(SocketAddress endpoint, int timeout)
+        throws IOException {
+
+        if (!(endpoint instanceof InetSocketAddress)) {
+            throw new IllegalArgumentException("endpoint is not of type " +
+                "InetSocketAddress");
+        }
+
+        if (this.socket != null) {
+            this.socket.connect(endpoint, timeout);
+        } else {
+            super.connect(endpoint, timeout);
+        }
+
+        this.address = (InetSocketAddress)endpoint;
+
+        /* if user is calling after WolfSSLSession creation, register
+           socket fd with native wolfSSL */
+        if (ssl != null) {
+            setFd();
         }
     }
 
