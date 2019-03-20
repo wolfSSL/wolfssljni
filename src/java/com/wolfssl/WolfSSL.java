@@ -268,6 +268,7 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumRABBIT();
 
     static native String getEnabledCipherSuites();
+    static native String getEnabledCipherSuitesIana();
 
     /* ------------------------- Java methods --------------------------- */
 
@@ -780,6 +781,21 @@ public class WolfSSL {
     public static String[] getCiphers() {
 
         String cipherSuites = getEnabledCipherSuites();
+        if (cipherSuites == null)
+            return null;
+
+        String[] suiteArray = cipherSuites.split(":");
+
+        return suiteArray;
+    }
+    
+    
+    /**
+     * Gets a list of all cipher suites supported and uses the format TLS_*
+     * @return list of all cipher suites supported
+     */
+    public static String[] getCiphersIana() {
+        String cipherSuites = getEnabledCipherSuitesIana();
         if (cipherSuites == null)
             return null;
 

@@ -79,17 +79,13 @@ public class WolfSSLEngineHelper {
     
     /* gets all supported cipher suites */
     protected String[] getAllCiphers() {
-        return WolfSSL.getCiphers();
+        return WolfSSL.getCiphersIana();
     }
     
     /* gets all enabled cipher suites
      * @TODO is this supposed to return null if no ciphers was set? */
     protected String[] getCiphers() {
-        String[] ret = this.params.getCipherSuites();
-        if (ret == null) {
-            return this.getAllCiphers();
-        }
-        return ret;
+        return this.params.getCipherSuites();
     }
     
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
@@ -156,16 +152,24 @@ public class WolfSSLEngineHelper {
             String list;
             StringBuilder sb = new StringBuilder();
 
+            if (suites == null) {
+                /* use default cipher suites */
+                return;
+            }
+            
             for (String s : suites) {
                 sb.append(s);
                 sb.append(":");
             }
 
             /* remove last : */
-            sb.deleteCharAt(sb.length());
+            sb.deleteCharAt(sb.length() - 1);
             list = sb.toString();
-
-            this.ssl.setCipherList(list);
+            if (this.ssl.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
+                if (debug.DEBUG) {
+                    log("error setting cipher list " + list);
+                }
+            }
 
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException(e);

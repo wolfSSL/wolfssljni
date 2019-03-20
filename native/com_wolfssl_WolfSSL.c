@@ -628,6 +628,23 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
     return retString;
 }
 
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
+  (JNIEnv *jenv, jclass jcl)
+{
+    int ret;
+    char ciphers[4096];
+    jstring retString;
+
+    ret = wolfSSL_get_ciphers_iana(ciphers, sizeof(ciphers));
+    if (ret != WOLFSSL_SUCCESS) {
+        return NULL;
+    }
+
+    retString = (*jenv)->NewStringUTF(jenv, ciphers);
+
+    return retString;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
   (JNIEnv* jenv, jclass jcl)
 {

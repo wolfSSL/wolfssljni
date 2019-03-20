@@ -309,6 +309,14 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getEnabledCipherSuitesIana
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    TLSv1Enabled
  * Signature: ()Z
  */
