@@ -166,7 +166,8 @@ public class WolfSSLServerSocketTest {
             String[] cipherSuites = s.getEnabledCipherSuites();
             s.close();
 
-            if (cipherSuites == null) {
+            /* should be null since we haven't set them */
+            if (cipherSuites != null) {
                 System.out.println("\t... failed");
                 fail("SSLServerSocket.getEnabledCipherSuites() failed");
             }

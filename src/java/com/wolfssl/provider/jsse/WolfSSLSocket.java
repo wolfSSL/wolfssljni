@@ -68,9 +68,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     /* WOLFSSL reference, created in this class */
     private WolfSSLSession ssl = null;
-    
     private SSLParameters params = null;
-
     private WolfSSLEngineHelper EngineHelper = null;
     
     private Socket socket = null;
@@ -301,17 +299,21 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public String[] getSupportedCipherSuites() {
+        /* returns cipher suites supported (compiled in) from native wolfSSL */
         return EngineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
+        /* returns cipher suites set by user, or null if none have been set */
         return EngineHelper.getCiphers();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
+
+        /* sets cipher suite(s) to be used for connection */
         EngineHelper.setCiphers(suites);
 
         if (debug.DEBUG) {
@@ -321,17 +323,23 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public String[] getSupportedProtocols() {
+
+        /* returns all protocol version supported by native wolfSSL */
         return EngineHelper.getAllProtocols();
     }
 
     @Override
     public String[] getEnabledProtocols() {
+
+        /* returns protocols versions enabled for this session */
         return EngineHelper.getProtocols();
     }
 
     @Override
     public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
+
+        /* sets protocol versions to be enabled for use with this session */
         EngineHelper.setProtocols(protocols);
 
         if (debug.DEBUG) {
@@ -390,7 +398,6 @@ public class WolfSSLSocket extends SSLSocket {
     public void startHandshake() throws IOException {
         int ret;
 
-        /* TODO checking return value and any additional steps */
         ret = EngineHelper.doHandshake();
 
         if (ret != WolfSSL.SSL_SUCCESS) {
@@ -425,6 +432,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void setUseClientMode(boolean mode) throws IllegalArgumentException {
+
         EngineHelper.setUseClientMode(mode);
 
         if (debug.DEBUG) {
@@ -439,6 +447,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void setNeedClientAuth(boolean need) {
+
         EngineHelper.setNeedClientAuth(need);
 
         if (debug.DEBUG) {
@@ -453,6 +462,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void setWantClientAuth(boolean want) {
+
         EngineHelper.setWantClientAuth(want);
 
         if (debug.DEBUG) {
@@ -467,6 +477,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     @Override
     public void setEnableSessionCreation(boolean flag) {
+
         EngineHelper.setEnableSessionCreation(flag);
 
         if (debug.DEBUG) {
