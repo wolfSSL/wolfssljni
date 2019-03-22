@@ -37,6 +37,7 @@ import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
@@ -62,6 +63,8 @@ public class WolfSSLEngineTest {
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
+    public final static String engineProvider = "wolfJSSE";
+    private static boolean extraDebug = false;
 
     private SSLContext ctx = null;
     private static String allProtocols[] = {
@@ -135,82 +138,253 @@ public class WolfSSLEngineTest {
     }
     
     private void createSSLContext(String protocol) {
-        SSLContext ctx;
-        
         try {
-                //ctx = SSLContext.getInstance(protocol, "wolfJSSE");
-            this.ctx = SSLContext.getInstance(protocol);
+            if (engineProvider != null) {
+                this.ctx = SSLContext.getInstance(protocol, engineProvider);
+            }
+            else {
+                this.ctx = SSLContext.getInstance(protocol);
+            }
             this.ctx.init(createKeyManager("SunX509", clientJKS),
                      createTrustManager("SunX509", clientJKS), null);
         } catch (NoSuchAlgorithmException ex) {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        //} catch (NoSuchProviderException ex) {
-        //    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (KeyManagementException ex) {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchProviderException ex) {
+            System.out.println("Could not find the provider : " + engineProvider);
+            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+    
+    private int CloseConnection(SSLEngine server, SSLEngine client, boolean earlyClose) throws SSLException {
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(server.getSession().getPacketBufferSize());
+        SSLEngineResult result;
+        HandshakeStatus s;
+        boolean passed;
+        Runnable run;
+         
+        client.closeOutbound();
+
+        result = client.wrap(empty, cliToSer);
+        if (extraDebug) {
+            System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+        }
+        while ((run = client.getDelegatedTask()) != null) {
+            run.run();
+        }
+        s = client.getHandshakeStatus();
+        if (extraDebug) {
+            System.out.println("client status = " + s.toString());
+        }
+        if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
+            throw new SSLException("Client wrap consumed/produced error");   
+        }
+        if (!s.toString().equals("NEED_UNWRAP") ||
+                !result.getStatus().name().equals("CLOSED") ) {
+            throw new SSLException("Bad status");
+        }
+        cliToSer.flip();
+
+        /* check that early close inbounds fail */
+        if (earlyClose) {
+            try {
+                passed = false;
+                server.closeInbound();
+            }
+            catch (SSLException e) {
+                passed = true;
+            }
+            if (!passed) {
+                throw new SSLException("Expected to fail on early close inbound");
+            }
+
+            try {
+                passed = false;
+                client.closeInbound();
+            }
+            catch (SSLException e) {
+                passed = true;
+            }
+            if (!passed) {
+                throw new SSLException("Expected to fail on early close inbound");
+            }
+            return 0;
+        }
+        
+        result = server.unwrap(cliToSer, empty);
+        if (extraDebug) {
+            System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+        }
+        if (result.getStatus().name().equals("CLOSED")) {
+            /* odd case where server tries to send "empty" if not set close */
+            server.closeOutbound();
+        }
+        while ((run = server.getDelegatedTask()) != null) {
+            run.run();
+        }
+        s = server.getHandshakeStatus();
+        if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
+            throw new SSLException("Server unwrap consumed/produced error");   
+        }
+        if (!s.toString().equals("NEED_WRAP") ||
+                !result.getStatus().name().equals("CLOSED") ) {
+            throw new SSLException("Bad status");
+        }
+                
+        result = server.wrap(empty, serToCli);
+        if (extraDebug) {
+            System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+        }
+        while ((run = server.getDelegatedTask()) != null) {
+            run.run();
+        }
+        s = server.getHandshakeStatus();
+        if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
+            throw new SSLException("Server wrap consumed/produced error");   
+        }
+        if (extraDebug) {
+            System.out.println("server status = " + s.toString());
+        }
+        if (!s.toString().equals("NOT_HANDSHAKING") ||
+                !result.getStatus().name().equals("CLOSED")) {
+            throw new SSLException("Bad status");
+        }
+                
+        serToCli.flip();
+        result = client.unwrap(serToCli, empty);
+        if (extraDebug) {
+            System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+        }
+        while ((run = client.getDelegatedTask()) != null) {
+            run.run();
+        }
+        s = client.getHandshakeStatus();
+        if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
+            throw new SSLException("Client unwrap consumed/produced error");   
+        }
+        if (!s.toString().equals("NOT_HANDSHAKING") ||
+                !result.getStatus().name().equals("CLOSED")) {
+            throw new SSLException("Bad status");
+        }
+        if (extraDebug) {
+            System.out.println("client status = " + s.toString());
+        }
+        
+        server.closeInbound();
+        client.closeInbound();
+        return 0;
     }
     
     private int testConnection(SSLEngine server, SSLEngine client,
             String[] cipherSuites, String[] protocols, String appData) {
         ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
         ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
-        ByteBuffer toSend = ByteBuffer.wrap(appData.getBytes());
-        ByteBuffer serPlain = ByteBuffer.allocate(appData.length());
-        ByteBuffer cliPlain = ByteBuffer.allocate(appData.length());
+        ByteBuffer toSendCli = ByteBuffer.wrap(appData.getBytes());
+        ByteBuffer toSendSer = ByteBuffer.wrap(appData.getBytes());
+        ByteBuffer serPlain = ByteBuffer.allocate(server.getSession().getApplicationBufferSize());
+        ByteBuffer cliPlain = ByteBuffer.allocate(client.getSession().getApplicationBufferSize());
         boolean done = false;
 
-        int i;
-
-        
         server.setUseClientMode(false);
-        server.setEnabledCipherSuites(cipherSuites);
-        String[] p = server.getSupportedProtocols();
-
-        server.setEnabledProtocols(protocols);
         server.setNeedClientAuth(false);
-        
         client.setUseClientMode(true);
-        client.setEnabledCipherSuites(cipherSuites);
-        client.setEnabledProtocols(protocols);
+        
+        if (cipherSuites != null) {
+            server.setEnabledCipherSuites(cipherSuites);
+            client.setEnabledCipherSuites(cipherSuites);
+        }
+        
+        if (protocols != null) {
+            server.setEnabledProtocols(protocols);
+            client.setEnabledProtocols(protocols);
+        }
 
         while (!done) {
             try {
                 Runnable run;
                 SSLEngineResult result;
+                HandshakeStatus s;
                 
-                result = client.wrap(toSend, cliToSer);
-//                System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
-//                        " produced = " + result.bytesProduced() +
-//                        " status = " + result.getStatus().name());
+                result = client.wrap(toSendCli, cliToSer);
+                if (extraDebug) {
+                    System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+//                        + " sequence # = " + result.sequenceNumber());
+                }
                 while ((run = client.getDelegatedTask()) != null) {
                     run.run();
                 }
                 
-                result = server.wrap(toSend, serToCli);
-//                System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
-//                        " produced = " + result.bytesProduced() +
-//                        " status = " + result.getStatus().name());
+                result = server.wrap(toSendSer, serToCli);
+                if (extraDebug) {
+                    System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name()
+                        + " sequence # = " + result.sequenceNumber());
+                }
                 while ((run = server.getDelegatedTask()) != null) {
                     run.run();
                 }
 
+                if (extraDebug) {
+                    s = client.getHandshakeStatus();
+                    System.out.println("client status = " + s.toString());
+                    s = server.getHandshakeStatus();
+                    System.out.println("server status = " + s.toString());
+                }
+                
                 cliToSer.flip();
                 serToCli.flip();
-                
+
+                if (extraDebug) {
+                    if (cliToSer.remaining() > 0) {
+                        System.out.println("Client -> Server");
+                        while (cliToSer.remaining() > 0)
+                            System.out.printf("%02X", cliToSer.get());
+                        System.out.println("");
+                        cliToSer.flip();
+                    }
+
+                    if (serToCli.remaining() > 0) {
+                        System.out.println("Server -> Client");
+                        while (serToCli.remaining() > 0)
+                            System.out.printf("%02X", serToCli.get());
+                        System.out.println("");
+                        serToCli.flip();
+                    }
+
+                    System.out.println("cliToSer remaning = " + cliToSer.remaining());
+                    System.out.println("serToCli remaning = " + serToCli.remaining());
+                }
                 result = client.unwrap(serToCli, cliPlain);
-//                System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
-//                        " produced = " + result.bytesProduced() +
-//                        " status = " + result.getStatus().name());
+                if (extraDebug) {
+                    System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+                }
                 while ((run = client.getDelegatedTask()) != null) {
                     run.run();
                 }
                 
                 
                 result = server.unwrap(cliToSer, serPlain);
-//                System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
-//                        " produced = " + result.bytesProduced() +
-//                        " status = " + result.getStatus().name());
+                if (extraDebug) {
+                    System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
+                        " produced = " + result.bytesProduced() +
+                        " status = " + result.getStatus().name());
+                }
                 while ((run = server.getDelegatedTask()) != null) {
                     run.run();
                 }
@@ -219,21 +393,35 @@ public class WolfSSLEngineTest {
                 serToCli.compact();
                 
             
-                HandshakeStatus s = client.getHandshakeStatus();
-//                System.out.println("client status = " + s.toString());
-                s = server.getHandshakeStatus();
-//                System.out.println("server status = " + s.toString());
+                if (extraDebug) {
+                    s = client.getHandshakeStatus();
+                    System.out.println("client status = " + s.toString());
+                    s = server.getHandshakeStatus();
+                    System.out.println("server status = " + s.toString());
+                }
                 
-                if (toSend.remaining() == 0) {
+                if (toSendCli.remaining() == 0 && toSendSer.remaining() == 0) {
                     byte[] b;
+                    String st;
+                    
+                    /* check what the client received */
+                    cliPlain.rewind();
+                    b = new byte[cliPlain.remaining()];
+                    cliPlain.get(b);
+                    st = new String(b, StandardCharsets.UTF_8).trim();
+                    if (!appData.equals(st)) {
+                        return -1;
+                    }
+                    
+                    /* check what the server received */
                     serPlain.rewind();
                     b = new byte[serPlain.remaining()];
                     serPlain.get(b);
-                    String st = new String(b, StandardCharsets.UTF_8);
+                    st = new String(b, StandardCharsets.UTF_8).trim();
                     if (!appData.equals(st)) {
-                        System.out.println("unexpected application data");
                         return -1;
                     }
+                    
                     done = true;
                 }
 
@@ -264,43 +452,168 @@ public class WolfSSLEngineTest {
     }
     
     @Test
+    public void testSSLEngineSetCipher()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine e;
+        String sup[];
+
+        System.out.print("\tTesting setting cipher");
+
+        createSSLContext("TLSv1.2");
+        e = this.ctx.createSSLEngine();
+        if (e == null) {
+            System.out.println("\t\t... failed");
+            fail("failed to create engine");   
+        }
+        
+        /* should be null when not set , is not null? */
+//        if (e.getEnabledCipherSuites() != null) {
+//            System.out.println("\t\t... failed");
+//            System.out.println("not null ");
+//            for (String s : e.getEnabledCipherSuites()) {
+//                System.out.print("" + s);
+//            }
+//            System.out.println("");
+//            fail("unexpected cipher list");   
+//        }
+        sup = e.getSupportedCipherSuites();
+        e.setEnabledCipherSuites(new String[] {sup[0]});
+        if (e.getEnabledCipherSuites() == null ||
+                !sup[0].equals(e.getEnabledCipherSuites()[0])) {
+            System.out.println("\t\t... failed");
+            fail("unexpected empty cipher list");   
+        }
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
     public void testCipherConnection()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
         SSLEngine client;
         String    cipher = null;
         int ret, i;
+        String[] ciphers;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting setting cipher");
+        System.out.print("\tTesting cipher connection");
 
         createSSLContext("TLS");
         server = this.ctx.createSSLEngine();
-//        client = this.ctx.createSSLEngine("client", 80);
+        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
-        /* use wolfJSSE client */
-        SSLContext c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
-        try {
-            c.init(createKeyManager("SunX509", clientJKS),
-                    createTrustManager("SunX509", clientJKS), null);
-        } catch (KeyManagementException ex) {
-            System.out.println("unable to init context");
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        client = c.createSSLEngine("client", 80);
+//        /* use wolfJSSE client */
+//        SSLContext c = SSLContext.getInstance("TLS", "wolfJSSE");
+//        try {
+//            c.init(createKeyManager("SunX509", clientJKS),
+//                    createTrustManager("SunX509", clientJKS), null);
+//        } catch (KeyManagementException ex) {
+//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        client = c.createSSLEngine("wolfSSL client test", 11111);
+//        server = c.createSSLEngine();
 
 
-        String[] ciphers = server.getSupportedCipherSuites();
-        for (i = 0; i < ciphers.length; i++)
-            if (ciphers[i].equals("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"))
-                cipher = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+        ciphers = client.getSupportedCipherSuites();
         
+        /* use a ECDHE-RSA suite if available */
+        for (String x : ciphers) {
+            if (x.contains("ECDHE_RSA")) {
+                cipher = x;
+                break;
+            }
+        }
         ret = testConnection(server, client, new String[] { cipher },
                 new String[] { "TLSv1.2" }, "Test cipher suite");
         if (ret != 0) {
-            System.out.println("\t\t... failed");
+            System.out.println("\t... failed");
             fail("failed to create engine");   
         }
-        System.out.println("\t\t... passed");
+        System.out.println("\t... passed");
+        
+        
+        
+        System.out.print("\tTesting close connection");        
+        try {
+            /* test close connection */
+            CloseConnection(server, client, false);
+        } catch (SSLException ex) {
+            System.out.println("\t... failed");
+            fail("failed to create engine"); 
+        }
+        System.out.println("\t... passed");
     }
+    
+    @Test
+    public void testReuseSession()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine server;
+        SSLEngine client;
+        String    cipher = null;
+        int ret, i;
+        String[] ciphers;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting reuse of session");
+
+        createSSLContext("TLS");
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+
+        /* use wolfJSSE client */
+//        SSLContext c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
+//        try {
+//            c.init(createKeyManager("SunX509", clientJKS),
+//                    createTrustManager("SunX509", clientJKS), null);
+//        } catch (KeyManagementException ex) {
+//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        client = c.createSSLEngine("wolfSSL client test", 11111);
+//        server = c.createSSLEngine();
+
+        ret = testConnection(server, client, null, null, "Test reuse");
+        if (ret != 0) {
+            System.out.println("\t... failed");
+            fail("failed to create engine");   
+        }
+             
+        try {
+            /* test close connection */
+            CloseConnection(server, client, false);
+        } catch (SSLException ex) {
+            System.out.println("\t... failed");
+            fail("failed to create engine"); 
+        }
+
+        /* use wolfJSSE client */
+//        c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
+//        try {
+//            c.init(createKeyManager("SunX509", clientJKS),
+//                    createTrustManager("SunX509", clientJKS), null);
+//        } catch (KeyManagementException ex) {
+//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        client = c.createSSLEngine("wolfSSL client test", 11111);
+//        server = c.createSSLEngine();
+
+
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+        client.setEnableSessionCreation(false);
+        ret = testConnection(server, client, null, null, "Test reuse");
+        if (ret != 0) {
+            System.out.println("\t... failed");
+            fail("failed to create engine");   
+        }
+        try {
+            /* test close connection */
+            CloseConnection(server, client, false);
+        } catch (SSLException ex) {
+            System.out.println("\t... failed");
+            fail("failed to create engine"); 
+        }
+        System.out.println("\t... passed");
+    }
+    
+    /* status tests buffer overflow/underflow/closed test */
 }

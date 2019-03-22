@@ -13,6 +13,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_FAILURE 0L
 #undef com_wolfssl_WolfSSL_SSL_SUCCESS
 #define com_wolfssl_WolfSSL_SSL_SUCCESS 1L
+#undef com_wolfssl_WolfSSL_SSL_SHUTDOWN_NOT_DONE
+#define com_wolfssl_WolfSSL_SSL_SHUTDOWN_NOT_DONE 2L
 #undef com_wolfssl_WolfSSL_SSL_BAD_CERTTYPE
 #define com_wolfssl_WolfSSL_SSL_BAD_CERTTYPE -8L
 #undef com_wolfssl_WolfSSL_SSL_BAD_STAT

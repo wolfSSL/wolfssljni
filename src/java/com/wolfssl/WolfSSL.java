@@ -39,6 +39,7 @@ public class WolfSSL {
     public final static int SSL_ERROR_NONE      =  0;
     public final static int SSL_FAILURE         =  0;
     public final static int SSL_SUCCESS         =  1;
+    public final static int SSL_SHUTDOWN_NOT_DONE = 2;
 
     public final static int SSL_BAD_CERTTYPE    = -8;
     public final static int SSL_BAD_STAT        = -7;

@@ -25,6 +25,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
 import java.io.IOException;
 import java.util.Arrays;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 
 /**
@@ -41,11 +42,19 @@ public class WolfSSLEngineHelper {
     private WolfSSLImplementSSLSession session = null;
     private SSLParameters params;
     private WolfSSLDebug debug;
-
+    private int port;
+    private String host = null;
+    private WolfSSLAuthStore authStore = null;
     private boolean clientMode;
     private boolean sessionCreation = true;
 
-    
+    /**
+     * Always creates a new session
+     * @param ssl
+     * @param store
+     * @param params
+     * @throws WolfSSLException 
+     */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params) throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
@@ -54,9 +63,19 @@ public class WolfSSLEngineHelper {
         
         this.ssl = ssl;
         this.params = params;
-        this.session = store.getSession(ssl);
+        this.authStore = store;
+        this.session = this.authStore.getSession(ssl, 0, null);
     }
     
+    /**
+     * Allows for new session and resume session by default
+     * @param ssl
+     * @param store
+     * @param params
+     * @param port
+     * @param host
+     * @throws WolfSSLException 
+     */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params, int port, String host)
             throws WolfSSLException {
@@ -66,7 +85,10 @@ public class WolfSSLEngineHelper {
         
         this.ssl = ssl;
         this.params = params;
-        this.session = store.getSession(ssl, port, host);
+        this.port = port;
+        this.host = host;
+        this.authStore = store;
+        this.session = this.authStore.getSession(ssl, this.port, this.host);
     }
     
     protected WolfSSLSession getWolfSSLSession() {
@@ -250,9 +272,15 @@ public class WolfSSLEngineHelper {
         this.setLocalAuth();
     }
     
-    /* sets all parameters from SSLParameters into WOLFSSL object.
+    /* sets all parameters from SSLParameters into WOLFSSL object and creates
+     * session.
      * Should be called before doHandshake */
-    protected void initHandshake() {
+    protected void initHandshake() throws SSLException {
+        if (this.sessionCreation) {
+            /* can only add new sessions to the resumption table if session
+             * creation is allowed */
+            this.authStore.addSession(this.session);
+        }
         this.setLocalParams();
     }
     
@@ -260,22 +288,29 @@ public class WolfSSLEngineHelper {
      * WolfSSL.SSL_FAILURE */
     protected int doHandshake() {
         
-        if (this.sessionCreation == false) {
+        if (this.sessionCreation == false && !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
-            if (debug.DEBUG) {
-                log("session created not allowed for this session");
+            if (WolfSSLDebug.DEBUG) {
+                log("session creation not allowed");
             }
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
 
+        if (!this.session.isValid()) {
+            if (WolfSSLDebug.DEBUG) {
+                log("session is marked as invalid");
+            }
+            return WolfSSL.SSL_HANDSHAKE_FAILURE;
+        }
+        
         if (this.clientMode) {
-            if (debug.DEBUG) {
+            if (WolfSSLDebug.DEBUG) {
                 log("calling native wolfSSL_connect()");
             }
             return this.ssl.connect();
 
         } else {
-            if (debug.DEBUG) {
+            if (WolfSSLDebug.DEBUG) {
                 log("calling native wolfSSL_accept()");
             }
             return this.ssl.accept();

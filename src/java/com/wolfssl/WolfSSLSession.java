@@ -260,6 +260,7 @@ public class WolfSSLSession {
     private native void setAcceptState(long ssl);
     private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
     private native long setOptions(long ssl, long op);
+    private native int getShutdown(long ssl);
     private native void setSSLIORecv(long ssl);
     private native void setSSLIOSend(long ssl);
 
@@ -2403,6 +2404,14 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         setSSLIOSend(getSessionPtr());
+    }
+    
+    /**
+     * 
+     * @return 
+     */
+    public int getShutdown() {
+        return getShutdown(getSessionPtr());
     }
     
         /* this will be registered with native wolfSSL library */

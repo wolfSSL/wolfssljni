@@ -52,6 +52,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private final String host;
     Date creation;
     Date accessed; /* when new connection was made using session */
+    protected boolean fromTable = false; /* has this session been registered */
     
     public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
             WolfSSLAuthStore params) {
