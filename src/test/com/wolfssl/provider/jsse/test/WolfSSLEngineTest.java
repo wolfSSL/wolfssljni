@@ -63,7 +63,7 @@ public class WolfSSLEngineTest {
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
-    public final static String engineProvider = "wolfJSSE";
+    public final static String engineProvider = null;
     private static boolean extraDebug = false;
 
     private SSLContext ctx = null;
@@ -615,5 +615,166 @@ public class WolfSSLEngineTest {
         System.out.println("\t... passed");
     }
     
+    @Test
+    public void testThreadedUse()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        String    cipher = null;
+        int ret, i;
+        String[] ciphers;
+        ServerEngine server;
+        ClientEngine client;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting threaded use");
+
+        this.ctx = null; /* create new ctx */
+        createSSLContext("TLS");
+        server = new ServerEngine(this);
+        client = new ClientEngine(this);
+
+        /* use wolfJSSE client */
+//        SSLContext c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
+//        try {
+//            c.init(createKeyManager("SunX509", clientJKS),
+//                    createTrustManager("SunX509", clientJKS), null);
+//        } catch (KeyManagementException ex) {
+//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        client = c.createSSLEngine("wolfSSL client test", 11111);
+//        server = c.createSSLEngine();
+
+        client.setServer(server);
+        server.setClient(client);
+        
+        server.start();
+        client.start();
+        
+        try {
+            server.join(1000);
+            client.join(1000);
+        } catch (InterruptedException ex) {
+            System.out.println("interupt happened");
+            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        System.out.println("\t\t... passed");
+    }
+    
     /* status tests buffer overflow/underflow/closed test */
+    
+    
+    protected class ServerEngine extends Thread
+    {
+        private SSLEngine server;
+        private ClientEngine client;
+        private HandshakeStatus status;
+        
+        public ServerEngine(WolfSSLEngineTest in) {
+            server = in.ctx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            status = HandshakeStatus.NOT_HANDSHAKING;
+        }
+        
+        @Override
+        public void run() {
+            ByteBuffer out =
+                    ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());;
+            ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
+            
+            do {
+                SSLEngineResult result;
+                try {
+                    Runnable run;
+                    result = server.wrap(in, out);
+                    while ((run = server.getDelegatedTask()) != null) {
+                        run.run();
+                    }
+                    if (result.bytesProduced() > 0) {
+                        out.flip();
+                        System.out.println("Server sent " + result.bytesProduced() + " bytes");
+                        client.toClient(out);
+                        out.compact();
+                    }
+                    status = result.getHandshakeStatus();
+                } catch (SSLException ex) {
+                    System.out.println("\t\t... failed");
+                    System.out.println("server handshake error!");
+                    status = HandshakeStatus.NOT_HANDSHAKING;
+                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+                    fail("failed to create engine"); 
+                }
+            } while (status != HandshakeStatus.NOT_HANDSHAKING);
+           
+        }
+        
+        
+        protected void toServer(ByteBuffer in) throws SSLException {
+            SSLEngineResult result;
+            ByteBuffer out =
+                    ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());;
+            result = server.unwrap(in, out);
+            System.out.println("Server read " + result.bytesConsumed() + " bytes");
+        }
+        
+        protected void setClient(ClientEngine in) {
+            client = in;
+        }
+    }
+    
+    protected class ClientEngine extends Thread
+    {
+        private SSLEngine client;
+        private ServerEngine server;
+        private HandshakeStatus status;
+        
+        public ClientEngine(WolfSSLEngineTest in) {
+            client = in.ctx.createSSLEngine("wolfSSL threaded client test", 80);
+            client.setUseClientMode(true);
+            status = HandshakeStatus.NOT_HANDSHAKING;
+        }
+        
+        @Override
+        public void run() {
+            ByteBuffer out =
+                    ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());;
+            ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
+            
+            do {
+                SSLEngineResult result;
+                try {
+                    Runnable run;
+                    result = client.wrap(in, out);
+                    while ((run = client.getDelegatedTask()) != null) {
+                        run.run();
+                    }
+                    if (result.bytesProduced() > 0) {
+                        out.flip();
+                        System.out.println("Client sent " + result.bytesProduced() + " bytes");
+                        server.toServer(out);
+                        out.compact();
+                    }
+                    status = result.getHandshakeStatus();
+                } catch (SSLException ex) {
+                    System.out.println("\t\t... failed");
+                    System.out.println("client handshake error!");
+                    status = HandshakeStatus.NOT_HANDSHAKING;
+                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+                    fail("failed to create engine"); 
+                }
+            } while (status != HandshakeStatus.NOT_HANDSHAKING);
+        }
+        
+        protected void toClient(ByteBuffer in) throws SSLException {
+            SSLEngineResult result;
+            ByteBuffer out = 
+                    ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
+            result = client.unwrap(in, out);
+            System.out.println("Client read " + result.bytesConsumed() + " bytes");
+        }
+        
+        protected void setServer(ServerEngine in) {
+            server = in;
+        }
+    }
 }
