@@ -18,14 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
-
 package com.wolfssl.provider.jsse.test;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -33,33 +30,28 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLEngineResult;
-import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import static org.junit.Assert.fail;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 /**
  * Used to create common classes among test cases
+ *
  * @author wolfSSL
  */
 class WolfSSLTestFactory {
+
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
 
-
     /**
      * Using default password "wolfSSL test"
+     *
      * @param type of key manager i.e. "SunX509"
      * @param file file name to read from
      * @return new trustmanager [] on success and null on failure
@@ -67,7 +59,7 @@ class WolfSSLTestFactory {
     protected TrustManager[] createTrustManager(String type, String file) {
         TrustManagerFactory tm;
         KeyStore cert;
-        
+
         try {
             cert = KeyStore.getInstance("JKS");
             cert.load(new FileInputStream(file), jksPass);
@@ -87,17 +79,18 @@ class WolfSSLTestFactory {
         }
         return null;
     }
-    
+
     /**
      * Using default password "wolfSSL test"
+     *
      * @param type of key manager i.e. "SunX509"
      * @param file file name to read from
      * @return new keymanager [] on success and null on failure
      */
-    private KeyManager[] createKeyManager(String type, String file) {
+    protected KeyManager[] createKeyManager(String type, String file) {
         KeyManagerFactory km;
         KeyStore pKey;
-        
+
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
@@ -122,21 +115,20 @@ class WolfSSLTestFactory {
         }
         return null;
     }
-    
+
     private SSLContext internalCreateSSLContext(String protocol, String provider,
             TrustManager[] tm, KeyManager[] km) {
         SSLContext ctx = null;
         TrustManager[] localTm = tm;
         KeyManager[] localKm = km;
-        
+
         try {
             if (provider != null) {
                 ctx = SSLContext.getInstance(protocol, provider);
+            } else {
+                ctx = SSLContext.getInstance(protocol);
             }
-            else {
-                ctx =  SSLContext.getInstance(protocol);
-            }
-            
+
             if (tm == null) {
                 localTm = createTrustManager("SunX509", clientJKS);
             }
@@ -155,39 +147,39 @@ class WolfSSLTestFactory {
         }
         return null;
     }
-    
+
     /**
      * Creates a new context using default provider of system (usually Oracle)
+     *
      * @param protocol to be used when creating context
      * @return new SSLContext on success and null on failure
      */
     protected SSLContext createSSLContext(String protocol) {
         return internalCreateSSLContext(protocol, null, null, null);
     }
-    
-    
+
     /**
      * Creates a new context using provider passed in
+     *
      * @param protocol to be used when creating context
      * @param provider to be used when creating context
      * @return new SSLContext on success and null on failure
      */
-   protected SSLContext createSSLContext(String protocol, String provider) {
+    protected SSLContext createSSLContext(String protocol, String provider) {
         return internalCreateSSLContext(protocol, provider, null, null);
     }
-   
+
     /**
      * Creates a new context using provider passed in and km/tm
+     *
      * @param protocol to be used when creating context
      * @param provider to be used when creating context (can be null)
      * @param tm trust manager to use (can be null)
      * @param km key manager to use (can be null)
      * @return new SSLContext on success and null on failure
      */
-   protected SSLContext createSSLContext(String protocol, String provider,
-           TrustManager[] tm, KeyManager[] km) {
+    protected SSLContext createSSLContext(String protocol, String provider,
+            TrustManager[] tm, KeyManager[] km) {
         return internalCreateSSLContext(protocol, provider, tm, km);
     }
 }
-
-    
