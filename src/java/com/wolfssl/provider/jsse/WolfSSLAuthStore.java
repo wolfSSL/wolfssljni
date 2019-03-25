@@ -34,6 +34,9 @@ import java.security.SecureRandom;
 import java.lang.IllegalArgumentException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Helper class used to store common settings, objects, etc.
@@ -56,6 +59,8 @@ public class WolfSSLAuthStore {
     private SecureRandom sr = null;
     private String alias = null;
     
+    private SessionStore<Integer, WolfSSLImplementSSLSession> store;
+    
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
@@ -69,6 +74,7 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
+        store = new SessionStore(10); //@TODO set max size correctly
     }
 
     /**
@@ -183,7 +189,8 @@ public class WolfSSLAuthStore {
      * return null on error case or the case where session could not be created.
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl, int port, String host) {
-        /* @TODO session management, for now just always creating a new one */
+        WolfSSLImplementSSLSession ses;
+        String toHash;
         
         if (ssl == null) {
             return null;
@@ -194,13 +201,22 @@ public class WolfSSLAuthStore {
             return this.getSession(ssl);
         }
         
-        return new WolfSSLImplementSSLSession(ssl, port, host, this);
+        /* check if is in table */
+        toHash = host.concat(Integer.toString(port));
+        ses = store.get(toHash.hashCode());
+        if (ses == null) {
+            /* not found in stored sessions create a new one */
+            ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+        }
+        else {
+            ses.resume(ssl);
+        }
+        return ses;
     }
     
     /** Returns a new session, does not check/save for resumption
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
-        /* @TODO session management, for now just always creating a new one */
        return new WolfSSLImplementSSLSession(ssl, this);
     }
     
@@ -210,8 +226,31 @@ public class WolfSSLAuthStore {
      * @return SSL_SUCCESS on success
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
-        session.fromTable = true; /* registered into session table for resumption */
+        String toHash;
+        
+        if (session.getPeerHost() != null) {
+            session.fromTable = true; /* registered into session table for resumption */
+            toHash = session.getPeerHost().concat(Integer.toString(session.getPeerPort()));
+            store.put(toHash.hashCode(), session);
+        }
         return WolfSSL.SSL_SUCCESS;
+    }
+    
+    private class SessionStore<K, V> extends LinkedHashMap<K, V> {
+        private final int maxSz;
+        
+        /**
+         * 
+         * @param in max size of hash map before oldest entry is overwritten
+         */
+        protected SessionStore(int in) {
+            maxSz = in;
+        }
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry oldest) {
+            return size() > maxSz;
+        }
     }
 }
 

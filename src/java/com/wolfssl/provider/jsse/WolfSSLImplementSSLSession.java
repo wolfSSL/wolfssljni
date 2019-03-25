@@ -44,7 +44,7 @@ import javax.security.cert.X509Certificate;
  * @author wolfSSL
  */
 public class WolfSSLImplementSSLSession implements SSLSession {
-    private final WolfSSLSession ssl;
+    private WolfSSLSession ssl;
     private final WolfSSLAuthStore params;
     private boolean valid;
     private final HashMap<String, Object> binding;
@@ -53,6 +53,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     Date creation;
     Date accessed; /* when new connection was made using session */
     protected boolean fromTable = false; /* has this session been registered */
+    private long sesPtr = 0;
     
     public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
             WolfSSLAuthStore params) {
@@ -250,6 +251,24 @@ public class WolfSSLImplementSSLSession implements SSLSession {
          * Max digest sz + BLOC_SZ (iv) + pad byte (1)
          */
         return 16292;
+    }
+    
+    
+    /**
+     * Takes in a new WOLFSSL object and sets the stored session
+     * @param ssl 
+     */
+    protected void resume(WolfSSLSession ssl) {
+        this.ssl = ssl;
+        ssl.setSession(this.sesPtr);
+    }
+    
+    
+    /**
+     * Should be called on shutdown to save the session pointer
+     */
+    protected void setResume() {
+        this.sesPtr = ssl.getSession();
     }
     
     

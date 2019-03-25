@@ -282,11 +282,21 @@ public class WolfSSLEngineHelper {
             throw new SSLException("setUseClientMode has not been called");
         }
         
+        if (this.session != null && this.sessionCreation == false &&
+                !this.session.fromTable) {
+            /* new handshakes can not be made in this case. */
+            if (WolfSSLDebug.DEBUG) {
+                log("session creation not allowed");
+            }
+            throw new SSLException("Session creation not allowed");
+        }
+
         if (this.sessionCreation) {
             /* can only add new sessions to the resumption table if session
              * creation is allowed */
             this.authStore.addSession(this.session);
         }
+
         this.setLocalParams();
     }
     
@@ -326,6 +336,15 @@ public class WolfSSLEngineHelper {
         }
     }
     
+    
+    /**
+     * Saves session on connection close for resumption
+     */
+    protected void saveSession() {
+        if (this.session.isValid()) {
+            this.session.setResume();
+        }
+    }
     
     /**
      * Creates a new SSLPArameters class with the same settings as the one passed
