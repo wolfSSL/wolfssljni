@@ -21,7 +21,6 @@
 
 package com.wolfssl.provider.jsse.test;
 
-import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -32,12 +31,9 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.Provider;
-import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
@@ -47,10 +43,8 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -63,8 +57,9 @@ public class WolfSSLEngineTest {
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
-    public final static String engineProvider = null;
+    public final static String engineProvider = "wolfJSSE";
     private static boolean extraDebug = false;
+    private static WolfSSLTestFactory tf;
 
     private SSLContext ctx = null;
     private static String allProtocols[] = {
@@ -82,6 +77,7 @@ public class WolfSSLEngineTest {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLEngine Class");
+        tf = new WolfSSLTestFactory();
     }
 
     private TrustManager[] createTrustManager(String type, String file) {
@@ -442,7 +438,7 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tTesting creation");
 
-        createSSLContext("TLSv1.2");
+        this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
             System.out.println("\t\t... failed");
@@ -459,7 +455,7 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tTesting setting cipher");
 
-        createSSLContext("TLSv1.2");
+        this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
             System.out.println("\t\t... failed");
@@ -498,7 +494,7 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tTesting cipher connection");
 
-        createSSLContext("TLS");
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
@@ -549,14 +545,12 @@ public class WolfSSLEngineTest {
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
         SSLEngine client;
-        String    cipher = null;
-        int ret, i;
-        String[] ciphers;
+        int ret;
 
         /* create new SSLEngine */
         System.out.print("\tTesting reuse of session");
 
-        createSSLContext("TLS");
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
@@ -624,8 +618,7 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tTesting threaded use");
 
-        this.ctx = null; /* create new ctx */
-        createSSLContext("TLS");
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = new ServerEngine(this);
         client = new ClientEngine(this);
 

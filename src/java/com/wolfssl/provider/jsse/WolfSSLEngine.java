@@ -200,7 +200,7 @@ public class WolfSSLEngine extends SSLEngine {
     
     
     @Override
-    public SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
+    public synchronized SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
         int i, max = 0, ret = 0, idx = 0, pro = 0;
         ByteBuffer tmp;
@@ -288,7 +288,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
     
     @Override
-    public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out, int ofst,
+    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out, int ofst,
             int length) throws SSLException {
         int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
         byte[] tmp;
