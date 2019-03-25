@@ -47,6 +47,7 @@ public class WolfSSLEngineHelper {
     private WolfSSLAuthStore authStore = null;
     private boolean clientMode;
     private boolean sessionCreation = true;
+    private boolean modeSet = false;
 
     /**
      * Always creates a new session
@@ -136,6 +137,7 @@ public class WolfSSLEngineHelper {
         else {
             this.ssl.setAcceptState();
         }
+        this.modeSet = true;
     }
     
     protected boolean getUseClientMode() {
@@ -276,6 +278,10 @@ public class WolfSSLEngineHelper {
      * session.
      * Should be called before doHandshake */
     protected void initHandshake() throws SSLException {
+        if (!modeSet) {
+            throw new SSLException("setUseClientMode has not been called");
+        }
+        
         if (this.sessionCreation) {
             /* can only add new sessions to the resumption table if session
              * creation is allowed */
@@ -286,8 +292,11 @@ public class WolfSSLEngineHelper {
     
     /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
      * WolfSSL.SSL_FAILURE */
-    protected int doHandshake() {
-        
+    protected int doHandshake() throws SSLException {
+        if (!modeSet) {
+            throw new SSLException("setUseClientMode has not been called");
+        }
+
         if (this.sessionCreation == false && !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
             if (WolfSSLDebug.DEBUG) {

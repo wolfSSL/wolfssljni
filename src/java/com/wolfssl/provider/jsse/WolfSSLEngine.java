@@ -56,7 +56,6 @@ public class WolfSSLEngine extends SSLEngine {
     private int toReadSz = 0;
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
     private boolean needInit = true;
-    private boolean modeSet = false;
     
     private boolean inBoundOpen = true;
     private boolean outBoundOpen = true;
@@ -207,11 +206,7 @@ public class WolfSSLEngine extends SSLEngine {
         ByteBuffer tmp;
         byte[] msg;
         int pos[] = new int[len];
-        
-        if (!modeSet) {
-            throw new SSLException("setUseClientMode has not been called");
-        }
-        
+
         if (needInit) {
             EngineHelper.initHandshake();
             needInit = false;
@@ -298,11 +293,7 @@ public class WolfSSLEngine extends SSLEngine {
         int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
         byte[] tmp;
         Status status;
-        
-        if (!modeSet) {
-            throw new SSLException("setUseClientMode has not been called");
-        }
-                
+
         if (needInit) {
             EngineHelper.initHandshake();
             needInit = false;
@@ -471,9 +462,6 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public void beginHandshake() throws SSLException {
-        if (!modeSet) {
-            throw new SSLException("setUseClientMode has not been called");
-        }
         EngineHelper.initHandshake();
         EngineHelper.doHandshake();
     }
@@ -485,7 +473,6 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public void setUseClientMode(boolean mode) {
-        modeSet = true;
         EngineHelper.setUseClientMode(mode);
     }
 
