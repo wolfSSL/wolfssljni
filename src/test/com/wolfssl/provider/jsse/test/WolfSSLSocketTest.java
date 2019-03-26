@@ -345,31 +345,33 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting basic client/server");
 
-
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
-        /* create client/server objects */
-        TestServer server = new TestServer(this);
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestServer server = new TestServer(this, ss);
         server.start();
 
-        TestClient client = new TestClient(this, server.getPort());
+        TestClient client = new TestClient(this, ss.getLocalPort());
         client.start();
 
-        Exception srvException = server.getException();
-        Exception cliException = client.getException();
 
+        Exception srvException = server.getException();
         if (srvException != null) {
             throw srvException;
         }
 
+        Exception cliException = client.getException();
         if (cliException != null) {
             throw cliException;
         }
 
         try {
-            server.join(1000);
             client.join(1000);
+            server.join(1000);
 
         } catch (InterruptedException e) {
             System.out.println("interrupt happened");
@@ -385,22 +387,18 @@ public class WolfSSLSocketTest {
         private int port;
         private Exception exception = null;
         WolfSSLSocketTest wst;
+        SSLServerSocket ss = null;
 
-        public TestServer(WolfSSLSocketTest in) {
+        public TestServer(WolfSSLSocketTest in, SSLServerSocket ss) {
             this.ctx = in.ctx;
             this.wst = in;
+            this.ss = ss;
         }
 
         @Override
         public void run() {
 
             try {
-                SSLServerSocket ss;
-                synchronized(wst.portLock) {
-                    ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                        .createServerSocket(0);
-                    this.port = ss.getLocalPort();
-                }
                 SSLSocket sock = (SSLSocket)ss.accept();
                 sock.startHandshake();
                 int in = sock.getInputStream().read();
@@ -412,12 +410,6 @@ public class WolfSSLSocketTest {
                 this.exception = e;
                 Logger.getLogger(WolfSSLSocketTest.class.getName())
                     .log(Level.SEVERE, null, e);
-            }
-        }
-
-        public int getPort() {
-            synchronized(wst.portLock) {
-                return this.port;
             }
         }
 
