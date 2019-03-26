@@ -49,21 +49,20 @@ class WolfSSLTestFactory {
     public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
 
-    /**
-     * Using default password "wolfSSL test"
-     *
-     * @param type of key manager i.e. "SunX509"
-     * @param file file name to read from
-     * @return new trustmanager [] on success and null on failure
-     */
-    protected TrustManager[] createTrustManager(String type, String file) {
+    private TrustManager[] internalCreateTrustManager(String type, String file,
+            String provider) {
         TrustManagerFactory tm;
         KeyStore cert;
-
+        
         try {
             cert = KeyStore.getInstance("JKS");
             cert.load(new FileInputStream(file), jksPass);
-            tm = TrustManagerFactory.getInstance(type);
+            if (provider == null) {
+                tm = TrustManagerFactory.getInstance(type);
+            }
+            else {
+                tm = TrustManagerFactory.getInstance(type, provider);
+            }
             tm.init(cert);
             return tm.getTrustManagers();
         } catch (NoSuchAlgorithmException ex) {
@@ -76,18 +75,37 @@ class WolfSSLTestFactory {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (CertificateException ex) {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(WolfSSLTestFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
-
+    
     /**
      * Using default password "wolfSSL test"
      *
      * @param type of key manager i.e. "SunX509"
      * @param file file name to read from
-     * @return new keymanager [] on success and null on failure
+     * @return new trustmanager [] on success and null on failure
      */
-    protected KeyManager[] createKeyManager(String type, String file) {
+    protected TrustManager[] createTrustManager(String type, String file) {
+        return internalCreateTrustManager(type, file, null);
+    }
+    
+    /**
+     * Using default password "wolfSSL test"
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param file file name to read from
+     * @return new trustmanager [] on success and null on failure
+     */
+    protected TrustManager[] createTrustManager(String type, String file,
+            String provider) {
+        return internalCreateTrustManager(type, file, provider);
+    }
+
+    private KeyManager[] internalCreateKeyManager(String type, String file,
+            String provider) {
         KeyManagerFactory km;
         KeyStore pKey;
 
@@ -97,7 +115,12 @@ class WolfSSLTestFactory {
             pKey.load(new FileInputStream(file), jksPass);
 
             /* load private key */
-            km = KeyManagerFactory.getInstance(type);
+            if (provider == null) {
+                km = KeyManagerFactory.getInstance(type);
+            }
+            else {
+                km = KeyManagerFactory.getInstance(type, provider);
+            }
             km.init(pKey, jksPass);
             return km.getKeyManagers();
         } catch (NoSuchAlgorithmException ex) {
@@ -112,8 +135,33 @@ class WolfSSLTestFactory {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
         } catch (UnrecoverableKeyException ex) {
             Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(WolfSSLTestFactory.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+    
+    /**
+     * Using default password "wolfSSL test"
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param file file name to read from
+     * @return new keymanager [] on success and null on failure
+     */
+    protected KeyManager[] createKeyManager(String type, String file) {
+        return internalCreateKeyManager(type, file, null);
+    }
+    
+    /**
+     * Using default password "wolfSSL test"
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param file file name to read from
+     * @return new keymanager [] on success and null on failure
+     */
+    protected KeyManager[] createKeyManager(String type, String file,
+            String provider) {
+        return internalCreateKeyManager(type, file, provider);
     }
 
     private SSLContext internalCreateSSLContext(String protocol, String provider,
@@ -125,13 +173,22 @@ class WolfSSLTestFactory {
         try {
             if (provider != null) {
                 ctx = SSLContext.getInstance(protocol, provider);
+                if (tm == null) {
+                    localTm = createTrustManager("SunX509", clientJKS);
+                }
+                if (km == null) {
+                    localKm = createKeyManager("SunX509", clientJKS);
+                }
             } else {
                 ctx = SSLContext.getInstance(protocol);
+                if (tm == null) {
+                    localTm = createTrustManager("SunX509", clientJKS, provider);
+                }
+                if (km == null) {
+                    localKm = createKeyManager("SunX509", clientJKS, provider);
+                }
             }
 
-            if (tm == null) {
-                localTm = createTrustManager("SunX509", clientJKS);
-            }
             if (km == null) {
                 localKm = createKeyManager("SunX509", clientJKS);
             }
