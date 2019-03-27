@@ -312,6 +312,11 @@ public class WolfSSLEngineHelper {
             if (WolfSSLDebug.DEBUG) {
                 log("session creation not allowed");
             }
+
+            /* send CloseNotify */
+            /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+            this.ssl.shutdownSSL();
+
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
 
