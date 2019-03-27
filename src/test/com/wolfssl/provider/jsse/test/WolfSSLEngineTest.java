@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,6 +32,8 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.Provider;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
@@ -45,6 +48,7 @@ import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -77,82 +81,17 @@ public class WolfSSLEngineTest {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLEngine Class");
+        
+        /* install wolfJSSE provider at runtime */
+        Security.addProvider(new WolfSSLProvider());
+
+        Provider p = Security.getProvider("wolfJSSE");
+        assertNotNull(p);
+        
         tf = new WolfSSLTestFactory();
     }
 
-    private TrustManager[] createTrustManager(String type, String file) {
-        TrustManagerFactory tm;
-        KeyStore cert;
-        
-        try {
-            cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(file), jksPass);
-            tm = TrustManagerFactory.getInstance(type);
-            tm.init(cert);
-            return tm.getTrustManagers();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (CertificateException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
-    }
-    
-    private KeyManager[] createKeyManager(String type, String file) {
-        KeyManagerFactory km;
-        KeyStore pKey;
-        
-        try {
-            /* set up KeyStore */
-            pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(file), jksPass);
 
-            /* load private key */
-            km = KeyManagerFactory.getInstance(type);
-            km.init(pKey, jksPass);
-            return km.getKeyManagers();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (CertificateException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (UnrecoverableKeyException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
-    }
-    
-    private void createSSLContext(String protocol) {
-        try {
-            if (engineProvider != null) {
-                this.ctx = SSLContext.getInstance(protocol, engineProvider);
-            }
-            else {
-                this.ctx = SSLContext.getInstance(protocol);
-            }
-            this.ctx.init(createKeyManager("SunX509", clientJKS),
-                     createTrustManager("SunX509", clientJKS), null);
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyManagementException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchProviderException ex) {
-            System.out.println("Could not find the provider : " + engineProvider);
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
     private int CloseConnection(SSLEngine server, SSLEngine client, boolean earlyClose) throws SSLException {
         ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
         ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
@@ -441,10 +380,10 @@ public class WolfSSLEngineTest {
         this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
-            System.out.println("\t\t... failed");
+            error("\t\t... failed");
             fail("failed to create engine");   
         }
-        System.out.println("\t\t... passed");
+        pass("\t\t... passed");
     }
     
     @Test
@@ -458,7 +397,7 @@ public class WolfSSLEngineTest {
         this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
-            System.out.println("\t\t... failed");
+            error("\t\t... failed");
             fail("failed to create engine");   
         }
         
@@ -476,10 +415,10 @@ public class WolfSSLEngineTest {
         e.setEnabledCipherSuites(new String[] {sup[0]});
         if (e.getEnabledCipherSuites() == null ||
                 !sup[0].equals(e.getEnabledCipherSuites()[0])) {
-            System.out.println("\t\t... failed");
+            error("\t\t... failed");
             fail("unexpected empty cipher list");   
         }
-        System.out.println("\t\t... passed");
+        pass("\t\t... passed");
     }
 
     @Test
@@ -522,22 +461,99 @@ public class WolfSSLEngineTest {
         ret = testConnection(server, client, new String[] { cipher },
                 new String[] { "TLSv1.2" }, "Test cipher suite");
         if (ret != 0) {
-            System.out.println("\t... failed");
+            error("\t... failed");
+            System.out.println("failed with ret = "  + ret);
             fail("failed to create engine");   
         }
-        System.out.println("\t... passed");
+
+        /* check if inbound is still open */
+        if (server.isInboundDone() && client.isInboundDone()) {
+            error("\t... failed");
+            fail("inbound done too early"); 
+        }
         
-        
+        /* check if outbound is still open */
+        if (server.isOutboundDone() && client.isOutboundDone()) {
+            error("\t... failed");
+            fail("outbound done too early"); 
+        }
+        pass("\t... passed");
         
         System.out.print("\tTesting close connection");        
         try {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            System.out.println("\t... failed");
+            error("\t... failed");
             fail("failed to create engine"); 
         }
-        System.out.println("\t... passed");
+        
+        /* check if inbound is still open */
+        if (!server.isInboundDone() || !client.isInboundDone()) {
+            error("\t... failed");
+            fail("inbound is not done"); 
+        }
+        
+        /* check if outbound is still open */
+        if (!server.isOutboundDone() || !client.isOutboundDone()) {
+            error("\t... failed");
+            fail("outbound is not done"); 
+        }
+        
+        /* close inbound should do nothing now */
+        try {
+            server.closeInbound();
+        } catch (SSLException ex) {
+            error("\t... failed");
+            fail("close inbound failure"); 
+        }
+        
+        pass("\t... passed");
+    }
+    
+    @Test
+    public void testConnectionOutIn()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine server;
+        SSLEngine client;
+        int ret;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting out/in bound");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+
+        ret = testConnection(server, client, null, null, "Test in/out bound");
+        if (ret != 0) {
+            error("\t\t... failed");
+            System.out.println("failed with ret = "  + ret);
+            fail("failed to create engine");   
+        }
+
+        /* check if inbound is still open */
+        if (server.isInboundDone() && client.isInboundDone()) {
+            error("\t\t... failed");
+            fail("inbound done too early"); 
+        }
+        
+        /* check if outbound is still open */
+        if (server.isOutboundDone() && client.isOutboundDone()) {
+            error("\t\t... failed");
+            fail("outbound done too early"); 
+        }
+        
+        /* close inbound before peer responded to shutdown should fail */
+        try {
+            server.closeInbound();
+            System.out.println("closed inbound early");
+            error("\t\t... failed");
+            fail("was able to incorrectly close inbound"); 
+        } catch (SSLException ex) {
+        }
+
+        pass("\t\t... passed");
     }
     
     @Test
@@ -567,7 +583,7 @@ public class WolfSSLEngineTest {
 
         ret = testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
-            System.out.println("\t... failed");
+            error("\t... failed");
             fail("failed to create engine");   
         }
              
@@ -575,7 +591,7 @@ public class WolfSSLEngineTest {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            System.out.println("\t... failed");
+            error("\t... failed");
             fail("failed to create engine"); 
         }
 
@@ -596,17 +612,17 @@ public class WolfSSLEngineTest {
         client.setEnableSessionCreation(false);
         ret = testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
-            System.out.println("\t... failed");
+            error("\t... failed");
             fail("failed to create engine");   
         }
         try {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            System.out.println("\t... failed");
+            error("\t... failed");
             fail("failed to create engine"); 
         }
-        System.out.println("\t... passed");
+        pass("\t... passed");
     }
     
     @Test
@@ -648,14 +664,22 @@ public class WolfSSLEngineTest {
         }
 
         if (!server.success || !client.success) {
-            System.out.println("\t\t... failed");
+            error("\t\t... failed");
             fail("failed to successfully connect");   
         }
-        System.out.println("\t\t... passed");
+        pass("\t\t... passed");
     }
     
     /* status tests buffer overflow/underflow/closed test */
     
+    
+    private void pass(String msg) {
+        WolfSSLTestFactory.pass(msg);
+    }
+    
+    private void error(String msg) {
+        WolfSSLTestFactory.fail(msg);
+    }
     
     protected class ServerEngine extends Thread
     {
