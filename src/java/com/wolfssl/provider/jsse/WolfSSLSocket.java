@@ -398,14 +398,13 @@ public class WolfSSLSocket extends SSLSocket {
     synchronized public void startHandshake() throws IOException {
         int ret;
 
+        /* will throw SSLHandshakeException if session creation is
+           not allowed */
+        EngineHelper.initHandshake();
+
         ret = EngineHelper.doHandshake();
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-
-            if (ret == WolfSSL.SSL_HANDSHAKE_FAILURE) {
-                throw new SSLHandshakeException("This session is not " +
-                    "allowed to create new sessions");
-            }
 
             int err = ssl.getError(ret);
             String errStr = WolfSSL.getErrorString(err);
