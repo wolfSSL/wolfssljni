@@ -151,7 +151,7 @@ public class WolfSSLContext extends SSLContextSpi {
          * and in the priority order of ECC first, then RSA */
         ArrayList<String> keyAlgos = new ArrayList<String>();
         if (WolfSSL.EccEnabled()) {
-            keyAlgos.add("ECC");
+            keyAlgos.add("EC");
         }
         if (WolfSSL.RsaEnabled()) {
             keyAlgos.add("RSA");
@@ -186,15 +186,17 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         if (debug.DEBUG) {
-            log("loaded private key from KeyManager");
+            log("loaded private key from KeyManager (alias: " + alias + ")");
         }
 
         /* client certificate chain */
         X509Certificate[] cert = km.getCertificateChain(alias);
         ByteArrayOutputStream certStream = new ByteArrayOutputStream();
+        int chainLength = 0;
         for (int i = 0; i < cert.length; i++) {
             /* concatenate certs into single byte array */
             certStream.write(cert[i].getEncoded());
+            chainLength++;
         }
         byte certChain[] = certStream.toByteArray();
 
@@ -207,7 +209,8 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         if (debug.DEBUG) {
-            log("loaded certificate chain from KeyManager");
+            log("loaded certificate chain from KeyManager (length: " +
+                chainLength + ")");
         }
     }
 
