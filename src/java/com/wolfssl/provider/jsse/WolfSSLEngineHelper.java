@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLHandshakeException;
 
 /**
  * This is a helper function to account for similar methods between SSLSocket
@@ -288,7 +289,12 @@ public class WolfSSLEngineHelper {
             if (WolfSSLDebug.DEBUG) {
                 log("session creation not allowed");
             }
-            throw new SSLException("Session creation not allowed");
+
+            /* send CloseNotify */
+            /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+            this.ssl.shutdownSSL();
+
+            throw new SSLHandshakeException("Session creation not allowed");
         }
 
         if (this.sessionCreation) {
