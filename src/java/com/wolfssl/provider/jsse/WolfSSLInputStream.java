@@ -30,6 +30,7 @@ import com.wolfssl.WolfSSLSession;
 public class WolfSSLInputStream extends InputStream {
 
     private WolfSSLSession ssl;
+    final private Object readLock = new Object();
 
     public WolfSSLInputStream(WolfSSLSession ssl) {
         this.ssl = ssl;
@@ -84,28 +85,30 @@ public class WolfSSLInputStream extends InputStream {
             data = b;
         }
 
-        try {
+        synchronized (readLock) {
+            try {
 
-            ret = ssl.read(data, len);
-            if (ret <= 0) {
-                int err = ssl.getError(ret);
-                String errStr = WolfSSL.getErrorString(err);
+                ret = ssl.read(data, len);
+                if (ret <= 0) {
+                    int err = ssl.getError(ret);
+                    String errStr = WolfSSL.getErrorString(err);
 
-                throw new IOException("Native wolfSSL read() failed: " +
-                    errStr + " (error code: " + err + ")");
+                    throw new IOException("Native wolfSSL read() failed: " +
+                        errStr + " (error code: " + err + ")");
+                }
+
+            } catch (IllegalStateException e) {
+                throw new IOException(e);
             }
 
-        } catch (IllegalStateException e) {
-            throw new IOException(e);
-        }
+            if (off != 0) {
+                /* copy data into original array at offset */
+                System.arraycopy(data, 0, b, off, ret);
+            }
 
-        if (off != 0) {
-            /* copy data into original array at offset */
-            System.arraycopy(data, 0, b, off, ret);
+            /* return number of bytes read */
+            return ret;
         }
-
-        /* return number of bytes read */
-        return ret;
     }
 }
 

@@ -93,12 +93,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public String[] getEnabledCipherSuites() {
+    synchronized public String[] getEnabledCipherSuites() {
         return params.getCipherSuites();
     }
 
     @Override
-    public void setEnabledCipherSuites(String[] suites)
+    synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
@@ -120,12 +120,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public String[] getEnabledProtocols() {
+    synchronized public String[] getEnabledProtocols() {
         return params.getProtocols();
     }
 
     @Override
-    public void setEnabledProtocols(String[] protocols)
+    synchronized public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
@@ -137,7 +137,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public void setNeedClientAuth(boolean need) {
+    synchronized public void setNeedClientAuth(boolean need) {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setNeedClientAuth(need);
@@ -148,12 +148,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public boolean getNeedClientAuth() {
+    synchronized public boolean getNeedClientAuth() {
         return params.getNeedClientAuth();
     }
 
     @Override
-    public void setWantClientAuth(boolean want) {
+    synchronized public void setWantClientAuth(boolean want) {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setWantClientAuth(want);
@@ -164,12 +164,13 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public boolean getWantClientAuth() {
+    synchronized public boolean getWantClientAuth() {
         return params.getWantClientAuth();
     }
 
     @Override
-    public void setUseClientMode(boolean mode) throws IllegalArgumentException {
+    synchronized public void setUseClientMode(boolean mode)
+        throws IllegalArgumentException {
 
         clientMode = mode;
 
@@ -179,12 +180,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public boolean getUseClientMode() {
+    synchronized public boolean getUseClientMode() {
         return clientMode;
     }
 
     @Override
-    public void setEnableSessionCreation(boolean flag) {
+    synchronized public void setEnableSessionCreation(boolean flag) {
 
         enableSessionCreation = flag;
 
@@ -194,12 +195,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public boolean getEnableSessionCreation() {
+    synchronized public boolean getEnableSessionCreation() {
         return enableSessionCreation;
     }
 
     @Override
-    public Socket accept() throws IOException {
+    synchronized public Socket accept() throws IOException {
 
         /* protected method inherited from ServerSocket, returns
            a connected socket */

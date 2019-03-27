@@ -304,13 +304,13 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public String[] getEnabledCipherSuites() {
+    synchronized public String[] getEnabledCipherSuites() {
         /* returns cipher suites set by user, or null if none have been set */
         return EngineHelper.getCiphers();
     }
 
     @Override
-    public void setEnabledCipherSuites(String[] suites)
+    synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
 
         /* sets cipher suite(s) to be used for connection */
@@ -329,14 +329,14 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public String[] getEnabledProtocols() {
+    synchronized public String[] getEnabledProtocols() {
 
         /* returns protocols versions enabled for this session */
         return EngineHelper.getProtocols();
     }
 
     @Override
-    public void setEnabledProtocols(String[] protocols)
+    synchronized public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
 
         /* sets protocol versions to be enabled for use with this session */
@@ -348,12 +348,12 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public SSLSession getSession() {
+    synchronized public SSLSession getSession() {
         return EngineHelper.getSession();
     }
 
     @Override
-    public void addHandshakeCompletedListener(
+    synchronized public void addHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
 
         if (listener == null) {
@@ -373,7 +373,7 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public void removeHandshakeCompletedListener(
+    synchronized public void removeHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
 
         if (listener == null) {
@@ -395,7 +395,7 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public void startHandshake() throws IOException {
+    synchronized public void startHandshake() throws IOException {
         int ret;
 
         ret = EngineHelper.doHandshake();
@@ -431,7 +431,8 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public void setUseClientMode(boolean mode) throws IllegalArgumentException {
+    synchronized public void setUseClientMode(boolean mode)
+        throws IllegalArgumentException {
 
         EngineHelper.setUseClientMode(mode);
 
@@ -441,12 +442,12 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public boolean getUseClientMode() {
+    synchronized public boolean getUseClientMode() {
         return EngineHelper.getUseClientMode();
     }
 
     @Override
-    public void setNeedClientAuth(boolean need) {
+    synchronized public void setNeedClientAuth(boolean need) {
 
         EngineHelper.setNeedClientAuth(need);
 
@@ -456,12 +457,12 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public boolean getNeedClientAuth() {
+    synchronized public boolean getNeedClientAuth() {
         return EngineHelper.getNeedClientAuth();
     }
 
     @Override
-    public void setWantClientAuth(boolean want) {
+    synchronized public void setWantClientAuth(boolean want) {
 
         EngineHelper.setWantClientAuth(want);
 
@@ -471,12 +472,12 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public boolean getWantClientAuth() {
+    synchronized public boolean getWantClientAuth() {
         return EngineHelper.getWantClientAuth();
     }
 
     @Override
-    public void setEnableSessionCreation(boolean flag) {
+    synchronized public void setEnableSessionCreation(boolean flag) {
 
         EngineHelper.setEnableSessionCreation(flag);
 
@@ -486,22 +487,22 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public boolean getEnableSessionCreation() {
+    synchronized public boolean getEnableSessionCreation() {
         return EngineHelper.getEnableSessionCreation();
     }
 
     @Override
-    public InputStream getInputStream() throws IOException {
+    synchronized public InputStream getInputStream() throws IOException {
         return inStream;
     }
 
     @Override
-    public OutputStream getOutputStream() throws IOException {
+    synchronized public OutputStream getOutputStream() throws IOException {
         return outStream;
     }
 
     @Override
-    public void close() throws IOException {
+    synchronized public void close() throws IOException {
         try {
             if (ssl != null) {
                 if (debug.DEBUG) {
@@ -521,7 +522,8 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public void connect(SocketAddress endpoint) throws IOException {
+    synchronized public void connect(SocketAddress endpoint)
+        throws IOException {
 
         if (!(endpoint instanceof InetSocketAddress)) {
             throw new IllegalArgumentException("endpoint is not of type " +
@@ -544,7 +546,7 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     @Override
-    public void connect(SocketAddress endpoint, int timeout)
+    synchronized public void connect(SocketAddress endpoint, int timeout)
         throws IOException {
 
         if (!(endpoint instanceof InetSocketAddress)) {

@@ -30,6 +30,7 @@ import com.wolfssl.WolfSSLSession;
 public class WolfSSLOutputStream extends OutputStream {
 
     private WolfSSLSession ssl;
+    final private Object writeLock = new Object();
 
     public WolfSSLOutputStream(WolfSSLSession ssl) {
         this.ssl = ssl;
@@ -66,19 +67,21 @@ public class WolfSSLOutputStream extends OutputStream {
             data = b;
         }
 
-        try {
-            ret = ssl.write(data, len);
+        synchronized (writeLock) {
+            try {
+                ret = ssl.write(data, len);
 
-            if (ret <= 0) {
-                int err = ssl.getError(ret);
-                String errStr = WolfSSL.getErrorString(err);
+                if (ret <= 0) {
+                    int err = ssl.getError(ret);
+                    String errStr = WolfSSL.getErrorString(err);
 
-                throw new IOException("Native wolfSSL write() failed: " +
-                    errStr + " (error code: " + err + ")");
+                    throw new IOException("Native wolfSSL write() failed: " +
+                        errStr + " (error code: " + err + ")");
+                }
+
+            } catch (IllegalStateException e) {
+                throw new IOException(e);
             }
-
-        } catch (IllegalStateException e) {
-            throw new IOException(e);
         }
     }
 }
