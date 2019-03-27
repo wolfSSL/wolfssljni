@@ -101,7 +101,10 @@ public class WolfSSLContext extends SSLContextSpi {
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
-        }    
+        }
+
+        /* auto-populate enabled ciphersuites with supported ones */
+        params.setCipherSuites(WolfSSL.getCiphersIana());
     }
     
     private void LoadTrustedRootCerts() {

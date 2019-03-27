@@ -196,7 +196,7 @@ public class WolfSSLSocketTest {
             SSLSocket s = socks.get(i);
             String[] cipherSuites = s.getEnabledCipherSuites();
 
-            if (cipherSuites != null) {
+            if (cipherSuites == null) {
                 System.out.println("\t... failed");
                 fail("SSLSocket.getEnabledCipherSuites() failed");
             }
