@@ -42,6 +42,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
@@ -455,6 +456,155 @@ public class WolfSSLSocketTest {
         ss.close();
 
         System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testSetUseClientMode() throws Exception {
+
+        System.out.print("\tget/setUseClientMode()");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        /* test getter/setter on client socket, then restore to true */
+        assertEquals(cs.getUseClientMode(), true);
+        cs.setUseClientMode(false);
+        assertEquals(cs.getUseClientMode(), false);
+        cs.setUseClientMode(true);
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        /* should default to false */
+        assertEquals(server.getUseClientMode(), false);
+
+        /* set client mode on server socket, should produce exception */
+        server.setUseClientMode(true);
+
+        /* verify getter works */
+        assertEquals(server.getUseClientMode(), true);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                    System.out.println("\t\t... failed");
+                    fail();
+                } catch (SSLHandshakeException e) {
+                    /* expected: Out of order message, fatal */
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            System.out.println("\t\t... failed");
+            fail();
+
+        } catch (SSLHandshakeException e) {
+            /* expected, Out of order message, fatal */
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        /* TODO: enable this when fixed.
+        /* calling setUseClientMode() after handshake should throw exception */
+        /*ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server2 = (SSLSocket)ss.accept();
+
+        es = Executors.newSingleThreadExecutor();
+        serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server2.startHandshake();
+                    server2.setUseClientMode(true);
+                    System.out.println("\t\t... failed");
+                    fail();
+                } catch (IllegalArgumentException e) {
+                    // expected
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server2.close();
+        ss.close();*/
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testGetSSLParameters() throws Exception {
+
+        System.out.print("\tget/setSSLParameters()");
+
+        /* create new CTX, SSLSocket */
+        this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
+        SSLSocket s = (SSLSocket)ctx.getSocketFactory().createSocket();
+
+        SSLParameters p = s.getSSLParameters();
+        assertNotNull(p);
+
+        /* TODO: this returns null for wolfJSSE. */
+        /* assertNotNull(p.getAlgorithmConstraints()); */
+
+        /* TODO: uncomment when fixed, wolfJSSE returns null */
+        //String[] suites = p.getCipherSuites();
+        //assertNotNull(suites);
+        //assertNotSame(suites, p.getCipherSuites());  /* should return copy */
+        assertNotNull(s.getSupportedCipherSuites());
+        p.setCipherSuites(s.getSupportedCipherSuites());
+        assertArrayEquals(s.getSupportedCipherSuites(), p.getCipherSuites());
+
+        assertFalse(p.getNeedClientAuth());          /* default: false */
+        p.setNeedClientAuth(true);
+        assertTrue(p.getNeedClientAuth());
+
+        assertFalse(p.getWantClientAuth());          /* default: false */
+        p.setWantClientAuth(true);
+        assertTrue(p.getWantClientAuth());
+
+        /* TODO: uncomment when fixed. wolfJSSE returns null */
+        //String[] protos = p.getProtocols();
+        //assertNotNull(protos);
+        //assertNotSame(protos, p.getProtocols());
+        assertNotNull(s.getSupportedProtocols());
+        p.setProtocols(s.getSupportedProtocols());
+        assertArrayEquals(s.getSupportedProtocols(), p.getProtocols());
+
+        s.close();
+
+        System.out.println("\t\t... passed");
     }
 
     @Test
