@@ -30,6 +30,10 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
 
@@ -42,6 +46,10 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.HandshakeCompletedEvent;
 import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
@@ -68,6 +76,9 @@ public class WolfSSLSocketTest {
 
     private SSLContext ctx = null;
     protected Object portLock = new Object();
+
+    static boolean clientFlag = false;
+    static boolean serverFlag = false;
 
     private static String allProtocols[] = {
         "TLSV1",
@@ -376,6 +387,213 @@ public class WolfSSLSocketTest {
         } catch (InterruptedException e) {
             System.out.println("interrupt happened");
             fail("Threaded client/server test failed");
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testEnableSessionCreation() throws Exception {
+
+        System.out.print("\tget/setEnableSessionCreation()");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        /* test getter/setter on client socket */
+        assertEquals(cs.getEnableSessionCreation(), true);
+        cs.setEnableSessionCreation(false);
+        assertEquals(cs.getEnableSessionCreation(), false);
+        cs.setEnableSessionCreation(true);
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        /* should default to true */
+        assertEquals(server.getEnableSessionCreation(), true);
+
+        /* disable session creation on server socket, should produce error */
+        server.setEnableSessionCreation(false);
+
+        /* verify getter works */
+        assertEquals(server.getEnableSessionCreation(), false);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                    System.out.println("\t... failed");
+                    fail();
+                } catch (SSLException e) {
+                    /* expected, SSLSocket not allowed to make new sessions */
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            System.out.println("\t... failed");
+            fail();
+
+        } catch (SSLHandshakeException e) {
+            /* expected, server should send alert back to client */
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testAddHandshakeCompletedListener() throws Exception {
+
+        System.out.print("\taddHandshakeCompletedListener()");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+        this.clientFlag = false;
+        this.serverFlag = false;
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        HandshakeCompletedListener clientListener =
+            new HandshakeCompletedListener() {
+            @Override
+            public void handshakeCompleted(HandshakeCompletedEvent event) {
+                /* toggle client flag */
+                clientFlag = true;
+            }
+        };
+
+        /* test failure on null argument */
+        try {
+            cs.addHandshakeCompletedListener(null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        /* test successful registration for client listener */
+        try {
+            cs.addHandshakeCompletedListener(clientListener);
+        } catch (IllegalArgumentException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        HandshakeCompletedListener serverListener =
+            new HandshakeCompletedListener() {
+            @Override
+            public void handshakeCompleted(HandshakeCompletedEvent event) {
+                /* toggle client flag */
+                serverFlag = true;
+            }
+        };
+
+        /* test failure on null argument */
+        try {
+            server.addHandshakeCompletedListener(null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        /* test successful registration for server listener */
+        try {
+            server.addHandshakeCompletedListener(serverListener);
+        } catch (IllegalArgumentException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        /* verify that handshake listeners were called */
+        if (clientFlag != true || serverFlag != true) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        /* test removing handshake listners */
+        try {
+            server.removeHandshakeCompletedListener(serverListener);
+        } catch (IllegalArgumentException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        try {
+            cs.removeHandshakeCompletedListener(clientListener);
+        } catch (IllegalArgumentException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        /* should throw exception if we remove one not registered */
+        try {
+            server.removeHandshakeCompletedListener(serverListener);
+            System.out.println("\t... failed");
+            fail();
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        /* should throw exception if we use null argument */
+        try {
+            server.removeHandshakeCompletedListener(null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (IllegalArgumentException e) {
+            /* expected */
         }
 
         System.out.println("\t... passed");
