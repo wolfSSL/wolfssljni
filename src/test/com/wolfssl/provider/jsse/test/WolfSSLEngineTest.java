@@ -35,7 +35,9 @@ import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -221,6 +223,21 @@ public class WolfSSLEngineTest {
         return 0;
     }
     
+    /* prints in a format that can be imported into wireshark */
+    private void printHex(ByteBuffer in) {
+        int i = 0, j = 0;
+        while (in.remaining() > 0) {
+            if ((i % 8) == 0) {
+                System.out.printf("\n%06X", j * 8);
+                j++;
+            }
+            System.out.printf(" %02X ", in.get());
+            i++;
+        }
+        System.out.println("");
+        in.flip();
+    }
+    
     private int testConnection(SSLEngine server, SSLEngine client,
             String[] cipherSuites, String[] protocols, String appData) {
         ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
@@ -286,18 +303,12 @@ public class WolfSSLEngineTest {
                 if (extraDebug) {
                     if (cliToSer.remaining() > 0) {
                         System.out.println("Client -> Server");
-                        while (cliToSer.remaining() > 0)
-                            System.out.printf("%02X", cliToSer.get());
-                        System.out.println("");
-                        cliToSer.flip();
+                        printHex(cliToSer);
                     }
 
                     if (serToCli.remaining() > 0) {
                         System.out.println("Server -> Client");
-                        while (serToCli.remaining() > 0)
-                            System.out.printf("%02X", serToCli.get());
-                        System.out.println("");
-                        serToCli.flip();
+                        printHex(serToCli);
                     }
 
                     System.out.println("cliToSer remaning = " + cliToSer.remaining());
@@ -429,6 +440,8 @@ public class WolfSSLEngineTest {
         String    cipher = null;
         int ret, i;
         String[] ciphers;
+        String   certType;
+        Certificate[] certs;
 
         /* create new SSLEngine */
         System.out.print("\tTesting cipher connection");
@@ -450,19 +463,32 @@ public class WolfSSLEngineTest {
 
 
         ciphers = client.getSupportedCipherSuites();
-        
-        /* use a ECDHE-RSA suite if available */
-        for (String x : ciphers) {
-            if (x.contains("ECDHE_RSA")) {
-                cipher = x;
-                break;
+        certs = server.getSession().getLocalCertificates();
+        if (certs != null) {
+            certType = ((X509Certificate)certs[0]).getSigAlgName();
+            if (certType.contains("RSA")) {
+                /* use a ECDHE-RSA suite if available */
+                for (String x : ciphers) {
+                    if (x.contains("ECDHE_RSA")) {
+                        cipher = x;
+                        break;
+                    }
+                }
+            }
+            if (certType.contains("ECDSA")) {
+                /* use a ECDHE-RSA suite if available */
+                for (String x : ciphers) {
+                    if (x.contains("ECDHE_ECDSA")) {
+                        cipher = x;
+                        break;
+                    }
+                }
             }
         }
         ret = testConnection(server, client, new String[] { cipher },
                 new String[] { "TLSv1.2" }, "Test cipher suite");
         if (ret != 0) {
             error("\t... failed");
-            System.out.println("failed with ret = "  + ret);
             fail("failed to create engine");   
         }
 
@@ -523,7 +549,7 @@ public class WolfSSLEngineTest {
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+        client = this.ctx.createSSLEngine("wolfSSL in/out test", 11111);
 
         ret = testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
