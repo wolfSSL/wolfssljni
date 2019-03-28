@@ -202,8 +202,7 @@ public class WolfSSLSocketTest {
             }
 
             /* verify we return a copy */
-            /* TODO: uncomment when fixed */
-            //assertNotSame(cipherSuites, s.getEnabledCipherSuites());
+            assertNotSame(cipherSuites, s.getEnabledCipherSuites());
 
             /* test failure, null input */
             /* TODO: uncomment when fixed */
@@ -290,8 +289,8 @@ public class WolfSSLSocketTest {
             SSLSocket s = socks.get(i);
             String[] protocols = s.getEnabledProtocols();
 
-            if (protocols != null) {
-                System.out.println("\t\t... failed");
+            if (protocols == null) {
+                System.out.println("\t... failed");
                 fail("SSLSocket.getEnabledProtocols() failed");
             }
 
@@ -344,7 +343,7 @@ public class WolfSSLSocketTest {
             s.setEnabledProtocols(oneProto);
             String[] after = s.getEnabledProtocols();
             if (after.length != 1 || !after[0].equals(oneProto[0])) {
-                System.out.println("\t\t... failed");
+                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledProtocols() failed");
             }
         }

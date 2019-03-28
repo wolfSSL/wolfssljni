@@ -160,6 +160,16 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef WOLFSSL_TLS13
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_EccEnabled
   (JNIEnv* jenv, jclass jcl)
 {
@@ -264,6 +274,16 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod(
     JNIEnv* jenv, jclass jcl)
 {
     return (jlong)wolfTLSv1_2_client_method();
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef WOLFSSL_TLS13
+    return (jlong)wolfTLSv1_3_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method

@@ -332,6 +332,13 @@ public class WolfSSL {
     public static native boolean TLSv1Enabled();
 
     /**
+     * Tests if TLS 1.3 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv13Enabled();
+
+    /**
      * Tests if ECC support has been compiled into the native wolfSSL library.
      *
      * @return 1 if enabled, otherwise 0 if not compiled in.
@@ -496,6 +503,20 @@ public class WolfSSL {
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_2_ClientMethod();
+
+    /**
+     * Indicates that the application will only support the TLS 1.3 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_3_Method();
 
     /**
      * Indicates that the application will only support the DTLS 1.0 protocol.

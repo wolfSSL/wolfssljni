@@ -77,6 +77,9 @@ public class WolfSSLContext extends SSLContextSpi {
             case TLSv1_2:
                 method = WolfSSL.TLSv1_2_Method();
                 break;
+            case TLSv1_3:
+                method = WolfSSL.TLSv1_3_Method();
+                break;
             case SSLv23:
                 method = WolfSSL.SSLv23_Method();
                 break;
@@ -105,6 +108,9 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* auto-populate enabled ciphersuites with supported ones */
         params.setCipherSuites(WolfSSL.getCiphersIana());
+
+        /* auto-populate enabled protocols with supported ones */
+        params.setProtocols(WolfSSL.getProtocols());
     }
     
     private void LoadTrustedRootCerts() {
@@ -239,7 +245,7 @@ public class WolfSSLContext extends SSLContextSpi {
                 "before use, please call init()");
         }
 
-        return new WolfSSLSocketFactory(this.ctx, authStore, params);
+        return new WolfSSLSocketFactory(this.ctx, this.authStore, this.params);
     }
 
     @Override
@@ -311,6 +317,12 @@ public class WolfSSLContext extends SSLContextSpi {
     public static final class TLSV12_Context extends WolfSSLContext {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
+        }
+    }
+
+    public static final class TLSV13_Context extends WolfSSLContext {
+        public TLSV13_Context() {
+            super(TLS_VERSION.TLSv1_3);
         }
     }
     
