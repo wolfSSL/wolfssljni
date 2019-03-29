@@ -35,8 +35,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
-import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
-
 import java.io.FileInputStream;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
@@ -66,6 +64,8 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
+import com.wolfssl.WolfSSL;
 
 public class WolfSSLSocketTest {
 
@@ -82,9 +82,10 @@ public class WolfSSLSocketTest {
     static boolean serverFlag = false;
 
     private static String allProtocols[] = {
-        "TLSV1",
-        "TLSV1.1",
-        "TLSV1.2",
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2",
+        "TLSv1.3",
         "TLS"
     };
 
@@ -746,6 +747,107 @@ public class WolfSSLSocketTest {
         }
 
         System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testProtocolTLSv10() throws Exception {
+
+        System.out.print("\tTLS 1.0 connection test");
+
+        /* skip if TLS 1.0 is not compiled in at native level */
+        if (WolfSSL.TLSv1Enabled() == false) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        protocolConnectionTest("TLSv1.0");
+    }
+
+    @Test
+    public void testProtocolTLSv11() throws Exception {
+
+        System.out.print("\tTLS 1.1 connection test");
+
+        /* skip if TLS 1.1 is not compiled in at native level */
+        if (WolfSSL.TLSv11Enabled() == false) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        protocolConnectionTest("TLSv1.1");
+    }
+
+    @Test
+    public void testProtocolTLSv12() throws Exception {
+
+        System.out.print("\tTLS 1.2 connection test");
+
+        /* skip if TLS 1.2 is not compiled in at native level */
+        if (WolfSSL.TLSv12Enabled() == false) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        protocolConnectionTest("TLSv1.2");
+    }
+
+    @Test
+    public void testProtocolTLSv13() throws Exception {
+
+        System.out.print("\tTLS 1.3 connection test");
+
+        /* skip if TLS 1.3 is not compiled in at native level */
+        if (WolfSSL.TLSv13Enabled() == false) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        protocolConnectionTest("TLSv1.3");
+    }
+
+    private void protocolConnectionTest(String protocol) throws Exception {
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t\t... passed");
     }
 
     protected class TestServer extends Thread
