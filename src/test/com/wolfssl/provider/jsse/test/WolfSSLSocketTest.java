@@ -206,36 +206,33 @@ public class WolfSSLSocketTest {
             assertNotSame(cipherSuites, s.getEnabledCipherSuites());
 
             /* test failure, null input */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    s.setEnabledCipherSuites(null);
-            //    System.out.println("\t... failed");
-            //    fail("SSLSocket.setEnabledCipherSuites() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                s.setEnabledCipherSuites(null);
+                System.out.println("\t... failed");
+                fail("SSLSocket.setEnabledCipherSuites() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test failure, empty array */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    String[] empty = {};
-            //    s.setEnabledCipherSuites(empty);
-            //    System.out.println("\t... failed");
-            //    fail("SSLSocket.setEnabledCipherSuites() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                String[] empty = {};
+                s.setEnabledCipherSuites(empty);
+                System.out.println("\t... failed");
+                fail("SSLSocket.setEnabledCipherSuites() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test failure, bad value */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    String[] badvalue = { "badvalue" };
-            //    s.setEnabledCipherSuites(badvalue);
-            //    System.out.println("\t... failed");
-            //    fail("SSLSocket.setEnabledCipherSuites() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                String[] badvalue = { "badvalue" };
+                s.setEnabledCipherSuites(badvalue);
+                System.out.println("\t... failed");
+                fail("SSLSocket.setEnabledCipherSuites() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test set from supported suites */
             String[] suites = s.getSupportedCipherSuites();
@@ -296,40 +293,36 @@ public class WolfSSLSocketTest {
             }
 
             /* verify we return a copy */
-            /* TODO: uncomment when fixed */
-            //assertNotSame(protocols, s.getEnabledProtocols());
+            assertNotSame(protocols, s.getEnabledProtocols());
 
             /* test failure, null input */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    s.setEnabledProtocols(null);
-            //    System.out.println("\t\t... failed");
-            //    fail("SSLSocket.setEnabledProtocols() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                s.setEnabledProtocols(null);
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test failure, empty string */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    String[] empty = {};
-            //    s.setEnabledProtocols(empty);
-            //    System.out.println("\t\t... failed");
-            //    fail("SSLSocket.setEnabledProtocols() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                String[] empty = {};
+                s.setEnabledProtocols(empty);
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test failure, bad value */
-            /* TODO: uncomment when fixed */
-            //try {
-            //    String[] badvalue = { "badvalue" };
-            //    s.setEnabledProtocols(badvalue);
-            //    System.out.println("\t\t... failed");
-            //    fail("SSLSocket.setEnabledProtocols() failed");
-            //} catch (IllegalArgumentException e) {
+            try {
+                String[] badvalue = { "badvalue" };
+                s.setEnabledProtocols(badvalue);
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
                 /* expected */
-            //}
+            }
 
             /* test set from supported protocols */
             String[] protos = s.getSupportedProtocols();
@@ -578,10 +571,9 @@ public class WolfSSLSocketTest {
         /* TODO: this returns null for wolfJSSE. */
         /* assertNotNull(p.getAlgorithmConstraints()); */
 
-        /* TODO: uncomment when fixed, wolfJSSE returns null */
-        //String[] suites = p.getCipherSuites();
-        //assertNotNull(suites);
-        //assertNotSame(suites, p.getCipherSuites());  /* should return copy */
+        String[] suites = p.getCipherSuites();
+        assertNotNull(suites);
+        assertNotSame(suites, p.getCipherSuites());  /* should return copy */
         assertNotNull(s.getSupportedCipherSuites());
         p.setCipherSuites(s.getSupportedCipherSuites());
         assertArrayEquals(s.getSupportedCipherSuites(), p.getCipherSuites());
@@ -594,10 +586,9 @@ public class WolfSSLSocketTest {
         p.setWantClientAuth(true);
         assertTrue(p.getWantClientAuth());
 
-        /* TODO: uncomment when fixed. wolfJSSE returns null */
-        //String[] protos = p.getProtocols();
-        //assertNotNull(protos);
-        //assertNotSame(protos, p.getProtocols());
+        String[] protos = p.getProtocols();
+        assertNotNull(protos);
+        assertNotSame(protos, p.getProtocols());
         assertNotNull(s.getSupportedProtocols());
         p.setProtocols(s.getSupportedProtocols());
         assertArrayEquals(s.getSupportedProtocols(), p.getProtocols());

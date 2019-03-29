@@ -25,6 +25,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLHandshakeException;
@@ -106,17 +107,52 @@ public class WolfSSLEngineHelper {
         return WolfSSL.getCiphersIana();
     }
     
-    /* gets all enabled cipher suites
-     * @TODO is this supposed to return null if no ciphers was set? */
+    /* gets all enabled cipher suites */
     protected String[] getCiphers() {
         return this.params.getCipherSuites();
     }
     
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
+
+        if (suites == null) {
+            throw new IllegalArgumentException("input array is null");
+        }
+
+        if (suites.length == 0) {
+            throw new IllegalArgumentException("input array has length zero");
+        }
+
+        /* sanitize cipher array for unsupported strings */
+        List<String> supported = Arrays.asList(getAllCiphers());
+        for (int i = 0; i < suites.length; i++) {
+            if (!supported.contains(suites[i])) {
+                throw new IllegalArgumentException("Unsupported CipherSuite: " +
+                    suites[i]);
+            }
+        }
+
         this.params.setCipherSuites(suites);
     }
     
-    protected void setProtocols(String[] p) {
+    protected void setProtocols(String[] p) throws IllegalArgumentException {
+
+        if (p == null) {
+            throw new IllegalArgumentException("input array is null");
+        }
+
+        if (p.length == 0) {
+            throw new IllegalArgumentException("input array has length zero");
+        }
+
+        /* sanitize protocol array for unsupported strings */
+        List<String> supported = Arrays.asList(getAllProtocols());
+        for (int i = 0; i < p.length; i++) {
+            if (!supported.contains(p[i])) {
+                throw new IllegalArgumentException("Unsupported protocol: " +
+                    p[i]);
+            }
+        }
+
         this.params.setProtocols(p);
     }
     
