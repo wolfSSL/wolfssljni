@@ -332,6 +332,20 @@ public class WolfSSL {
     public static native boolean TLSv1Enabled();
 
     /**
+     * Tests if TLS 1.1 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv11Enabled();
+
+    /**
+     * Tests if TLS 1.2 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv12Enabled();
+
+    /**
      * Tests if TLS 1.3 has been compiled into the native wolfSSL library.
      *
      * @return 1 if enabled, otherwise 0 if not compiled in.
