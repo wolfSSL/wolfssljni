@@ -513,9 +513,8 @@ public class WolfSSLSocketTest {
         server.close();
         ss.close();
 
-        /* TODO: enable this when fixed.
         /* calling setUseClientMode() after handshake should throw exception */
-        /*ss = (SSLServerSocket)ctx.getServerSocketFactory()
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
 
         cs = (SSLSocket)ctx.getSocketFactory().createSocket();
@@ -533,7 +532,7 @@ public class WolfSSLSocketTest {
                     System.out.println("\t\t... failed");
                     fail();
                 } catch (IllegalArgumentException e) {
-                    // expected
+                    /* expected */
                 }
                 return null;
             }
@@ -551,7 +550,7 @@ public class WolfSSLSocketTest {
         serverFuture.get();
         cs.close();
         server2.close();
-        ss.close();*/
+        ss.close();
 
         System.out.println("\t\t... passed");
     }

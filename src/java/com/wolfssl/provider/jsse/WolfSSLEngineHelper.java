@@ -166,7 +166,14 @@ public class WolfSSLEngineHelper {
         return WolfSSL.getProtocols();
     }
 
-    protected void setUseClientMode(boolean mode) {
+    protected void setUseClientMode(boolean mode)
+        throws IllegalArgumentException {
+
+        if (ssl.handshakeDone()) {
+            throw new IllegalArgumentException("setUseClientMode() not " +
+                "allowed after handshake is completed");
+        }
+
         this.clientMode = mode;
         if (this.clientMode) {
             this.ssl.setConnectState();
