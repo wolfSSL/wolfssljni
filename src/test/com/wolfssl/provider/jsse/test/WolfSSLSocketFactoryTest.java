@@ -189,6 +189,7 @@ public class WolfSSLSocketFactoryTest {
             SSLSocketFactory sf = sockFactories.get(i);
             SSLSocket ss = null;
             Socket s = null;
+            InputStream in = null;
 
             /* good arguments */
             try {
@@ -227,23 +228,21 @@ public class WolfSSLSocketFactoryTest {
                 ss.close();
                 s.close();
 
+                /* Socket, InputStream, boolean */
+                s = new Socket(addr, port);
+                in = s.getInputStream();
+                ss = (SSLSocket)sf.createSocket(s, in, true);
+                if (ss == null) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLSocketFactory.createSocket(SkSib) failed");
+                }
+                ss.close();
+                s.close();
+
             } catch (SocketException e) {
                 System.out.println("\t\t\t... failed");
                 throw e;
             }
-
-            /* not implemented */
-            try {
-                /* Socket, InputStream, boolean */
-                s = new Socket(addr, port);
-                InputStream in = s.getInputStream();
-                ss = (SSLSocket)sf.createSocket(s, in, true);
-                System.out.println("\t\t\t... failed");
-                fail("createSocket() should throw exception");
-            } catch (UnsupportedOperationException e) {
-                /* expected */
-            }
-
 
             /* bad arguments */
             try {
@@ -303,6 +302,16 @@ public class WolfSSLSocketFactoryTest {
                 /* expected */
             }
 
+            try {
+                /* Socket, InputStream, boolean - null Socket */
+                s = new Socket(addr, port);
+                in = s.getInputStream();
+                ss = (SSLSocket)sf.createSocket(null, in, true);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should throw exception");
+            } catch (NullPointerException e) {
+                /* expected */
+            }
         }
 
         System.out.println("\t\t\t... passed");

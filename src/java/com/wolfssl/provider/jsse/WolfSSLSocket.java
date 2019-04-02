@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
@@ -54,6 +55,7 @@ import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.WolfSSLIORecvCallback;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLParameters;
@@ -263,6 +265,51 @@ public class WolfSSLSocket extends SSLSocket {
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
+        }
+    }
+
+    /* only creates a server mode Socket */
+    public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
+        SSLParameters params, Socket s, InputStream consumed,
+        boolean autoClose) throws IOException {
+
+        super();
+        this.ctx = context;
+        this.authStore = authStore;
+        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.socket = s;
+        this.autoClose = autoClose;
+
+        if (s == null ) {
+            throw new NullPointerException("Socket is null");
+        }
+
+        if (!s.isConnected()) {
+            throw new IOException("Socket is not connected");
+        }
+
+        try {
+            initSSL();
+            setFd();
+
+            /* get helper class for common methods */
+            EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+                    this.params, s.getPort(),
+                    s.getInetAddress().getHostAddress());
+            EngineHelper.setUseClientMode(false);
+
+            /* register custom receive callback to read consumed first */
+            if (consumed != null) {
+                ConsumedRecvCallback recvCb = new ConsumedRecvCallback();
+                this.ssl.setIORecv(recvCb);
+                ConsumedRecvCtx recvCtx = new ConsumedRecvCtx(s, consumed);
+                this.ssl.setIOReadCtx(recvCtx);
+            }
+
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        } catch (WolfSSLJNIException jnie) {
+            throw new IOException(jnie);
         }
     }
 
@@ -526,10 +573,16 @@ public class WolfSSLSocket extends SSLSocket {
                 EngineHelper.saveSession();
                 ssl.shutdownSSL();
             }
-            super.close();
 
-            if (debug.DEBUG) {
-                log("socket closed");
+            if (this.autoClose) {
+                super.close();
+                if (debug.DEBUG) {
+                    log("socket closed");
+                }
+            } else {
+                if (debug.DEBUG) {
+                    log("socket not closed, autoClose set to false");
+                }
             }
 
         } catch (IllegalStateException e) {
@@ -595,6 +648,68 @@ public class WolfSSLSocket extends SSLSocket {
 
     private void log(String msg) {
         debug.print("[WolfSSLSocket] " + msg);
+    }
+
+    class ConsumedRecvCtx {
+        private Socket s;
+        private DataInputStream consumed;
+
+        public ConsumedRecvCtx(Socket s, InputStream in) {
+            this.s = s;
+            this.consumed = new DataInputStream(in);
+        }
+
+        public Socket getSocket() {
+            return this.s;
+        }
+
+        public DataInputStream getSocketDataStream() throws IOException {
+            return new DataInputStream(this.s.getInputStream());
+        }
+
+        public DataInputStream getConsumedDataStream() {
+            return this.consumed;
+        }
+    }
+
+    class ConsumedRecvCallback implements WolfSSLIORecvCallback {
+
+        public int receiveCallback(WolfSSLSession ssl, byte[] buf,
+            int sz, Object ctx) {
+
+            int ret;
+
+            try {
+                ConsumedRecvCtx context = (ConsumedRecvCtx)ctx;
+                DataInputStream current = context.getSocketDataStream();
+                DataInputStream consumed = context.getConsumedDataStream();
+
+                /* try to read from consumed stream first */
+                if (consumed != null && consumed.available() > 0) {
+                    ret = consumed.read(buf, 0, sz);
+                    /* if we are at EOF, return 0 */
+                    if (ret == -1) {
+                        ret = 0;
+                    }
+
+                } else {
+                    /* read directly from Socket */
+                    ret = current.read(buf, 0, sz);
+                    if (ret == -1) {
+                        /* no data available */
+                        ret = WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
+                    }
+                }
+            } catch (IOException e) {
+                if (debug.DEBUG) {
+                    log("error reading from Socket InputStream");
+                }
+                ret = WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            /* return size read, or error */
+            return ret;
+        }
     }
 }
 

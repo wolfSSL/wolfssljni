@@ -27,6 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,10 +36,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
+import java.net.Socket;
+import java.net.ServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManager;
@@ -53,6 +60,7 @@ import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
 import java.net.InetSocketAddress;
+import java.net.InetAddress;
 
 import java.io.IOException;
 import java.io.FileNotFoundException;
@@ -385,6 +393,96 @@ public class WolfSSLSocketTest {
 
         System.out.println("\t... passed");
     }
+
+    @Test
+    public void testPreConsumedSocket() throws Exception {
+
+        System.out.print("\tTesting consumed InputStream");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create plain TCP server socket */
+        ServerSocket serverSock = new ServerSocket(0);
+
+        /* connect TLS client to TCP server socket */
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(serverSock.getLocalPort()));
+
+        final Socket server = (Socket)serverSock.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    /* read 5 bytes off the TCP socket */
+                    byte[] tmp = new byte[5];
+                    InputStream in = server.getInputStream();
+                    in.read(tmp);
+
+                    /* load them back into a new InputStream */
+                    InputStream consumed = new ByteArrayInputStream(tmp);
+
+                    /* create SSLSocket for server from Socket */
+                    SSLSocket ss = (SSLSocket)ctx.getSocketFactory()
+                        .createSocket(server, consumed, true);
+
+                    ss.startHandshake();
+
+                    /* read 5 bytes from client */
+                    OutputStream ssOut = ss.getOutputStream();
+                    byte[] outBytes = new byte[] {0x01, 0x02};
+                    ssOut.write(outBytes);
+                    InputStream ssIn = ss.getInputStream();
+                    byte[] inBytes = new byte[2];
+                    ssIn.read(inBytes);
+
+                    ss.close();
+                    server.close();
+
+                    if (!Arrays.equals(outBytes, inBytes)) {
+                        System.out.println("\t... failed");
+                        fail();
+                    }
+
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            InputStream csIn = cs.getInputStream();
+            byte[] inBytes2 = new byte[2];
+            csIn.read(inBytes2);
+
+            OutputStream csOut = cs.getOutputStream();
+            byte[] outBytes2 = new byte[] {0x01, 0x02};
+            csOut.write(outBytes2);
+
+            cs.close();
+
+            if (!Arrays.equals(outBytes2, inBytes2)) {
+                System.out.println("\t... failed");
+                fail();
+            }
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+
+        System.out.println("\t... passed");
+    }
+
 
     @Test
     public void testEnableSessionCreation() throws Exception {
