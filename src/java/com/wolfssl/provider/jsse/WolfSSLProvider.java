@@ -1,6 +1,6 @@
 /* WolfSSLProvider.java 
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -33,7 +33,7 @@ import com.wolfssl.WolfSSL;
 public final class WolfSSLProvider extends Provider {
 
     public WolfSSLProvider() {
-        super("wolfJSSE", 1.0, "wolfSSL JSSE Provider");
+        super("wolfJSSE", "1.0", "wolfSSL JSSE Provider");
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();

@@ -1,6 +1,6 @@
 /* WolfSSLContext.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,7 +21,12 @@
 
 package com.wolfssl.provider.jsse;
 
-import com.wolfssl.WolfSSL;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.io.ByteArrayOutputStream;
+
 import javax.net.ssl.SSLContextSpi;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -30,27 +35,18 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLParameters;
 import java.security.SecureRandom;
-
-import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
-
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
-import java.io.ByteArrayOutputStream;
-
-import java.lang.IllegalArgumentException;
 import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.net.ssl.SSLParameters;
+
+import com.wolfssl.WolfSSL;
+import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 public class WolfSSLContext extends SSLContextSpi {
 
@@ -133,8 +129,14 @@ public class WolfSSLContext extends SSLContextSpi {
 
             } catch (CertificateEncodingException ce) {
                 /* skip loading if encoding error is encountered */
+                if (debug.DEBUG) {
+                    log("skipped loading CA, encoding error");
+                }
             } catch (WolfSSLJNIException we) {
                 /* skip loading if wolfSSL fails to load der encoding */
+                if (debug.DEBUG) {
+                    log("skipped loading CA, JNI exception");
+                }
             }
 
             if (loadedCACount == 0) {
@@ -228,10 +230,11 @@ public class WolfSSLContext extends SSLContextSpi {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);
             params = new SSLParameters();
             createCtx();
+
         } catch (IllegalArgumentException iae) {
             throw new KeyManagementException(iae);
-        }
-        catch (WolfSSLException we) {
+
+        } catch (WolfSSLException we) {
             throw new KeyManagementException(we);
         }
     }
@@ -270,8 +273,10 @@ public class WolfSSLContext extends SSLContextSpi {
 
         try {
             return new WolfSSLEngine(this.ctx, this.authStore, this.params);
+
         } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE,
+                null, ex);
         }
         return null;
     }
@@ -285,21 +290,24 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         try {
-            return new WolfSSLEngine(this.ctx, this.authStore, this.params, host, port);
+            return new WolfSSLEngine(this.ctx, this.authStore, this.params,
+                host, port);
+
         } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE,
+                null, ex);
         }
         return null;
     }
 
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
 
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
     
     public static final class TLSV1_Context extends WolfSSLContext {
@@ -336,3 +344,4 @@ public class WolfSSLContext extends SSLContextSpi {
         debug.print("[WolfSSLContext] " + msg);
     }
 }
+
