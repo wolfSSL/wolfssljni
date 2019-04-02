@@ -105,7 +105,6 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(Socket s, String host, int port,
         boolean autoClose) throws IOException {
-        /* TODO: finish downstream implementation */
         return new WolfSSLSocket(ctx, authStore, params,
             true, s, host, port, autoClose);
     }
@@ -114,7 +113,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     public Socket createSocket(Socket s, InputStream consumed,
         boolean autoClose) throws IOException {
         /* TODO */
-        return null;
+        throw new UnsupportedOperationException("not supported by wolfJSSE");
     }
 }
 

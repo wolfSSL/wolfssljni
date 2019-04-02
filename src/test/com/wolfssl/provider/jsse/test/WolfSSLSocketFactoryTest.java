@@ -32,11 +32,13 @@ import java.util.ArrayList;
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
 
 import java.io.FileInputStream;
+import java.io.InputStream;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
+import java.net.Socket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.security.Security;
@@ -49,6 +51,7 @@ import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
+import java.net.UnknownHostException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
@@ -56,11 +59,12 @@ public class WolfSSLSocketFactoryTest {
 
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
+    private final static String ctxProvider = "wolfJSSE";
 
     private static String allProtocols[] = {
-        "TLSV1",
-        "TLSV1.1",
-        "TLSV1.2",
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2",
         "TLS"
     };
 
@@ -92,7 +96,7 @@ public class WolfSSLSocketFactoryTest {
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
-                ctx = SSLContext.getInstance(allProtocols[i], "wolfJSSE");
+                ctx = SSLContext.getInstance(allProtocols[i], ctxProvider);
                 enabledProtocols.add(allProtocols[i]);
 
             } catch (NoSuchAlgorithmException e) {
@@ -124,7 +128,7 @@ public class WolfSSLSocketFactoryTest {
         }
 
         for (int i = 0; i < enabledProtocols.size(); i++) {
-            ctx = SSLContext.getInstance(enabledProtocols.get(i), "wolfJSSE");
+            ctx = SSLContext.getInstance(enabledProtocols.get(i), ctxProvider);
 
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
@@ -183,38 +187,122 @@ public class WolfSSLSocketFactoryTest {
             InetAddress addr = InetAddress.getByName("www.example.com");
             int port = 443;
             SSLSocketFactory sf = sockFactories.get(i);
-            SSLSocket s = null;
+            SSLSocket ss = null;
+            Socket s = null;
 
+            /* good arguments */
             try {
 
                 /* no arguments */
-                s = (SSLSocket)sf.createSocket();
-                if (s == null) {
+                ss = (SSLSocket)sf.createSocket();
+                if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket() failed");
                 }
-                s.close();
+                ss.close();
 
                 /* InetAddress, int */
-                s = (SSLSocket)sf.createSocket(addr, port);
-                if (s == null) {
+                ss = (SSLSocket)sf.createSocket(addr, port);
+                if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Ii) failed");
                 }
-                s.close();
+                ss.close();
 
                 /* String, int */
-                s = (SSLSocket)sf.createSocket(addrStr, port);
-                if (s == null) {
+                ss = (SSLSocket)sf.createSocket(addrStr, port);
+                if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Si) failed");
                 }
+                ss.close();
+
+                /* Socket, String, int, boolean */
+                s = new Socket(addr, port);
+                ss = (SSLSocket)sf.createSocket(s, addrStr, port, true);
+                if (ss == null) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLSocketFactory.createSocket(SkSib) failed");
+                }
+                ss.close();
                 s.close();
 
             } catch (SocketException e) {
                 System.out.println("\t\t\t... failed");
                 throw e;
             }
+
+            /* not implemented */
+            try {
+                /* Socket, InputStream, boolean */
+                s = new Socket(addr, port);
+                InputStream in = s.getInputStream();
+                ss = (SSLSocket)sf.createSocket(s, in, true);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should throw exception");
+            } catch (UnsupportedOperationException e) {
+                /* expected */
+            }
+
+
+            /* bad arguments */
+            try {
+                /* InetAddress, int - null host */
+                ss = (SSLSocket)sf.createSocket((InetAddress)null, port);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return NullPointerException");
+            } catch (NullPointerException ne) {
+                /* expected */
+            }
+
+            try {
+                /* InetAddress, int - port out of range {0:65535} */
+                ss = (SSLSocket)sf.createSocket(addr, 65536);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IllegalArgumentException");
+            } catch (IllegalArgumentException ie) {
+                /* expected */
+            }
+
+            try {
+                /* String, int - bad host */
+                ss = (SSLSocket)sf.createSocket("badhost", port);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return UnknownHostException");
+            } catch (UnknownHostException ne) {
+                /* expected */
+            }
+
+            try {
+                /* String, int - port out of range {0:65535} */
+                ss = (SSLSocket)sf.createSocket(addrStr, 65536);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IllegalArgumentException");
+            } catch (IllegalArgumentException ie) {
+                /* expected */
+            }
+
+            try {
+                /* Socket, String, int, boolean - null Socket */
+                ss = (SSLSocket)sf.createSocket((Socket)null, addrStr, port,
+                    true);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return NullPointerException");
+            } catch (NullPointerException ne) {
+                /* expected */
+            }
+
+            try {
+                /* Socket, String, int, boolean - Socket not connected */
+                s = new Socket();
+                ss = (SSLSocket)sf.createSocket(s, addrStr, port,
+                    true);
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IOException");
+            } catch (IOException ne) {
+                /* expected */
+            }
+
         }
 
         System.out.println("\t\t\t... passed");

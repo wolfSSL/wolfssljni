@@ -213,8 +213,13 @@ public class WolfSSLSocket extends SSLSocket {
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
 
-        if (s == null || !s.isConnected()) {
-            throw new IOException("Socket is null or not connected");
+        if (s == null) {
+            throw new NullPointerException("Socket is null");
+        }
+
+        /* socket should already be connected */
+        if (!s.isConnected()) {
+            throw new IOException("Socket is not connected");
         }
 
         try {
@@ -518,6 +523,7 @@ public class WolfSSLSocket extends SSLSocket {
                 if (debug.DEBUG) {
                     log("shutting down SSL/TLS connection");
                 }
+                EngineHelper.saveSession();
                 ssl.shutdownSSL();
             }
             super.close();
