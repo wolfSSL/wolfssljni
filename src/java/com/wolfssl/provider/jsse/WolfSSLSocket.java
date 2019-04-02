@@ -143,7 +143,7 @@ public class WolfSSLSocket extends SSLSocket {
 
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                    this.params);
+                    this.params, port, address.getHostAddress());
             EngineHelper.setUseClientMode(clientMode);
 
         } catch (WolfSSLException e) {
@@ -198,6 +198,9 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /* creates an SSLSocket layered over an existing socket connected to the
+       named host, at the given port. host/port refer to logical peer, but
+       Socket could be connected to a proxy */
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
         SSLParameters params, boolean clientMode, Socket s, String host,
         int port, boolean autoClose) throws IOException {
@@ -210,13 +213,17 @@ public class WolfSSLSocket extends SSLSocket {
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
 
+        if (s == null || !s.isConnected()) {
+            throw new IOException("Socket is null or not connected");
+        }
+
         try {
             initSSL();
             setFd();
 
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                    this.params);
+                    this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
 
         } catch (WolfSSLException e) {
@@ -235,13 +242,18 @@ public class WolfSSLSocket extends SSLSocket {
         this.socket = s;
         this.autoClose = autoClose;
 
+        if (s == null || !s.isConnected()) {
+            throw new IOException("Socket is null or not connected");
+        }
+
         try {
             initSSL();
             setFd();
 
             /* get helper class for common methods */
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                    this.params);
+                    this.params, s.getPort(),
+                    s.getInetAddress().getHostAddress());
             EngineHelper.setUseClientMode(clientMode);
 
         } catch (WolfSSLException e) {

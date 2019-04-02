@@ -209,7 +209,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         if (debug.DEBUG) {
             log("Socket connected to client: " +
-                sock.getInetAddress().getHostAddress());
+                sock.getInetAddress().getHostAddress() + ", port: " +
+                sock.getPort());
         }
 
         /* create new WolfSSLSocket wrapping connected Socket */
