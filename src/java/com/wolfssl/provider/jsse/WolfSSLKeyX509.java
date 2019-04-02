@@ -87,7 +87,23 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
 
     public String chooseClientAlias(String[] type, Principal[] issuers, Socket sock) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int i;
+        
+        if (type == null) {
+            return null;
+        }
+        
+        if (sock != null) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+        
+        for (i = 0; i < type.length; i++) {
+            String[] all = getAliases(type[i], issuers);
+            if (all != null) {
+                return all[0];
+            }
+        }
+        return null;
     }
 
     public String[] getServerAliases(String type, Principal[] issuers) {

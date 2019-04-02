@@ -503,6 +503,12 @@ public class WolfSSLEngineTest {
             error("\t... failed");
             fail("outbound done too early"); 
         }
+        
+        /* check get client */
+        if (!client.getUseClientMode() || server.getUseClientMode()) {
+            error("\t... failed");
+            fail("invalid client mode"); 
+        }
         pass("\t... passed");
         
         System.out.print("\tTesting close connection");        
@@ -554,7 +560,6 @@ public class WolfSSLEngineTest {
         ret = testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
             error("\t\t... failed");
-            System.out.println("failed with ret = "  + ret);
             fail("failed to create engine");   
         }
 
@@ -573,10 +578,50 @@ public class WolfSSLEngineTest {
         /* close inbound before peer responded to shutdown should fail */
         try {
             server.closeInbound();
-            System.out.println("closed inbound early");
             error("\t\t... failed");
             fail("was able to incorrectly close inbound"); 
         } catch (SSLException ex) {
+        }
+
+        pass("\t\t... passed");
+    }
+    
+    @Test
+    public void testMutualAuth()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine server;
+        SSLEngine client;
+        int ret;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting mutual auth");
+
+        /* success case */
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL auth test", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        ret = testConnection(server, client, null, null, "Test in/out bound");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create engine");   
+        }
+        
+        /* fail case */
+        this.ctx = tf.createSSLContext("TLS", engineProvider,
+                tf.createTrustManager("SunX509", serverJKS, engineProvider),
+                tf.createKeyManager("SunX509", serverJKS, engineProvider));
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL auth fail test", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        ret = testConnection(server, client, null, null, "Test in/out bound");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create engine");   
         }
 
         pass("\t\t... passed");
@@ -647,6 +692,11 @@ public class WolfSSLEngineTest {
         } catch (SSLException ex) {
             error("\t... failed");
             fail("failed to create engine"); 
+        }
+        
+        if (client.getEnableSessionCreation() || !server.getEnableSessionCreation()) {
+            error("\t... failed");
+            fail("bad enabled session creation"); 
         }
         pass("\t... passed");
     }

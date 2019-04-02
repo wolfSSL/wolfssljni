@@ -56,8 +56,6 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         } catch (WolfSSLException ex) {
             Logger.getLogger(WolfSSLTrustX509.class.getName()).log(Level.SEVERE, null, ex);
         }
-
-
     }
 
     /* Loads all CAs from the key store into the cert manager structure */
@@ -102,7 +100,8 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             throw new IllegalArgumentException();
         }
         
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /* @TODO currently treating client certs like server certs */
+        checkServerTrusted(certs, type);
     }
 
     public void checkServerTrusted(X509Certificate[] certs, String type) throws CertificateException {
