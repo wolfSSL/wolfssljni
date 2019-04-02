@@ -21,12 +21,20 @@
 package com.wolfssl.provider.jsse.test;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
-import javax.net.ssl.SSLEngine;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -38,8 +46,12 @@ import org.junit.Test;
  */
 public class WolfSSLTrustX509Test {
     private static WolfSSLTestFactory tf;
-    private String allJKS;
-    private String provider = null;
+    private String all = "./examples/provider/all.jks";
+    private String mixedAll = "./examples/provider/all_mixed.jks";
+    private String server = "./examples/provider/server.jks";
+    private String client = "./examples/provider/client.jks";
+    private String ca = "./examples/provider/cacerts.jks";
+    private String provider = "wolfJSSE";
     
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
@@ -57,19 +69,276 @@ public class WolfSSLTrustX509Test {
     }
     
     @Test
-    public void testParsing()
+    public void testCAParsing()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+        int i = 0;
+        int expected = 8;
+        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
+            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
+            "OU=Programming-2048" };
         
-        System.out.print("\tTesting parsing");
+        System.out.print("\tTesting parse all.jks");
         
-        tm = tf.createTrustManager("SunX509", allJKS, provider);
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
+         * to false so it is not added as a CA */
+        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+            expected = 7; /* one less than SunJSSE because of server-ecc */
+        }
         
+        tm = tf.createTrustManager("SunX509", all, provider);
+        if (tm == null) {
+            error("\t\t... failed");
+            fail("failed to create trustmanager"); 
+        }
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t\t... failed");
+            fail("no CAs where found");
+        }
+        
+        if (cas.length != expected) {
+            error("\t\t... failed");
+            fail("wrong number of CAs found");
+        }
+
+        for (String x: OU) {
+            if (this.provider != null &&
+                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                continue;
+            }
+            
+            if (!cas[i].getSubjectDN().getName().contains(x)) {
+                error("\t\t... failed");
+                fail("wrong CA found");
+            }
+            i++;
+           
+        }
+        pass("\t\t... passed");
+    }
+    
+    @Test
+    public void testServerParsing()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+        int i = 0;
+        int expected = 5;
+        String OU[] = { "OU=Consulting", "OU=ECC", "OU=Consulting_1024",
+            "OU=Support", "OU=Support_1024",};
+        
+        System.out.print("\tTesting parsing server.jks");
+        
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
+         * to false so it is not added as a CA */
+        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+            expected = 4; /* one less than SunJSSE because of server-ecc */
+        }
+        
+        tm = tf.createTrustManager("SunX509", server, provider);
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager"); 
         }
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t... failed");
+            fail("no CAs where found");
+        }
+        
+        if (cas.length != expected) {
+            error("\t... failed");
+            fail("wrong number of CAs found");
+        }
+        
+        for (String x : OU) {
+            if (this.provider != null &&
+                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                continue;
+            }
+            
+            if (!cas[i].getSubjectDN().getName().contains(x)) {
+                error("\t... failed");
+                fail("wrong CA found");
+            }
+            i++;
+           
+        }
+        pass("\t... passed");
     }
+    
+        
+    @Test
+    public void testCAParsingMixed()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+        int i = 0, j;
+        int expected = 8;
+        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
+            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
+            "OU=Programming-2048" };
+        
+        System.out.print("\tTesting parse all_mixed.jks");
+        
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
+         * to false so it is not added as a CA */
+        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+            expected = 7; /* one less than SunJSSE because of server-ecc */
+        }
+        
+        tm = tf.createTrustManager("SunX509", mixedAll, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager"); 
+        }
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t... failed");
+            fail("no CAs where found");
+        }
+        
+        if (cas.length != expected) {
+            error("\t... failed");
+            fail("wrong number of CAs found");
+        }
+        
+        for (j = 0; j < OU.length && i < cas.length; j++) {
+            if (this.provider != null &&
+                    provider.equals("wolfJSSE") && OU[j].equals("OU=ECC")) {
+                continue;
+            }
+            
+            if (!cas[i].getSubjectDN().getName().contains(OU[j])) {
+                error("\t... failed");
+                fail("wrong CA found");
+            }
+            i++;
+           
+        }
+        pass("\t... passed");
+    }
+    
+    @Test
+    public void testSystemLoad() {
+        String file = System.getProperty("javax.net.ssl.trustStore");
+        TrustManager[] tm;
+        
+        System.out.print("\tTesting loading default certs");
+        
+        if (file == null) {
+            String home = System.getenv("JAVA_HOME");
+            if (home != null) {
+                File f = new File(home.concat("lib/security/jssecacerts"));
+                if (f.exists()) {
+                    tm = tf.createTrustManager("SunX509", null, provider);
+                    if (tm == null) {
+                        error("\t... failed");
+                        fail("failed to create trustmanager with default"); 
+                    }
+                    pass("\t... passed");
+                    return;
+                }
+                else {
+                    f = new File(home.concat("lib/security/cacerts"));
+                    if (f.exists()) {
+                        tm = tf.createTrustManager("SunX509", null, provider);
+                        if (tm == null) {
+                            error("\t... failed");
+                            fail("failed to create trustmanager with default"); 
+                        }
+                        pass("\t... passed");
+                        return;
+                    }
+                }
+            }
+        }
+        else {
+            tm = tf.createTrustManager("SunX509", null, provider);
+            if (tm == null) {
+                error("\t... failed");
+                fail("failed to create trustmanager with default"); 
+            }
+            pass("\t... passed");
+            return;
+        }
+        
+        /* case of no default found */
+        pass("\t... skipped");
+    }
+    
+    
+    @Test
+    public void testVerify()
+        throws NoSuchProviderException, NoSuchAlgorithmException, KeyStoreException,
+            FileNotFoundException, IOException, CertificateException {
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+        int i = 0, j;
+        KeyStore ks;
+        
+        System.out.print("\tTesting verify");
+        
+        /* success case */
+        tm = tf.createTrustManager("SunX509", ca, provider);
+        if (tm == null) {
+            error("\t\t\t... failed");
+            fail("failed to create trustmanager"); 
+        }
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t\t\t... failed");
+            fail("no CAs where found");
+        }
+        
+        ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream(server), "wolfSSL test".toCharArray());
+        try {
+            x509tm.checkServerTrusted(new X509Certificate[] {
+            (X509Certificate)ks.getCertificate("server") }, "RSA");
+        }
+        catch (Exception e) {
+            error("\t\t\t... failed");
+            fail("failed to verify"); 
+        }
+        
+        
+        /* fail case */
+        tm = tf.createTrustManager("SunX509", server, provider);
+        if (tm == null) {
+            error("\t\t\t... failed");
+            fail("failed to create trustmanager"); 
+        }
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t\t\t... failed");
+            fail("no CAs where found");
+        }
+        
+        ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream(client), "wolfSSL test".toCharArray());
+        try {
+            x509tm.checkServerTrusted(new X509Certificate[] {
+            (X509Certificate)ks.getCertificate("client") }, "RSA");
+            error("\t\t\t... failed");
+            fail("able to verify when should not have"); 
+        }
+        catch (Exception e) {
+        }
+        pass("\t\t\t... passed");
+    }
+    
     
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);

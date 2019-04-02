@@ -52,11 +52,13 @@ class WolfSSLTestFactory {
     private TrustManager[] internalCreateTrustManager(String type, String file,
             String provider) {
         TrustManagerFactory tm;
-        KeyStore cert;
+        KeyStore cert = null;
         
         try {
-            cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(file), jksPass);
+            if (file != null) {
+                cert = KeyStore.getInstance("JKS");
+                cert.load(new FileInputStream(file), jksPass);
+            }
             if (provider == null) {
                 tm = TrustManagerFactory.getInstance(type);
             }

@@ -36,16 +36,20 @@ import javax.net.ssl.X509TrustManager;
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSL;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class WolfSSLTrustX509 implements X509TrustManager {
     private KeyStore store;
-    private List<String> CAs;
+    private Set<X509Certificate> CAs;
     private WolfSSLCertManager cm;
     
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
-        CAs = new ArrayList<String>();
         try {
             this.cm  = new WolfSSLCertManager();
             LoadCAsFromStore();
@@ -61,14 +65,25 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         try {
             /* Store the alias of all CAs */
             Enumeration<String> aliases = store.aliases();
+            CAs = new HashSet<X509Certificate>();
             while (aliases.hasMoreElements()) {
                 String name = aliases.nextElement();
-                X509Certificate cert = (X509Certificate) store.getCertificate(name);
-                if (cert.getBasicConstraints() >= 0) {
+                X509Certificate cert = null;
+                
+                if (store.isKeyEntry(name)) {
+                    Certificate[] chain = store.getCertificateChain(name);
+                    if (chain != null)
+                        cert = (X509Certificate) chain[0];
+                }
+                else {
+                    cert = (X509Certificate) store.getCertificate(name);
+                }
+                
+                if (cert != null && cert.getBasicConstraints() >= 0) {
                     int ret = this.cm.CertManagerLoadCABuffer(cert.getEncoded(),
                             cert.getEncoded().length, WolfSSL.SSL_FILETYPE_ASN1);
                     if (ret == WolfSSL.SSL_SUCCESS) {
-                        this.CAs.add(name);
+                        CAs.add(cert);
                     }
                 }
             }
@@ -107,21 +122,8 @@ public class WolfSSLTrustX509 implements X509TrustManager {
     }
 
     public X509Certificate[] getAcceptedIssuers() {
-        X509Certificate ret[];
-        
-        ret = new X509Certificate[CAs.size()];
-        if (CAs.size() > 0) {
-            int i;
-            for (i = 0; i < CAs.size(); i++) {
-                try {
-                    ret[i] = (X509Certificate)store.getCertificate(CAs.get(i));
-                } catch (KeyStoreException ex) {
-                    Logger.getLogger(WolfSSLTrustX509.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        }
-        return ret;
+        if (CAs != null)
+            return CAs.toArray(new X509Certificate[CAs.size()]);
+        return null;
     }
-    
-    
 }

@@ -21,9 +21,17 @@
 
 package com.wolfssl.provider.jsse;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
@@ -36,7 +44,52 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     
     @Override
     protected void engineInit(KeyStore in) throws KeyStoreException {
-       this.store = in;
+        KeyStore certs = in;
+        if (in == null) {
+            String pass = System.getProperty("javax.net.ssl.trustStorePassword");
+            String file = System.getProperty("javax.net.ssl.trustStore");
+            char passAr[] = null;
+            
+            try {
+                if (pass != null) {
+                    passAr = pass.toCharArray();
+                }
+                certs = KeyStore.getInstance("JKS");
+                if (file == null) {
+                    String home = System.getenv("JAVA_HOME");
+                    if (home != null) {
+                        File f = new File(home.concat("lib/security/jssecacerts"));
+                        if (f.exists()) {
+                            log("Loading certs from " + home.concat("lib/security/jssecacerts"));
+                            certs.load(new FileInputStream(f), passAr);
+                        }
+                        else {
+                            f = new File(home.concat("lib/security/cacerts"));
+                            if (f.exists()) {
+                                log("Loading certs from " + home.concat("lib/security/cacerts"));
+                                certs.load(new FileInputStream(f), passAr);
+                            }
+                            else {
+                                log("Using Anonymous cipher suite");
+                            }
+                        }
+                    }
+                }
+                else {
+                    log("Loading certs from " + file);
+                     certs.load(new FileInputStream(file), passAr);
+                }
+            } catch (FileNotFoundException ex) {
+                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (NoSuchAlgorithmException ex) {
+                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (CertificateException ex) {
+                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                }
+        }
+        this.store = certs;
     }
 
     @Override
@@ -51,4 +104,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         return tm;
     }
     
+    private void log(String in) {
+        if (WolfSSLDebug.DEBUG) {
+            WolfSSLDebug.print("[WolfSSLTrustManager] " + in);
+        }
+    }
 }
