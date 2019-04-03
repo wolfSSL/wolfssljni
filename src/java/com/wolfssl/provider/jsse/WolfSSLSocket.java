@@ -249,8 +249,8 @@ public class WolfSSLSocket extends SSLSocket {
         this.socket = s;
         this.autoClose = autoClose;
 
-        if (s == null || !s.isConnected()) {
-            throw new IOException("Socket is null or not connected");
+        if (!s.isConnected()) {
+            throw new IOException("Socket is not connected");
         }
 
         try {

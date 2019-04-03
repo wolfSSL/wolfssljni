@@ -210,6 +210,14 @@ public class WolfSSLServerSocketFactoryTest {
                 }
                 s.close();
 
+                /* int, int, InetAddress */
+                s = (SSLServerSocket)sf.createServerSocket(port, backlog, null);
+                if (s == null) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLServerSocketFactory.createSocket(SiI) failed");
+                }
+                s.close();
+
             } catch (SocketException e) {
                 System.out.println("\t\t\t... failed");
                 throw e;

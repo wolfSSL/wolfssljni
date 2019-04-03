@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse;
 
 import java.util.Arrays;
+import java.util.List;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.InetAddress;
@@ -101,6 +102,23 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
 
+        if (suites == null) {
+            throw new IllegalArgumentException("input array is null");
+        }
+
+        if (suites.length == 0) {
+            throw new IllegalArgumentException("input array has length zero");
+        }
+
+        /* sanitize cipher array for unsupported strings */
+        List<String> supported = Arrays.asList(WolfSSL.getCiphersIana());
+        for (int i = 0; i < suites.length; i++) {
+            if (!supported.contains(suites[i])) {
+                throw new IllegalArgumentException("Unsupported CipherSuite: " +
+                    suites[i]);
+            }
+        }
+
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setCipherSuites(suites);
 
@@ -111,7 +129,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     public String[] getSupportedCipherSuites() {
-        return WolfSSL.getCiphers();
+        return WolfSSL.getCiphersIana();
     }
 
     @Override
@@ -127,6 +145,23 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     synchronized public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
+
+        if (protocols == null) {
+            throw new IllegalArgumentException("input array is null");
+        }
+
+        if (protocols.length == 0) {
+            throw new IllegalArgumentException("input array has length zero");
+        }
+
+        /* sanitize protocol array for unsupported strings */
+        List<String> supported = Arrays.asList(WolfSSL.getProtocols());
+        for (int i = 0; i < protocols.length; i++) {
+            if (!supported.contains(protocols[i])) {
+                throw new IllegalArgumentException("Unsupported protocol: " +
+                    protocols[i]);
+            }
+        }
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setProtocols(protocols);

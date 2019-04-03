@@ -45,6 +45,7 @@ import java.net.ServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.SSLParameters;
@@ -79,6 +80,7 @@ public class WolfSSLSocketTest {
 
     public final static String clientJKS = "./examples/provider/client.jks";
     public final static String serverJKS = "./examples/provider/server.jks";
+    public final static String cacertJKS = "./examples/provider/cacerts.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     private final static String ctxProvider = "wolfJSSE";
     private static WolfSSLTestFactory tf;
@@ -838,6 +840,216 @@ public class WolfSSLSocketTest {
     }
 
     @Test
+    public void testGetSession() throws Exception {
+
+        System.out.print("\tgetSession()");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                    /* get SSLSession */
+                    SSLSession srvSess = server.getSession();
+                    assertNotNull(srvSess);
+
+                    server.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t\t\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+            /* get SSLSession */
+            SSLSession cliSess = cs.getSession();
+            assertNotNull(cliSess);
+
+            cs.close();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        System.out.println("\t\t\t... passed");
+    }
+
+    @Test
+    public void testSetNeedClientAuth() throws Exception {
+
+        System.out.print("\tsetNeedClientAuth()");
+
+        /* create ctx, uses client keystore (cert/key) and truststore (cert) */
+        this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+
+        /* should pass with mutual auth enabled */
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                    server.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            cs.close();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        /* fail case, incorrect root CA loaded to verify server cert */
+        this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
+                tf.createTrustManager("SunX509", serverJKS, ctxProvider),
+                tf.createKeyManager("SunX509", serverJKS, ctxProvider));
+
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server2 = (SSLSocket)ss.accept();
+        server2.setWantClientAuth(true);
+        server2.setNeedClientAuth(true);
+
+        /* should pass with mutual auth enabled */
+        es = Executors.newSingleThreadExecutor();
+        serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server2.startHandshake();
+                    System.out.println("\t\t... failed");
+                    fail();
+
+                } catch (SSLException e) {
+                    /* expected */
+                    server2.close();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            System.out.println("\t\t... failed");
+            fail();
+
+        } catch (SSLHandshakeException e) {
+            /* expected */
+            cs.close();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        /* same as fail case, but should pass with needClientAuth disabled */
+        /* server doesn't have correct CA to authenticate client, but should
+           pass with setNeedClientAuth(false) */
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
+                tf.createTrustManager("SunX509", serverJKS, ctxProvider),
+                tf.createKeyManager("SunX509", serverJKS, ctxProvider));
+
+        /* client has correct CA to authenticate server */
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
+                tf.createTrustManager("SunX509", clientJKS, ctxProvider),
+                tf.createKeyManager("SunX509", clientJKS, ctxProvider));
+
+        ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server3 = (SSLSocket)ss.accept();
+        server3.setWantClientAuth(false);
+        server3.setNeedClientAuth(false);
+
+        /* should pass with mutual auth enabled */
+        es = Executors.newSingleThreadExecutor();
+        serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server3.startHandshake();
+                    server3.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            cs.close();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
     public void testProtocolTLSv10() throws Exception {
 
         System.out.print("\tTLS 1.0 connection test");
@@ -848,7 +1060,7 @@ public class WolfSSLSocketTest {
             return;
         }
 
-        protocolConnectionTest("TLSv1.0");
+        protocolConnectionTest("TLSv1");
     }
 
     @Test
