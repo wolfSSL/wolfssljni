@@ -1,4 +1,4 @@
-/* WolfCryptRSATest.java
+/* WolfCryptECCTest.java
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -19,33 +19,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.test;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
-import com.wolfssl.wolfcrypt.RSA;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.wolfcrypt.ECC;
 
-public class WolfCryptRSATest {
+public class WolfCryptECCTest {
 
-    RSA rsa;
+    ECC ecc;
 
     @Test
-    public void testRSA() throws WolfSSLException {
+    public void testECC() throws WolfSSLException {
 
-        System.out.println("RSA Class");
+        System.out.println("ECC Class");
 
-        test_RSA_new();
+        test_ECC_new();
     }
 
-    public void test_RSA_new() {
+    public void test_ECC_new() {
 
-        System.out.print("\tRSA()");
-        rsa = new RSA();
+        System.out.print("\tECC()");
+        ecc = new ECC();
         System.out.println("\t\t\t\t... passed");
     }
 }
-
 

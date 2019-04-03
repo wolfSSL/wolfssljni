@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.test;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,6 +29,12 @@ import static org.junit.Assert.*;
 import java.net.Socket;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.WolfSSLPskClientCallback;
+import com.wolfssl.WolfSSLPskServerCallback;
+import com.wolfssl.WolfSSLSession;
 
 public class WolfSSLSessionTest {
 

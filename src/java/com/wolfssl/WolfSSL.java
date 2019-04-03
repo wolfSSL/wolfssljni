@@ -251,7 +251,7 @@ public class WolfSSL {
 
     private native int init();
 
-    static native void nativeFree(long ptr);
+    public static native void nativeFree(long ptr);
 
     static native int getBulkCipherAlgorithmEnumNULL();
     static native int getBulkCipherAlgorithmEnumRC4();

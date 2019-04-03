@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
@@ -28,6 +28,7 @@ import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLException;
 
 /* suppress SSLv3 deprecation warnings, meant for end user not tests */
 @SuppressWarnings("deprecation")
