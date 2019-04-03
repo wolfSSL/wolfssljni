@@ -20,6 +20,7 @@
  */
 package com.wolfssl.provider.jsse.test;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,11 +47,6 @@ import org.junit.Test;
  */
 public class WolfSSLTrustX509Test {
     private static WolfSSLTestFactory tf;
-    private String all = "./examples/provider/all.jks";
-    private String mixedAll = "./examples/provider/all_mixed.jks";
-    private String server = "./examples/provider/server.jks";
-    private String client = "./examples/provider/client.jks";
-    private String ca = "./examples/provider/cacerts.jks";
     private String provider = "wolfJSSE";
     
     @BeforeClass
@@ -65,7 +61,12 @@ public class WolfSSLTrustX509Test {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
         
-        tf = new WolfSSLTestFactory();
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
     
     @Test
@@ -88,7 +89,7 @@ public class WolfSSLTrustX509Test {
             expected = 7; /* one less than SunJSSE because of server-ecc */
         }
         
-        tm = tf.createTrustManager("SunX509", all, provider);
+        tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
         if (tm == null) {
             error("\t\t... failed");
             fail("failed to create trustmanager"); 
@@ -129,8 +130,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 5;
-        String OU[] = { "OU=Consulting", "OU=ECC", "OU=Consulting_1024",
-            "OU=Support", "OU=Support_1024",};
+        String OU[] = { "OU=Programming-1024", "OU=ECC",
+            "OU=Support", "OU=Support_1024"};
         
         System.out.print("\tTesting parsing server.jks");
         
@@ -140,7 +141,7 @@ public class WolfSSLTrustX509Test {
             expected = 4; /* one less than SunJSSE because of server-ecc */
         }
         
-        tm = tf.createTrustManager("SunX509", server, provider);
+        tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager"); 
@@ -194,7 +195,7 @@ public class WolfSSLTrustX509Test {
             expected = 7; /* one less than SunJSSE because of server-ecc */
         }
         
-        tm = tf.createTrustManager("SunX509", mixedAll, provider);
+        tm = tf.createTrustManager("SunX509", tf.mixedJKS, provider);
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager"); 
@@ -289,7 +290,7 @@ public class WolfSSLTrustX509Test {
         System.out.print("\tTesting verify");
         
         /* success case */
-        tm = tf.createTrustManager("SunX509", ca, provider);
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
             error("\t\t\t... failed");
             fail("failed to create trustmanager"); 
@@ -302,7 +303,7 @@ public class WolfSSLTrustX509Test {
         }
         
         ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream(server), "wolfSSL test".toCharArray());
+        ks.load(new FileInputStream(tf.serverJKS), "wolfSSL test".toCharArray());
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
             (X509Certificate)ks.getCertificate("server") }, "RSA");
@@ -314,7 +315,7 @@ public class WolfSSLTrustX509Test {
         
         
         /* fail case */
-        tm = tf.createTrustManager("SunX509", server, provider);
+        tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
             error("\t\t\t... failed");
             fail("failed to create trustmanager"); 
@@ -327,10 +328,10 @@ public class WolfSSLTrustX509Test {
         }
         
         ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream(client), "wolfSSL test".toCharArray());
+        ks.load(new FileInputStream(tf.clientJKS), "wolfSSL test".toCharArray());
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
-            (X509Certificate)ks.getCertificate("client") }, "RSA");
+            (X509Certificate)ks.getCertificate("client-ecc") }, "ECC");
             error("\t\t\t... failed");
             fail("able to verify when should not have"); 
         }

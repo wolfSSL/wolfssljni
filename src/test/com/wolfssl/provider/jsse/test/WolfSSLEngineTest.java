@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -60,8 +61,6 @@ import org.junit.Test;
  * @author wolfSSL
  */
 public class WolfSSLEngineTest {
-    public final static String clientJKS = "./examples/provider/client.jks";
-    public final static String serverJKS = "./examples/provider/server.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     public final static String engineProvider = "wolfJSSE";
     private static boolean extraDebug = false;
@@ -90,7 +89,12 @@ public class WolfSSLEngineTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
         
-        tf = new WolfSSLTestFactory();
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 
 
@@ -283,8 +287,7 @@ public class WolfSSLEngineTest {
                 if (extraDebug) {
                     System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
                         " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name()
-                        + " sequence # = " + result.sequenceNumber());
+                        " status = " + result.getStatus().name());
                 }
                 while ((run = server.getDelegatedTask()) != null) {
                     run.run();
@@ -372,7 +375,6 @@ public class WolfSSLEngineTest {
                 }
 
             } catch (SSLException ex) {
-                Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
                 return -1;
             }            
         }
@@ -611,15 +613,15 @@ public class WolfSSLEngineTest {
         
         /* fail case */
         this.ctx = tf.createSSLContext("TLS", engineProvider,
-                tf.createTrustManager("SunX509", serverJKS, engineProvider),
-                tf.createKeyManager("SunX509", serverJKS, engineProvider));
+                tf.createTrustManager("SunX509", tf.serverJKS, engineProvider),
+                tf.createKeyManager("SunX509", tf.serverJKS, engineProvider));
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL auth fail test", 11111);
 
         server.setWantClientAuth(true);
         server.setNeedClientAuth(true);
         ret = testConnection(server, client, null, null, "Test in/out bound");
-        if (ret != 0) {
+        if (ret == 0) {
             error("\t\t... failed");
             fail("failed to create engine");   
         }

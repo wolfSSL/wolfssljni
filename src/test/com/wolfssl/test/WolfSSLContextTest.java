@@ -26,6 +26,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.io.File;
+
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
@@ -38,9 +40,9 @@ public class WolfSSLContextTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public final static String cliCert = "./examples/certs/client-cert.pem";
-    public final static String cliKey  = "./examples/certs/client-key.pem";
-    public final static String caCert  = "./examples/certs/ca-cert.pem";
+    public static String cliCert = "examples/certs/client-cert.pem";
+    public static String cliKey  = "examples/certs/client-key.pem";
+    public static String caCert  = "examples/certs/ca-cert.pem";
     public final static String bogusFile = "/dev/null";
 
     WolfSSLContext ctx;
@@ -49,7 +51,11 @@ public class WolfSSLContextTest {
     public void testWolfSSLContext() throws WolfSSLException {
 
         System.out.println("WolfSSLContext Class");
-
+        
+        cliCert = WolfSSLTestCommon.getPath(cliCert);
+        cliKey = WolfSSLTestCommon.getPath(cliKey);
+        caCert = WolfSSLTestCommon.getPath(caCert);
+        
         test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
         test_WolfSSLContext_useCertificateFile();
         test_WolfSSLContext_usePrivateKeyFile();

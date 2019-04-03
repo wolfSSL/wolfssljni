@@ -41,10 +41,10 @@ public class WolfSSLSessionTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public final static String cliCert = "./examples/certs/client-cert.pem";
-    public final static String cliKey  = "./examples/certs/client-key.pem";
-    public final static String caCert  = "./examples/certs/ca-cert.pem";
-    public final static String bogusFile = "/dev/null";
+    public static String cliCert = "./examples/certs/client-cert.pem";
+    public static String cliKey  = "./examples/certs/client-key.pem";
+    public static String caCert  = "./examples/certs/ca-cert.pem";
+    public static String bogusFile = "/dev/null";
 
     public final static String exampleHost = "www.example.com";
     public final static int examplePort = 443;
@@ -59,6 +59,10 @@ public class WolfSSLSessionTest {
 
         System.out.println("WolfSSLSession Class");
 
+        cliCert = WolfSSLTestCommon.getPath(cliCert);
+        cliKey = WolfSSLTestCommon.getPath(cliKey);
+        caCert = WolfSSLTestCommon.getPath(caCert);
+        
         test_WolfSSLSession_new();
         test_WolfSSLSession_useCertificateFile();
         test_WolfSSLSession_usePrivateKeyFile();

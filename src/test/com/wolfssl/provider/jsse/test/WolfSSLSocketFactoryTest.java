@@ -53,13 +53,14 @@ import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 import java.net.UnknownHostException;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLSocketFactoryTest {
 
-    public final static String clientJKS = "./examples/provider/client.jks";
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     private final static String ctxProvider = "wolfJSSE";
+    private static WolfSSLTestFactory tf;
 
     private static String allProtocols[] = {
         "TLSv1",
@@ -93,6 +94,13 @@ public class WolfSSLSocketFactoryTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
@@ -107,9 +115,9 @@ public class WolfSSLSocketFactoryTest {
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(clientJKS), jksPass);
+            pKey.load(new FileInputStream(tf.clientJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(clientJKS), jksPass);
+            cert.load(new FileInputStream(tf.clientJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");

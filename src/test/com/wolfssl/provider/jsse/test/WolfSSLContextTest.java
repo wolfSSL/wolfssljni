@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLContext;
 
 import java.io.FileInputStream;
@@ -51,8 +52,7 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLContextTest {
 
-    public final static String clientJKS = "./examples/provider/client.jks";
-    public final static String serverJKS = "./examples/provider/server.jks";
+    private static WolfSSLTestFactory tf;
     public final static char[] jksPass = "wolfSSL test".toCharArray();
 
     private static String allProtocols[] = {
@@ -96,6 +96,13 @@ public class WolfSSLContextTest {
                 /* protocol not enabled */
             }
         }
+        
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 
     @Test
@@ -139,9 +146,9 @@ public class WolfSSLContextTest {
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(clientJKS), jksPass);
+            pKey.load(new FileInputStream(tf.clientJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(clientJKS), jksPass);
+            cert.load(new FileInputStream(tf.clientJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");

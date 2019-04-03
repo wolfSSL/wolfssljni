@@ -52,12 +52,11 @@ import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLServerSocketTest {
 
-    private final static String clientJKS = "./examples/provider/client.jks";
-    private final static String serverJKS = "./examples/provider/server.jks";
     private final static char[] jksPass = "wolfSSL test".toCharArray();
     private final static String ctxProvider = "wolfJSSE";
     private static WolfSSLTestFactory tf;
@@ -107,13 +106,20 @@ public class WolfSSLServerSocketTest {
                 /* protocol not enabled */
             }
         }
+        
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(serverJKS), jksPass);
+            pKey.load(new FileInputStream(tf.serverJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(serverJKS), jksPass);
+            cert.load(new FileInputStream(tf.serverJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
@@ -467,8 +473,8 @@ public class WolfSSLServerSocketTest {
 
         /* fail case, incorrect root CA loaded to verify server cert */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", serverJKS, ctxProvider),
-                tf.createKeyManager("SunX509", serverJKS, ctxProvider));
+                tf.createTrustManager("SunX509", tf.serverJKS, ctxProvider),
+                tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
         ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
@@ -516,13 +522,13 @@ public class WolfSSLServerSocketTest {
         /* server doesn't have correct CA to authenticate client, but should
            pass with setNeedClientAuth(false) */
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", serverJKS, ctxProvider),
-                tf.createKeyManager("SunX509", serverJKS, ctxProvider));
+                tf.createTrustManager("SunX509", tf.serverJKS, ctxProvider),
+                tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
         /* client has correct CA to authenticate server */
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", clientJKS, ctxProvider),
-                tf.createKeyManager("SunX509", clientJKS, ctxProvider));
+                tf.createTrustManager("SunX509", tf.clientJKS, ctxProvider),
+                tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
         ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);

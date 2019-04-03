@@ -47,12 +47,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 
+import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLServerSocketFactoryTest {
 
-    private final static String serverJKS = "./examples/provider/server.jks";
     private final static char[] jksPass = "wolfSSL test".toCharArray();
+    private static WolfSSLTestFactory tf;
 
     private static String allProtocols[] = {
         "TLSV1",
@@ -96,13 +97,20 @@ public class WolfSSLServerSocketFactoryTest {
                 /* protocol not enabled */
             }
         }
-
+        
+        try {
+			tf = new WolfSSLTestFactory();
+		} catch (WolfSSLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
         try {
             /* set up KeyStore */
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(serverJKS), jksPass);
+            pKey.load(new FileInputStream(tf.serverJKS), jksPass);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(serverJKS), jksPass);
+            cert.load(new FileInputStream(tf.serverJKS), jksPass);
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");

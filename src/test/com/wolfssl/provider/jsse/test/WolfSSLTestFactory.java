@@ -20,6 +20,7 @@
  */
 package com.wolfssl.provider.jsse.test;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -38,6 +39,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.wolfssl.WolfSSLException;
+
 /**
  * Used to create common classes among test cases
  *
@@ -45,10 +48,37 @@ import javax.net.ssl.TrustManagerFactory;
  */
 class WolfSSLTestFactory {
 
-    public final static String clientJKS = "./examples/provider/client.jks";
-    public final static String serverJKS = "./examples/provider/server.jks";
-    public final static char[] jksPass = "wolfSSL test".toCharArray();
+    protected String clientJKS;
+    protected String serverJKS;
+    protected String allJKS;
+    protected String mixedJKS;
+    protected String caJKS;
+    protected final static char[] jksPass = "wolfSSL test".toCharArray();
 
+    protected WolfSSLTestFactory() throws WolfSSLException {
+        String esc = "../../../";
+        serverJKS = "examples/provider/server.jks";
+        clientJKS = "examples/provider/client.jks";
+        allJKS = "examples/provider/all.jks";
+        mixedJKS = "examples/provider/all_mixed.jks";
+        caJKS = "examples/provider/cacerts.jks";
+        
+        /* test if running from IDE directory */
+        File f = new File(serverJKS);
+        if (!f.exists()) {
+            f = new File(esc.concat(serverJKS));
+            if (!f.exists()) {
+                System.out.println("could not find files " + f.toPath());
+                throw new WolfSSLException("Unable to find test files");
+            }
+            serverJKS = esc.concat(serverJKS);
+            clientJKS = esc.concat(clientJKS);
+            allJKS = esc.concat(allJKS);
+            mixedJKS = esc.concat(mixedJKS);
+            caJKS = esc.concat(caJKS);
+        }
+    }
+    
     private TrustManager[] internalCreateTrustManager(String type, String file,
             String provider) {
         TrustManagerFactory tm;

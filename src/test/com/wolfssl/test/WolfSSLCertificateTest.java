@@ -25,8 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,9 +42,9 @@ public class WolfSSLCertificateTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public final static String cliCert = "../../../examples/certs/client-cert.der";
-    public final static String external = "../../../examples/certs/ca-google-root.der";
-    public final static String bogusFile = "/dev/null";
+    public static String cliCert = "./examples/certs/client-cert.der";
+    public static String external = "./examples/certs/ca-google-root.der";
+    public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
     
     @Test
@@ -54,6 +52,9 @@ public class WolfSSLCertificateTest {
 
         System.out.println("WolfSSLCertificate Class");
 
+        cliCert = WolfSSLTestCommon.getPath(cliCert);
+        external = WolfSSLTestCommon.getPath(external);
+        		
         test_WolfSSLCertificate_new();
         test_getSerial();
         test_notBefore();
@@ -79,20 +80,12 @@ public class WolfSSLCertificateTest {
     public void test_WolfSSLCertificate_new() {
         File f = new File(cliCert);
         byte[] der = null;
-        
-        System.out.println("workspace = " + System.getProperty("user.id"));
-        
-        {
-        		Path rp = Paths.get("");
-        		String s = rp.toAbsolutePath().toString();
-        		System.out.println("crrent relative path is " + s);
-        }
+
         System.out.print("\tWolfSSLCertificate_new");
         try {
             der = Files.readAllBytes(f.toPath());
         } catch (IOException ex) {
             System.out.println("\t\t... failed");
-            System.out.println("failed to find file " + f.toPath());
             fail("Unable to read file " + cliCert);
             Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
         }
