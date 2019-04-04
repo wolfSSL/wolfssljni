@@ -21,9 +21,10 @@
 package com.wolfssl;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
-import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -69,10 +70,13 @@ public class WolfSSLCertificate {
     
     public WolfSSLCertificate(String fileName) throws WolfSSLException {
         File f = new File(fileName);
+        InputStream stream = null;
         byte[] der = null;
         
         try {
-            der = Files.readAllBytes(f.toPath());
+            stream = new FileInputStream(f);
+            der = stream.readAllBytes();
+            stream.close();
         } catch (IOException ex) {
             Logger.getLogger(WolfSSLCertificate.class.getName()).log(Level.SEVERE, null, ex);
             throw new WolfSSLException("Failed to create SSL Context");
