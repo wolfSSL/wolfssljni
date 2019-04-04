@@ -21,7 +21,6 @@
 package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSL;
-import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import java.security.Principal;
@@ -37,12 +36,14 @@ import javax.net.ssl.SSLSessionBindingEvent;
 import javax.net.ssl.SSLSessionBindingListener;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.X509KeyManager;
-import javax.security.cert.X509Certificate;
+import javax.security.cert.*;
 
 /**
- *
+ * wolfSSL Session
+ * Note: suppress depreciation warning for javax.security.cert.X509Certificate
  * @author wolfSSL
  */
+@SuppressWarnings("deprecation")
 public class WolfSSLImplementSSLSession implements SSLSession {
     private WolfSSLSession ssl;
     private final WolfSSLAuthStore params;
@@ -62,7 +63,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = host;
         this.params = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
-        binding = new HashMap();
+        binding = new HashMap<String, Object>();
         
         creation = new Date();
         accessed = new Date();
@@ -74,7 +75,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = null;
         this.params = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
-        binding = new HashMap();
+        binding = new HashMap<String, Object>();
         
         creation = new Date();
         accessed = new Date();
@@ -256,7 +257,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     
     /**
      * Takes in a new WOLFSSL object and sets the stored session
-     * @param ssl 
+     * @param ssl WOLFSSL session to set resume in
      */
     protected void resume(WolfSSLSession ssl) {
         this.ssl = ssl;

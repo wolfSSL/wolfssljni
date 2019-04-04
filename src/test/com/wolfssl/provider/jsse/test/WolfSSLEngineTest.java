@@ -23,34 +23,22 @@ package com.wolfssl.provider.jsse.test;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -411,7 +399,8 @@ public class WolfSSLEngineTest {
         e = this.ctx.createSSLEngine();
         if (e == null) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
+            return;
         }
         
         /* should be null when not set , is not null? */
@@ -583,6 +572,7 @@ public class WolfSSLEngineTest {
             error("\t\t... failed");
             fail("was able to incorrectly close inbound"); 
         } catch (SSLException ex) {
+            /* expected to fail here */
         }
 
         pass("\t\t... passed");

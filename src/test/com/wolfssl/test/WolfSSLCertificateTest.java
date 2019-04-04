@@ -119,6 +119,7 @@ public class WolfSSLCertificateTest {
         System.out.println("\t\t\t... passed");
     }
     
+    @SuppressWarnings("deprecation")
     public void test_notBefore() {
         Date date = cert.notBefore();
         Date expected = new Date("Fri Apr 13 09:23:09 MDT 2018");
@@ -131,6 +132,7 @@ public class WolfSSLCertificateTest {
     }
     
         
+    @SuppressWarnings("deprecation")
     public void test_notAfter() {
         Date date = cert.notAfter();
         Date expected = new Date("Thu Jan 07 08:23:09 MST 2021");
@@ -359,7 +361,8 @@ public class WolfSSLCertificateTest {
         pubkey = this.cert.getPubkey();
         if (pubkey == null) {
             System.out.println("\t\t\t\t... failed");
-            fail("Could not get public key");              
+            fail("Could not get public key");
+            return;
         }
         
         if (this.cert.verify(pubkey, pubkey.length) != true) {
@@ -401,7 +404,8 @@ public class WolfSSLCertificateTest {
             kuse = ext.getKeyUsage();
             if (kuse == null) {
                 System.out.println("\t\t\t... failed");
-                fail("Did not find key usage extension");                 
+                fail("Did not find key usage extension");
+                return;
             }
             
             for (i = 0; i < kuse.length; i++) {

@@ -2407,8 +2407,8 @@ public class WolfSSLSession {
     }
     
     /**
-     * 
-     * @return 
+     * Getter function to tell if shutdown has been sent or received
+     * @return WolfSSL.SSL_SENT_SHUTDOWN or WolfSSL.SSL_RECEIVED_SHUTDOWN
      */
     public int getShutdown() {
         return getShutdown(getSessionPtr());
@@ -2437,6 +2437,7 @@ public class WolfSSLSession {
         return ret;
     }
     
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {

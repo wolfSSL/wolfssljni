@@ -33,6 +33,9 @@ import com.wolfssl.WolfSSL;
 public final class WolfSSLProvider extends Provider {
 
     public WolfSSLProvider() {
+		/* @TODO older version of java use
+		 * super("wolfJSSE", 1, "wolfSSL JSSE Provider");
+		 */
         super("wolfJSSE", "1.0", "wolfSSL JSSE Provider");
 
         /* load native wolfSSLJNI library */

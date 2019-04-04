@@ -114,10 +114,15 @@ public class WolfSSLSocketFactoryTest {
 
         try {
             /* set up KeyStore */
+        		InputStream stream = new FileInputStream(tf.clientJKS);
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(tf.clientJKS), jksPass);
+            pKey.load(stream, jksPass);
+            stream.close();
+            
+            stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(tf.clientJKS), jksPass);
+            cert.load(stream, jksPass);
+            stream.close();
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
@@ -207,6 +212,7 @@ public class WolfSSLSocketFactoryTest {
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket() failed");
+                    return;
                 }
                 ss.close();
 
@@ -215,6 +221,7 @@ public class WolfSSLSocketFactoryTest {
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Ii) failed");
+                    return;
                 }
                 ss.close();
 
@@ -223,6 +230,7 @@ public class WolfSSLSocketFactoryTest {
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Si) failed");
+                    return;
                 }
                 ss.close();
 
@@ -232,6 +240,7 @@ public class WolfSSLSocketFactoryTest {
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
+                    return;
                 }
                 ss.close();
                 s.close();
@@ -243,9 +252,11 @@ public class WolfSSLSocketFactoryTest {
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
+                    return;
                 }
                 ss.close();
                 s.close();
+                in.close();
 
             } catch (SocketException e) {
                 System.out.println("\t\t\t... failed");
@@ -309,6 +320,7 @@ public class WolfSSLSocketFactoryTest {
             } catch (IOException ne) {
                 /* expected */
             }
+            s.close();
 
             try {
                 /* Socket, InputStream, boolean - null Socket */
@@ -320,6 +332,7 @@ public class WolfSSLSocketFactoryTest {
             } catch (NullPointerException e) {
                 /* expected */
             }
+            in.close();
         }
 
         System.out.println("\t\t\t... passed");

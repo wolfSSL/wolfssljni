@@ -26,20 +26,15 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.X509TrustManager;
 
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSL;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -94,6 +89,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         return WolfSSL.SSL_SUCCESS;
     }
     
+    @Override
     public void checkClientTrusted(X509Certificate[] certs, String type)
             throws CertificateException, IllegalArgumentException {
         if (certs.length == 0 || type.length() == 0) {
@@ -104,6 +100,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         checkServerTrusted(certs, type);
     }
 
+    @Override
     public void checkServerTrusted(X509Certificate[] certs, String type) throws CertificateException {
         int i;
         
@@ -120,6 +117,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         }
     }
 
+    @Override
     public X509Certificate[] getAcceptedIssuers() {
         if (CAs != null)
             return CAs.toArray(new X509Certificate[CAs.size()]);

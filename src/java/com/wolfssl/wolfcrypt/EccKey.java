@@ -109,6 +109,7 @@ public class EccKey {
         return EccPrivateKeyToPKCS8(getEccKeyPtr());
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {

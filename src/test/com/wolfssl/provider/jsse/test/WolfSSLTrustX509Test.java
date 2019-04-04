@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -92,13 +93,15 @@ public class WolfSSLTrustX509Test {
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
         if (tm == null) {
             error("\t\t... failed");
-            fail("failed to create trustmanager"); 
+            fail("failed to create trustmanager");
+            return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
             error("\t\t... failed");
             fail("no CAs where found");
+            return;
         }
         
         if (cas.length != expected) {
@@ -145,12 +148,14 @@ public class WolfSSLTrustX509Test {
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager"); 
+            return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
             error("\t... failed");
             fail("no CAs where found");
+            return;
         }
         
         if (cas.length != expected) {
@@ -199,12 +204,14 @@ public class WolfSSLTrustX509Test {
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager"); 
+            return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
             error("\t... failed");
             fail("no CAs where found");
+            return;
         }
         
         if (cas.length != expected) {
@@ -284,7 +291,7 @@ public class WolfSSLTrustX509Test {
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
-        int i = 0, j;
+        InputStream stream;
         KeyStore ks;
         
         System.out.print("\tTesting verify");
@@ -293,17 +300,21 @@ public class WolfSSLTrustX509Test {
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
             error("\t\t\t... failed");
-            fail("failed to create trustmanager"); 
+            fail("failed to create trustmanager");
+            return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
             error("\t\t\t... failed");
             fail("no CAs where found");
+            return;
         }
         
         ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream(tf.serverJKS), "wolfSSL test".toCharArray());
+        stream = new FileInputStream(tf.serverJKS);
+        ks.load(stream, "wolfSSL test".toCharArray());
+        stream.close();
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
             (X509Certificate)ks.getCertificate("server") }, "RSA");
@@ -318,7 +329,8 @@ public class WolfSSLTrustX509Test {
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
             error("\t\t\t... failed");
-            fail("failed to create trustmanager"); 
+            fail("failed to create trustmanager");
+            return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
@@ -328,7 +340,9 @@ public class WolfSSLTrustX509Test {
         }
         
         ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream(tf.clientJKS), "wolfSSL test".toCharArray());
+        stream = new FileInputStream(tf.clientJKS);
+        ks.load(stream, "wolfSSL test".toCharArray());
+        stream.close();
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
             (X509Certificate)ks.getCertificate("client-ecc") }, "ECC");
@@ -336,6 +350,7 @@ public class WolfSSLTrustX509Test {
             fail("able to verify when should not have"); 
         }
         catch (Exception e) {
+            /* expected to error out */
         }
         pass("\t\t\t... passed");
     }

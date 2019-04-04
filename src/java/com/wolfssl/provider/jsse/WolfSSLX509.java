@@ -237,6 +237,7 @@ public class WolfSSLX509 extends X509Certificate {
         this.cert.free();
     }
     
+    @SuppressWarnings("deprecation")
     @Override
     public void finalize() throws Throwable {
         try {

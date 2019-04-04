@@ -34,7 +34,6 @@ import java.security.SecureRandom;
 import java.lang.IllegalArgumentException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,7 +49,7 @@ public class WolfSSLAuthStore {
         TLSv1_2,
         TLSv1_3,
         SSLv23
-    };
+    }
     
     private TLS_VERSION currentVersion = TLS_VERSION.INVALID;
 
@@ -61,6 +60,14 @@ public class WolfSSLAuthStore {
     
     private SessionStore<Integer, WolfSSLImplementSSLSession> store;
     
+    /**
+     * @param keyman key manager to use
+     * @param trustman trust manager to use
+     * @param random secure random
+     * @param version TLS protocol version to use
+     * @throws IllegalArgumentException when bad values are passed in
+     * @throws KeyManagementException in the case that getting keys fails
+     */
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
@@ -74,7 +81,7 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
-        store = new SessionStore(10); //@TODO set max size correctly
+        store = new SessionStore<Integer, WolfSSLImplementSSLSession>(10); //@TODO set max size correctly
     }
 
     /**
@@ -83,9 +90,9 @@ public class WolfSSLAuthStore {
      * passed in, installed security providers with be searched for highest
      * priority implementation of the required factory.
      */
-    private void initKeyManager(KeyManager[] managers)
+    private void initKeyManager(KeyManager[] in)
         throws KeyManagementException {
-
+        KeyManager[] managers = in;
         if (managers == null || managers.length == 0) {
 
             try {
@@ -118,9 +125,9 @@ public class WolfSSLAuthStore {
      * passed in, installed security providers with be searched for highest
      * priority implementation of the required factory.
      */
-    private void initTrustManager(TrustManager[] managers)
+    private void initTrustManager(TrustManager[] in)
         throws KeyManagementException {
-
+        TrustManager[] managers = in;
         if (managers == null || managers.length == 0) {
 
             try {
@@ -155,38 +162,60 @@ public class WolfSSLAuthStore {
     private void initSecureRandom(SecureRandom random) {
 
         if (random == null) {
-            random = new SecureRandom();
+            sr = new SecureRandom();
         }
         sr = random;
     }
     
 
+    /**
+     * @return get the key manager used
+     */
     protected X509KeyManager getX509KeyManager() {
         return this.km;
     }
 
+    /**
+     * @return get the trust manager used
+     */
     protected X509TrustManager getX509TrustManager() {
         return this.tm;
     }
 
+    /**
+     * @return get secure random
+     */
     protected SecureRandom getSecureRandom() {
         return this.sr;
     }
 
+    /**
+     * @return get the current protocol version set
+     */
     protected TLS_VERSION getProtocolVersion() {
         return this.currentVersion;
     }
     
+    /**
+     * @param in alias to set for certificate used
+     */
     protected void setCertAlias(String in) {
         this.alias = in;
     }
     
+    /**
+     * @return alias name
+     */
     protected String getCertAlias() {
         return this.alias;
     }
     
     /** Returns either an existing session to use or creates a new session. Can
      * return null on error case or the case where session could not be created.
+     * @param ssl WOLFSSL class to set in session
+     * @param port port number connecting to
+     * @param host host connecting to
+     * @return a new or reused SSLSession on success, null on failure
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl, int port, String host) {
         WolfSSLImplementSSLSession ses;
@@ -215,6 +244,8 @@ public class WolfSSLAuthStore {
     }
     
     /** Returns a new session, does not check/save for resumption
+     * @param ssl WOLFSSL class to reference with new session
+     * @return a new SSLSession on success
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
        return new WolfSSLImplementSSLSession(ssl, this);
@@ -222,7 +253,7 @@ public class WolfSSLAuthStore {
     
     /**
      * Add the session for possible resumption
-     * @param session 
+     * @param session the session to add to stored session map
      * @return SSL_SUCCESS on success
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
@@ -237,7 +268,11 @@ public class WolfSSLAuthStore {
     }
     
     private class SessionStore<K, V> extends LinkedHashMap<K, V> {
-        private final int maxSz;
+        /**
+		 * user defined ID
+		 */
+		private static final long serialVersionUID = 1L;
+		private final int maxSz;
         
         /**
          * 
@@ -248,7 +283,7 @@ public class WolfSSLAuthStore {
         }
 
         @Override
-        protected boolean removeEldestEntry(Map.Entry oldest) {
+        protected boolean removeEldestEntry(Map.Entry<K, V> oldest) {
             return size() > maxSz;
         }
     }

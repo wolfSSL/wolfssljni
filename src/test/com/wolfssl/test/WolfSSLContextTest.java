@@ -26,8 +26,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
-import java.io.File;
-
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;

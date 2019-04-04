@@ -150,13 +150,14 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return ret;
     }
 
+    @Override
     public PrivateKey getPrivateKey(String alias) {
         PrivateKey key = null;
 
         try {
             key = (PrivateKey)store.getKey(alias, password);
         } catch (Exception e) {
-           
+           /* @TODO unable to get key */
         }
         return key;
     }

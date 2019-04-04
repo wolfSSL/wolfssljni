@@ -27,9 +27,7 @@ import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLEngine;
@@ -39,13 +37,9 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class WolfSSLEngine extends SSLEngine {
 
-    private String host = null;
-    private int port = 0;
     private WolfSSLEngineHelper EngineHelper;
     private WolfSSLSession ssl;
     private com.wolfssl.WolfSSLContext ctx;
@@ -89,8 +83,6 @@ public class WolfSSLEngine extends SSLEngine {
         this.ctx = ctx;
         this.authStore = auth;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
-        this.host = host;
-        this.port = port;
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
@@ -322,9 +314,6 @@ public class WolfSSLEngine extends SSLEngine {
             tmp = new byte[sz];
             in.get(tmp);
             addToRead(tmp);
-        }
-        else {
-            
         }
 
         tmp = new byte[max];

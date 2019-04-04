@@ -42,6 +42,7 @@ import java.security.Provider;
 import java.security.KeyStore;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
@@ -145,11 +146,16 @@ public class WolfSSLContextTest {
 
         try {
             /* set up KeyStore */
+        		InputStream stream = new FileInputStream(tf.clientJKS);
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(tf.clientJKS), jksPass);
+            pKey.load(stream, jksPass);
+            stream.close();
+            
+            stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(tf.clientJKS), jksPass);
-
+            cert.load(stream, jksPass);
+            	stream.close();
+            	
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
             tm.init(cert);

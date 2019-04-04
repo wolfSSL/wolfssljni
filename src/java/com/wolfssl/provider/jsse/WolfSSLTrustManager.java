@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -49,6 +50,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String pass = System.getProperty("javax.net.ssl.trustStorePassword");
             String file = System.getProperty("javax.net.ssl.trustStore");
             char passAr[] = null;
+            InputStream stream = null;
             
             try {
                 if (pass != null) {
@@ -61,13 +63,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         File f = new File(home.concat("lib/security/jssecacerts"));
                         if (f.exists()) {
                             log("Loading certs from " + home.concat("lib/security/jssecacerts"));
-                            certs.load(new FileInputStream(f), passAr);
+                            stream = new FileInputStream(f);
+                            certs.load(stream, passAr);
                         }
                         else {
                             f = new File(home.concat("lib/security/cacerts"));
                             if (f.exists()) {
                                 log("Loading certs from " + home.concat("lib/security/cacerts"));
-                                certs.load(new FileInputStream(f), passAr);
+                                stream = new FileInputStream(f);
+                                certs.load(stream, passAr);
                             }
                             else {
                                 log("Using Anonymous cipher suite");
@@ -77,17 +81,26 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 }
                 else {
                     log("Loading certs from " + file);
-                     certs.load(new FileInputStream(file), passAr);
+                    stream = new FileInputStream(file);
+                     certs.load(stream, passAr);
                 }
             } catch (FileNotFoundException ex) {
-                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (IOException ex) {
-                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (NoSuchAlgorithmException ex) {
-                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (CertificateException ex) {
-                    Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IOException ex) {
+                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (NoSuchAlgorithmException ex) {
+                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (CertificateException ex) {
+                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException e) {
+                    throw new KeyStoreException("Unable to close stream");
                 }
+            }
         }
         this.store = certs;
     }

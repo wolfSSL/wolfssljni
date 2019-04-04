@@ -23,7 +23,6 @@ package com.wolfssl.provider.jsse;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLException;
@@ -53,10 +52,10 @@ public class WolfSSLEngineHelper {
 
     /**
      * Always creates a new session
-     * @param ssl
-     * @param store
-     * @param params
-     * @throws WolfSSLException 
+     * @param ssl WOLFSSL session
+     * @param store main auth store holding session tables and managers
+     * @param params default parameters to use on connection
+     * @throws WolfSSLException if an exception happens during session creation
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params) throws WolfSSLException {
@@ -72,12 +71,12 @@ public class WolfSSLEngineHelper {
     
     /**
      * Allows for new session and resume session by default
-     * @param ssl
-     * @param store
-     * @param params
-     * @param port
-     * @param host
-     * @throws WolfSSLException 
+     * @param ssl WOLFSSL session
+     * @param store main auth store holding session tables and managers
+     * @param params default parameters to use on connection
+     * @param port port number as hint for resume
+     * @param host host as hint for resume
+     * @throws WolfSSLException if an exception happens during session resume
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
             SSLParameters params, int port, String host)
@@ -411,11 +410,11 @@ public class WolfSSLEngineHelper {
         SSLParameters ret = new SSLParameters();
         
         ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
-        ret.setApplicationProtocols(in.getApplicationProtocols());
+        //ret.setApplicationProtocols(in.getApplicationProtocols());
         ret.setCipherSuites(in.getCipherSuites());
-        ret.setEnableRetransmissions(in.getEnableRetransmissions());
+        //ret.setEnableRetransmissions(in.getEnableRetransmissions());
         ret.setEndpointIdentificationAlgorithm(in.getEndpointIdentificationAlgorithm());
-        ret.setMaximumPacketSize(in.getMaximumPacketSize());
+        //ret.setMaximumPacketSize(in.getMaximumPacketSize());
         ret.setNeedClientAuth(in.getNeedClientAuth());
         ret.setProtocols(in.getProtocols());
         ret.setSNIMatchers(in.getSNIMatchers());

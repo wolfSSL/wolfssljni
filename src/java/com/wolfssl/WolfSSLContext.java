@@ -1690,6 +1690,7 @@ public class WolfSSLContext {
         return usePskIdentityHint(getContextPtr(), hint);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {

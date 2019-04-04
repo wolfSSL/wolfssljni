@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -86,8 +87,10 @@ class WolfSSLTestFactory {
         
         try {
             if (file != null) {
+                InputStream stream = new FileInputStream(file);
                 cert = KeyStore.getInstance("JKS");
-                cert.load(new FileInputStream(file), jksPass);
+                cert.load(stream, jksPass);
+                stream.close();
             }
             if (provider == null) {
                 tm = TrustManagerFactory.getInstance(type);
@@ -143,9 +146,11 @@ class WolfSSLTestFactory {
 
         try {
             /* set up KeyStore */
+            InputStream stream = new FileInputStream(file);
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(file), jksPass);
-
+            pKey.load(stream, jksPass);
+            stream.close();
+            
             /* load private key */
             if (provider == null) {
                 km = KeyManagerFactory.getInstance(type);

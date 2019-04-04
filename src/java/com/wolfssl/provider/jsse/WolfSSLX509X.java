@@ -13,17 +13,14 @@ import java.security.Principal;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.util.Date;
-import javax.security.cert.CertificateEncodingException;
-import javax.security.cert.CertificateException;
-import javax.security.cert.CertificateExpiredException;
-import javax.security.cert.CertificateNotYetValidException;
-import javax.security.cert.X509Certificate;
+import javax.security.cert.*;
 
 /**
  * javax version of certificates
  * 
  * @author wolfSSL
  */
+@SuppressWarnings("deprecation")
 public class WolfSSLX509X extends X509Certificate {
     WolfSSLX509 cert;
     

@@ -34,6 +34,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -116,10 +117,15 @@ public class WolfSSLServerSocketTest {
 
         try {
             /* set up KeyStore */
+        		InputStream stream = new FileInputStream(tf.serverJKS);
             pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(tf.serverJKS), jksPass);
+            pKey.load(stream, jksPass);
+            stream.close();
+            
+            stream = new FileInputStream(tf.serverJKS);
             cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(tf.serverJKS), jksPass);
+            cert.load(stream, jksPass);
+            stream.close();
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
