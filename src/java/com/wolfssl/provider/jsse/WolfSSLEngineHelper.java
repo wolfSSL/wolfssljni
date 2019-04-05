@@ -66,7 +66,7 @@ public class WolfSSLEngineHelper {
         this.ssl = ssl;
         this.params = params;
         this.authStore = store;
-        this.session = this.authStore.getSession(ssl, 0, null);
+        this.session = new WolfSSLImplementSSLSession(store);
     }
     
     /**
@@ -90,7 +90,7 @@ public class WolfSSLEngineHelper {
         this.port = port;
         this.host = host;
         this.authStore = store;
-        this.session = this.authStore.getSession(ssl, this.port, this.host);
+        this.session = new WolfSSLImplementSSLSession(store);
     }
     
     protected WolfSSLSession getWolfSSLSession() {
@@ -324,7 +324,9 @@ public class WolfSSLEngineHelper {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
-        
+
+        /* create non null session */
+        this.session = this.authStore.getSession(ssl, this.port, this.host);
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
             /* new handshakes can not be made in this case. */

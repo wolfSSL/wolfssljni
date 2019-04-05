@@ -33,6 +33,7 @@ import org.junit.runners.Suite;
     WolfSSLSocketTest.class,
     WolfSSLServerSocketFactoryTest.class,
     WolfSSLServerSocketTest.class,
+    WolfSSLSessionTest.class,
 })
 
 

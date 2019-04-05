@@ -55,31 +55,19 @@ public class WolfSSLX509 extends X509Certificate {
         "2.5.29.15"  /* key usage */
     };
     
-    public WolfSSLX509(byte[] der){
+    public WolfSSLX509(byte[] der) throws WolfSSLException{
         super();
-        try {
-            this.cert = new WolfSSLCertificate(der);
-        } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLX509.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        this.cert = new WolfSSLCertificate(der);
     }
     
-    public WolfSSLX509(String derName) {
+    public WolfSSLX509(String derName) throws WolfSSLException {
         super();
-        try {
-            this.cert = new WolfSSLCertificate(derName);
-        } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLX509.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        this.cert = new WolfSSLCertificate(derName);
     }
     
-    public WolfSSLX509(long x509) {
+    public WolfSSLX509(long x509) throws WolfSSLException {
         super();
-        try {
-            this.cert = new WolfSSLCertificate(x509);
-        } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLX509.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        this.cert = new WolfSSLCertificate(x509);
     }
     
     @Override

@@ -15,6 +15,8 @@ import java.security.SignatureException;
 import java.util.Date;
 import javax.security.cert.*;
 
+import com.wolfssl.WolfSSLException;
+
 /**
  * javax version of certificates
  * 
@@ -24,15 +26,15 @@ import javax.security.cert.*;
 public class WolfSSLX509X extends X509Certificate {
     WolfSSLX509 cert;
     
-    public WolfSSLX509X(byte[] der){
+    public WolfSSLX509X(byte[] der) throws WolfSSLException{
         this.cert = new WolfSSLX509(der);
     }
     
-    public WolfSSLX509X(String derName) {
+    public WolfSSLX509X(String derName) throws WolfSSLException {
         this.cert = new WolfSSLX509(derName);
     }
     
-    public WolfSSLX509X(long x509) {
+    public WolfSSLX509X(long x509) throws WolfSSLException {
         this.cert = new WolfSSLX509(x509);
     }
     
