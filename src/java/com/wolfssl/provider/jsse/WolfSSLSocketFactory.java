@@ -109,7 +109,6 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             true, s, host, port, autoClose);
     }
 
-    @Override
     public Socket createSocket(Socket s, InputStream consumed,
         boolean autoClose) throws IOException {
         return new WolfSSLSocket(ctx, authStore, params, s,

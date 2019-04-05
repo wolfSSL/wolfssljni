@@ -215,160 +215,6 @@ public class WolfSSLEngineTest {
         return 0;
     }
     
-    /* prints in a format that can be imported into wireshark */
-    private void printHex(ByteBuffer in) {
-        int i = 0, j = 0;
-        while (in.remaining() > 0) {
-            if ((i % 8) == 0) {
-                System.out.printf("\n%06X", j * 8);
-                j++;
-            }
-            System.out.printf(" %02X ", in.get());
-            i++;
-        }
-        System.out.println("");
-        in.flip();
-    }
-    
-    private int testConnection(SSLEngine server, SSLEngine client,
-            String[] cipherSuites, String[] protocols, String appData) {
-        ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
-        ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
-        ByteBuffer toSendCli = ByteBuffer.wrap(appData.getBytes());
-        ByteBuffer toSendSer = ByteBuffer.wrap(appData.getBytes());
-        ByteBuffer serPlain = ByteBuffer.allocate(server.getSession().getApplicationBufferSize());
-        ByteBuffer cliPlain = ByteBuffer.allocate(client.getSession().getApplicationBufferSize());
-        boolean done = false;
-
-        server.setUseClientMode(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        
-        if (cipherSuites != null) {
-            server.setEnabledCipherSuites(cipherSuites);
-            client.setEnabledCipherSuites(cipherSuites);
-        }
-        
-        if (protocols != null) {
-            server.setEnabledProtocols(protocols);
-            client.setEnabledProtocols(protocols);
-        }
-
-        while (!done) {
-            try {
-                Runnable run;
-                SSLEngineResult result;
-                HandshakeStatus s;
-                
-                result = client.wrap(toSendCli, cliToSer);
-                if (extraDebug) {
-                    System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-//                        + " sequence # = " + result.sequenceNumber());
-                }
-                while ((run = client.getDelegatedTask()) != null) {
-                    run.run();
-                }
-                
-                result = server.wrap(toSendSer, serToCli);
-                if (extraDebug) {
-                    System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-                }
-                while ((run = server.getDelegatedTask()) != null) {
-                    run.run();
-                }
-
-                if (extraDebug) {
-                    s = client.getHandshakeStatus();
-                    System.out.println("client status = " + s.toString());
-                    s = server.getHandshakeStatus();
-                    System.out.println("server status = " + s.toString());
-                }
-                
-                cliToSer.flip();
-                serToCli.flip();
-
-                if (extraDebug) {
-                    if (cliToSer.remaining() > 0) {
-                        System.out.println("Client -> Server");
-                        printHex(cliToSer);
-                    }
-
-                    if (serToCli.remaining() > 0) {
-                        System.out.println("Server -> Client");
-                        printHex(serToCli);
-                    }
-
-                    System.out.println("cliToSer remaning = " + cliToSer.remaining());
-                    System.out.println("serToCli remaning = " + serToCli.remaining());
-                }
-                result = client.unwrap(serToCli, cliPlain);
-                if (extraDebug) {
-                    System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-                }
-                while ((run = client.getDelegatedTask()) != null) {
-                    run.run();
-                }
-                
-                
-                result = server.unwrap(cliToSer, serPlain);
-                if (extraDebug) {
-                    System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-                }
-                while ((run = server.getDelegatedTask()) != null) {
-                    run.run();
-                }
-                                
-                cliToSer.compact();
-                serToCli.compact();
-                
-            
-                if (extraDebug) {
-                    s = client.getHandshakeStatus();
-                    System.out.println("client status = " + s.toString());
-                    s = server.getHandshakeStatus();
-                    System.out.println("server status = " + s.toString());
-                }
-                
-                if (toSendCli.remaining() == 0 && toSendSer.remaining() == 0) {
-                    byte[] b;
-                    String st;
-                    
-                    /* check what the client received */
-                    cliPlain.rewind();
-                    b = new byte[cliPlain.remaining()];
-                    cliPlain.get(b);
-                    st = new String(b, StandardCharsets.UTF_8).trim();
-                    if (!appData.equals(st)) {
-                        return -1;
-                    }
-                    
-                    /* check what the server received */
-                    serPlain.rewind();
-                    b = new byte[serPlain.remaining()];
-                    serPlain.get(b);
-                    st = new String(b, StandardCharsets.UTF_8).trim();
-                    if (!appData.equals(st)) {
-                        return -1;
-                    }
-                    
-                    done = true;
-                }
-
-            } catch (SSLException ex) {
-                return -1;
-            }            
-        }
-        return 0;
-    }
-    
     
     @Test
     public void testSSLEngine()
@@ -476,7 +322,11 @@ public class WolfSSLEngineTest {
                 }
             }
         }
-        ret = testConnection(server, client, new String[] { cipher },
+        
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, new String[] { cipher },
                 new String[] { "TLSv1.2" }, "Test cipher suite");
         if (ret != 0) {
             error("\t... failed");
@@ -548,7 +398,10 @@ public class WolfSSLEngineTest {
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL in/out test", 11111);
 
-        ret = testConnection(server, client, null, null, "Test in/out bound");
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
             error("\t\t... failed");
             fail("failed to create engine");   
@@ -595,10 +448,12 @@ public class WolfSSLEngineTest {
 
         server.setWantClientAuth(true);
         server.setNeedClientAuth(true);
-        ret = testConnection(server, client, null, null, "Test in/out bound");
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create connection with engine");   
         }
         
         /* fail case */
@@ -610,7 +465,8 @@ public class WolfSSLEngineTest {
 
         server.setWantClientAuth(true);
         server.setNeedClientAuth(true);
-        ret = testConnection(server, client, null, null, "Test in/out bound");
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret == 0) {
             error("\t\t... failed");
             fail("failed to create engine");   
@@ -643,8 +499,10 @@ public class WolfSSLEngineTest {
 //        }
 //        client = c.createSSLEngine("wolfSSL client test", 11111);
 //        server = c.createSSLEngine();
-
-        ret = testConnection(server, client, null, null, "Test reuse");
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
             fail("failed to create engine");   
@@ -673,7 +531,10 @@ public class WolfSSLEngineTest {
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
         client.setEnableSessionCreation(false);
-        ret = testConnection(server, client, null, null, "Test reuse");
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
             fail("failed to create engine");   

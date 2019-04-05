@@ -74,8 +74,9 @@ public class WolfSSLCertificate {
         byte[] der = null;
         
         try {
+            der = new byte[(int) f.length()];
             stream = new FileInputStream(f);
-            der = stream.readAllBytes();
+            stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
             Logger.getLogger(WolfSSLCertificate.class.getName()).log(Level.SEVERE, null, ex);
