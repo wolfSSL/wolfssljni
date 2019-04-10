@@ -37,6 +37,7 @@ add_cert_key "all.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc"
 add_cert_key "all.jks" "/server-ecc.pem" "/ecc-key.pem" "server-ecc" "wolfSSL test"
 add_cert_key "all.jks" "/ca-cert.pem" "/ca-key.pem" "ca" "wolfSSL test"
 add_cert_key "all.jks" "/1024/ca-cert.pem" "/1024/ca-key.pem" "ca-1024" "wolfSSL test"
+add_cert_key "all.jks" "/ca-ecc-cert.pem" "/ca-ecc-key.pem" "ca-ecc" "wolfSSL test"
 printf "done\n"
 
 printf "\tCreating client.jks ..."

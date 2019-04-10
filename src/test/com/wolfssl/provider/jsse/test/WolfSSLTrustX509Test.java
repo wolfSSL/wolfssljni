@@ -77,17 +77,17 @@ public class WolfSSLTrustX509Test {
         X509TrustManager x509tm;
         X509Certificate cas[];
         int i = 0;
-        int expected = 8;
+        int expected = 9;
         String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
             "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Programming-2048" };
+            "OU=Development", "OU=Programming-2048" };
         
         System.out.print("\tTesting parse all.jks");
         
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
          * to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
-            expected = 7; /* one less than SunJSSE because of server-ecc */
+            expected = 8; /* one less than SunJSSE because of server-ecc */
         }
         
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
