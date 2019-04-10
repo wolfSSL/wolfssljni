@@ -57,6 +57,7 @@ public class WolfSSLAuthStore {
     private X509TrustManager tm = null;
     private SecureRandom sr = null;
     private String alias = null;
+    private WolfSSLDebug debug;
     
     private SessionStore<Integer, WolfSSLImplementSSLSession> store;
     
@@ -217,7 +218,9 @@ public class WolfSSLAuthStore {
      * @param host host connecting to
      * @return a new or reused SSLSession on success, null on failure
      */
-    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl, int port, String host) {
+    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl,
+        int port, String host, boolean clientMode) {
+
         WolfSSLImplementSSLSession ses;
         String toHash;
         
@@ -225,19 +228,30 @@ public class WolfSSLAuthStore {
             return null;
         }
 
-        /* case with no host */
-        if (host == null) {
+        /* server mode, or client mode with no host */
+        if (clientMode == false || host == null) {
             return this.getSession(ssl);
         }
-        
+
+        if (debug.DEBUG) {
+            log("attempting to look up session (" +
+                "host: " + host + ", port: " + port + ")");
+        }
+
         /* check if is in table */
         toHash = host.concat(Integer.toString(port));
         ses = store.get(toHash.hashCode());
         if (ses == null) {
+            if (debug.DEBUG) {
+                log("session not found in cache table, creating new");
+            }
             /* not found in stored sessions create a new one */
             ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
         }
         else {
+            if (debug.DEBUG) {
+                log("session found in cache, trying to resume");
+            }
             ses.resume(ssl);
         }
         return ses;
@@ -248,7 +262,10 @@ public class WolfSSLAuthStore {
      * @return a new SSLSession on success
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
-       return new WolfSSLImplementSSLSession(ssl, this);
+        if (debug.DEBUG) {
+            log("creating new session");
+        }
+        return new WolfSSLImplementSSLSession(ssl, this);
     }
     
     /**
@@ -260,13 +277,22 @@ public class WolfSSLAuthStore {
         String toHash;
         
         if (session.getPeerHost() != null) {
-            session.fromTable = true; /* registered into session table for resumption */
-            toHash = session.getPeerHost().concat(Integer.toString(session.getPeerPort()));
+            /* register into session table for resumption */
+            session.fromTable = true;
+            toHash = session.getPeerHost().concat(Integer.toString(
+                     session.getPeerPort()));
             store.put(toHash.hashCode(), session);
+
+            if (debug.DEBUG) {
+                log("stored session in cache table (host: " +
+                    session.getPeerHost() + ", port: " +
+                    session.getPeerPort() + ")");
+            }
         }
+
         return WolfSSL.SSL_SUCCESS;
     }
-    
+
     private class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**
 		 * user defined ID
@@ -286,6 +312,10 @@ public class WolfSSLAuthStore {
         protected boolean removeEldestEntry(Map.Entry<K, V> oldest) {
             return size() > maxSz;
         }
+    }
+
+    private void log(String msg) {
+        debug.print("[WolfSSLAuthStore] " + msg);
     }
 }
 

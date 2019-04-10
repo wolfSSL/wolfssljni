@@ -1160,6 +1160,95 @@ public class WolfSSLSocketTest {
         System.out.println("\t\t... passed");
     }
 
+    @Test
+    public void testSessionResumption() throws Exception {
+
+        byte[] sessionID1 = null;
+        byte[] sessionID2 = null;
+        String protocol = null;
+
+        System.out.print("\tTesting session resumption");
+
+        /* use TLS 1.2, else 1.1, else 1.0, else skip */
+        /* TODO: TLS 1.3 handles session resumption differently */
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+             .createServerSocket(0);
+
+        SSLSocketFactory cliFactory = ctx.getSocketFactory();
+
+        SSLSocket cs = (SSLSocket)cliFactory.createSocket();
+        cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                         ss.getLocalPort()));
+
+        /* start server */
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    for (int i = 0; i < 2; i++) {
+                        SSLSocket server = (SSLSocket)ss.accept();
+                        server.startHandshake();
+                        server.close();
+                    }
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            /* connection #1 */
+            cs.startHandshake();
+            sessionID1 = cs.getSession().getId();
+            cs.close();
+
+            /* connection #2, should resume */
+            cs = (SSLSocket)cliFactory.createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                             ss.getLocalPort()));
+            cs.startHandshake();
+            sessionID2 = cs.getSession().getId();
+            cs.close();
+
+            if (!Arrays.equals(sessionID1, sessionID2)) {
+                /* session not resumed */
+                System.out.println("\t... failed");
+                fail();
+            }
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        System.out.println("\t... passed");
+    }
+
     protected class TestServer extends Thread
     {
         private SSLContext ctx;

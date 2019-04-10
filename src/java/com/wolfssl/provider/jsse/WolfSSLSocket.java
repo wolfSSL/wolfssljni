@@ -570,7 +570,11 @@ public class WolfSSLSocket extends SSLSocket {
                 if (debug.DEBUG) {
                     log("shutting down SSL/TLS connection");
                 }
-                EngineHelper.saveSession();
+
+                if (this.getUseClientMode() == true ) {
+                    EngineHelper.saveSession();
+                }
+
                 ssl.shutdownSSL();
             }
 
@@ -607,6 +611,15 @@ public class WolfSSLSocket extends SSLSocket {
 
         this.address = (InetSocketAddress)endpoint;
 
+        /* register host/port for session resumption in case where
+           createSocket() was called without host/port, but
+           SSLSocket.connect() was explicitly called with SocketAddress */
+        if (this.address != null && EngineHelper != null) {
+            EngineHelper.setHostAndPort(
+                this.address.getAddress().getHostAddress(),
+                this.address.getPort());
+        }
+
         /* if user is calling after WolfSSLSession creation, register
            socket fd with native wolfSSL */
         try {
@@ -634,6 +647,15 @@ public class WolfSSLSocket extends SSLSocket {
         }
 
         this.address = (InetSocketAddress)endpoint;
+
+        /* register host/port for session resumption in case where
+           createSocket() was called without host/port, but
+           SSLSocket.connect() was explicitly called with SocketAddress */
+        if (this.address != null && EngineHelper != null) {
+            EngineHelper.setHostAndPort(
+                this.address.getAddress().getHostAddress(),
+                this.address.getPort());
+        }
 
         /* if user is calling after WolfSSLSession creation, register
            socket fd with native wolfSSL */

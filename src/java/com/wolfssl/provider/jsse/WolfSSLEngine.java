@@ -159,8 +159,11 @@ public class WolfSSLEngine extends SSLEngine {
      */
     private int ClosingConnection() {
         int ret;
-        
-        EngineHelper.saveSession();
+
+        if (this.getUseClientMode() == true) {
+            EngineHelper.saveSession();
+        }
+
         ret = ssl.shutdownSSL();
         if (ret == WolfSSL.SSL_SUCCESS) {
             /* if shutdown is successfull then is closed */

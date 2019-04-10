@@ -92,7 +92,13 @@ public class WolfSSLEngineHelper {
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
     }
-    
+
+    /* used internally by SSLSocket.connect(SocketAddress) */
+    protected void setHostAndPort(String host, int port) {
+        this.host = host;
+        this.port = port;
+    }
+
     protected WolfSSLSession getWolfSSLSession() {
         return ssl;
     }
@@ -326,7 +332,9 @@ public class WolfSSLEngineHelper {
         }
 
         /* create non null session */
-        this.session = this.authStore.getSession(ssl, this.port, this.host);
+        this.session = this.authStore.getSession(ssl, this.port, this.host,
+            this.clientMode);
+
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
@@ -341,7 +349,7 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
-        if (this.sessionCreation) {
+        if (this.clientMode == true && this.sessionCreation) {
             /* can only add new sessions to the resumption table if session
              * creation is allowed */
             this.authStore.addSession(this.session);
