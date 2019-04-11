@@ -360,18 +360,37 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Returns the supported cipher suite list for this socket, and that
+     * have been compiled into native wolfSSL library.
+     *
+     * @return array of supported cipher suite Strings
+     */
     @Override
     public String[] getSupportedCipherSuites() {
-        /* returns cipher suites supported (compiled in) from native wolfSSL */
         return EngineHelper.getAllCiphers();
     }
 
+    /**
+     * Returns array of enabled cipher suites for this Socket.
+     * This array is pre-populated by wolfJSSE with the cipher suites
+     * supported by the native wolfSSL library
+
+     * @return array of enabled cipher suite Strings
+     */
     @Override
     synchronized public String[] getEnabledCipherSuites() {
-        /* returns cipher suites set by user, or null if none have been set */
         return EngineHelper.getCiphers();
     }
 
+    /**
+     * Sets the cipher suites enabled for this SSLSocket.
+     *
+     * @param suites array of cipher suites to enable for this Socket
+     *
+     * @throws IllegalArgumentException when suites array contains
+     *         cipher suites unsupported by native wolfSSL
+     */
     @Override
     synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
@@ -384,6 +403,11 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Returns array of protocols supported by this SSLSocket.
+     *
+     * @return String array containing supported SSL/TLS protocols
+     */
     @Override
     public String[] getSupportedProtocols() {
 
@@ -391,6 +415,11 @@ public class WolfSSLSocket extends SSLSocket {
         return EngineHelper.getAllProtocols();
     }
 
+    /**
+     * Returns SSL/TLS protocols enabled for this SSLSocket.
+     *
+     * @return String array containing enabled protocols
+     */
     @Override
     synchronized public String[] getEnabledProtocols() {
 
@@ -398,6 +427,14 @@ public class WolfSSLSocket extends SSLSocket {
         return EngineHelper.getProtocols();
     }
 
+    /**
+     * Sets the SSL/TLS protocols enabled on this SSLSocket.
+     *
+     * @param protocols String array of SSL/TLS protocols to enable
+     *
+     * @throws IllegalArgumentException when protocols array contains
+     *         protocols unsupported by native wolfSSL
+     */
     @Override
     synchronized public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
@@ -410,11 +447,27 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Returns the SSLSession in use by this SSLSocket.
+     *
+     * @return SSLSession object, otherwise null if not handshaking or
+     *         Socket has not progressed enough to create the session
+     */
     @Override
     synchronized public SSLSession getSession() {
         return EngineHelper.getSession();
     }
 
+    /**
+     * Registers a HandshakeCompletedListener with this SSLSocket.
+     *
+     * The handshake completed listener will be notified when the SSL/TLS
+     * handshake on this Socket has completed.
+     *
+     * @param listener the handshake listener to register
+     *
+     * @throws IllegalArgumentException when listener is null
+     */
     @Override
     synchronized public void addHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
@@ -435,6 +488,14 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Removes a registered HandshakeCompletedListener from this SSLSocket.
+     *
+     * @param listener the listener to be removed
+     *
+     * @throws IllegalArgumentException if listener is null, or has not
+     *         been registered wit this Socket
+     */
     @Override
     synchronized public void removeHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
@@ -457,6 +518,11 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Begins the SSL/TLS handshake on this SSLSocket.
+     *
+     * @throws IOException if a network error occurs
+     */
     @Override
     synchronized public void startHandshake() throws IOException {
         int ret;
@@ -492,6 +558,16 @@ public class WolfSSLSocket extends SSLSocket {
 
     }
 
+    /**
+     * Sets the SSLSocket to use client or server mode.
+     *
+     * This must be called before the handshake begins on this Socket.
+     *
+     * @param mode true for client mode, false for server mode
+     *
+     * @throws IllegalArgumentException if caller tries to set the mode
+     *         after handshaking has completed
+     */
     @Override
     synchronized public void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
@@ -503,11 +579,25 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Return the client mode of this SSLSocket.
+     *
+     * @return true if in client mode, otherwise false for server mode
+     */
     @Override
     synchronized public boolean getUseClientMode() {
         return EngineHelper.getUseClientMode();
     }
 
+    /**
+     * Configures the SSLSocket to require client authentication.
+     *
+     * Only useful in server mode. Similar to setWantClientAuth(), but
+     * if a client does not provide a cert/method for the server to
+     * authenticate it, the connection will fail.
+     *
+     * @param need true sets client auth requirement, otherwise false
+     */
     @Override
     synchronized public void setNeedClientAuth(boolean need) {
 
@@ -518,11 +608,27 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Return if mandatory client authentication is set for this SSLSocket.
+     *
+     * @return true if Socket has been configured to require client auth,
+     *         otherwise false
+     */
     @Override
     synchronized public boolean getNeedClientAuth() {
         return EngineHelper.getNeedClientAuth();
     }
 
+    /**
+     * Configures the SSLSocket to request client authentication, but not
+     * require it.
+     *
+     * Similar to setNeedClientAuth(), but the handshake does not abort
+     * if the client does not send a certificate back.
+     *
+     * @param want true to enable server to request certificate from client,
+     *        false if client auth should be disabled
+     */
     @Override
     synchronized public void setWantClientAuth(boolean want) {
 
@@ -533,11 +639,29 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Returns true if SSLSocket will request client authentication.
+     *
+     * "want" client auth indicates that a server socket will request
+     * that the client sends a certificate to authenticate itself, but
+     * the server will not abort the handshake if the client does not
+     * send it.
+     *
+     * @return true if Socket will request client auth, false otherwise
+     */
     @Override
     synchronized public boolean getWantClientAuth() {
         return EngineHelper.getWantClientAuth();
     }
 
+    /**
+     * Enables this SSLSocket to create new sessions.
+     *
+     * If this is set to false, and there are not sessions to resume,
+     * this Socket will not be allowed to create new sessions.
+     *
+     * @param flag true to allow session creation, otherwise false
+     */
     @Override
     synchronized public void setEnableSessionCreation(boolean flag) {
 
@@ -548,21 +672,48 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Returns whether this SSLSocket can create new sessions.
+     *
+     * @return true if this Socket can create new sessions, otherwise false
+     */
     @Override
     synchronized public boolean getEnableSessionCreation() {
         return EngineHelper.getEnableSessionCreation();
     }
 
+    /**
+     * Return the InputStream associated with this SSLSocket.
+     *
+     * @return InputStream for this Socket
+     *
+     * @throws IOException if InputStream is not able to be returned
+     */
     @Override
     synchronized public InputStream getInputStream() throws IOException {
         return inStream;
     }
 
+    /**
+     * Return the OutputStream associated with this SSLSocket.
+     *
+     * @return OutputStream for this Socket
+     *
+     * @throws IOException if OutputStream is not able to be returned
+     */
     @Override
     synchronized public OutputStream getOutputStream() throws IOException {
         return outStream;
     }
 
+    /**
+     * Closes this SSLSocket.
+     *
+     * If this socket was created with an autoClose value set to true,
+     * this will also close the underlying Socket.
+     *
+     * @throws IOException upon error closing the connection
+     */
     @Override
     synchronized public void close() throws IOException {
         try {
@@ -594,6 +745,13 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Connects the underlying Socket associated with this SSLSocket.
+     *
+     * @param endpoint address of peer to connect underlying Socket to
+     *
+     * @throws IOException upon error connecting Socket
+     */
     @Override
     synchronized public void connect(SocketAddress endpoint)
         throws IOException {
@@ -631,6 +789,14 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Connects the underlying Socket associated with this SSLSocket.
+     *
+     * @param endpoint address of peer to connect underlying socket to
+     * @param timeout timeout value to set for underlying Socket connection
+     *
+     * @throws IOException upon error connecting Socket
+     */
     @Override
     synchronized public void connect(SocketAddress endpoint, int timeout)
         throws IOException {

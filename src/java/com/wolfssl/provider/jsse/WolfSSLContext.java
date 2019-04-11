@@ -226,6 +226,22 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * Initializes a SSLContext.
+     *
+     * wolfJSSE currently selects the first KeyManager and TrustManager
+     * in the input arrays to be used during the SSL/TLS context setup
+     * and session. Native wolfSSL gets entropy directly based on how
+     * the wolfSSL library has been compiled.  SecureRandom is not used
+     * by wolfJSSE.
+     *
+     * @param km - array of KeyManager objects
+     * @param tm - array of TrustManager objects
+     * @param sr - SecureRandom object
+     *
+     * @throws KeyManagementException if wolfJSSE fails to load and use
+     * input objects.
+     */
     @Override
     protected void engineInit(KeyManager[] km, TrustManager[] tm,
         SecureRandom sr) throws KeyManagementException {
@@ -243,6 +259,11 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * Creates a new wolfJSSE SSLSocketFactory.
+     *
+     * @throws IllegalStateException if SSLContext has not been initialized
+     */
     @Override
     protected SSLSocketFactory engineGetSocketFactory()
         throws IllegalStateException {
@@ -255,8 +276,14 @@ public class WolfSSLContext extends SSLContextSpi {
         return new WolfSSLSocketFactory(this.ctx, this.authStore, this.params);
     }
 
+    /**
+     * Creates a new wolfJSSE SSLServerSocketFactory.
+     *
+     * @throws IllegalStateException if SSLContext has not been initialized
+     */
     @Override
-    protected SSLServerSocketFactory engineGetServerSocketFactory() {
+    protected SSLServerSocketFactory engineGetServerSocketFactory()
+        throws IllegalStateException {
 
         if (authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
@@ -267,8 +294,14 @@ public class WolfSSLContext extends SSLContextSpi {
             this.params);
     }
 
+    /**
+     * Creates a new wolfJSSE SSLEngine.
+     *
+     * @throws IllegalStateException if SSLContext has not been initialized
+     */
     @Override
-    protected SSLEngine engineCreateSSLEngine() {
+    protected SSLEngine engineCreateSSLEngine()
+        throws IllegalStateException {
 
         if (authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
@@ -285,8 +318,17 @@ public class WolfSSLContext extends SSLContextSpi {
         return null;
     }
 
+    /**
+     * Creates a new SSLEngine, using peer information as hints.
+     *
+     * @param host - name of the peer host
+     * @param port - peer port
+     *
+     * @throws IllegalStateException if SSLContext has not been initialized
+     */
     @Override
-    protected SSLEngine engineCreateSSLEngine(String host, int port) {
+    protected SSLEngine engineCreateSSLEngine(String host, int port)
+        throws IllegalStateException {
 
         if (authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
@@ -304,11 +346,25 @@ public class WolfSSLContext extends SSLContextSpi {
         return null;
     }
 
+    /**
+     * Returns the SSLServerSessionContext associated with this SSLContext.
+     *
+     * Not currently supported by wolfJSSE.
+     *
+     * @throws UnsupportedOperationException operation not yet supported
+     */
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
         throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
 
+    /**
+     * Returns the SSLClientSessionContext associated with this SSLContext.
+     *
+     * Not currently supported by wolfJSSE.
+     *
+     * @throws UnsupportedOperationException operation not yet supported
+     */
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
         throw new UnsupportedOperationException("Not supported by wolfJSSE");

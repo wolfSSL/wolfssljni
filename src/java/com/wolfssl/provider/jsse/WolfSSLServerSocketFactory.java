@@ -44,32 +44,77 @@ public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
         this.params = params;
     }
 
+    /**
+     * Returns the default cipher suite list for wolfJSSE.
+     *
+     * @return default array of cipher suite Strings for wolfSSL
+     */
     @Override
     public String[] getDefaultCipherSuites() {
         return WolfSSL.getCiphers();
     }
 
+    /**
+     * Returns the supported cipher suite list for this factory.
+     *
+     * @return array of supported cipher suite Strings
+     */
     @Override
     public String[] getSupportedCipherSuites() {
         return getDefaultCipherSuites();
     }
 
+    /**
+     * Creates a new unbound SSLServerSocket.
+     *
+     * @return the new ServerSocket
+     * @throws IOException if socket creation fails
+     */
     @Override
     public ServerSocket createServerSocket() throws IOException {
         return new WolfSSLServerSocket(ctx, authStore, params);
     }
 
+    /**
+     * Creates a new SSLServerSocket bound to the specified port.
+     *
+     * @param port port number on which to bind socket
+     *
+     * @return the new ServerSocket
+     * @throws IOException if socket creation fails.
+     */
     @Override
     public ServerSocket createServerSocket(int port) throws IOException {
         return new WolfSSLServerSocket(ctx, authStore, params, port);
     }
 
+    /**
+     * Creates a new SSLServerSocket bound to the specified port, using
+     * the specified connection backlog.
+     *
+     * @param port port number on which to bind Socket
+     * @param backlog connection backlog for this Socket
+     *
+     * @return the new ServerSocket
+     * @throws IOException if socket creation fails.
+     */
     @Override
     public ServerSocket createServerSocket(int port, int backlog)
         throws IOException {
         return new WolfSSLServerSocket(ctx, authStore, params, port, backlog);
     }
 
+    /**
+     * Creates a new SSLServerSocket bound to the specified port, using the
+     * specified connection backlog, and using a local IP.
+     *
+     * @param port port number on which to bind Socket
+     * @param backlog connection backlog for this Socket
+     * @param ifAddress local address to bind Socket
+     *
+     * @return the new ServerSocket
+     * @throws IOException if socket creation fails.
+     */
     @Override
     public ServerSocket createServerSocket(int port, int backlog,
         InetAddress ifAddress) throws IOException {
