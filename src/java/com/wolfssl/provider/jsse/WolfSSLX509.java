@@ -26,7 +26,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
+import java.security.Provider;
 import java.security.PublicKey;
+import java.security.Security;
+import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -35,24 +38,20 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.Set;
+import java.util.TreeSet;
 
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
-import java.security.Provider;
-import java.security.Security;
-import java.security.Signature;
-import java.util.HashSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class WolfSSLX509 extends X509Certificate {
     private WolfSSLCertificate cert;
     private String[] extensionOid = {
+        "2.5.29.15", /* key usage */
         "2.5.29.19", /* basic constraint */
         "2.5.29.17", /* subject alt names */
-        "2.5.29.35", /* auth key ID */
         "2.5.29.14", /* subject key ID */
-        "2.5.29.15"  /* key usage */
+        "2.5.29.35", /* auth key ID */
+        "2.5.29.31"  /* CRL dist */
     };
     
     public WolfSSLX509(byte[] der) throws WolfSSLException{
@@ -142,17 +141,17 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getSigAlgParams() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public boolean[] getIssuerUniqueID() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public boolean[] getSubjectUniqueID() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -174,18 +173,23 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getEncoded() throws CertificateEncodingException {
-        return this.cert.getDer();
+        byte[] ret = this.cert.getDer();
+        if (ret == null) {
+            throw new CertificateEncodingException();
+        }
+        return ret;
     }
 
     @Override
-    public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException {
+    public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         byte[] pubKey;
         boolean ret;
-        
+
         if (key == null) {
             throw new InvalidKeyException();
         }
         pubKey = key.getEncoded();
+
         ret = this.cert.verify(pubKey, pubKey.length);
         if (ret != true) {
             throw new SignatureException();
@@ -194,11 +198,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public void verify(PublicKey key, String sigProvider) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException {
-        Provider p = Security.getProvider(sigProvider);
         Signature sig;
         String sigOID;
         byte[] sigBuf;
-        
+
         if (key == null || sigProvider == null) {
             throw new InvalidKeyException();
         }
@@ -211,7 +214,38 @@ public class WolfSSLX509 extends X509Certificate {
         }
         
         sig.initVerify(key);
+        sig.update(this.getTBSCertificate());
         if (sig.verify(sigBuf) == false) {
+            throw new SignatureException();
+        }
+    }
+    
+    @Override
+    public void verify(PublicKey key, Provider p) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Signature sig;
+        String sigOID;
+        byte[] sigBuf;
+
+        if (key == null || p == null) {
+            throw new InvalidKeyException();
+        }
+        
+        sigOID = this.getSigAlgName();
+        sigBuf = this.getSignature();
+
+        sig = Signature.getInstance(sigOID, p);
+        if (sig == null || sigBuf == null) {
+            throw new CertificateException();
+        }
+        
+        try {
+            sig.initVerify(key);
+            sig.update(this.getTBSCertificate());
+        } catch (Exception e) {
+            throw new CertificateException();
+        }
+        
+        if (sig.verify(this.getSignature()) == false) {
             throw new SignatureException();
         }
     }
@@ -237,60 +271,50 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public PublicKey getPublicKey() {
+        String type  = this.cert.getPubkeyType();
+        byte der[]   = this.cert.getPubkey();
+
         try {
-            return new WolfSSLPubKey(this.getEncoded(),
-                    this.cert.getPubkeyType());
-        } catch (CertificateEncodingException ex) {
-            Logger.getLogger(WolfSSLX509.class.getName()).log(Level.SEVERE, null, ex);
+            return new WolfSSLPubKey(der, type, "X.509");
+        } catch (WolfSSLException e) {
+            return null;
         }
-        return null;
     }
 
     /* If unsupported critical extension is found then wolfSSL should not parse
      * the certificate. */
+    @Override
     public boolean hasUnsupportedCriticalExtension() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /* @TODO farther testing*/
+        return false;
     }
 
-    /* currently supports :
-     *  "2.5.29.19" basic constraint
-     *  "2.5.29.17",  subject alt names
-     *  "2.5.29.35",  auth key ID
-     *  "2.5.29.14",  subject key ID
-     *  "2.5.29.15"   key usage
-     */
+
     public Set<String> getCriticalExtensionOIDs() {
         int i;
-        Set<String> ret = null;
+        Set<String> ret = new TreeSet<String>();
         
         for (i = 0; i < this.extensionOid.length; i++) {
             if (this.cert.getExtensionSet(this.extensionOid[i]) == 2) {
-                if (ret == null) {
-                    ret = new HashSet<String>();
-                }
                 ret.add(this.extensionOid[i]);
             }
         }
         
+        if (ret.size() == 0)
+            return null;
+        
         return ret;
     }
 
-    /* currently supports :
-     *  "2.5.29.19" basic constraint
-     *  "2.5.29.17",  subject alt names
-     *  "2.5.29.35",  auth key ID
-     *  "2.5.29.14",  subject key ID
-     *  "2.5.29.15"   key usage
-     */
+
     public Set<String> getNonCriticalExtensionOIDs() {
         int i;
-        Set<String> ret = null;
+        Set<String> ret = new TreeSet<String>();
         
         for (i = 0; i < this.extensionOid.length; i++) {
-            if (ret == null) {
-                ret = new HashSet<String>();
+            if (this.cert.getExtensionSet(this.extensionOid[i]) == 1) {
+                ret.add(this.extensionOid[i]);
             }
-            ret.add(this.extensionOid[i]);
         }
         
         return ret;
@@ -306,23 +330,41 @@ public class WolfSSLX509 extends X509Certificate {
     
     /* wolfSSL public key class */
     private class WolfSSLPubKey implements PublicKey {
+        /**
+         * Default serial ID
+         */
+        private static final long serialVersionUID = 1L;
         private byte[] encoding;
         private String type;
         private String format = "X.509";
         
-        private WolfSSLPubKey(byte[] der, String type) {
+        /**
+         * Creates a new public key class
+         * @param der DER format key
+         * @param type key type i.e. WolfSSL.RSAk
+         * @param curveOID can be null in RSA case
+         * @throws WolfSSLException 
+         */
+        private WolfSSLPubKey(byte[] der, String type, String format) throws WolfSSLException {
+            this.format = format;
             this.encoding = der;
+            if (this.encoding == null) {
+                throw new WolfSSLException("Error creating key");
+            }
             this.type = type;
         }
         
+        @Override
         public String getAlgorithm() {
             return this.type;
         }
 
+        @Override
         public String getFormat() {
             return this.format;
         }
 
+        @Override
         public byte[] getEncoded() {
             return this.encoding;
         }
@@ -337,6 +379,7 @@ public class WolfSSLX509 extends X509Certificate {
             this.name = in;
         }
         
+        @Override
         public String getName() {
             return this.name;
         }

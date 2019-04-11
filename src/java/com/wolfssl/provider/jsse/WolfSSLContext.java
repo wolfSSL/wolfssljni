@@ -199,6 +199,10 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* client certificate chain */
         X509Certificate[] cert = km.getCertificateChain(alias);
+        if (cert == null) {
+            throw new WolfSSLException("Unable to find alias");
+        }
+
         ByteArrayOutputStream certStream = new ByteArrayOutputStream();
         int chainLength = 0;
         for (int i = 0; i < cert.length; i++) {

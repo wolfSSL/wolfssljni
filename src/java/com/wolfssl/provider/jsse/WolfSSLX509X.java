@@ -62,7 +62,10 @@ public class WolfSSLX509X extends X509Certificate {
 
     @Override
     public int getVersion() {
-        return this.cert.getVersion();
+        /* this returns the ASN.1 encoding for version
+         * i.e. v1 (0) , v2 (1) , v3 (2). To get the correct value subtract 1
+         * from the version returned by "cert" which is 1, 2, or 3 */
+        return this.cert.getVersion() - 1;
     }
 
     @Override

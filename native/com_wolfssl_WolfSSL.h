@@ -173,6 +173,16 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SHA512 4L
 #undef com_wolfssl_WolfSSL_SHA384
 #define com_wolfssl_WolfSSL_SHA384 5L
+#undef com_wolfssl_WolfSSL_DSAk
+#define com_wolfssl_WolfSSL_DSAk 515L
+#undef com_wolfssl_WolfSSL_RSAk
+#define com_wolfssl_WolfSSL_RSAk 645L
+#undef com_wolfssl_WolfSSL_NTRUk
+#define com_wolfssl_WolfSSL_NTRUk 274L
+#undef com_wolfssl_WolfSSL_ECDSAk
+#define com_wolfssl_WolfSSL_ECDSAk 518L
+#undef com_wolfssl_WolfSSL_ED25519k
+#define com_wolfssl_WolfSSL_ED25519k 256L
 /*
  * Class:     com_wolfssl_WolfSSL
  * Method:    init

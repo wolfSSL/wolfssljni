@@ -34,7 +34,9 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
@@ -61,6 +63,8 @@ class WolfSSLTestFactory {
     protected String allJKS;
     protected String mixedJKS;
     protected String caJKS;
+    protected String rsaJKS;
+    protected String googleCACert;
     protected final static char[] jksPass = "wolfSSL test".toCharArray();
     private boolean extraDebug = false;
 
@@ -71,6 +75,8 @@ class WolfSSLTestFactory {
         allJKS = "examples/provider/all.jks";
         mixedJKS = "examples/provider/all_mixed.jks";
         caJKS = "examples/provider/cacerts.jks";
+        rsaJKS = "examples/provider/rsa.jks";
+        googleCACert = "examples/certs/ca-google-root.der";
         
         /* test if running from IDE directory */
         File f = new File(serverJKS);
@@ -85,6 +91,8 @@ class WolfSSLTestFactory {
             allJKS = esc.concat(allJKS);
             mixedJKS = esc.concat(mixedJKS);
             caJKS = esc.concat(caJKS);
+            rsaJKS = esc.concat(rsaJKS);
+            googleCACert = esc.concat(googleCACert);
         }
     }
     
@@ -234,24 +242,21 @@ class WolfSSLTestFactory {
             if (provider != null) {
                 ctx = SSLContext.getInstance(protocol, provider);
                 if (tm == null) {
-                    localTm = createTrustManager("SunX509", clientJKS);
-                }
-                if (km == null) {
-                    localKm = createKeyManager("SunX509", clientJKS);
-                }
-            } else {
-                ctx = SSLContext.getInstance(protocol);
-                if (tm == null) {
                     localTm = createTrustManager("SunX509", clientJKS, provider);
                 }
                 if (km == null) {
                     localKm = createKeyManager("SunX509", clientJKS, provider);
                 }
+            } else {
+                ctx = SSLContext.getInstance(protocol);
+                if (tm == null) {
+                    localTm = createTrustManager("SunX509", clientJKS);
+                }
+                if (km == null) {
+                    localKm = createKeyManager("SunX509", clientJKS);
+                }
             }
-
-            if (km == null) {
-                localKm = createKeyManager("SunX509", clientJKS);
-            }
+            
             ctx.init(localKm, localTm, null);
             return ctx;
         } catch (NoSuchAlgorithmException ex) {
@@ -479,5 +484,57 @@ class WolfSSLTestFactory {
             }            
         }
         return 0;
+    }
+    
+    /**
+     * Returns the DER encoded buffer of the certificate
+     * @param alias lookup alias in allJKS
+     * @return the DER encoded buffer of the certificate or null on failure
+     * @throws KeyStoreException error getting allJKS
+     * @throws NoSuchAlgorithmException exception
+     * @throws CertificateException exception getting cert DER
+     * @throws IOException exception reading allJKS
+     */
+    protected byte[] getCert(String alias) throws KeyStoreException,
+    NoSuchAlgorithmException, CertificateException, IOException {
+        KeyStore ks = KeyStore.getInstance("JKS");
+        InputStream stream = new FileInputStream(allJKS);
+        ks.load(stream, jksPass);
+        stream.close();
+        if (!ks.containsAlias(alias)) {
+            return null;
+        }
+        return ks.getCertificate(alias).getEncoded();
+    }
+    
+    /**
+     * Gets all alias's in allJKS
+     * @return list of all alias's in allJKS
+     * @throws KeyStoreException get allJKS keystore exception
+     * @throws IOException reading file exception
+     * @throws NoSuchAlgorithmException exception
+     * @throws CertificateException exception
+     */
+    protected String[] getAlias() throws KeyStoreException, IOException,
+    NoSuchAlgorithmException, CertificateException {
+        KeyStore ks = KeyStore.getInstance("JKS");
+        Enumeration<String> alias;
+        InputStream stream = new FileInputStream(allJKS);
+        String ret[];
+        int idx = 0;
+        
+        ks.load(stream, jksPass);
+        stream.close();
+        alias = ks.aliases();
+        ret = new String[ks.size()];
+        while (alias.hasMoreElements()) {
+            if (idx >= ret.length) {
+                return null;
+            }
+            
+            ret[idx] = alias.nextElement();
+            idx += 1;
+        }
+        return ret;
     }
 }

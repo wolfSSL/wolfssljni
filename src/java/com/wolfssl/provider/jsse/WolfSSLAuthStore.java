@@ -95,7 +95,6 @@ public class WolfSSLAuthStore {
         throws KeyManagementException {
         KeyManager[] managers = in;
         if (managers == null || managers.length == 0) {
-
             try {
                 /* use key managers from installed security providers */
                 KeyManagerFactory kmFactory = KeyManagerFactory.getInstance(
@@ -216,6 +215,7 @@ public class WolfSSLAuthStore {
      * @param ssl WOLFSSL class to set in session
      * @param port port number connecting to
      * @param host host connecting to
+     * @param clientMode if is client side then true
      * @return a new or reused SSLSession on success, null on failure
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl,

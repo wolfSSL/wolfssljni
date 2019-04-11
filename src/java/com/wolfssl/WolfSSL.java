@@ -217,6 +217,13 @@ public class WolfSSL {
     public final static int SHA512 = 4;
     public final static int SHA384 = 5;
 
+    /* key types */
+    public final static int DSAk     = 515;
+    public final static int RSAk     = 645;
+    public final static int NTRUk    = 274;
+    public final static int ECDSAk   = 518;
+    public final static int ED25519k = 256;
+
     /* ------------------------ constructors ---------------------------- */
 
     /**
@@ -898,7 +905,7 @@ public class WolfSSL {
      * @return an array of Strings for supported protocols
      */
     public static native String[] getProtocols();
-    
+
 
 } /* end WolfSSL */
 

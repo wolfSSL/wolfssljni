@@ -27,6 +27,7 @@ import java.security.KeyStoreException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -34,6 +35,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509KeyManager;
+
+import com.wolfssl.WolfSSLException;
 
 
 public class WolfSSLKeyX509 implements X509KeyManager{
@@ -121,30 +124,35 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return all[0];
     }
 
+    @Override
     public X509Certificate[] getCertificateChain(String alias) {
         X509Certificate[] ret = null;
         try {
             Certificate[] certs = this.store.getCertificateChain(alias);
             if (certs != null) {
                 int i;
+                
+                /* @TODO this conversion from Certificate to WolfX509X adds overhead */
                 ret = new X509Certificate[certs.length];
                 for (i = 0; i < certs.length; i++) {
-                    ret[i] = (X509Certificate)certs[i];
+                    ret[i] = new WolfSSLX509(certs[i].getEncoded());
                 }
             }
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLKeyX509.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (KeyStoreException | CertificateEncodingException |
+                WolfSSLException ex) {
+            return null;
         }
         
         if (ret == null) {
             try {
-                Certificate cert = (X509Certificate)this.store.getCertificate(alias);
+                Certificate cert = this.store.getCertificate(alias);
                 if (cert != null) {
                     ret    = new X509Certificate[1];
-                    ret[0] = (X509Certificate)cert;
+                    ret[0] = new WolfSSLX509(cert.getEncoded());
                 }
-            } catch (KeyStoreException ex) {
-                Logger.getLogger(WolfSSLKeyX509.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (KeyStoreException | CertificateEncodingException |
+                    WolfSSLException ex) {
+                return null;
             }
         }
         return ret;

@@ -65,7 +65,39 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
     int sz;
-    return (jbyteArray)wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &sz);
+    const byte* der;
+    jbyteArray  ret;
+
+    der = wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &sz);
+    if (der == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewByteArray(jenv, sz);
+    if (!ret) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native X509_get_der");
+        return NULL;
+    }
+
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)der);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to set byte region in native X509_get_der");
+        return NULL;
+    }
+    return ret;
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
