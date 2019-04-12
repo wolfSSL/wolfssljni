@@ -68,7 +68,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      */
     @Override
     public String[] getDefaultCipherSuites() {
-        return WolfSSL.getCiphers();
+        return WolfSSL.getCiphersIana();
     }
 
     /**

@@ -29,9 +29,11 @@ import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import java.security.KeyStore;
 import java.security.SecureRandom;
 
 import java.lang.IllegalArgumentException;
+import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
@@ -106,16 +108,13 @@ public class WolfSSLAuthStore {
             }
         }
 
-        for (int i = 0; i < managers.length; i++) {
-            if (managers[i] instanceof X509KeyManager) {
-                km = (X509KeyManager)managers[i];
-                break;
+        if (managers != null) {
+            for (int i = 0; i < managers.length; i++) {
+                if (managers[i] instanceof X509KeyManager) {
+                    km = (X509KeyManager)managers[i];
+                    break;
+                }
             }
-        }
-        
-        if (km == null) {
-            throw new KeyManagementException("No X509KeyManager found " +
-                    "in KeyManager array");
         }
     }
 
@@ -134,23 +133,23 @@ public class WolfSSLAuthStore {
                 /* use trust managers from installed security providers */
                 TrustManagerFactory tmFactory = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
+                tmFactory.init((KeyStore)null);
                 managers = tmFactory.getTrustManagers();
 
             } catch (NoSuchAlgorithmException nsae) {
                 throw new KeyManagementException(nsae);
+            } catch (KeyStoreException kse) {
+                throw new KeyManagementException(kse);
             }
         }
 
-        for (int i = 0; i < managers.length; i++) {
-            if (managers[i] instanceof X509TrustManager) {
-                tm = (X509TrustManager)managers[i];
-                break;
+        if (managers != null) {
+            for (int i = 0; i < managers.length; i++) {
+                if (managers[i] instanceof X509TrustManager) {
+                    tm = (X509TrustManager)managers[i];
+                    break;
+                }
             }
-        }
-        
-        if (tm == null) {
-            throw new KeyManagementException("No X509TrustManager found " +
-                    "in TrustManager array");
         }
     }
 

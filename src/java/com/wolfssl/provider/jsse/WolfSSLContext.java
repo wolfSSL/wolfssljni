@@ -115,6 +115,14 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* extract root certs from X509TrustManager */
         X509TrustManager tm = authStore.getX509TrustManager();
+
+        if (tm == null) {
+            if (debug.DEBUG) {
+                log("internal TrustManager is null, no CAs to load");
+            }
+            return;
+        }
+
         X509Certificate[] caList =  tm.getAcceptedIssuers();
 
         for (int i = 0; i < caList.length; i++) {
@@ -155,6 +163,13 @@ public class WolfSSLContext extends SSLContextSpi {
         int ret, offset;
         X509KeyManager km = authStore.getX509KeyManager();
 
+        if (km == null) {
+            if (debug.DEBUG) {
+                log("internal KeyManager is null, no cert/key to load");
+            }
+            return;
+        }
+
         /* We only load keys from algorithms enabled in native wolfSSL,
          * and in the priority order of ECC first, then RSA */
         ArrayList<String> keyAlgos = new ArrayList<String>();
@@ -173,56 +188,66 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* client private key */
         PrivateKey privKey = km.getPrivateKey(alias);
-        byte[] privKeyEncoded = privKey.getEncoded();
-        if (!privKey.getFormat().equals("PKCS#8")) {
-            throw new Exception("Private key is not in PKCS#8 format");
-        }
 
-        /* skip past PKCS#8 offset */
-        offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
-            privKeyEncoded.length);
+        if (privKey != null) {
+            byte[] privKeyEncoded = privKey.getEncoded();
+            if (!privKey.getFormat().equals("PKCS#8")) {
+                throw new Exception("Private key is not in PKCS#8 format");
+            }
 
-        byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
-            offset, privKeyEncoded.length);
+            /* skip past PKCS#8 offset */
+            offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
+                privKeyEncoded.length);
 
-        ret = ctx.usePrivateKeyBuffer(privKeyTraditional,
-            privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
+            byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
+                offset, privKeyEncoded.length);
 
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            throw new WolfSSLJNIException("Failed to load private key " +
-                "buffer, err = " + ret);
-        }
+            ret = ctx.usePrivateKeyBuffer(privKeyTraditional,
+                privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
 
-        if (debug.DEBUG) {
-            log("loaded private key from KeyManager (alias: " + alias + ")");
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLJNIException("Failed to load private key " +
+                    "buffer, err = " + ret);
+            }
+
+            if (debug.DEBUG) {
+                log("loaded private key from KeyManager (alias: " + alias + ")");
+            }
+        } else {
+            if (debug.DEBUG) {
+                log("no private key found, skipped loading");
+            }
         }
 
         /* client certificate chain */
         X509Certificate[] cert = km.getCertificateChain(alias);
-        if (cert == null) {
-            throw new WolfSSLException("Unable to find alias");
-        }
 
-        ByteArrayOutputStream certStream = new ByteArrayOutputStream();
-        int chainLength = 0;
-        for (int i = 0; i < cert.length; i++) {
-            /* concatenate certs into single byte array */
-            certStream.write(cert[i].getEncoded());
-            chainLength++;
-        }
-        byte certChain[] = certStream.toByteArray();
+        if (cert != null) {
+            ByteArrayOutputStream certStream = new ByteArrayOutputStream();
+            int chainLength = 0;
+            for (int i = 0; i < cert.length; i++) {
+                /* concatenate certs into single byte array */
+                certStream.write(cert[i].getEncoded());
+                chainLength++;
+            }
+            byte certChain[] = certStream.toByteArray();
 
-        ret = ctx.useCertificateChainBufferFormat(certChain,
-            certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
+            ret = ctx.useCertificateChainBufferFormat(certChain,
+                certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
 
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            throw new WolfSSLJNIException("Failed to load certificate " +
-                "chain buffer, err = " + ret);
-        }
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLJNIException("Failed to load certificate " +
+                    "chain buffer, err = " + ret);
+            }
 
-        if (debug.DEBUG) {
-            log("loaded certificate chain from KeyManager (length: " +
-                chainLength + ")");
+            if (debug.DEBUG) {
+                log("loaded certificate chain from KeyManager (length: " +
+                    chainLength + ")");
+            }
+        } else {
+            if (debug.DEBUG) {
+                log("no certificate or chain found, skipped loading");
+            }
         }
     }
 

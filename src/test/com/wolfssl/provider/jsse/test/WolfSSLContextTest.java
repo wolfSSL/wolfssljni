@@ -40,6 +40,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
+import java.security.SecureRandom;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -182,6 +183,43 @@ public class WolfSSLContextTest {
         }
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testInit() throws NoSuchProviderException,
+        NoSuchAlgorithmException, IllegalStateException,
+        KeyManagementException {
+
+        System.out.print("\tinit()");
+
+        SecureRandom rand = new SecureRandom();
+        SSLContext ctx = null;
+
+        /* test with null TrustManagerFactory and KeyManagerFactory */
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            try {
+                ctx = SSLContext.getInstance(enabledProtocols.get(i));
+                ctx.init(null, null, rand);
+            } catch (Exception e) {
+                System.out.println("\t\t\t\t... failed");
+                fail("Failed to initialize SSLContext with null params");
+            }
+        }
+
+        /* test with null TrustManagerFactory, KeyManagerFactory, random */
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            try {
+                ctx = SSLContext.getInstance(enabledProtocols.get(i));
+                ctx.init(null, null, null);
+            } catch (Exception e) {
+                System.out.println("\t\t\t\t... failed");
+                fail("Failed to initialize SSLContext with null params");
+            }
+        }
+
+        System.out.println("\t\t\t\t... passed");
     }
 }
 

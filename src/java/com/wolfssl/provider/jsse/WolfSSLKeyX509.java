@@ -42,7 +42,7 @@ import com.wolfssl.WolfSSLException;
 public class WolfSSLKeyX509 implements X509KeyManager{
     private KeyStore store;
     private char[] password;
-    
+
     public WolfSSLKeyX509(KeyStore in, char[] password) {
         this.store = in;
         this.password = password;
@@ -52,6 +52,10 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         Enumeration<String> aliases = null;
         int i;
         ArrayList<String> ret = new ArrayList<String>();
+
+        if (store == null) {
+            return null;
+        }
         
         try {
             aliases = this.store.aliases();
@@ -86,6 +90,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
     
     public String[] getClientAliases(String type, Principal[] issuers) {
+
         return getAliases(type, issuers);
     }
 
@@ -110,10 +115,12 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
 
     public String[] getServerAliases(String type, Principal[] issuers) {
+
         return getAliases(type, issuers);
     }
 
     public String chooseServerAlias(String type, Principal[] issuers, Socket sock) {
+
         String[] all = getAliases(type, issuers);
         if (sock != null) {
             if (sock.isConnected() == true) {
@@ -126,7 +133,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
 
     @Override
     public X509Certificate[] getCertificateChain(String alias) {
+
         X509Certificate[] ret = null;
+
+        if (store == null) {
+            return null;
+        }
+
         try {
             Certificate[] certs = this.store.getCertificateChain(alias);
             if (certs != null) {
@@ -160,6 +173,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
 
     @Override
     public PrivateKey getPrivateKey(String alias) {
+
         PrivateKey key = null;
 
         try {
