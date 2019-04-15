@@ -116,12 +116,12 @@ public class WolfSSLSocketFactoryTest {
         try {
             /* set up KeyStore */
         		InputStream stream = new FileInputStream(tf.clientJKS);
-            pKey = KeyStore.getInstance("JKS");
+            pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
             
             stream = new FileInputStream(tf.clientJKS);
-            cert = KeyStore.getInstance("JKS");
+            cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
             stream.close();
 
@@ -335,7 +335,7 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, InputStream, boolean - null Socket */
                 s = new Socket(addr, port);
                 in = s.getInputStream();
-                ss = (SSLSocket)sf.createSocket(null, in, true);
+                ss = (SSLSocket)sf.createSocket((Socket)null, in, true);
                 System.out.println("\t\t\t... failed");
                 fail("createSocket() should throw exception");
             } catch (NullPointerException e) {

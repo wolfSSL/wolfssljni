@@ -66,10 +66,10 @@ class WolfSSLTestFactory {
     protected String rsaJKS;
     protected String googleCACert;
     protected final static char[] jksPass = "wolfSSL test".toCharArray();
+    protected String keyStoreType = "JKS";
     private boolean extraDebug = false;
 
     protected WolfSSLTestFactory() throws WolfSSLException {
-        String esc = "../../../";
         serverJKS = "examples/provider/server.jks";
         clientJKS = "examples/provider/client.jks";
         allJKS = "examples/provider/all.jks";
@@ -81,21 +81,64 @@ class WolfSSLTestFactory {
         /* test if running from IDE directory */
         File f = new File(serverJKS);
         if (!f.exists()) {
-            f = new File(esc.concat(serverJKS));
-            if (!f.exists()) {
-                System.out.println("could not find files " + f.toPath());
-                throw new WolfSSLException("Unable to find test files");
-            }
-            serverJKS = esc.concat(serverJKS);
-            clientJKS = esc.concat(clientJKS);
-            allJKS = esc.concat(allJKS);
-            mixedJKS = esc.concat(mixedJKS);
-            caJKS = esc.concat(caJKS);
-            rsaJKS = esc.concat(rsaJKS);
-            googleCACert = esc.concat(googleCACert);
+
+            /* check IDE location */
+            if (isIDEFile())
+                return;
+
+            /* check Android location */
+            if (isAndroidFile())
+                return;
+
+            /* no known file paths */
+            System.out.println("could not find file " + f.getAbsolutePath());
+            throw new WolfSSLException("Unable to find test files");
         }
     }
-    
+
+    private void setPaths(String in) {
+        serverJKS = in.concat(serverJKS);
+        clientJKS = in.concat(clientJKS);
+        allJKS = in.concat(allJKS);
+        mixedJKS = in.concat(mixedJKS);
+        caJKS = in.concat(caJKS);
+        rsaJKS = in.concat(rsaJKS);
+        googleCACert = in.concat(googleCACert);
+    }
+
+    private boolean isIDEFile() {
+        String esc = "../../../";
+        File f;
+
+        f = new File(esc.concat(serverJKS));
+        if (f.exists()) {
+            setPaths(esc);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isAndroidFile() {
+        String sdc = "/sdcard/";
+        File f;
+
+        f = new File(sdc.concat(serverJKS));
+        if (f.exists()) {
+            if (isAndroid()) {
+                serverJKS = "examples/provider/server.bks";
+                clientJKS = "examples/provider/client.bks";
+                allJKS = "examples/provider/all.bks";
+                mixedJKS = "examples/provider/all_mixed.bks";
+                caJKS = "examples/provider/cacerts.bks";
+                rsaJKS = "examples/provider/rsa.bks";
+                keyStoreType = "BKS";
+            }
+            setPaths(sdc);
+            return true;
+        }
+        return false;
+    }
+
     /* prints in a format that can be imported into wireshark */
     protected void printHex(ByteBuffer in) {
         int i = 0, j = 0;
@@ -119,7 +162,7 @@ class WolfSSLTestFactory {
         try {
             if (file != null) {
                 InputStream stream = new FileInputStream(file);
-                cert = KeyStore.getInstance("JKS");
+                cert = KeyStore.getInstance(keyStoreType);
                 cert.load(stream, jksPass);
                 stream.close();
             }
@@ -178,7 +221,7 @@ class WolfSSLTestFactory {
         try {
             /* set up KeyStore */
             InputStream stream = new FileInputStream(file);
-            pKey = KeyStore.getInstance("JKS");
+            pKey = KeyStore.getInstance(keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
             
@@ -497,7 +540,7 @@ class WolfSSLTestFactory {
      */
     protected byte[] getCert(String alias) throws KeyStoreException,
     NoSuchAlgorithmException, CertificateException, IOException {
-        KeyStore ks = KeyStore.getInstance("JKS");
+        KeyStore ks = KeyStore.getInstance(keyStoreType);
         InputStream stream = new FileInputStream(allJKS);
         ks.load(stream, jksPass);
         stream.close();
@@ -517,7 +560,7 @@ class WolfSSLTestFactory {
      */
     protected String[] getAlias() throws KeyStoreException, IOException,
     NoSuchAlgorithmException, CertificateException {
-        KeyStore ks = KeyStore.getInstance("JKS");
+        KeyStore ks = KeyStore.getInstance(keyStoreType);
         Enumeration<String> alias;
         InputStream stream = new FileInputStream(allJKS);
         String ret[];
@@ -536,5 +579,16 @@ class WolfSSLTestFactory {
             idx += 1;
         }
         return ret;
+    }
+
+    /**
+     * Test if the env is Android
+     * @return true if is Android system
+     */
+    protected boolean isAndroid() {
+        if (System.getProperty("java.runtime.name").contains("Android")) {
+            return true;
+        }
+        return false;
     }
 }

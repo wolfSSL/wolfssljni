@@ -34,20 +34,25 @@ public class WolfSSLTestCommon {
 	 * @throws WolfSSLException 
 	 */
 	public static String getPath(String in) throws WolfSSLException {
-		String esc = "../../../"; /* if running from IDE directory */ 
+		String esc = "../../../"; /* if running from IDE directory */
+		String scd = "/sdcard/"; /* if running on Android */
 		
 	    /* test if running from IDE directory */
-	    File f = new File(in);
-	    if (!f.exists()) {
-	        f = new File(esc.concat(in));
-	        if (!f.exists()) {
-	            System.out.println("could not find files " + f.toPath());
-	            throw new WolfSSLException("Unable to find test files");
-	        }
-	        return esc.concat(in);
-	    }
-	    else {
-	    		return in;
-	    }
+        File f = new File(in);
+        if (!f.exists()) {
+            f = new File(esc.concat(in));
+            if (!f.exists()) {
+                f = new File(scd.concat(in));
+                if (!f.exists()) {
+                    System.out.println("could not find files " + f.getAbsolutePath());
+                    throw new WolfSSLException("Unable to find test files");
+                }
+                return scd.concat(in);
+            }
+            return esc.concat(in);
+        }
+        else {
+            return in;
+        }
 	}
 }

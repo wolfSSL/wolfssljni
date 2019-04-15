@@ -107,7 +107,8 @@ public class WolfSSLSessionTest {
             fail("failed to get creation time");
         }
         
-        if (session.getCreationTime() != session.getLastAccessedTime()) {
+        if (session.getCreationTime() > session.getLastAccessedTime() ||
+                session.getLastAccessedTime() <= 0) {
             error("\t... failed");
             fail("failed creation time does not equal accessed time");
         }

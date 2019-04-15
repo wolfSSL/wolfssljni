@@ -256,7 +256,11 @@ public class WolfSSLX509 extends X509Certificate {
     }
     
     public void free() {
-        this.cert.free();
+        try {
+            this.cert.free();
+        } catch (IllegalStateException e) {
+            /* was already free'd */
+        }
     }
     
     @SuppressWarnings("deprecation")

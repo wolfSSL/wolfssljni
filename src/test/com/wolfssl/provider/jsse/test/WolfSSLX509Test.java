@@ -59,7 +59,7 @@ public class WolfSSLX509Test {
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
     private javax.security.cert.X509Certificate[] certs;
-    
+
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
         throws NoSuchProviderException {
@@ -68,6 +68,7 @@ public class WolfSSLX509Test {
         
                 /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
+
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
@@ -254,7 +255,7 @@ public class WolfSSLX509Test {
         
         System.out.print("\tTesting public key");
         try {
-            store = KeyStore.getInstance("JKS");
+            store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
             
             store.load(stream, tf.jksPass);
@@ -307,13 +308,13 @@ public class WolfSSLX509Test {
                     break;
                 }
             }
-            if (sigProvider == null) {
+            if (sigProvider == null || tf.isAndroid()) {
                 pass("\t\t\t... skipped");
                 return;
             }
             System.out.print("\n\t  Signature provider " + sigProvider.getName());
-            
-            store = KeyStore.getInstance("JKS");
+
+            store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
             store.load(stream, tf.jksPass);
             stream.close();

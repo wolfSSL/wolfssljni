@@ -22,7 +22,9 @@
 package com.wolfssl.test;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.util.Date;
@@ -42,11 +44,11 @@ public class WolfSSLCertificateTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public static String cliCert = "./examples/certs/client-cert.der";
-    public static String external = "./examples/certs/ca-google-root.der";
+    public static String cliCert = "examples/certs/client-cert.der";
+    public static String external = "examples/certs/ca-google-root.der";
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
-    
+
     @Test
     public void testWolfSSLCertificate() throws WolfSSLException {
 
@@ -83,7 +85,10 @@ public class WolfSSLCertificateTest {
 
         System.out.print("\tWolfSSLCertificate_new");
         try {
-            der = Files.readAllBytes(f.toPath());
+            InputStream stream = new FileInputStream(f);
+            der = new byte[(int) f.length()];
+            stream.read(der, 0, der.length);
+            stream.close();
         } catch (IOException ex) {
             System.out.println("\t\t... failed");
             fail("Unable to read file " + cliCert);

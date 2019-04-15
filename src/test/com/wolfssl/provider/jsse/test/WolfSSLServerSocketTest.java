@@ -118,12 +118,12 @@ public class WolfSSLServerSocketTest {
         try {
             /* set up KeyStore */
         		InputStream stream = new FileInputStream(tf.serverJKS);
-            pKey = KeyStore.getInstance("JKS");
+            pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
             
             stream = new FileInputStream(tf.serverJKS);
-            cert = KeyStore.getInstance("JKS");
+            cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
             stream.close();
 

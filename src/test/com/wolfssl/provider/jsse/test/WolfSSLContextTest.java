@@ -151,12 +151,12 @@ public class WolfSSLContextTest {
         try {
             /* set up KeyStore */
             InputStream stream = new FileInputStream(tf.clientJKS);
-            pKey = KeyStore.getInstance("JKS");
+            pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
             
             stream = new FileInputStream(tf.clientJKS);
-            cert = KeyStore.getInstance("JKS");
+            cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
             	stream.close();
             	
