@@ -42,6 +42,7 @@ import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
 import java.net.Socket;
 import java.net.ServerSocket;
+import java.net.UnknownHostException;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
@@ -180,7 +181,15 @@ public class WolfSSLSocketTest {
 
             SSLSocketFactory sf = ctx.getSocketFactory();
             sockFactories.add(sf);
-            SSLSocket s = (SSLSocket)sf.createSocket("www.example.com", 443);
+
+            SSLSocket s;
+            try {
+                s = (SSLSocket)sf.createSocket("www.example.com", 443);
+            } catch (UnknownHostException e) {
+                /* skip adding, no Internet connection */
+                continue;
+            }
+
             socks.add(s);
         }
     }

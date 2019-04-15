@@ -47,6 +47,7 @@ import java.security.KeyStore;
 
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.net.UnknownHostException;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
@@ -197,12 +198,20 @@ public class WolfSSLSocketFactoryTest {
 
         for (int i = 0; i < sockFactories.size(); i++) {
             String addrStr = "www.example.com";
-            InetAddress addr = InetAddress.getByName("www.example.com");
+            InetAddress addr;
             int port = 443;
             SSLSocketFactory sf = sockFactories.get(i);
             SSLSocket ss = null;
             Socket s = null;
             InputStream in = null;
+
+            try {
+                addr = InetAddress.getByName("www.example.com");
+            } catch (UnknownHostException e) {
+                /* skip test if no Internet connection available */
+                System.out.println("\t\t\t... skipped");
+                return;
+            }
 
             /* good arguments */
             try {
