@@ -9,7 +9,7 @@ if [ "$OS" == "Darwin" ] ; then
     javaHome=`/usr/libexec/java_home`
     javaIncludes="-I$javaHome/include -I$javaHome/include/darwin"
     javaLibs="-dynamiclib -framework JavaVM"
-    jniLibName="libwolfssl.jnilib"
+    jniLibName="libwolfssljni.jnilib"
     cflags="-DHAVE_ECC"
 elif [ "$OS" == "Linux" ] ; then
     javaHome=`echo $(dirname $(dirname $(readlink -f $(which java))))`
@@ -19,7 +19,7 @@ elif [ "$OS" == "Linux" ] ; then
     fi
     javaIncludes="-I$javaHome/include -I$javaHome/include/linux"
     javaLibs="-shared"
-    jniLibName="libwolfSSL.so"
+    jniLibName="libwolfssljni.so"
     cflags="-DHAVE_ECC -DUSE_FAST_MATH"
     if [ "$ARCH" == "x86_64" ] ; then
         fpic="-fPIC"

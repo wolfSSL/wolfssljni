@@ -55,6 +55,7 @@
         <delete dir="${reports.dir}"/>
         <delete>
             <fileset dir="${lib.dir}" includes="wolfssl.jar" />
+            <fileset dir="${lib.dir}" includes="wolfssl-jsse.jar" />
         </delete>
     </target>
 

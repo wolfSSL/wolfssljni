@@ -283,13 +283,13 @@ public class WolfSSL {
     /**
      * Loads JNI library; must be called prior to any other calls in this class.
      *
-     * The native library is expected to be be called "wolfssl", and must be
+     * The native library is expected to be be called "wolfssljni", and must be
      * on the system library search path.
      *
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
-        System.loadLibrary("wolfSSL");
+        System.loadLibrary("wolfssljni");
     }
 
     /**
