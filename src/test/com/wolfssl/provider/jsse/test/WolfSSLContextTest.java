@@ -37,6 +37,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.SSLSessionContext;
 import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
@@ -56,6 +57,7 @@ public class WolfSSLContextTest {
 
     private static WolfSSLTestFactory tf;
     public final static char[] jksPass = "wolfSSL test".toCharArray();
+    private final static String ctxProvider = "wolfJSSE";
 
     private static String allProtocols[] = {
         "TLSV1",
@@ -91,7 +93,7 @@ public class WolfSSLContextTest {
         for (int i = 0; i < allProtocols.length; i++) {
             try {
                 SSLContext ctx = SSLContext.getInstance(allProtocols[i],
-                    "wolfJSSE");
+                    ctxProvider);
                 enabledProtocols.add(allProtocols[i]);
 
             } catch (NoSuchAlgorithmException e) {
@@ -117,12 +119,13 @@ public class WolfSSLContextTest {
 
         /* try to get all available protocols we expect to have */
         for (int i = 0; i < enabledProtocols.size(); i++) {
-            ctx = SSLContext.getInstance(enabledProtocols.get(i), "wolfJSSE");
+            ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                ctxProvider);
         }
 
         /* getting a garbage protocol should throw an exception */
         try {
-            ctx = SSLContext.getInstance("NotValid", "wolfJSSE");
+            ctx = SSLContext.getInstance("NotValid", ctxProvider);
 
             System.out.println("\t... failed");
             fail("SSLContext.getInstance should throw " +
@@ -147,7 +150,7 @@ public class WolfSSLContextTest {
 
         try {
             /* set up KeyStore */
-        		InputStream stream = new FileInputStream(tf.clientJKS);
+            InputStream stream = new FileInputStream(tf.clientJKS);
             pKey = KeyStore.getInstance("JKS");
             pKey.load(stream, jksPass);
             stream.close();
@@ -174,7 +177,8 @@ public class WolfSSLContextTest {
         }
 
         for (int i = 0; i < enabledProtocols.size(); i++) {
-            ctx = SSLContext.getInstance(enabledProtocols.get(i), "wolfJSSE");
+            ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                ctxProvider);
 
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
@@ -199,10 +203,12 @@ public class WolfSSLContextTest {
         for (int i = 0; i < enabledProtocols.size(); i++) {
 
             try {
-                ctx = SSLContext.getInstance(enabledProtocols.get(i));
+                ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                    ctxProvider);
                 ctx.init(null, null, rand);
             } catch (Exception e) {
                 System.out.println("\t\t\t\t... failed");
+                e.printStackTrace();
                 fail("Failed to initialize SSLContext with null params");
             }
         }
@@ -211,7 +217,8 @@ public class WolfSSLContextTest {
         for (int i = 0; i < enabledProtocols.size(); i++) {
 
             try {
-                ctx = SSLContext.getInstance(enabledProtocols.get(i));
+                ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                    ctxProvider);
                 ctx.init(null, null, null);
             } catch (Exception e) {
                 System.out.println("\t\t\t\t... failed");
@@ -220,6 +227,50 @@ public class WolfSSLContextTest {
         }
 
         System.out.println("\t\t\t\t... passed");
+    }
+
+    @Test
+    public void testGetSessionContext() throws NoSuchProviderException,
+        NoSuchAlgorithmException, IllegalStateException,
+        KeyManagementException {
+
+        System.out.print("\tgetSessionContext()");
+
+        SSLContext ctx = null;
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            try {
+                ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                    ctxProvider);
+                ctx.init(null, null, null);
+            } catch (Exception e) {
+                System.out.println("\t\t... failed");
+                fail("Failed to init SSLContext");
+            }
+
+            /* test for UnsupportedOperationException */
+            try {
+                SSLSessionContext sess = ctx.getServerSessionContext();
+                System.out.println("\t\t... failed");
+                fail("Failed to return UnsupportedOperationException");
+
+            } catch (UnsupportedOperationException e) {
+                /* expected */
+            }
+
+            /* test for UnsupportedOperationException */
+            try {
+                SSLSessionContext sess = ctx.getClientSessionContext();
+                System.out.println("\t\t... failed");
+                fail("Failed to return UnsupportedOperationException");
+
+            } catch (UnsupportedOperationException e) {
+                /* expected */
+            }
+        }
+
+        System.out.println("\t\t... passed");
     }
 }
 

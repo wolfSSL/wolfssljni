@@ -36,6 +36,7 @@ import java.lang.IllegalArgumentException;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -101,10 +102,15 @@ public class WolfSSLAuthStore {
                 /* use key managers from installed security providers */
                 KeyManagerFactory kmFactory = KeyManagerFactory.getInstance(
                     KeyManagerFactory.getDefaultAlgorithm());
+                kmFactory.init(null, null);
                 managers = kmFactory.getKeyManagers();
 
             } catch (NoSuchAlgorithmException nsae) {
                 throw new KeyManagementException(nsae);
+            } catch (KeyStoreException kse) {
+                throw new KeyManagementException(kse);
+            } catch (UnrecoverableKeyException uke) {
+                throw new KeyManagementException(uke);
             }
         }
 

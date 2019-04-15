@@ -439,8 +439,11 @@ public class WolfSSLServerSocketTest {
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
+
         ss.setWantClientAuth(true);
+        assertTrue(ss.getWantClientAuth());
         ss.setNeedClientAuth(true);
+        assertTrue(ss.getNeedClientAuth());
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
         cs.connect(new InetSocketAddress(ss.getLocalPort()));

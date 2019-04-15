@@ -847,10 +847,6 @@ public class WolfSSLSocket extends SSLSocket {
             this.consumed = new DataInputStream(in);
         }
 
-        public Socket getSocket() {
-            return this.s;
-        }
-
         public DataInputStream getSocketDataStream() throws IOException {
             return new DataInputStream(this.s.getInputStream());
         }
