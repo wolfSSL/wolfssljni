@@ -24,6 +24,8 @@ package com.wolfssl.provider.jsse;
 public class WolfSSLDebug {
 
     public static boolean DEBUG = checkProperty();
+    public static String ERROR = "ERROR";
+    public static String INFO = "INFO";
 
     private static boolean checkProperty() {
 
@@ -38,6 +40,12 @@ public class WolfSSLDebug {
 
     public static void print(String string) {
         System.out.println("wolfJSSE: " + string);
+    }
+    
+    public static void log(Class cl, String tag, String string) {
+        if (DEBUG) {
+            System.out.println("[wolfJSSE " + tag + " : " + cl.getSimpleName() + "] " + string);
+        }
     }
 }
 

@@ -237,26 +237,22 @@ public class WolfSSLAuthStore {
         if (clientMode == false || host == null) {
             return this.getSession(ssl);
         }
-
-        if (debug.DEBUG) {
-            log("attempting to look up session (" +
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO, 
+                "attempting to look up session (" +
                 "host: " + host + ", port: " + port + ")");
-        }
 
         /* check if is in table */
         toHash = host.concat(Integer.toString(port));
         ses = store.get(toHash.hashCode());
         if (ses == null) {
-            if (debug.DEBUG) {
-                log("session not found in cache table, creating new");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session not found in cache table, creating new");
             /* not found in stored sessions create a new one */
             ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
         }
         else {
-            if (debug.DEBUG) {
-                log("session found in cache, trying to resume");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session found in cache, trying to resume");
             ses.resume(ssl);
         }
         return ses;
@@ -267,9 +263,8 @@ public class WolfSSLAuthStore {
      * @return a new SSLSession on success
      */
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
-        if (debug.DEBUG) {
-            log("creating new session");
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new session");
         return new WolfSSLImplementSSLSession(ssl, this);
     }
     
@@ -288,11 +283,11 @@ public class WolfSSLAuthStore {
                      session.getPeerPort()));
             store.put(toHash.hashCode(), session);
 
-            if (debug.DEBUG) {
-                log("stored session in cache table (host: " +
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "stored session in cache table (host: " +
                     session.getPeerHost() + ", port: " +
                     session.getPeerPort() + ")");
-            }
         }
 
         return WolfSSL.SSL_SUCCESS;
@@ -317,10 +312,6 @@ public class WolfSSLAuthStore {
         protected boolean removeEldestEntry(Map.Entry<K, V> oldest) {
             return size() > maxSz;
         }
-    }
-
-    private void log(String msg) {
-        debug.print("[WolfSSLAuthStore] " + msg);
     }
 }
 

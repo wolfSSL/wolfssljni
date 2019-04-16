@@ -530,9 +530,8 @@ public class WolfSSLEngine extends SSLEngine {
         
         if (this.toRead == null || this.toReadSz == 0) {
             /* nothing to be read */
-            if (WolfSSLDebug.DEBUG) {
-                log("No buffer to read returning want read");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "No buffer to read returning want read");
             return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
         }
         System.arraycopy(this.toRead, 0, toRead, 0, max);
@@ -570,10 +569,6 @@ public class WolfSSLEngine extends SSLEngine {
         System.arraycopy(in, 0, combined, toReadSz, in.length);
         toRead = combined;
         toReadSz += in.length;
-    }
-    
-    private void log(String msg) {
-        WolfSSLDebug.print("[WolfSSLEngine] " + msg);
     }
  
     private class SendCB implements WolfSSLIOSendCallback {

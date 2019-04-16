@@ -121,10 +121,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setCipherSuites(suites);
-
-        if (debug.DEBUG) {
-            log("enabled cipher suites set to: " + Arrays.toString(suites));
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "enabled cipher suites set to: " + Arrays.toString(suites));
     }
 
     @Override
@@ -165,10 +163,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setProtocols(protocols);
-
-        if (debug.DEBUG) {
-            log("enabled protocols set to: " + Arrays.toString(protocols));
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "enabled protocols set to: " + Arrays.toString(protocols));
     }
 
     @Override
@@ -176,10 +172,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setNeedClientAuth(need);
-
-        if (debug.DEBUG) {
-            log("need client auth set to: " + need);
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "need client auth set to: " + need);
     }
 
     @Override
@@ -192,10 +186,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setWantClientAuth(want);
-
-        if (debug.DEBUG) {
-            log("want client auth set to: " + want);
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "want client auth set to: " + want);
     }
 
     @Override
@@ -208,10 +200,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IllegalArgumentException {
 
         clientMode = mode;
-
-        if (debug.DEBUG) {
-            log("use client mode set to: " + mode);
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "use client mode set to: " + mode);
     }
 
     @Override
@@ -223,10 +213,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     synchronized public void setEnableSessionCreation(boolean flag) {
 
         enableSessionCreation = flag;
-
-        if (debug.DEBUG) {
-            log("enable session creation set to: " + flag);
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "enable session creation set to: " + flag);
     }
 
     @Override
@@ -241,12 +229,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
            a connected socket */
         Socket sock = new Socket();
         implAccept(sock);
-
-        if (debug.DEBUG) {
-            log("Socket connected to client: " +
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Socket connected to client: " +
                 sock.getInetAddress().getHostAddress() + ", port: " +
                 sock.getPort());
-        }
 
         /* create new WolfSSLSocket wrapping connected Socket */
         socket = new WolfSSLSocket(context, authStore, params,
@@ -255,10 +241,6 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         socket.setEnableSessionCreation(enableSessionCreation);
 
         return socket;
-    }
-
-    private void log(String msg) {
-        debug.print("[WolfSSLServerSocket] " + msg);
     }
 }
 

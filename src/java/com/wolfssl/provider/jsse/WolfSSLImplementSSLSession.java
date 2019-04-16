@@ -185,10 +185,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         
         try {
             x509 = this.ssl.getPeerCertificate();
-        } catch (IllegalStateException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-            return null;
-        } catch (WolfSSLJNIException ex) {
+        } catch (IllegalStateException | WolfSSLJNIException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
             return null;
         }
@@ -219,9 +216,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         try {
             x509 = new WolfSSLX509X(this.ssl.getPeerCertificate());
             return new X509Certificate[]{ (X509Certificate)x509 };
-        } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (WolfSSLException ex) {
+        } catch (IllegalStateException | WolfSSLJNIException |
+                WolfSSLException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
@@ -236,11 +232,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         try {
             WolfSSLX509 x509 = new WolfSSLX509(this.ssl.getPeerCertificate());
             return x509.getSubjectDN();
-        } catch (IllegalStateException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (WolfSSLException ex) {
+        } catch (IllegalStateException | WolfSSLJNIException |
+                WolfSSLException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
@@ -271,9 +264,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         
         try {
             return this.ssl.cipherGetName();
-        } catch (IllegalStateException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (WolfSSLJNIException ex) {
+        } catch (IllegalStateException | WolfSSLJNIException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
@@ -287,9 +278,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         
         try {
             return this.ssl.getVersion();
-        } catch (IllegalStateException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (WolfSSLJNIException ex) {
+        } catch (IllegalStateException | WolfSSLJNIException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;

@@ -239,9 +239,8 @@ public class WolfSSLEngineHelper {
             sb.deleteCharAt(sb.length() - 1);
             list = sb.toString();
             if (this.ssl.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
-                if (debug.DEBUG) {
-                    log("error setting cipher list " + list);
-                }
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "error setting cipher list " + list);
             }
 
         } catch (IllegalStateException e) {
@@ -338,9 +337,8 @@ public class WolfSSLEngineHelper {
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
-            if (WolfSSLDebug.DEBUG) {
-                log("session creation not allowed");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session creation not allowed");
 
             /* send CloseNotify */
             /* TODO: SunJSSE sends a Handshake Failure alert instead here */
@@ -367,9 +365,8 @@ public class WolfSSLEngineHelper {
 
         if (this.sessionCreation == false && !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
-            if (WolfSSLDebug.DEBUG) {
-                log("session creation not allowed");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session creation not allowed");
 
             /* send CloseNotify */
             /* TODO: SunJSSE sends a Handshake Failure alert instead here */
@@ -379,22 +376,19 @@ public class WolfSSLEngineHelper {
         }
 
         if (!this.session.isValid()) {
-            if (WolfSSLDebug.DEBUG) {
-                log("session is marked as invalid");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session is marked as invalid");
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
         
         if (this.clientMode) {
-            if (WolfSSLDebug.DEBUG) {
-                log("calling native wolfSSL_connect()");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "calling native wolfSSL_connect()");
             return this.ssl.connect();
 
         } else {
-            if (WolfSSLDebug.DEBUG) {
-                log("calling native wolfSSL_accept()");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "calling native wolfSSL_accept()");
             return this.ssl.accept();
         }
     }
@@ -432,9 +426,5 @@ public class WolfSSLEngineHelper {
         //ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         ret.setWantClientAuth(in.getWantClientAuth());
         return ret;
-    }
-
-    private void log(String msg) {
-        debug.print("[WolfSSLEngineHelper] " + msg);
     }
 }

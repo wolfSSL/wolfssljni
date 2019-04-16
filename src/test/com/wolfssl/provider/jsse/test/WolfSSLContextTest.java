@@ -247,6 +247,7 @@ public class WolfSSLContextTest {
             } catch (Exception e) {
                 System.out.println("\t\t... failed");
                 fail("Failed to init SSLContext");
+                return;
             }
 
             /* test for UnsupportedOperationException */

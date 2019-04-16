@@ -62,27 +62,31 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     if (home != null) {
                         File f = new File(home.concat("lib/security/jssecacerts"));
                         if (f.exists()) {
-                            log("Loading certs from " + home.concat("lib/security/jssecacerts"));
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "Loading certs from " + home.concat("lib/security/jssecacerts"));
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                         }
                         else {
                             f = new File(home.concat("lib/security/cacerts"));
                             if (f.exists()) {
-                                log("Loading certs from " + home.concat("lib/security/cacerts"));
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                        "Loading certs from " + home.concat("lib/security/cacerts"));
                                 stream = new FileInputStream(f);
                                 certs.load(stream, passAr);
                             }
                             else {
-                                log("Using Anonymous cipher suite");
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                        "Using Anonymous cipher suite");
                             }
                         }
                     }
                 }
                 else {
-                    log("Loading certs from " + file);
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Loading certs from " + file);
                     stream = new FileInputStream(file);
-                     certs.load(stream, passAr);
+                    certs.load(stream, passAr);
                 }
             } catch (FileNotFoundException ex) {
                 Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
@@ -115,11 +119,5 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         /* array of WolfSSLX509Trust objects to use */
         TrustManager[] tm = {new WolfSSLTrustX509(this.store)};
         return tm;
-    }
-    
-    private void log(String in) {
-        if (WolfSSLDebug.DEBUG) {
-            WolfSSLDebug.print("[WolfSSLTrustManager] " + in);
-        }
     }
 }

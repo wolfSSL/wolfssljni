@@ -89,10 +89,8 @@ public class WolfSSLContext extends SSLContextSpi {
                 "compiled into native wolfSSL library");
         }
         ctx = new com.wolfssl.WolfSSLContext(method);
-
-        if (debug.DEBUG) {
-            log("created new native WOLFSSL_CTX");
-        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "created new native WOLFSSL_CTX");
 
         try {
             LoadTrustedRootCerts();
@@ -117,9 +115,8 @@ public class WolfSSLContext extends SSLContextSpi {
         X509TrustManager tm = authStore.getX509TrustManager();
 
         if (tm == null) {
-            if (debug.DEBUG) {
-                log("internal TrustManager is null, no CAs to load");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "internal TrustManager is null, no CAs to load");
             return;
         }
 
@@ -137,24 +134,20 @@ public class WolfSSLContext extends SSLContextSpi {
 
             } catch (CertificateEncodingException ce) {
                 /* skip loading if encoding error is encountered */
-                if (debug.DEBUG) {
-                    log("skipped loading CA, encoding error");
-                }
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "skipped loading CA, encoding error");
             } catch (WolfSSLJNIException we) {
                 /* skip loading if wolfSSL fails to load der encoding */
-                if (debug.DEBUG) {
-                    log("skipped loading CA, JNI exception");
-                }
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "skipped loading CA, JNI exception");
             }
 
             if (loadedCACount == 0) {
                 throw new IllegalArgumentException("wolfSSL failed to load " +
                     "any trusted CA certificates from TrustManager");
             }
-
-            if (debug.DEBUG) {
-                log("loaded trusted root certs from TrustManager");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loaded trusted root certs from TrustManager");
         }
     }
 
@@ -164,9 +157,8 @@ public class WolfSSLContext extends SSLContextSpi {
         X509KeyManager km = authStore.getX509KeyManager();
 
         if (km == null) {
-            if (debug.DEBUG) {
-                log("internal KeyManager is null, no cert/key to load");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                    "internal KeyManager is null, no cert/key to load");
             return;
         }
 
@@ -209,14 +201,11 @@ public class WolfSSLContext extends SSLContextSpi {
                 throw new WolfSSLJNIException("Failed to load private key " +
                     "buffer, err = " + ret);
             }
-
-            if (debug.DEBUG) {
-                log("loaded private key from KeyManager (alias: " + alias + ")");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loaded private key from KeyManager (alias: " + alias + ")");
         } else {
-            if (debug.DEBUG) {
-                log("no private key found, skipped loading");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "no private key found, skipped loading");
         }
 
         /* client certificate chain */
@@ -239,15 +228,12 @@ public class WolfSSLContext extends SSLContextSpi {
                 throw new WolfSSLJNIException("Failed to load certificate " +
                     "chain buffer, err = " + ret);
             }
-
-            if (debug.DEBUG) {
-                log("loaded certificate chain from KeyManager (length: " +
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loaded certificate chain from KeyManager (length: " +
                     chainLength + ")");
-            }
         } else {
-            if (debug.DEBUG) {
-                log("no certificate or chain found, skipped loading");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "no certificate or chain found, skipped loading");
         }
     }
 
@@ -335,12 +321,9 @@ public class WolfSSLContext extends SSLContextSpi {
 
         try {
             return new WolfSSLEngine(this.ctx, this.authStore, this.params);
-
         } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE,
-                null, ex);
+            throw new IllegalStateException("Unable to create engine");
         }
-        return null;
     }
 
     /**
@@ -363,12 +346,9 @@ public class WolfSSLContext extends SSLContextSpi {
         try {
             return new WolfSSLEngine(this.ctx, this.authStore, this.params,
                 host, port);
-
         } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLContext.class.getName()).log(Level.SEVERE,
-                null, ex);
+            throw new IllegalStateException("Unable to create engine");
         }
-        return null;
     }
 
     /**
@@ -423,10 +403,6 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
         }
-    }
-
-    private void log(String msg) {
-        debug.print("[WolfSSLContext] " + msg);
     }
 }
 
