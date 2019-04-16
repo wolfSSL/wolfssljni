@@ -267,6 +267,26 @@ public class WolfSSLSocketFactoryTest {
                 s.close();
                 in.close();
 
+                /* String, int, InetAddress, int */
+                ss = (SSLSocket)sf.createSocket(addrStr, port,
+                    null, 0);
+                if (ss == null) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLSocketFactory.createSocket(SiIi) failed");
+                    return;
+                }
+                ss.close();
+
+                /* InetAddress, int, InetAddress, int */
+                ss = (SSLSocket)sf.createSocket(addr, port,
+                    null, 0);
+                if (ss == null) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLSocketFactory.createSocket(IiIi) failed");
+                    return;
+                }
+                ss.close();
+
             } catch (SocketException e) {
                 System.out.println("\t\t\t... failed");
                 throw e;
