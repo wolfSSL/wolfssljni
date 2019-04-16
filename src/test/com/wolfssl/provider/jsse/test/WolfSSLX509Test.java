@@ -54,6 +54,7 @@ import org.junit.Test;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509;
+import com.wolfssl.provider.jsse.WolfSSLX509X;
 
 public class WolfSSLX509Test {
     private static WolfSSLTestFactory tf;
@@ -106,15 +107,15 @@ public class WolfSSLX509Test {
             der = tf.getCert("ca");
             ca = new WolfSSLX509(der);
             try {
+                WolfSSLX509X x509x = new WolfSSLX509X(x509.getEncoded());
                 PublicKey pkey = ca.getPublicKey();
                 x509.verify(pkey);
+                x509x.verify(pkey);
             } catch (InvalidKeyException | NoSuchProviderException |
-                    SignatureException e) {
+                    SignatureException | javax.security.cert.CertificateException e) {
                 error("\t\t... failed");
                 fail("certificae not valid");
             }
-            
-            
         } catch (KeyStoreException | WolfSSLException | NoSuchAlgorithmException |
                 CertificateException | IOException e) {
             error("\t\t... failed");
@@ -142,10 +143,7 @@ public class WolfSSLX509Test {
         System.out.print("\tTesting x509 ext");
         
         try {
-            x509 = new WolfSSLX509(tf.googleCACert);
-//            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-//            x509 = (X509Certificate) cf.generateCertificate(new FileInputStream(tf.googleCACert));
-                    
+            x509 = new WolfSSLX509(tf.googleCACert);              
                     
             keyUsage = x509.getKeyUsage();
             if (keyUsage.length != expected.length) {
@@ -201,6 +199,12 @@ public class WolfSSLX509Test {
                  error("\t... failed");
                  fail("unexpected sig alg OID found");
              }
+             
+             x509X = new WolfSSLX509X(x509.getEncoded());
+             if (!x509X.getSigAlgOID().equals("1.2.840.113549.1.1.5")) {
+                 error("\t... failed");
+                 fail("unexpected sig alg OID found");
+             }
         } catch (Exception ex) {
             error("\t... failed");
             fail("unexpected exception found"); 
@@ -208,7 +212,23 @@ public class WolfSSLX509Test {
         pass("\t\t... passed");
     }
     
-    
+    @Test
+    public void testX509XValidity() {
+        WolfSSLX509X x509;
+
+        System.out.print("\tTesting X509X validity");
+        try {
+            x509 = new WolfSSLX509X(tf.googleCACert);
+            x509.checkValidity();
+            x509.checkValidity(new Date());
+        } catch (WolfSSLException | javax.security.cert.CertificateExpiredException |
+                javax.security.cert.CertificateNotYetValidException e) {
+            error("\t\t... failed");
+            fail("failed date validity test"); 
+        }
+        pass("\t\t... passed"); 
+   }
+        
     @Test
     public void testTBS() {
         byte[] tbs;
@@ -250,6 +270,7 @@ public class WolfSSLX509Test {
         KeyStore store;
         InputStream stream;
         WolfSSLX509 ca;
+        WolfSSLX509X cax;
         PublicKey pkey;
         byte[] key;
         
@@ -261,6 +282,13 @@ public class WolfSSLX509Test {
             store.load(stream, tf.jksPass);
             stream.close();
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());
+            cax = new WolfSSLX509X(ca.getEncoded());
+            pkey = cax.getPublicKey();
+            if (pkey == null) {
+                error("\t\t... failed");
+                fail("failed to get public key");
+            }
+            
             pkey = ca.getPublicKey();
             
             if (!pkey.getFormat().equals("X.509")) {
@@ -295,6 +323,7 @@ public class WolfSSLX509Test {
         KeyStore store;
         InputStream stream;
         WolfSSLX509 server, ca;
+        WolfSSLX509X serverx;
         Provider[] p;
         Provider sigProvider = null;
         
@@ -322,8 +351,11 @@ public class WolfSSLX509Test {
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());
             
             try {
+                serverx = new WolfSSLX509X(server.getEncoded());
                 server.verify(ca.getPublicKey(), sigProvider);
-            } catch (InvalidKeyException | SignatureException e) {
+                serverx.verify(ca.getPublicKey(), sigProvider.getName());
+            } catch (InvalidKeyException | SignatureException |
+                    NoSuchProviderException | javax.security.cert.CertificateException e) {
                 error("\t... failed");
                 fail("failed to verify certificate");
             }
@@ -481,6 +513,14 @@ public class WolfSSLX509Test {
            
            try {
                x509.getSigAlgParams();
+               error("\t\t... failed: A test case for getSigAlgParams is needed");
+               fail("getSigAlgParams implemented without test case"); 
+           } catch (Exception ex) {
+               /* @TODO not supported */
+           }
+           
+           try {
+               peer.getSigAlgParams();
                error("\t\t... failed: A test case for getSigAlgParams is needed");
                fail("getSigAlgParams implemented without test case"); 
            } catch (Exception ex) {
