@@ -21,6 +21,7 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.nio.ByteBuffer;
@@ -238,9 +239,15 @@ public class WolfSSLEngineTest {
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine e;
         String sup[];
+        boolean ok = false;
 
         System.out.print("\tTesting setting cipher");
 
+        if (!WolfSSL.TLSv12Enabled()) {
+            pass("\t\t... skipped");
+            return;
+        }
+        
         this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
@@ -249,16 +256,29 @@ public class WolfSSLEngineTest {
             return;
         }
         
-        /* should be null when not set , is not null? */
-//        if (e.getEnabledCipherSuites() != null) {
-//            System.out.println("\t\t... failed");
-//            System.out.println("not null ");
-//            for (String s : e.getEnabledCipherSuites()) {
-//                System.out.print("" + s);
-//            }
-//            System.out.println("");
-//            fail("unexpected cipher list");   
-//        }
+        sup = e.getSupportedProtocols();
+        for (String x : sup) {
+            if (x.equals("TLSv1.2")) {
+                ok = true;
+            }
+        }
+        if (!ok) {
+            error("\t\t... failed");
+            fail("failed to find TLSv1.2 in supported protocols");
+        }
+        
+        sup = e.getEnabledProtocols();
+        for (String x : sup) {
+            if (x.equals("TLSv1.2")) {
+                ok = true;
+            }
+        }
+        if (!ok) {
+            error("\t\t... failed");
+            fail("failed to find TLSv1.2 in enabled protocols");
+        }
+        
+        /* check supported cipher suites */
         sup = e.getSupportedCipherSuites();
         e.setEnabledCipherSuites(new String[] {sup[0]});
         if (e.getEnabledCipherSuites() == null ||
@@ -385,6 +405,40 @@ public class WolfSSLEngineTest {
     }
     
     @Test
+    public void testBeginHandshake()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine server;
+        SSLEngine client;
+        int ret;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting begin handshake");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        
+        try {
+            server.beginHandshake();
+            client.beginHandshake();
+        } catch (SSLException e) {
+            error("\t\t... failed");
+            fail("failed to begin handshake");   
+        }
+        
+        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create engine");   
+        }
+        pass("\t\t... passed");
+    }
+    
+    @Test
     public void testConnectionOutIn()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
@@ -454,6 +508,12 @@ public class WolfSSLEngineTest {
         if (ret != 0) {
             error("\t\t... failed");
             fail("failed to create connection with engine");   
+        }
+        
+        /* want client auth should be overwritten by need client auth */
+        if (!server.getNeedClientAuth() || server.getWantClientAuth()) {
+            error("\t\t... failed");
+            fail("failed with mutual auth getter check");
         }
         
         /* fail case */
