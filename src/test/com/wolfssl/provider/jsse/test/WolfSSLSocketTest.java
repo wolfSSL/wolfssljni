@@ -446,7 +446,7 @@ public class WolfSSLSocketTest {
                     InputStream consumed = new ByteArrayInputStream(tmp);
 
                     /* create SSLSocket for server from Socket */
-                    SSLSocket ss = (SSLSocket)ctx.getSocketFactory()
+                    SSLSocket ss = (SSLSocket)((WolfSSLSocketFactory)ctx.getSocketFactory())
                         .createSocket(server, consumed, true);
 
                     ss.startHandshake();

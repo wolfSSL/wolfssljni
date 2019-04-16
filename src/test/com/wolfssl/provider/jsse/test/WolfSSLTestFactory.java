@@ -122,17 +122,18 @@ class WolfSSLTestFactory {
         String sdc = "/sdcard/";
         File f;
 
+        if (isAndroid()) {
+            serverJKS = "examples/provider/server.bks";
+            clientJKS = "examples/provider/client.bks";
+            allJKS = "examples/provider/all.bks";
+            mixedJKS = "examples/provider/all_mixed.bks";
+            caJKS = "examples/provider/cacerts.bks";
+            rsaJKS = "examples/provider/rsa.bks";
+            keyStoreType = "BKS";
+        }
+
         f = new File(sdc.concat(serverJKS));
         if (f.exists()) {
-            if (isAndroid()) {
-                serverJKS = "examples/provider/server.bks";
-                clientJKS = "examples/provider/client.bks";
-                allJKS = "examples/provider/all.bks";
-                mixedJKS = "examples/provider/all_mixed.bks";
-                caJKS = "examples/provider/cacerts.bks";
-                rsaJKS = "examples/provider/rsa.bks";
-                keyStoreType = "BKS";
-            }
             setPaths(sdc);
             return true;
         }

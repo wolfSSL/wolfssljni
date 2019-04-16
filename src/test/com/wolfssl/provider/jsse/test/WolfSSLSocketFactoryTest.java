@@ -257,7 +257,7 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, InputStream, boolean */
                 s = new Socket(addr, port);
                 in = s.getInputStream();
-                ss = (SSLSocket)sf.createSocket(s, in, true);
+                ss = (SSLSocket)((WolfSSLSocketFactory)sf).createSocket(s, in, true);
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
@@ -355,7 +355,7 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, InputStream, boolean - null Socket */
                 s = new Socket(addr, port);
                 in = s.getInputStream();
-                ss = (SSLSocket)sf.createSocket((Socket)null, in, true);
+                ss = (SSLSocket)((WolfSSLSocketFactory)sf).createSocket((Socket)null, in, true);
                 System.out.println("\t\t\t... failed");
                 fail("createSocket() should throw exception");
             } catch (NullPointerException e) {
