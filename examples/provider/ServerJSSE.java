@@ -60,7 +60,7 @@ public class ServerJSSE {
 
         /* cert info */
         String serverJKS  = "../provider/rsa.jks";
-        String caJKS      = "../provider/cacerts.jks";
+        String caJKS      = "../provider/client.jks";
         String serverPswd = "wolfSSL test";
         String caPswd     = "wolfSSL test";
 
@@ -74,8 +74,8 @@ public class ServerJSSE {
 
         /* provider for SSLContext, TrustManagerFactory, KeyManagerFactory */
         String ctxProvider = "wolfJSSE";
-        String tmfProvider = "SunX509";
-        String kmfProvider = "SunX509";
+        String tmfProvider = "wolfJSSE";
+        String kmfProvider = "wolfJSSE";
 
         try {
 
@@ -180,11 +180,11 @@ public class ServerJSSE {
             truststore.load(new FileInputStream(caJKS), caPswd.toCharArray());
             
             TrustManagerFactory tm =
-                TrustManagerFactory.getInstance(tmfProvider);
+                TrustManagerFactory.getInstance("SunX509", tmfProvider);
             tm.init(truststore);
             
             KeyManagerFactory km =
-                KeyManagerFactory.getInstance(kmfProvider);
+                KeyManagerFactory.getInstance("SunX509", kmfProvider);
             km.init(keystore, serverPswd.toCharArray());
 
             /* create context */
@@ -207,7 +207,7 @@ public class ServerJSSE {
             SSLServerSocket ss = (SSLServerSocket)ctx.
                 getServerSocketFactory().createServerSocket(port);
 
-            if (verifyPeer == true) {
+            if (verifyPeer == false) {
                 ss.setNeedClientAuth(false);
                 ss.setWantClientAuth(false);
             } else {
@@ -229,7 +229,6 @@ public class ServerJSSE {
                 System.out.println("\nwaiting for client connection...");
                 SSLSocket sock = (SSLSocket)ss.accept();
                 sock.startHandshake();
-
                 showPeer(sock);
 
                 sock.getInputStream().read(response);

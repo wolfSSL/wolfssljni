@@ -38,6 +38,11 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
+/**
+ * wolfSSL implementation of SSLEngine
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLEngine extends SSLEngine {
 
     private WolfSSLEngineHelper EngineHelper;
@@ -46,7 +51,7 @@ public class WolfSSLEngine extends SSLEngine {
     private WolfSSLAuthStore authStore;
     private SSLParameters params;
     private byte[] toSend; /* encrypted packet to send */
-    private byte[] toRead; /* encrypted packet comming in */
+    private byte[] toRead; /* encrypted packet coming in */
     private int toReadSz = 0;
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
     private boolean needInit = true;
@@ -136,13 +141,6 @@ public class WolfSSLEngine extends SSLEngine {
                 /* output not large enough to read packet */
                 status = Status.BUFFER_OVERFLOW;
                 return -1;
-                
-//                /* partial read from toSend */
-//                int nSz = this.toSend.length - max;
-//                System.arraycopy(this.toSend, 0, tmp, 0, max);
-//                out.put(tmp);
-//                System.arraycopy(this.toSend, max, this.toSend, 0, nSz);
-//                this.toSend = Arrays.copyOf(this.toSend, nSz);
             }
             else {
                 /* read all from toSend */

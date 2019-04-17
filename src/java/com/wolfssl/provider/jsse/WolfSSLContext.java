@@ -21,40 +21,41 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.io.ByteArrayOutputStream;
+import java.security.KeyManagementException;
+import java.security.PrivateKey;
+import java.security.SecureRandom;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContextSpi;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.SSLParameters;
-import java.security.SecureRandom;
-import java.security.KeyManagementException;
-import java.security.PrivateKey;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
 
 import com.wolfssl.WolfSSL;
-import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
+/**
+ * wolfSSL implementation of SSLContextSpi
+ * @author wolfSSL
+ */
 public class WolfSSLContext extends SSLContextSpi {
 
     private TLS_VERSION currentVersion = TLS_VERSION.SSLv23;
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
     private SSLParameters params = null;
-    private WolfSSLDebug debug;
     
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;

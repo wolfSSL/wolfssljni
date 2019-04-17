@@ -21,6 +21,13 @@
 
 package com.wolfssl.provider.jsse;
 
+/**
+ * Central location for all debugging messages
+ * 
+ * This class is used internally for displaying debug message.
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLDebug {
 
     public static boolean DEBUG = checkProperty();
@@ -38,10 +45,21 @@ public class WolfSSLDebug {
         return false;
     }
 
+    /**
+     * Prints out a message to the console
+     * @param string message to be printed
+     */
     public static void print(String string) {
         System.out.println("wolfJSSE: " + string);
     }
     
+    /**
+     * Checks if debugging is turned on and prints out the message.
+     * 
+     * @param cl class being called from to get debug info
+     * @param tag level of debug message i.e. WolfSSLDebug.INFO
+     * @param string message to be printed out
+     */
     public static void log(Class cl, String tag, String string) {
         if (DEBUG) {
             System.out.println("[wolfJSSE " + tag + " : " + cl.getSimpleName() + "] " + string);

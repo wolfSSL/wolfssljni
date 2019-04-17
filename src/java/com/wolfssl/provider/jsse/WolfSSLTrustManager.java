@@ -37,10 +37,12 @@ import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
 
-public class WolfSSLTrustManager extends TrustManagerFactorySpi {
-
-    public WolfSSLTrustManager() {}
-    
+/**
+ * wolfSSL implemenation of TrustManagerFactorySpi
+ * 
+ * @author wolfSSL
+ */
+public class WolfSSLTrustManager extends TrustManagerFactorySpi {    
     private KeyStore store;
     
     @Override

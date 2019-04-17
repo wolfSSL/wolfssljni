@@ -32,6 +32,11 @@ import javax.net.ssl.SSLParameters;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 
+/**
+ * wolfSSL implementation of SSLServerSocket
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLServerSocket extends SSLServerSocket {
 
     private WolfSSLContext context = null;

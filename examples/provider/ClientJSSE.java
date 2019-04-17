@@ -75,6 +75,7 @@ public class ClientJSSE {
         SSLContext ctx;
 
         /* config info */
+        String version;
         String cipherList = null;             /* default ciphersuite list */
         int sslVersion = 3;                   /* default to TLS 1.2 */
         boolean verifyPeer = true;            /* verify peer by default */
@@ -164,12 +165,12 @@ public class ClientJSSE {
         }
 
         switch (sslVersion) {
-            case -1: ctx = SSLContext.getInstance("TLS", provider); break;
-            case 0: ctx = SSLContext.getInstance("SSLv3", provider); break;
-            case 1: ctx = SSLContext.getInstance("TLSv1", provider); break;
-            case 2: ctx = SSLContext.getInstance("TLSv1.1", provider); break;
-            case 3: ctx = SSLContext.getInstance("TLSv1.2", provider); break;
-            case 4: ctx = SSLContext.getInstance("TLSv1.3", provider); break;
+            case -1: version = "TLS"; break;
+            case 0:  version = "SSLv3"; break;
+            case 1:  version = "TLSv1"; break;
+            case 2:  version = "TLSv1.1"; break;
+            case 3:  version = "TLSv1.2"; break;
+            case 4:  version = "TLSv1.3"; break;
             default:
                 printUsage();
                 return;
@@ -188,6 +189,7 @@ public class ClientJSSE {
         km.init(pKey, clientPswd.toCharArray());
 
         /* setup context with certificate and private key */
+        ctx = SSLContext.getInstance(version, provider);
         ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
         if (listSuites) {

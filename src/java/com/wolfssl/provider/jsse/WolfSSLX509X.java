@@ -34,7 +34,7 @@ import javax.security.cert.*;
 import com.wolfssl.WolfSSLException;
 
 /**
- * javax version of certificates
+ * javax version of certificates. Depreciated, WolfSSLX509 should be used instead
  * 
  * @author wolfSSL
  */

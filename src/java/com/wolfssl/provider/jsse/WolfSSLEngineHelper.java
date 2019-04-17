@@ -412,11 +412,14 @@ public class WolfSSLEngineHelper {
      */
     protected static SSLParameters decoupleParams(SSLParameters in) {
         SSLParameters ret = new SSLParameters();
-     
+        
         ret.setCipherSuites(in.getCipherSuites());
-        ret.setNeedClientAuth(in.getNeedClientAuth());
         ret.setProtocols(in.getProtocols());
-        ret.setWantClientAuth(in.getWantClientAuth());
+
+        ret.setNeedClientAuth(in.getNeedClientAuth());
+        if (!ret.getNeedClientAuth()) {
+            ret.setWantClientAuth(in.getWantClientAuth());
+        }
         
         /* Supported by newer version of SSLParameters but to build with API 23
          * these are currently commented out

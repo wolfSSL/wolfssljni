@@ -21,32 +21,24 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.util.ArrayList;
-import java.io.InputStream;
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.net.Socket;
+import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.Socket;
 import java.net.UnknownHostException;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.X509KeyManager;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.SSLParameters;
-import java.security.SecureRandom;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.security.cert.CertificateEncodingException;
 
-import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocketFactory;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
 
 
+/**
+ * wolfSSL implementation of SSLSocketFactory
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     private WolfSSLAuthStore authStore = null;

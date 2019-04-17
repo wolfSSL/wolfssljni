@@ -30,6 +30,11 @@ import javax.net.ssl.SSLParameters;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 
+/**
+ * wolfSSL implementation of SSLServerSocketFactory
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
     private WolfSSLAuthStore authStore = null;

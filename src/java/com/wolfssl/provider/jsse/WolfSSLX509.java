@@ -43,6 +43,11 @@ import java.util.TreeSet;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 
+/**
+ * wolfSSL implementation of X509Certificate
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLX509 extends X509Certificate {
     private WolfSSLCertificate cert;
     private String[] extensionOid = {

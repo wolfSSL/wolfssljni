@@ -37,6 +37,11 @@ import javax.net.ssl.X509KeyManager;
 import com.wolfssl.WolfSSLException;
 
 
+/**
+ * wolfSSL implementation of X509KeyManager
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLKeyX509 implements X509KeyManager{
     private KeyStore store;
     private char[] password;

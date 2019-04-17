@@ -38,6 +38,11 @@ import java.security.cert.CertificateEncodingException;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * wolfSSL implementation of X509TrustManager
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLTrustX509 implements X509TrustManager {
     private KeyStore store;
     private Set<X509Certificate> CAs;

@@ -21,46 +21,37 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.net.Socket;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
-import java.net.SocketAddress;
-import java.net.UnknownHostException;
 import java.net.InetSocketAddress;
-import java.lang.StringBuilder;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.HandshakeCompletedListener;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.X509KeyManager;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.HandshakeCompletedEvent;
-import javax.net.ssl.SSLHandshakeException;
-import java.security.SecureRandom;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.security.cert.CertificateEncodingException;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 
-import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
-import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLIORecvCallback;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.net.ssl.SSLParameters;
+import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.WolfSSLSession;
 
 
+/**
+ * wolfSSL implementation of SSLSocket
+ * 
+ * @author wolfSSL
+ */
 public class WolfSSLSocket extends SSLSocket {
 
     private WolfSSLAuthStore authStore = null;
