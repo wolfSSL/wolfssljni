@@ -419,19 +419,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
     jobject jcl, jlong ssl, jbyteArray raw, jint length)
 {
-    char data[16384];
+    byte* data;
+    int ret = SSL_FAILURE;
 
     if (!jenv || !ssl || !raw)
         return BAD_FUNC_ARG;
 
     if (length >= 0) {
-        (*jenv)->GetByteArrayRegion(jenv, raw, 0, length, (jbyte*)data);
+        data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             return SSL_FAILURE;
         }
-        return wolfSSL_write((WOLFSSL*)ssl, data, length);
+        ret = wolfSSL_write((WOLFSSL*)ssl, data, length);
+
+        (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, JNI_ABORT);
+
+        return ret;
 
     } else {
         return SSL_FAILURE;
@@ -441,21 +446,23 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
     jobject jcl, jlong ssl, jbyteArray raw, jint length)
 {
-    int size;
-    char data[16384];
+    byte* data;
+    int size = 0;
 
     if (!jenv || !ssl || !raw)
         return BAD_FUNC_ARG;
 
-    size = wolfSSL_read((WOLFSSL*)ssl, data, length);
-
-    if (size >= 0) {
-        (*jenv)->SetByteArrayRegion(jenv, raw, 0, size, (jbyte*)data);
+    if (length >= 0) {
+        data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             return SSL_FAILURE;
         }
+
+        size = wolfSSL_read((WOLFSSL*)ssl, data, length);
+
+        (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, JNI_COMMIT);
     }
 
     return size;
