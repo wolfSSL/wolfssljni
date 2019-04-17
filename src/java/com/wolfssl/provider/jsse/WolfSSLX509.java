@@ -28,7 +28,6 @@ import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.Provider;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
@@ -36,6 +35,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
@@ -378,9 +378,81 @@ public class WolfSSLX509 extends X509Certificate {
     /* wolfSSL Principal class */
     private class WolfSSLPrincipal implements Principal {
         private String name;
+        private String[] DNs = { "/emailAddress=", "/CN=", "/OU=",
+                "/O=", "/L=", "/ST=", "/C="};
+        
+        /* replace the wolfSSL version of the tag. Returns replacement on success. */
+        private String getReplace(String in) {
+            if (in.equals("/emailAddress=")) {
+                return "EMAILADDRESS=";
+            }
+            if (in.equals("/CN=")) {
+                return "CN=";
+            }
+            if (in.equals("/OU=")) {
+                return "OU=";
+            }
+            if (in.equals("/O=")) {
+                return "O=";
+            }
+            if (in.equals("/L=")) {
+                return "L=";
+            }
+            if (in.equals("/ST=")) {
+                return "ST=";
+            }
+            if (in.equals("/C=")) {
+                return "C=";
+            }
+            return null;
+        }
+
+        /* check if the string starts with an expected tag.
+         * returns index into DNs of tag when found */
+        private int containsDN(String in) {
+            int i;
+            for (i = 0; i < DNs.length; i++) {
+                if (in.startsWith(DNs[i]))
+                    return i;
+            }
+            return -1;
+        }
+        
+        /* convert name from having "/DN=" format to "DN= ," format
+         * returns the new reformatted string on success */
+        private String reformatList(String in) {
+            String[] ret;
+            int i, j;
+            String tmp = in;
+            ArrayList<String> list = new ArrayList<String>();
+            
+            ret = in.split("/");
+
+            while (tmp.length() > 3) {
+                for (i = tmp.length() - 3; i >= 0; i--) {
+                    if ((j = containsDN(in.substring(i))) >= 0) {
+                        String current = tmp.substring(i, tmp.length());
+                        current = current.replaceAll(DNs[j], getReplace(DNs[j]));
+                        list.add(current);
+                        tmp = tmp.substring(0, i);
+                        break;
+                    }
+                }
+            }
+            
+            ret = list.toArray(new String[list.size()]);
+            tmp = "";
+            for (i = 0; i < ret.length - 1; i++) {
+                tmp = tmp.concat(ret[i]);
+                tmp = tmp.concat(", ");   
+            }
+            tmp = tmp.concat(ret[i]);
+            
+            return tmp;
+        }
         
         private WolfSSLPrincipal(String in) {
-            this.name = in;
+            this.name = reformatList(in);
         }
         
         @Override

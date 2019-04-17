@@ -31,9 +31,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.net.ssl.SSLSocket;
+
 import javax.net.ssl.X509KeyManager;
 
 import com.wolfssl.WolfSSLException;
@@ -60,7 +58,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         try {
             aliases = this.store.aliases();
         } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLKeyX509.class.getName()).log(Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR, "getting alias error");
             return null;
         }
 
@@ -70,7 +68,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
             try {
                 cert = (X509Certificate)this.store.getCertificate(current);
             } catch (KeyStoreException ex) {
-                Logger.getLogger(WolfSSLKeyX509.class.getName()).log(Level.SEVERE, null, ex);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR, "checking alias error");
+                continue;
+            }
+            
+            if (type != null && !cert.getPublicKey().getAlgorithm().equals(type)) {
+                /* different public key type */
+                continue;
             }
             
             /* if issuers is null than it does not matter which issuer */
@@ -79,18 +83,20 @@ public class WolfSSLKeyX509 implements X509KeyManager{
             }
             else {
                 for (i = 0; i < issuers.length; i++) {
-                    if (cert != null && cert.getIssuerDN().equals(issuers[i])) {
+                    if (cert != null && cert.getIssuerDN().getName().
+                            equals(issuers[i].getName())) {
                         ret.add(current);
                     }
                 }
             }
         }
         
+        if (ret.size() == 0)
+            return null;
         return ret.toArray(new String[0]);
     }
     
     public String[] getClientAliases(String type, Principal[] issuers) {
-
         return getAliases(type, issuers);
     }
 
@@ -120,15 +126,8 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
 
     public String chooseServerAlias(String type, Principal[] issuers, Socket sock) {
-
-        String[] all = getAliases(type, issuers);
-        if (sock != null) {
-            if (sock.isConnected() == true) {
-                SSLSocket ssl = (SSLSocket)sock;
-                //String proto = ssl.getApplicationProtocol();
-            }
-        }
-        return all[0];
+        /* for now using same behavior ad choose client alias */
+        return chooseClientAlias(new String[]{ type }, issuers, sock);
     }
 
     @Override

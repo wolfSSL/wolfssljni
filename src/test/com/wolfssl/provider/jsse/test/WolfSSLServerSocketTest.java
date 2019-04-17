@@ -482,7 +482,7 @@ public class WolfSSLServerSocketTest {
 
         /* fail case, incorrect root CA loaded to verify server cert */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", tf.serverJKS, ctxProvider),
+                tf.createTrustManager("SunX509", tf.rsaJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
         ss = (SSLServerSocket)ctx.getServerSocketFactory()
@@ -520,6 +520,10 @@ public class WolfSSLServerSocketTest {
 
         } catch (SSLHandshakeException e) {
             /* expected */
+            if (!e.toString().contains("ASN no signer")) {
+                System.out.println("\t\t... failed");
+                fail();
+            }
             cs.close();
         }
 
