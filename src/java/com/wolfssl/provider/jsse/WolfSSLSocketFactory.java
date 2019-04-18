@@ -36,7 +36,7 @@ import com.wolfssl.WolfSSLContext;
 
 /**
  * wolfSSL implementation of SSLSocketFactory
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLSocketFactory extends SSLSocketFactory {
@@ -52,7 +52,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         this.authStore = authStore;
         this.params = params;
     }
-    
+
     /**
      * Returns the default cipher suite list for wolfJSSE.
      *

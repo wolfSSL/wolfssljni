@@ -33,10 +33,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WolfSSLCertificate {
-        
+
     private boolean active = false;
     private long x509Ptr = 0;
-    
+
     static native long d2i_X509(byte[] der, int len);
     static native byte[] X509_get_der(long x509);
     static native byte[] X509_get_tbs(long x509);
@@ -59,7 +59,7 @@ public class WolfSSLCertificate {
     static native boolean[] X509_get_key_usage(long x509);
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
-    
+
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
@@ -67,22 +67,21 @@ public class WolfSSLCertificate {
         }
         this.active = true;
     }
-    
+
     public WolfSSLCertificate(String fileName) throws WolfSSLException {
         File f = new File(fileName);
         InputStream stream = null;
         byte[] der = null;
-        
+
         try {
             der = new byte[(int) f.length()];
             stream = new FileInputStream(f);
             stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
-            Logger.getLogger(WolfSSLCertificate.class.getName()).log(Level.SEVERE, null, ex);
             throw new WolfSSLException("Failed to create SSL Context");
         }
-        
+
 
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
@@ -90,22 +89,22 @@ public class WolfSSLCertificate {
         }
         this.active = true;
     }
-    
+
     public WolfSSLCertificate(long x509) throws WolfSSLException {
         x509Ptr = x509;
         this.active = true;
     }
-    
+
     /* return DER encoding of certificate */
     public byte[] getDer() {
         return X509_get_der(this.x509Ptr);
     }
-    
+
     /* return the buffer that is To Be Signed */
     public byte[] getTbs() {
         return X509_get_tbs(this.x509Ptr);
     }
-    
+
     public BigInteger getSerial() {
         byte[] out = new byte[32];
         int sz = X509_get_serial_number(this.x509Ptr, out);
@@ -117,7 +116,7 @@ public class WolfSSLCertificate {
             return new BigInteger(serial);
         }
     }
-    
+
     public Date notBefore() {
         String nb = X509_notBefore(this.x509Ptr);
 
@@ -127,13 +126,12 @@ public class WolfSSLCertificate {
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {
-                Logger.getLogger(WolfSSLCertificate.class.getName()).log(Level.SEVERE, null, ex);
+                /* error case parsing date */
             }
         }
         return null;
     }
-    
-        
+
     public Date notAfter() {
         String nb = X509_notAfter(this.x509Ptr);
 
@@ -143,49 +141,49 @@ public class WolfSSLCertificate {
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {
-                Logger.getLogger(WolfSSLCertificate.class.getName()).log(Level.SEVERE, null, ex);
+                /* error case parsing date */
             }
         }
         return null;
     }
-    
+
     public int getVersion() {
         return X509_version(this.x509Ptr);
     }
-    
+
     public byte[] getSignature() {
         return X509_get_signature(this.x509Ptr);
     }
-    
+
     public String getSignatureType() {
         return X509_get_signature_type(this.x509Ptr);
     }
-    
+
     public String getSignatureOID() {
         return X509_get_signature_OID(this.x509Ptr);
     }
-    
+
     public byte[] getPubkey() {
         return X509_get_pubkey(this.x509Ptr);
     }
-        
+
     public String getPubkeyType() {
         return X509_get_pubkey_type(this.x509Ptr);
     }
-    
+
     public int isCA() {
         return X509_get_isCA(this.x509Ptr);
     }
-    
+
     /* if not set -1 is returned */
     public int getPathLen() {
         return X509_get_pathLength(this.x509Ptr);
     }
-    
+
     public String getSubject() {
         return X509_get_subject_name(this.x509Ptr);
     }
-    
+
     public String getIssuer() {
         return X509_get_issuer_name(this.x509Ptr);
     }
@@ -198,11 +196,11 @@ public class WolfSSLCertificate {
         }
         return false;
     }
-    
+
     public boolean[] getKeyUsage() {
         return X509_get_key_usage(this.x509Ptr);
     }
-    
+
     /* gets the DER encoded extension value from an OID passed in */
     public byte[] getExtension(String oid) {
         if (oid == null) {
@@ -210,7 +208,7 @@ public class WolfSSLCertificate {
         }
         return X509_get_extension(this.x509Ptr, oid);
     }
-    
+
     /* returns 1 if extension OID is set but not critical
      * returns 2 if extension OID is set and is critical
      * return  0 if not set
@@ -219,12 +217,12 @@ public class WolfSSLCertificate {
     public int getExtensionSet(String oid) {
         return X509_is_extension_set(this.x509Ptr, oid);
     }
-    
+
     @Override
     public String toString() {
         return X509_print(this.x509Ptr);
     }
-    
+
     /**
      * Frees an X509.
      *

@@ -77,7 +77,7 @@ class WolfSSLTestFactory {
         caJKS = "examples/provider/cacerts.jks";
         rsaJKS = "examples/provider/rsa.jks";
         googleCACert = "examples/certs/ca-google-root.der";
-        
+
         /* test if running from IDE directory */
         File f = new File(serverJKS);
         if (!f.exists()) {
@@ -154,12 +154,12 @@ class WolfSSLTestFactory {
         System.out.println("");
         in.flip();
     }
-    
+
     private TrustManager[] internalCreateTrustManager(String type, String file,
             String provider) {
         TrustManagerFactory tm;
         KeyStore cert = null;
-        
+
         try {
             if (file != null) {
                 InputStream stream = new FileInputStream(file);
@@ -190,7 +190,7 @@ class WolfSSLTestFactory {
         }
         return null;
     }
-    
+
     /**
      * Using default password "wolfSSL test"
      *
@@ -201,7 +201,7 @@ class WolfSSLTestFactory {
     protected TrustManager[] createTrustManager(String type, String file) {
         return internalCreateTrustManager(type, file, null);
     }
-    
+
     /**
      * Using default password "wolfSSL test"
      *
@@ -225,7 +225,7 @@ class WolfSSLTestFactory {
             pKey = KeyStore.getInstance(keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
-            
+
             /* load private key */
             if (provider == null) {
                 km = KeyManagerFactory.getInstance(type);
@@ -252,7 +252,7 @@ class WolfSSLTestFactory {
         }
         return null;
     }
-    
+
     /**
      * Using default password "wolfSSL test"
      *
@@ -263,7 +263,7 @@ class WolfSSLTestFactory {
     protected KeyManager[] createKeyManager(String type, String file) {
         return internalCreateKeyManager(type, file, null);
     }
-    
+
     /**
      * Using default password "wolfSSL test"
      *
@@ -300,7 +300,7 @@ class WolfSSLTestFactory {
                     localKm = createKeyManager("SunX509", clientJKS);
                 }
             }
-            
+
             ctx.init(localKm, localTm, null);
             return ctx;
         } catch (NoSuchAlgorithmException ex) {
@@ -348,10 +348,10 @@ class WolfSSLTestFactory {
             TrustManager[] tm, KeyManager[] km) {
         return internalCreateSSLContext(protocol, provider, tm, km);
     }
-    
+
     /**
      * Red coloring to fail message
-     * @param msg 
+     * @param msg
      */
     static void fail(String msg) {
         System.out.println(msg);
@@ -366,10 +366,10 @@ class WolfSSLTestFactory {
         }
         */
     }
-    
+
     /**
      * Green coloring to pass message
-     * @param msg 
+     * @param msg
      */
     static void pass(String msg) {
         System.out.println(msg);
@@ -384,8 +384,8 @@ class WolfSSLTestFactory {
         }
         */
     }
-    
-    
+
+
     /**
      * Engine connection. Makes server/client handshake in memory
      * @param server SSLEngine for server side of connection
@@ -404,12 +404,12 @@ class WolfSSLTestFactory {
         ByteBuffer serPlain = ByteBuffer.allocate(server.getSession().getApplicationBufferSize());
         ByteBuffer cliPlain = ByteBuffer.allocate(client.getSession().getApplicationBufferSize());
         boolean done = false;
-        
+
         if (cipherSuites != null) {
             server.setEnabledCipherSuites(cipherSuites);
             client.setEnabledCipherSuites(cipherSuites);
         }
-        
+
         if (protocols != null) {
             server.setEnabledProtocols(protocols);
             client.setEnabledProtocols(protocols);
@@ -420,7 +420,7 @@ class WolfSSLTestFactory {
                 Runnable run;
                 SSLEngineResult result;
                 HandshakeStatus s;
-                
+
                 result = client.wrap(toSendCli, cliToSer);
                 if (extraDebug) {
                     System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
@@ -431,7 +431,7 @@ class WolfSSLTestFactory {
                 while ((run = client.getDelegatedTask()) != null) {
                     run.run();
                 }
-                
+
                 result = server.wrap(toSendSer, serToCli);
                 if (extraDebug) {
                     System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
@@ -448,7 +448,7 @@ class WolfSSLTestFactory {
                     s = server.getHandshakeStatus();
                     System.out.println("server status = " + s.toString());
                 }
-                
+
                 cliToSer.flip();
                 serToCli.flip();
 
@@ -475,8 +475,8 @@ class WolfSSLTestFactory {
                 while ((run = client.getDelegatedTask()) != null) {
                     run.run();
                 }
-                
-                
+
+
                 result = server.unwrap(cliToSer, serPlain);
                 if (extraDebug) {
                     System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
@@ -486,22 +486,22 @@ class WolfSSLTestFactory {
                 while ((run = server.getDelegatedTask()) != null) {
                     run.run();
                 }
-                                
+
                 cliToSer.compact();
                 serToCli.compact();
-                
-            
+
+
                 if (extraDebug) {
                     s = client.getHandshakeStatus();
                     System.out.println("client status = " + s.toString());
                     s = server.getHandshakeStatus();
                     System.out.println("server status = " + s.toString());
                 }
-                
+
                 if (toSendCli.remaining() == 0 && toSendSer.remaining() == 0) {
                     byte[] b;
                     String st;
-                    
+
                     /* check what the client received */
                     cliPlain.rewind();
                     b = new byte[cliPlain.remaining()];
@@ -510,7 +510,7 @@ class WolfSSLTestFactory {
                     if (!appData.equals(st)) {
                         return -1;
                     }
-                    
+
                     /* check what the server received */
                     serPlain.rewind();
                     b = new byte[serPlain.remaining()];
@@ -519,17 +519,17 @@ class WolfSSLTestFactory {
                     if (!appData.equals(st)) {
                         return -1;
                     }
-                    
+
                     done = true;
                 }
 
             } catch (SSLException ex) {
                 return -1;
-            }            
+            }
         }
         return 0;
     }
-    
+
     /**
      * Returns the DER encoded buffer of the certificate
      * @param alias lookup alias in allJKS
@@ -550,7 +550,7 @@ class WolfSSLTestFactory {
         }
         return ks.getCertificate(alias).getEncoded();
     }
-    
+
     /**
      * Gets all alias's in allJKS
      * @return list of all alias's in allJKS
@@ -566,7 +566,7 @@ class WolfSSLTestFactory {
         InputStream stream = new FileInputStream(allJKS);
         String ret[];
         int idx = 0;
-        
+
         ks.load(stream, jksPass);
         stream.close();
         alias = ks.aliases();
@@ -575,7 +575,7 @@ class WolfSSLTestFactory {
             if (idx >= ret.length) {
                 return null;
             }
-            
+
             ret[idx] = alias.nextElement();
             idx += 1;
         }

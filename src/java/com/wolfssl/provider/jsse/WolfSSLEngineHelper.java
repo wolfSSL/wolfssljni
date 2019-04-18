@@ -32,10 +32,10 @@ import javax.net.ssl.SSLHandshakeException;
 /**
  * This is a helper function to account for similar methods between SSLSocket
  * and SSLEngine.
- * 
+ *
  * This class wraps a new WOLFSSL object that is created. All methods are
  * protected or private because this class should only be used internally.
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
@@ -62,13 +62,13 @@ public class WolfSSLEngineHelper {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
-        
+
         this.ssl = ssl;
         this.params = params;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
     }
-    
+
     /**
      * Allows for new session and resume session by default
      * @param ssl WOLFSSL session
@@ -84,7 +84,7 @@ public class WolfSSLEngineHelper {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
-        
+
         this.ssl = ssl;
         this.params = params;
         this.port = port;
@@ -106,17 +106,17 @@ public class WolfSSLEngineHelper {
     protected WolfSSLImplementSSLSession getSession() {
         return session;
     }
-    
+
     /* gets all supported cipher suites */
     protected String[] getAllCiphers() {
         return WolfSSL.getCiphersIana();
     }
-    
+
     /* gets all enabled cipher suites */
     protected String[] getCiphers() {
         return this.params.getCipherSuites();
     }
-    
+
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
 
         if (suites == null) {
@@ -138,7 +138,7 @@ public class WolfSSLEngineHelper {
 
         this.params.setCipherSuites(suites);
     }
-    
+
     protected void setProtocols(String[] p) throws IllegalArgumentException {
 
         if (p == null) {
@@ -160,12 +160,12 @@ public class WolfSSLEngineHelper {
 
         this.params.setProtocols(p);
     }
-    
+
     /* gets enabled protocols */
     protected String[] getProtocols() {
         return this.params.getProtocols();
     }
-    
+
     /* gets all supported protocols */
     protected String[] getAllProtocols() {
         return WolfSSL.getProtocols();
@@ -188,37 +188,37 @@ public class WolfSSLEngineHelper {
         }
         this.modeSet = true;
     }
-    
+
     protected boolean getUseClientMode() {
         return this.clientMode;
     }
-    
+
     protected void setNeedClientAuth(boolean need) {
         this.params.setNeedClientAuth(need);
     }
-    
+
     protected boolean getNeedClientAuth() {
         return this.params.getNeedClientAuth();
     }
-    
+
     protected void setWantClientAuth(boolean want) {
         this.params.setWantClientAuth(want);
     }
-    
+
     protected boolean getWantClientAuth() {
         return this.params.getWantClientAuth();
     }
-    
+
     protected void setEnableSessionCreation(boolean flag) {
         this.sessionCreation = flag;
     }
-    
+
     protected boolean getEnableSessionCreation() {
         return this.sessionCreation;
     }
-    
+
     /*********** Calls to transfer over parameter to wolfSSL before connection */
-    
+
     /*transfer over cipher suites right before establishing a connection */
     private void setLocalCiphers(String[] suites) throws IllegalArgumentException {
         try {
@@ -229,7 +229,7 @@ public class WolfSSLEngineHelper {
                 /* use default cipher suites */
                 return;
             }
-            
+
             for (String s : suites) {
                 sb.append(s);
                 sb.append(":");
@@ -247,19 +247,19 @@ public class WolfSSLEngineHelper {
             throw new IllegalArgumentException(e);
         }
     }
-   
+
     /* sets the protocol to use with WOLFSSL connections */
     private void setLocalProtocol(String[] p) {
         int i;
         long mask = 0;
         boolean set[] = new boolean[5];
         Arrays.fill(set, false);
-        
+
         if (p == null) {
             /* if null then just use wolfSSL default */
             return;
         }
-        
+
         for (i = 0; i < p.length; i++) {
             if (p[i].equals("TLSv1.3")) {
                 set[0] = true;
@@ -277,7 +277,7 @@ public class WolfSSLEngineHelper {
                 set[4] = true;
             }
         }
-        
+
         if (set[0] == false) {
             mask |= WolfSSL.SSL_OP_NO_TLSv1_3;
         }
@@ -295,7 +295,7 @@ public class WolfSSLEngineHelper {
         }
         this.ssl.setOptions(mask);
     }
-    
+
     /* sets client auth on or off if needed / wanted */
     private void setLocalAuth() {
         int mask = WolfSSL.SSL_VERIFY_NONE;
@@ -312,16 +312,16 @@ public class WolfSSLEngineHelper {
             mask |= (WolfSSL.SSL_VERIFY_PEER |
                     WolfSSL.SSL_VERIFY_FAIL_IF_NO_PEER_CERT);
         }
-        
+
         this.ssl.setVerify(mask, null);
     }
-    
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
     }
-    
+
     /* sets all parameters from SSLParameters into WOLFSSL object and creates
      * session.
      * Should be called before doHandshake */
@@ -355,7 +355,7 @@ public class WolfSSLEngineHelper {
 
         this.setLocalParams();
     }
-    
+
     /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
      * WolfSSL.SSL_FAILURE */
     protected int doHandshake() throws SSLException {
@@ -380,7 +380,7 @@ public class WolfSSLEngineHelper {
                     "session is marked as invalid");
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
-        
+
         if (this.clientMode) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "calling native wolfSSL_connect()");
@@ -392,8 +392,8 @@ public class WolfSSLEngineHelper {
             return this.ssl.accept();
         }
     }
-    
-    
+
+
     /**
      * Saves session on connection close for resumption
      */
@@ -402,17 +402,17 @@ public class WolfSSLEngineHelper {
             this.session.setResume();
         }
     }
-    
+
     /**
      * Creates a new SSLPArameters class with the same settings as the one passed
      * in.
-     * 
+     *
      * @param in SSLParameters settings to copy
-     * @return new parameters object holding same settings as "in" 
+     * @return new parameters object holding same settings as "in"
      */
     protected static SSLParameters decoupleParams(SSLParameters in) {
         SSLParameters ret = new SSLParameters();
-        
+
         ret.setCipherSuites(in.getCipherSuites());
         ret.setProtocols(in.getProtocols());
 
@@ -420,7 +420,7 @@ public class WolfSSLEngineHelper {
         if (!ret.getNeedClientAuth()) {
             ret.setWantClientAuth(in.getWantClientAuth());
         }
-        
+
         /* Supported by newer version of SSLParameters but to build with API 23
          * these are currently commented out
         ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
@@ -432,7 +432,7 @@ public class WolfSSLEngineHelper {
         ret.setServerNames(in.getServerNames());
         ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         */
-        
+
         return ret;
     }
 }

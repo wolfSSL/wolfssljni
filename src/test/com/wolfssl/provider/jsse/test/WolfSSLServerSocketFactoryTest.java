@@ -99,21 +99,21 @@ public class WolfSSLServerSocketFactoryTest {
                 /* protocol not enabled */
             }
         }
-        
+
         try {
-			tf = new WolfSSLTestFactory();
-		} catch (WolfSSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        
+            tf = new WolfSSLTestFactory();
+        } catch (WolfSSLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
         try {
             /* set up KeyStore */
-        		InputStream stream = new FileInputStream(tf.serverJKS);
+                InputStream stream = new FileInputStream(tf.serverJKS);
             pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
-            
+
             stream = new FileInputStream(tf.serverJKS);
             cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);

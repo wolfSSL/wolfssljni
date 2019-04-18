@@ -35,7 +35,7 @@ import javax.net.ssl.ManagerFactoryParameters;
 public class WolfSSLKeyManager extends KeyManagerFactorySpi {
     private char[] pswd;
     private KeyStore store;
-    
+
     @Override
     protected void engineInit(KeyStore store, char[] password)
             throws KeyStoreException, NoSuchAlgorithmException,
@@ -54,5 +54,5 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         KeyManager[] km = {new WolfSSLKeyX509(this.store, this.pswd)};
         return km;
     }
-    
+
 }

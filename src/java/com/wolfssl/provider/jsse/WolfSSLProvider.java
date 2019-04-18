@@ -1,4 +1,4 @@
-/* WolfSSLProvider.java 
+/* WolfSSLProvider.java
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -33,7 +33,7 @@ import com.wolfssl.WolfSSL;
 public final class WolfSSLProvider extends Provider {
 
     public WolfSSLProvider() {
-		super("wolfJSSE", 1, "wolfSSL JSSE Provider");
+        super("wolfJSSE", 1, "wolfSSL JSSE Provider");
         //super("wolfJSSE", "1.0", "wolfSSL JSSE Provider");
 
         /* load native wolfSSLJNI library */
@@ -64,7 +64,7 @@ public final class WolfSSLProvider extends Provider {
         }
         put("SSLContext.TLS",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV23_Context");
-        
+
         /* Trust Factory */
         put("TrustManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");

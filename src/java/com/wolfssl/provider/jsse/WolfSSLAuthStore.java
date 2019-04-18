@@ -53,7 +53,7 @@ public class WolfSSLAuthStore {
         TLSv1_3,
         SSLv23
     }
-    
+
     private TLS_VERSION currentVersion = TLS_VERSION.INVALID;
 
     private X509KeyManager km = null;
@@ -61,9 +61,9 @@ public class WolfSSLAuthStore {
     private SecureRandom sr = null;
     private String alias = null;
     private WolfSSLDebug debug;
-    
+
     private SessionStore<Integer, WolfSSLImplementSSLSession> store;
-    
+
     /**
      * @param keyman key manager to use
      * @param trustman trust manager to use
@@ -85,7 +85,8 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
-        store = new SessionStore<Integer, WolfSSLImplementSSLSession>(10); //@TODO set max size correctly
+        store = new SessionStore<Integer, WolfSSLImplementSSLSession>(10);
+        //@TODO set max size correctly
     }
 
     /**
@@ -171,7 +172,7 @@ public class WolfSSLAuthStore {
         }
         sr = random;
     }
-    
+
 
     /**
      * @return get the key manager used
@@ -200,21 +201,21 @@ public class WolfSSLAuthStore {
     protected TLS_VERSION getProtocolVersion() {
         return this.currentVersion;
     }
-    
+
     /**
      * @param in alias to set for certificate used
      */
     protected void setCertAlias(String in) {
         this.alias = in;
     }
-    
+
     /**
      * @return alias name
      */
     protected String getCertAlias() {
         return this.alias;
     }
-    
+
     /** Returns either an existing session to use or creates a new session. Can
      * return null on error case or the case where session could not be created.
      * @param ssl WOLFSSL class to set in session
@@ -228,7 +229,7 @@ public class WolfSSLAuthStore {
 
         WolfSSLImplementSSLSession ses;
         String toHash;
-        
+
         if (ssl == null) {
             return null;
         }
@@ -237,7 +238,7 @@ public class WolfSSLAuthStore {
         if (clientMode == false || host == null) {
             return this.getSession(ssl);
         }
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO, 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "attempting to look up session (" +
                 "host: " + host + ", port: " + port + ")");
 
@@ -257,7 +258,7 @@ public class WolfSSLAuthStore {
         }
         return ses;
     }
-    
+
     /** Returns a new session, does not check/save for resumption
      * @param ssl WOLFSSL class to reference with new session
      * @return a new SSLSession on success
@@ -267,7 +268,7 @@ public class WolfSSLAuthStore {
                 "creating new session");
         return new WolfSSLImplementSSLSession(ssl, this);
     }
-    
+
     /**
      * Add the session for possible resumption
      * @param session the session to add to stored session map
@@ -275,7 +276,7 @@ public class WolfSSLAuthStore {
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
         String toHash;
-        
+
         if (session.getPeerHost() != null) {
             /* register into session table for resumption */
             session.fromTable = true;
@@ -295,11 +296,11 @@ public class WolfSSLAuthStore {
 
     private class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**
-		 * user defined ID
-		 */
-		private static final long serialVersionUID = 1L;
-		private final int maxSz;
-        
+         * user defined ID
+         */
+        private static final long serialVersionUID = 1L;
+        private final int maxSz;
+
         /**
          * 
          * @param in max size of hash map before oldest entry is overwritten

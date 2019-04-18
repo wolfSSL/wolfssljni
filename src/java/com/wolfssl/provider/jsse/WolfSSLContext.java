@@ -56,7 +56,7 @@ public class WolfSSLContext extends SSLContextSpi {
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
     private SSLParameters params = null;
-    
+
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
     }
@@ -107,7 +107,7 @@ public class WolfSSLContext extends SSLContextSpi {
         /* auto-populate enabled protocols with supported ones */
         params.setProtocols(WolfSSL.getProtocols());
     }
-    
+
     private void LoadTrustedRootCerts() {
 
         int loadedCACount = 0;
@@ -375,19 +375,19 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLSessionContext engineGetClientSessionContext() {
         throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
-    
+
     public static final class TLSV1_Context extends WolfSSLContext {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
         }
     }
-    
+
     public static final class TLSV11_Context extends WolfSSLContext {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
         }
     }
-    
+
     public static final class TLSV12_Context extends WolfSSLContext {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
@@ -399,7 +399,7 @@ public class WolfSSLContext extends SSLContextSpi {
             super(TLS_VERSION.TLSv1_3);
         }
     }
-    
+
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);

@@ -34,7 +34,7 @@ import com.wolfssl.WolfSSLContext;
 
 /**
  * wolfSSL implementation of SSLServerSocket
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLServerSocket extends SSLServerSocket {
@@ -83,7 +83,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.context = context;
         this.authStore = authStore;
         this.params = WolfSSLEngineHelper.decoupleParams(params);
-    } 
+    }
 
     public WolfSSLServerSocket(WolfSSLContext context,
             WolfSSLAuthStore authStore,

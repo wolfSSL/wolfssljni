@@ -100,13 +100,13 @@ public class WolfSSLContextTest {
                 /* protocol not enabled */
             }
         }
-        
+
         try {
-			tf = new WolfSSLTestFactory();
-		} catch (WolfSSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+            tf = new WolfSSLTestFactory();
+        } catch (WolfSSLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     @Test
@@ -154,12 +154,12 @@ public class WolfSSLContextTest {
             pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
-            
+
             stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
-            	stream.close();
-            	
+                stream.close();
+
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
             tm.init(cert);

@@ -140,19 +140,19 @@ public class WolfSSLSocketTest {
         }
 
         try {
-			tf = new WolfSSLTestFactory();
-		} catch (WolfSSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        
+            tf = new WolfSSLTestFactory();
+        } catch (WolfSSLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
         try {
             /* set up KeyStore */
             InputStream stream = new FileInputStream(tf.clientJKS);
             pKey = KeyStore.getInstance("JKS");
             pKey.load(stream, jksPass);
             stream.close();
-            
+
             stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance("JKS");
             cert.load(stream, jksPass);

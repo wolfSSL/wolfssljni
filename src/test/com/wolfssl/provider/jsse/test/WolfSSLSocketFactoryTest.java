@@ -96,12 +96,12 @@ public class WolfSSLSocketFactoryTest {
         assertNotNull(p);
 
         try {
-			tf = new WolfSSLTestFactory();
-		} catch (WolfSSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        
+            tf = new WolfSSLTestFactory();
+        } catch (WolfSSLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
@@ -115,11 +115,11 @@ public class WolfSSLSocketFactoryTest {
 
         try {
             /* set up KeyStore */
-        		InputStream stream = new FileInputStream(tf.clientJKS);
+                InputStream stream = new FileInputStream(tf.clientJKS);
             pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
-            
+
             stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);

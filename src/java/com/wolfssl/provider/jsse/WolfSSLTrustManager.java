@@ -39,12 +39,12 @@ import javax.net.ssl.TrustManagerFactorySpi;
 
 /**
  * wolfSSL implemenation of TrustManagerFactorySpi
- * 
+ *
  * @author wolfSSL
  */
-public class WolfSSLTrustManager extends TrustManagerFactorySpi {    
+public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     private KeyStore store;
-    
+
     @Override
     protected void engineInit(KeyStore in) throws KeyStoreException {
         KeyStore certs = in;
@@ -53,7 +53,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String file = System.getProperty("javax.net.ssl.trustStore");
             char passAr[] = null;
             InputStream stream = null;
-            
+
             try {
                 if (pass != null) {
                     passAr = pass.toCharArray();
@@ -99,7 +99,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (CertificateException ex) {
                 Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
             }
-            
+
             if (stream != null) {
                 try {
                     stream.close();

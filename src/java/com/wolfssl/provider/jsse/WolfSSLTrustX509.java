@@ -40,14 +40,14 @@ import java.util.Set;
 
 /**
  * wolfSSL implementation of X509TrustManager
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLTrustX509 implements X509TrustManager {
     private KeyStore store;
     private Set<X509Certificate> CAs;
     private WolfSSLCertManager cm;
-    
+
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
         try {
@@ -67,7 +67,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             while (aliases.hasMoreElements()) {
                 String name = aliases.nextElement();
                 X509Certificate cert = null;
-                
+
                 if (store.isKeyEntry(name)) {
                     Certificate[] chain = store.getCertificateChain(name);
                     if (chain != null)
@@ -76,7 +76,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
                 else {
                     cert = (X509Certificate) store.getCertificate(name);
                 }
-                
+
                 if (cert != null && cert.getBasicConstraints() >= 0) {
                     int ret = this.cm.CertManagerLoadCABuffer(cert.getEncoded(),
                             cert.getEncoded().length, WolfSSL.SSL_FILETYPE_ASN1);
@@ -93,14 +93,14 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
         return WolfSSL.SSL_SUCCESS;
     }
-    
+
     @Override
     public void checkClientTrusted(X509Certificate[] certs, String type)
             throws CertificateException, IllegalArgumentException {
         if (certs.length == 0 || type.length() == 0) {
             throw new IllegalArgumentException();
         }
-        
+
         /* @TODO currently treating client certs like server certs */
         checkServerTrusted(certs, type);
     }
@@ -108,7 +108,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type) throws CertificateException {
         int i;
-        
+
         if (certs.length == 0 || type.length() == 0) {
             throw new IllegalArgumentException();
         }

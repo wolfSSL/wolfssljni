@@ -49,7 +49,7 @@ import com.wolfssl.WolfSSLSession;
 
 /**
  * wolfSSL implementation of SSLSocket
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLSocket extends SSLSocket {
@@ -63,7 +63,7 @@ public class WolfSSLSocket extends SSLSocket {
     private WolfSSLSession ssl = null;
     private SSLParameters params = null;
     private WolfSSLEngineHelper EngineHelper = null;
-    
+
     private Socket socket = null;
     private boolean autoClose;
     private InetSocketAddress address = null;
@@ -142,7 +142,7 @@ public class WolfSSLSocket extends SSLSocket {
         } catch (WolfSSLException e) {
             throw new IOException(e);
         }
-    } 
+    }
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
         SSLParameters params, boolean clientMode, String host, int port)

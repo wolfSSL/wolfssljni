@@ -50,13 +50,13 @@ public class WolfSSLKeyX509Test {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLKeyX509 Class");
-        
+
         /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
-        
+
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
@@ -64,7 +64,7 @@ public class WolfSSLKeyX509Test {
             e.printStackTrace();
         }
     }
-    
+
     @Test
     public void testgetClientAliases() {
         KeyManager[] list;
@@ -73,7 +73,7 @@ public class WolfSSLKeyX509Test {
         String[] alias;
         String str;
         System.out.print("\tTesting getClientAliases");
-        
+
         list = tf.createKeyManager("SunX509", tf.allJKS, provider);
         km = (X509KeyManager) list[0];
         alias = km.getClientAliases("RSA", null);
@@ -82,12 +82,12 @@ public class WolfSSLKeyX509Test {
             fail("failed to get client aliases");
             return;
         }
-        
+
         if (alias.length != 6) {
             error("\t... failed");
-            fail("unexpected number of alias found");     
+            fail("unexpected number of alias found");
         }
-        
+
         chain = km.getCertificateChain("client");
         if (chain == null || chain.length < 1) {
             error("\t... failed");
@@ -101,40 +101,40 @@ public class WolfSSLKeyX509Test {
             fail("failed to get client aliases");
             return;
         }
-        
+
         if (!alias[0].equals("client")) {
             error("\t... failed");
             fail("unexpected alias found");
         }
-        
+
         alias = km.getClientAliases("EC", null);
         if (alias == null) {
             error("\t... failed");
             fail("failed to get client aliases");
             return;
         }
-        
+
         if (alias.length != 3) {
             error("\t... failed");
-            fail("unexpected number of alias found");     
+            fail("unexpected number of alias found");
         }
-        
+
         str = km.chooseClientAlias(null, null, null);
         if (str != null) {
             error("\t... failed");
             fail("unexpected alias found");
         }
-        
+
         pass("\t... passed");
     }
-    
+
     @Test
     public void testgetServerAliases() {
         KeyManager[] list;
         X509KeyManager km;
         String[] alias;
         System.out.print("\tTesting getServerAliases");
-        
+
         list = tf.createKeyManager("SunX509", tf.allJKS, provider);
         km = (X509KeyManager) list[0];
         alias = km.getServerAliases("RSA", null);
@@ -143,22 +143,22 @@ public class WolfSSLKeyX509Test {
             fail("failed to get server aliases");
             return;
         }
-        
+
         if (alias.length != 6) {
             error("\t... failed");
-            fail("unexpected number of alias found");     
+            fail("unexpected number of alias found");
         }
-        
+
         alias = km.getServerAliases("EC", null);
         if (alias == null) {
             error("\t... failed");
             fail("failed to get server aliases");
             return;
         }
-        
+
         if (alias.length != 3) {
             error("\t... failed");
-            fail("unexpected number of alias found");     
+            fail("unexpected number of alias found");
         }
 
         /* should be no ECC keys in RSA key store */
@@ -169,14 +169,14 @@ public class WolfSSLKeyX509Test {
             error("\t... failed");
             fail("failed to get server aliases");
         }
-        
+
         pass("\t... passed");
     }
-    
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
-    
+
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }

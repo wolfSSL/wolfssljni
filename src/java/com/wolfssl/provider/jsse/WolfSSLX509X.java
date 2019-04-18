@@ -35,25 +35,25 @@ import com.wolfssl.WolfSSLException;
 
 /**
  * javax version of certificates. Depreciated, WolfSSLX509 should be used instead
- * 
+ *
  * @author wolfSSL
  */
 @SuppressWarnings("deprecation")
 public class WolfSSLX509X extends X509Certificate {
     WolfSSLX509 cert;
-    
+
     public WolfSSLX509X(byte[] der) throws WolfSSLException{
         this.cert = new WolfSSLX509(der);
     }
-    
+
     public WolfSSLX509X(String derName) throws WolfSSLException {
         this.cert = new WolfSSLX509(derName);
     }
-    
+
     public WolfSSLX509X(long x509) throws WolfSSLException {
         this.cert = new WolfSSLX509(x509);
     }
-    
+
     @Override
     public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
         try {
@@ -160,11 +160,11 @@ public class WolfSSLX509X extends X509Certificate {
     public PublicKey getPublicKey() {
         return this.cert.getPublicKey();
     }
-    
+
     @Override
     public void finalize() throws Throwable {
         super.finalize();
         this.cert.free();
     }
-    
+
 }

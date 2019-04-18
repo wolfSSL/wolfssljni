@@ -71,19 +71,19 @@ public class WolfSSLEngineTest {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLEngine Class");
-        
+
         /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
-        
+
         try {
-			tf = new WolfSSLTestFactory();
-		} catch (WolfSSLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+            tf = new WolfSSLTestFactory();
+        } catch (WolfSSLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
 
@@ -95,7 +95,7 @@ public class WolfSSLEngineTest {
         HandshakeStatus s;
         boolean passed;
         Runnable run;
-         
+
         client.closeOutbound();
 
         result = client.wrap(empty, cliToSer);
@@ -112,7 +112,7 @@ public class WolfSSLEngineTest {
             System.out.println("client status = " + s.toString());
         }
         if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
-            throw new SSLException("Client wrap consumed/produced error");   
+            throw new SSLException("Client wrap consumed/produced error");
         }
         if (!s.toString().equals("NEED_UNWRAP") ||
                 !result.getStatus().name().equals("CLOSED") ) {
@@ -145,7 +145,7 @@ public class WolfSSLEngineTest {
             }
             return 0;
         }
-        
+
         result = server.unwrap(cliToSer, empty);
         if (extraDebug) {
             System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
@@ -161,13 +161,13 @@ public class WolfSSLEngineTest {
         }
         s = server.getHandshakeStatus();
         if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
-            throw new SSLException("Server unwrap consumed/produced error");   
+            throw new SSLException("Server unwrap consumed/produced error");
         }
         if (!s.toString().equals("NEED_WRAP") ||
                 !result.getStatus().name().equals("CLOSED") ) {
             throw new SSLException("Bad status");
         }
-                
+
         result = server.wrap(empty, serToCli);
         if (extraDebug) {
             System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
@@ -179,7 +179,7 @@ public class WolfSSLEngineTest {
         }
         s = server.getHandshakeStatus();
         if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
-            throw new SSLException("Server wrap consumed/produced error");   
+            throw new SSLException("Server wrap consumed/produced error");
         }
         if (extraDebug) {
             System.out.println("server status = " + s.toString());
@@ -188,7 +188,7 @@ public class WolfSSLEngineTest {
                 !result.getStatus().name().equals("CLOSED")) {
             throw new SSLException("Bad status");
         }
-                
+
         serToCli.flip();
         result = client.unwrap(serToCli, empty);
         if (extraDebug) {
@@ -201,7 +201,7 @@ public class WolfSSLEngineTest {
         }
         s = client.getHandshakeStatus();
         if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
-            throw new SSLException("Client unwrap consumed/produced error");   
+            throw new SSLException("Client unwrap consumed/produced error");
         }
         if (!s.toString().equals("NOT_HANDSHAKING") ||
                 !result.getStatus().name().equals("CLOSED")) {
@@ -210,13 +210,13 @@ public class WolfSSLEngineTest {
         if (extraDebug) {
             System.out.println("client status = " + s.toString());
         }
-        
+
         server.closeInbound();
         client.closeInbound();
         return 0;
     }
-    
-    
+
+
     @Test
     public void testSSLEngine()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -229,11 +229,11 @@ public class WolfSSLEngineTest {
         e = this.ctx.createSSLEngine();
         if (e == null) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testSSLEngineSetCipher()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -247,7 +247,7 @@ public class WolfSSLEngineTest {
             pass("\t\t... skipped");
             return;
         }
-        
+
         this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
         e = this.ctx.createSSLEngine();
         if (e == null) {
@@ -255,7 +255,7 @@ public class WolfSSLEngineTest {
             fail("failed to create engine");
             return;
         }
-        
+
         sup = e.getSupportedProtocols();
         for (String x : sup) {
             if (x.equals("TLSv1.2")) {
@@ -266,7 +266,7 @@ public class WolfSSLEngineTest {
             error("\t\t... failed");
             fail("failed to find TLSv1.2 in supported protocols");
         }
-        
+
         sup = e.getEnabledProtocols();
         for (String x : sup) {
             if (x.equals("TLSv1.2")) {
@@ -277,14 +277,14 @@ public class WolfSSLEngineTest {
             error("\t\t... failed");
             fail("failed to find TLSv1.2 in enabled protocols");
         }
-        
+
         /* check supported cipher suites */
         sup = e.getSupportedCipherSuites();
         e.setEnabledCipherSuites(new String[] {sup[0]});
         if (e.getEnabledCipherSuites() == null ||
                 !sup[0].equals(e.getEnabledCipherSuites()[0])) {
             error("\t\t... failed");
-            fail("unexpected empty cipher list");   
+            fail("unexpected empty cipher list");
         }
         pass("\t\t... passed");
     }
@@ -342,7 +342,7 @@ public class WolfSSLEngineTest {
                 }
             }
         }
-        
+
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
@@ -350,60 +350,60 @@ public class WolfSSLEngineTest {
                 new String[] { "TLSv1.2" }, "Test cipher suite");
         if (ret != 0) {
             error("\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
 
         /* check if inbound is still open */
         if (server.isInboundDone() && client.isInboundDone()) {
             error("\t... failed");
-            fail("inbound done too early"); 
+            fail("inbound done too early");
         }
-        
+
         /* check if outbound is still open */
         if (server.isOutboundDone() && client.isOutboundDone()) {
             error("\t... failed");
-            fail("outbound done too early"); 
+            fail("outbound done too early");
         }
-        
+
         /* check get client */
         if (!client.getUseClientMode() || server.getUseClientMode()) {
             error("\t... failed");
-            fail("invalid client mode"); 
+            fail("invalid client mode");
         }
         pass("\t... passed");
-        
-        System.out.print("\tTesting close connection");        
+
+        System.out.print("\tTesting close connection");
         try {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
-            fail("failed to create engine"); 
+            fail("failed to create engine");
         }
-        
+
         /* check if inbound is still open */
         if (!server.isInboundDone() || !client.isInboundDone()) {
             error("\t... failed");
-            fail("inbound is not done"); 
+            fail("inbound is not done");
         }
-        
+
         /* check if outbound is still open */
         if (!server.isOutboundDone() || !client.isOutboundDone()) {
             error("\t... failed");
-            fail("outbound is not done"); 
+            fail("outbound is not done");
         }
-        
+
         /* close inbound should do nothing now */
         try {
             server.closeInbound();
         } catch (SSLException ex) {
             error("\t... failed");
-            fail("close inbound failure"); 
+            fail("close inbound failure");
         }
-        
+
         pass("\t... passed");
     }
-    
+
     @Test
     public void testBeginHandshake()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -421,23 +421,23 @@ public class WolfSSLEngineTest {
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
-        
+
         try {
             server.beginHandshake();
             client.beginHandshake();
         } catch (SSLException e) {
             error("\t\t... failed");
-            fail("failed to begin handshake");   
+            fail("failed to begin handshake");
         }
-        
+
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testConnectionOutIn()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -458,33 +458,33 @@ public class WolfSSLEngineTest {
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
 
         /* check if inbound is still open */
         if (server.isInboundDone() && client.isInboundDone()) {
             error("\t\t... failed");
-            fail("inbound done too early"); 
+            fail("inbound done too early");
         }
-        
+
         /* check if outbound is still open */
         if (server.isOutboundDone() && client.isOutboundDone()) {
             error("\t\t... failed");
-            fail("outbound done too early"); 
+            fail("outbound done too early");
         }
-        
+
         /* close inbound before peer responded to shutdown should fail */
         try {
             server.closeInbound();
             error("\t\t... failed");
-            fail("was able to incorrectly close inbound"); 
+            fail("was able to incorrectly close inbound");
         } catch (SSLException ex) {
             /* expected to fail here */
         }
 
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testMutualAuth()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -507,15 +507,15 @@ public class WolfSSLEngineTest {
         ret = tf.testConnection(server, client, null, null, "Test mutual auth");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create connection with engine");   
+            fail("failed to create connection with engine");
         }
-        
+
         /* want client auth should be overwritten by need client auth */
         if (!server.getNeedClientAuth() || server.getWantClientAuth()) {
             error("\t\t... failed");
             fail("failed with mutual auth getter check");
         }
-        
+
         /* fail case */
         this.ctx = tf.createSSLContext("TLS", engineProvider,
                 tf.createTrustManager("SunX509", tf.serverJKS, engineProvider),
@@ -529,12 +529,12 @@ public class WolfSSLEngineTest {
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret == 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
 
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testReuseSession()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -565,15 +565,15 @@ public class WolfSSLEngineTest {
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
-             
+
         try {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
-            fail("failed to create engine"); 
+            fail("failed to create engine");
         }
 
         /* use wolfJSSE client */
@@ -597,23 +597,23 @@ public class WolfSSLEngineTest {
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
         try {
             /* test close connection */
             CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
-            fail("failed to create engine"); 
+            fail("failed to create engine");
         }
-        
+
         if (client.getEnableSessionCreation() || !server.getEnableSessionCreation()) {
             error("\t... failed");
-            fail("bad enabled session creation"); 
+            fail("bad enabled session creation");
         }
         pass("\t... passed");
     }
-    
+
     @Test
     public void testThreadedUse()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -640,10 +640,10 @@ public class WolfSSLEngineTest {
 
         client.setServer(server);
         server.setClient(client);
-        
+
         server.start();
         client.start();
-        
+
         try {
             server.join(1000);
             client.join(1000);
@@ -654,29 +654,29 @@ public class WolfSSLEngineTest {
 
         if (!server.success || !client.success) {
             error("\t\t... failed");
-            fail("failed to successfully connect");   
+            fail("failed to successfully connect");
         }
         pass("\t\t... passed");
     }
-    
+
     /* status tests buffer overflow/underflow/closed test */
-    
-    
+
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
-    
+
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }
-    
+
     protected class ServerEngine extends Thread
     {
         private final SSLEngine server;
         private ClientEngine client;
         private HandshakeStatus status;
         protected boolean success;
-        
+
         public ServerEngine(WolfSSLEngineTest in) {
             server = in.ctx.createSSLEngine();
             server.setUseClientMode(false);
@@ -684,13 +684,13 @@ public class WolfSSLEngineTest {
             status = HandshakeStatus.NOT_HANDSHAKING;
             success = false;
         }
-        
+
         @Override
         public void run() {
             ByteBuffer out =
                     ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());;
             ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
-            
+
             do {
                 SSLEngineResult result;
                 try {
@@ -713,10 +713,10 @@ public class WolfSSLEngineTest {
                 }
             } while (status != HandshakeStatus.NOT_HANDSHAKING);
             success = true;
-           
+
         }
-        
-        
+
+
         protected void toServer(ByteBuffer in) throws SSLException {
             Runnable run;
             SSLEngineResult result;
@@ -727,32 +727,32 @@ public class WolfSSLEngineTest {
                 run.run();
             }
         }
-        
+
         protected void setClient(ClientEngine in) {
             client = in;
         }
     }
-    
+
     protected class ClientEngine extends Thread
     {
         private final SSLEngine client;
         private ServerEngine server;
         private HandshakeStatus status;
         protected boolean success;
-        
+
         public ClientEngine(WolfSSLEngineTest in) {
             client = in.ctx.createSSLEngine("wolfSSL threaded client test", 11111);
             client.setUseClientMode(true);
             status = HandshakeStatus.NOT_HANDSHAKING;
             success = false;
         }
-        
+
         @Override
         public void run() {
             ByteBuffer out =
                     ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());;
             ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
-            
+
             do {
                 SSLEngineResult result;
                 try {
@@ -776,18 +776,18 @@ public class WolfSSLEngineTest {
             } while (status != HandshakeStatus.NOT_HANDSHAKING);
             success = true;
         }
-        
+
         protected void toClient(ByteBuffer in) throws SSLException {
             Runnable run;
             SSLEngineResult result;
-            ByteBuffer out = 
+            ByteBuffer out =
                     ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
             result = client.unwrap(in, out);
             while ((run = client.getDelegatedTask()) != null) {
                 run.run();
             }
         }
-        
+
         protected void setServer(ServerEngine in) {
             server = in;
         }

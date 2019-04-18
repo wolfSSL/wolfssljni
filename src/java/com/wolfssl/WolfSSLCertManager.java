@@ -32,13 +32,13 @@ package com.wolfssl;
 public class WolfSSLCertManager {
     private boolean active = false;
     private long cmPtr;
-    
+
     static native long CertManagerNew();
     static native void CertManagerFree(long cm);
     static native int CertManagerLoadCA(long cm, String f, String d);
     static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz, int format);
     static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz, int format);
-    
+
     public WolfSSLCertManager() throws WolfSSLException {
         cmPtr = CertManagerNew();
         if (cmPtr == 0) {
@@ -46,28 +46,28 @@ public class WolfSSLCertManager {
         }
         this.active = true;
     }
-    
+
     public int CertManagerLoadCA(String f, String d) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-                
+
         return CertManagerLoadCA(this.cmPtr, f, d);
     }
-    
+
     public int CertManagerLoadCABuffer(byte[] in, long sz, int format) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-                
+
         return CertManagerLoadCABuffer(this.cmPtr, in, sz, format);
     }
-    
+
     public int CertManagerVerifyBuffer(byte[] in, long sz, int format) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-                
+
         return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
     }
-    
+
     /**
      * Frees an CertManager.
      *

@@ -54,7 +54,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private final String host;
     Date creation;
     Date accessed; /* when new connection was made using session */
-    
+
     /**
      * has this session been registered
      */
@@ -63,7 +63,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
 
-    
+
     public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
             WolfSSLAuthStore params) {
         this.ssl = in;
@@ -72,11 +72,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.authStore = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
         binding = new HashMap<String, Object>();
-        
+
         creation = new Date();
         accessed = new Date();
     }
-    
+
     public WolfSSLImplementSSLSession (WolfSSLSession in, WolfSSLAuthStore params) {
         this.ssl = in;
         this.port = -1;
@@ -84,22 +84,22 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.authStore = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
         binding = new HashMap<String, Object>();
-        
+
         creation = new Date();
         accessed = new Date();
     }
-    
+
     public WolfSSLImplementSSLSession (WolfSSLAuthStore params) {
         this.port = -1;
         this.host = null;
         this.authStore = params;
         this.valid = true; /* flag if joining or resuming session is allowed */
         binding = new HashMap<String, Object>();
-        
+
         creation = new Date();
         accessed = new Date();
     }
- 
+
     public byte[] getId() {
         if (ssl == null) {
             return new byte[0];
@@ -129,17 +129,17 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
     public void putValue(String name, Object obj) {
         Object old;
-        
+
         if (name == null) {
             throw new IllegalArgumentException();
         }
-        
+
         /* check if Object should be notified */
         if (obj instanceof SSLSessionBindingListener) {
             ((SSLSessionBindingListener) obj).valueBound(
                     new SSLSessionBindingEvent(this, name));
         }
-        
+
         old = binding.put(name, obj);
         if (old != null) {
             if (old instanceof SSLSessionBindingListener) {
@@ -155,11 +155,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
     public void removeValue(String name) {
         Object obj;
-        
+
         if (name == null) {
             throw new IllegalArgumentException();
         }
-        
+
         obj = binding.get(name);
         if (obj != null) {
             /* check if Object should be notified */
@@ -178,24 +178,24 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
         long x509;
         WolfSSLX509 cert;
-        
+
         if (ssl == null) {
             throw new SSLPeerUnverifiedException("handshake not complete");
         }
-        
+
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
             Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
             return null;
         }
-        
+
         try {
             cert = new WolfSSLX509(x509);
         } catch (WolfSSLException ex) {
             throw new SSLPeerUnverifiedException("Error creating certificate");
         }
-    
+
         return new Certificate[] { cert };
     }
 
@@ -208,11 +208,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     @Override
     public X509Certificate[] getPeerCertificateChain() throws SSLPeerUnverifiedException {
         WolfSSLX509X x509;
-        
+
         if (ssl == null) {
             throw new SSLPeerUnverifiedException("handshake not done");
         }
-        
+
         try {
             x509 = new WolfSSLX509X(this.ssl.getPeerCertificate());
             return new X509Certificate[]{ (X509Certificate)x509 };
@@ -228,7 +228,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         if (ssl == null) {
             throw new SSLPeerUnverifiedException("handshake not done");
         }
-        
+
         try {
             WolfSSLX509 x509 = new WolfSSLX509(this.ssl.getPeerCertificate());
             return x509.getSubjectDN();
@@ -242,11 +242,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     @Override
     public Principal getLocalPrincipal() {
         int i;
-        
+
         X509KeyManager km = authStore.getX509KeyManager();
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(authStore.getCertAlias());
-        
+
         for (i = 0; i < certs.length; i++) {
             if (certs[i].getBasicConstraints() < 0) {
                 /* is not a CA treat as end of chain */
@@ -261,7 +261,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         if (ssl == null) {
             return this.nullCipher;
         }
-        
+
         try {
             return this.ssl.cipherGetName();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
@@ -275,7 +275,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         if (ssl == null) {
             return this.nullProtocol;
         }
-        
+
         try {
             return this.ssl.getVersion();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
@@ -307,8 +307,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
          */
         return 16292;
     }
-    
-    
+
+
     /**
      * Takes in a new WOLFSSL object and sets the stored session
      * @param in WOLFSSL session to set resume in
@@ -317,8 +317,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         ssl = in;
         ssl.setSession(this.sesPtr);
     }
-    
-    
+
+
     /**
      * Should be called on shutdown to save the session pointer
      */
@@ -327,12 +327,12 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             this.sesPtr = ssl.getSession();
         }
     }
-    
-    
+
+
     private class WolfSSLSessionContext implements SSLSessionContext {
         private WolfSSLImplementSSLSession session;
         private WolfSSLSession sslCtx;
-        
+
         public WolfSSLSessionContext(WolfSSLImplementSSLSession in,
                 WolfSSLSession ssl) {
             this.session = in;
@@ -373,6 +373,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         public int getSessionCacheSize() {
             return (int)this.sslCtx.getCacheSize();
         }
-        
+
     }
 }

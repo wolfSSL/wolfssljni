@@ -66,14 +66,14 @@ public class WolfSSLX509Test {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLX509 Class");
-        
+
                 /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
 
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
-        
+
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
@@ -81,8 +81,8 @@ public class WolfSSLX509Test {
             e.printStackTrace();
         }
     }
-    
-    
+
+
     @Test
     public void testServerParsing() {
         System.out.print("\tTesting server cert");
@@ -98,12 +98,12 @@ public class WolfSSLX509Test {
                 error("\t\t... failed");
                 fail("certificae not valid");
             }
-            
+
             if (x509.getBasicConstraints() <=0) {
                 error("\t\t... failed");
                 fail("certificae does not have basic constraint set to true");
             }
-            
+
             der = tf.getCert("ca");
             ca = new WolfSSLX509(der);
             try {
@@ -124,7 +124,7 @@ public class WolfSSLX509Test {
         pass("\t\t... passed");
     }
 
-    
+
     @Test
     public void testExtensions() {
 
@@ -133,7 +133,7 @@ public class WolfSSLX509Test {
         int i;
         Set<String> oids;
         String [] o;
-        
+
         /* check key usage */
         boolean[] keyUsage;
         boolean[] expected = {false,false,false,false,false,true,true,false,false};
@@ -141,23 +141,23 @@ public class WolfSSLX509Test {
         String[] expectNonCrit = {"2.5.29.14" , "2.5.29.31" , "2.5.29.35"};
 
         System.out.print("\tTesting x509 ext");
-        
+
         try {
-            x509 = new WolfSSLX509(tf.googleCACert);              
-                    
+            x509 = new WolfSSLX509(tf.googleCACert);
+
             keyUsage = x509.getKeyUsage();
             if (keyUsage.length != expected.length) {
                 error("\t... failed");
-                fail("unexpected key usage found"); 
+                fail("unexpected key usage found");
             }
-            
+
             for (i = 0; i < expected.length; i++) {
                 if (keyUsage[i] != expected[i])  {
                     error("\t... failed");
-                    fail("unexpected key usage found"); 
+                    fail("unexpected key usage found");
                 }
             }
-            
+
             oids = x509.getCriticalExtensionOIDs();
             o = oids.toArray(new String[oids.size()]);
             if (o.length != expectCrit.length) {
@@ -170,7 +170,7 @@ public class WolfSSLX509Test {
                     fail("unexpected crit extension found");
                 }
             }
-            
+
             oids = x509.getNonCriticalExtensionOIDs();
             o = oids.toArray(new String[oids.size()]);
             if (o.length != expectNonCrit.length) {
@@ -183,23 +183,23 @@ public class WolfSSLX509Test {
                     fail("unexpected non crit extension found");
                 }
             }
-                        
+
             if (x509.hasUnsupportedCriticalExtension()) {
                 error("\t... failed");
                 fail("unexpected crit extension found");
             }
-            
+
             /* @TODO testing for correctness of return value */
             if (x509.getExtensionValue("2.5.29.19") == null) {
                 error("\t... failed");
                 fail("failed to find basic constraint extension");
             }
-            
+
              if (!x509.getSigAlgOID().equals("1.2.840.113549.1.1.5")) {
                  error("\t... failed");
                  fail("unexpected sig alg OID found");
              }
-             
+
              x509X = new WolfSSLX509X(x509.getEncoded());
              if (!x509X.getSigAlgOID().equals("1.2.840.113549.1.1.5")) {
                  error("\t... failed");
@@ -207,11 +207,11 @@ public class WolfSSLX509Test {
              }
         } catch (Exception ex) {
             error("\t... failed");
-            fail("unexpected exception found"); 
+            fail("unexpected exception found");
         }
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testX509XValidity() {
         WolfSSLX509X x509;
@@ -224,11 +224,11 @@ public class WolfSSLX509Test {
         } catch (WolfSSLException | javax.security.cert.CertificateExpiredException |
                 javax.security.cert.CertificateNotYetValidException e) {
             error("\t\t... failed");
-            fail("failed date validity test"); 
+            fail("failed date validity test");
         }
-        pass("\t\t... passed"); 
+        pass("\t\t... passed");
    }
-        
+
     @Test
     public void testTBS() {
         byte[] tbs;
@@ -241,30 +241,30 @@ public class WolfSSLX509Test {
             tbs = x509.getTBSCertificate();
             if (tbs == null) {
                 error("\t\t\t... failed");
-                fail("failed to get TBS cert"); 
+                fail("failed to get TBS cert");
                 return;
             }
-            
+
             if (tbs.length != expectedTbs.length) {
                 error("\t\t\t... failed");
-                fail("unexpected tbs length");  
+                fail("unexpected tbs length");
             }
 
             for (i = 0; i < tbs.length; i++) {
                 if (tbs[i] != expectedTbs[i]) {
                     error("\t\t\t... failed");
-                    fail("unexpected TBS cert"); 
+                    fail("unexpected TBS cert");
                 }
             }
 
         } catch (CertificateEncodingException | WolfSSLException e) {
             error("\t\t\t... failed");
-            fail("unexpected TBS cert"); 
+            fail("unexpected TBS cert");
         }
 
         pass("\t\t\t... passed");
     }
-    
+
     @Test
     public void testPublicKey() {
         KeyStore store;
@@ -273,12 +273,12 @@ public class WolfSSLX509Test {
         WolfSSLX509X cax;
         PublicKey pkey;
         byte[] key;
-        
+
         System.out.print("\tTesting public key");
         try {
             store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
-            
+
             store.load(stream, tf.jksPass);
             stream.close();
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());
@@ -288,14 +288,14 @@ public class WolfSSLX509Test {
                 error("\t\t... failed");
                 fail("failed to get public key");
             }
-            
+
             pkey = ca.getPublicKey();
-            
+
             if (!pkey.getFormat().equals("X.509")) {
                 error("\t\t... failed");
                 fail("unexpected public key format");
             }
-            
+
             if (!pkey.getAlgorithm().equals("RSA")) {
                 error("\t\t... failed");
                 fail("unexpected public key algorithm found");
@@ -313,11 +313,11 @@ public class WolfSSLX509Test {
                 IOException e) {
             error("\t\t... failed");
             fail("failed");
-        } 
+        }
 
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testVerifyProvider() {
         KeyStore store;
@@ -326,7 +326,7 @@ public class WolfSSLX509Test {
         WolfSSLX509X serverx;
         Provider[] p;
         Provider sigProvider = null;
-        
+
         System.out.print("\tTesting verify");
         try {
             /* check if signature providers available */
@@ -349,7 +349,7 @@ public class WolfSSLX509Test {
             stream.close();
             server = new WolfSSLX509(store.getCertificate("server").getEncoded());
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());
-            
+
             try {
                 serverx = new WolfSSLX509X(server.getEncoded());
                 server.verify(ca.getPublicKey(), sigProvider);
@@ -359,7 +359,7 @@ public class WolfSSLX509Test {
                 error("\t... failed");
                 fail("failed to verify certificate");
             }
-            
+
             try {
                 server.verify(ca.getPublicKey(), sigProvider.getName());
             } catch (InvalidKeyException | SignatureException |
@@ -367,24 +367,24 @@ public class WolfSSLX509Test {
                 error("\t... failed");
                 fail("failed to verify certificate");
             }
-            
+
             try {
                 server.verify(server.getPublicKey(), sigProvider);
                 error("\t... failed");
-                fail("able to verify when should not have been");  
+                fail("able to verify when should not have been");
             } catch (InvalidKeyException | SignatureException e) {
                 /* expected fail case */
             }
-            
+
         } catch (KeyStoreException | NoSuchAlgorithmException |
                 CertificateException | IOException | WolfSSLException e) {
             error("\t... failed");
-            fail("general failure");  
+            fail("general failure");
         }
         pass("\t... passed");
     }
-    
-    
+
+
     @Test
     public void testGetters() {
         SSLEngine server;
@@ -401,7 +401,7 @@ public class WolfSSLX509Test {
                 tf.createKeyManager("SunX509", tf.rsaJKS, provider));
         server = ctx.createSSLEngine();
         client = ctx.createSSLEngine("wolfSSL client test", 11111);
-        
+
         /* make connection using RSA certificate */
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
@@ -410,9 +410,9 @@ public class WolfSSLX509Test {
                 "Test cipher suite");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
-        
+
         try {
             X509Certificate x509;
             javax.security.cert.X509Certificate peer;
@@ -421,12 +421,12 @@ public class WolfSSLX509Test {
             certs = client.getSession().getPeerCertificateChain();
             if (certs == null) {
                 error("\t\t... failed");
-                fail("failed to get peer certificate chain"); 
+                fail("failed to get peer certificate chain");
             }
             /* @TODO certs.length != 2 test */
             peer = certs[0];
-            
-            
+
+
             local = (X509Certificate[]) server.getSession().getLocalCertificates();
             if (local == null) {
                 error("\t\t... failed");
@@ -435,117 +435,125 @@ public class WolfSSLX509Test {
             }
             /* @TODO local.length != 2 test */
             x509 = local[0];
-            
+
             if (x509.getVersion() != 3 || peer.getVersion() != 2) {
                 error("\t\t... failed");
                 fail("unexpected x509 version");
             }
-            
+
             if (!x509.getSigAlgName().equals(peer.getSigAlgName())) {
                 error("\t\t... failed");
-                fail("failed to match sig alg name"); 
+                fail("failed to match sig alg name");
             }
-            
+
             /* check serial numbers */
-           if (x509.getSerialNumber().intValue() != 
+           if (x509.getSerialNumber().intValue() !=
                    peer.getSerialNumber().intValue()) {
                error("\t\t... failed");
-               fail("failed to match serial number"); 
+               fail("failed to match serial number");
            }
-           
-           
+
+
            if (!x509.getNotBefore().before(new Date()) ||
                    !peer.getNotBefore().before(new Date())) {
                error("\t\t... failed");
-               fail("failed date not before"); 
+               fail("failed date not before");
            }
-           
+
            if (!x509.getNotAfter().after(new Date()) ||
                    !peer.getNotAfter().after(new Date())) {
                error("\t\t... failed");
-               fail("failed date not after"); 
+               fail("failed date not after");
            }
-           
+
            if (!x509.getSubjectDN().getName().equals(
                    peer.getSubjectDN().getName())) {
                error("\t\t... failed");
-               fail("subject DN does not match"); 
+               fail("subject DN does not match");
            }
-           
+
            if (!x509.getIssuerDN().getName().equals(
                    peer.getIssuerDN().getName())) {
                error("\t\t... failed");
-               fail("issuer DN does not match"); 
+               fail("issuer DN does not match");
            }
-           
+
            if (peer.toString() == null || x509.toString() == null) {
                error("\t\t... failed");
-               fail("failed to get cert string"); 
+               fail("failed to get cert string");
            }
-           
+
            /* check encoding can be parsed (throws exception if not) */
            WolfSSLX509 tmp;
            tmp = new WolfSSLX509(peer.getEncoded());
            tmp = new WolfSSLX509(x509.getEncoded());
-           
+
            /* test getter for signature, correctness of return is tested in
             * WolfSSLCertificateTest */
            if (x509.getSignature() == null) {
                error("\t\t... failed");
-               fail("failed to get cert signature"); 
+               fail("failed to get cert signature");
            }
-           
+
            try {
                x509.getIssuerUniqueID();
                error("\t\t... failed: A test case for getIssuerUniqueID is needed");
-               fail("getIssuerUniqueID implemented without test case"); 
+               fail("getIssuerUniqueID implemented without test case");
            } catch (Exception ex) {
                /* @TODO not supported */
            }
-           
+
            try {
                x509.getSubjectUniqueID();
                error("\t\t... failed: A test case for getSubjectUniqueID is needed");
-               fail("getSubjectUniqueID implemented without test case"); 
+               fail("getSubjectUniqueID implemented without test case");
            } catch (Exception ex) {
                /* @TODO not supported */
            }
-           
+
            try {
                x509.getSigAlgParams();
                error("\t\t... failed: A test case for getSigAlgParams is needed");
-               fail("getSigAlgParams implemented without test case"); 
+               fail("getSigAlgParams implemented without test case");
            } catch (Exception ex) {
                /* @TODO not supported */
            }
-           
+
            try {
                peer.getSigAlgParams();
                error("\t\t... failed: A test case for getSigAlgParams is needed");
-               fail("getSigAlgParams implemented without test case"); 
+               fail("getSigAlgParams implemented without test case");
            } catch (Exception ex) {
                /* @TODO not supported */
            }
-           
+
+           try {
+               peer.getSigAlgParams();
+               error("\t\t... failed: A test case for getSigAlgParams is needed");
+               fail("getSigAlgParams implemented without test case");
+           } catch (Exception ex) {
+               /* @TODO not supported */
+           }
+
         } catch (SSLPeerUnverifiedException | WolfSSLException |
                 CertificateEncodingException |
                 javax.security.cert.CertificateEncodingException e) {
             error("\t\t... failed");
-            fail("failed to get peer certificate chain"); 
+            fail("failed to get peer certificate chain");
         }
 
         pass("\t\t... passed");
     }
-    
-    
+
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
-    
+
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }
-    
+
     private byte[] expectedTbs = {
             (byte)0x30, (byte)0x82, (byte)0x02, (byte)0xA2,
             (byte)0xA0, (byte)0x03, (byte)0x02, (byte)0x01,
@@ -718,7 +726,7 @@ public class WolfSSLX509Test {
             (byte)0x2D, (byte)0xDF, (byte)0xDC, (byte)0x19,
             (byte)0x86, (byte)0x2E
     };
-    
+
     private byte[] expectedPkey = {
             (byte)0x30, (byte)0x82, (byte)0x01, (byte)0x22,
             (byte)0x30, (byte)0x0D, (byte)0x06, (byte)0x09,

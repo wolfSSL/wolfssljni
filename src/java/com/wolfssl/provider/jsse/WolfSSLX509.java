@@ -45,7 +45,7 @@ import com.wolfssl.WolfSSLException;
 
 /**
  * wolfSSL implementation of X509Certificate
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLX509 extends X509Certificate {
@@ -58,22 +58,22 @@ public class WolfSSLX509 extends X509Certificate {
         "2.5.29.35", /* auth key ID */
         "2.5.29.31"  /* CRL dist */
     };
-    
+
     public WolfSSLX509(byte[] der) throws WolfSSLException{
         super();
         this.cert = new WolfSSLCertificate(der);
     }
-    
+
     public WolfSSLX509(String derName) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(derName);
     }
-    
+
     public WolfSSLX509(long x509) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(x509);
     }
-    
+
     @Override
     public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
         this.checkValidity(new Date());
@@ -83,7 +83,7 @@ public class WolfSSLX509 extends X509Certificate {
     public void checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException {
         Date after = this.cert.notAfter();
         Date before = this.cert.notBefore();
-        
+
         if (date.after(after)) {
             throw new CertificateExpiredException();
         }
@@ -210,21 +210,21 @@ public class WolfSSLX509 extends X509Certificate {
         if (key == null || sigProvider == null) {
             throw new InvalidKeyException();
         }
-        
+
         sigOID = this.getSigAlgName();
         sigBuf = this.getSignature();
         sig = Signature.getInstance(sigOID, sigProvider);
         if (sig == null || sigBuf == null) {
             throw new CertificateException();
         }
-        
+
         sig.initVerify(key);
         sig.update(this.getTBSCertificate());
         if (sig.verify(sigBuf) == false) {
             throw new SignatureException();
         }
     }
-    
+
     @Override
     public void verify(PublicKey key, Provider p) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature sig;
@@ -234,7 +234,7 @@ public class WolfSSLX509 extends X509Certificate {
         if (key == null || p == null) {
             throw new InvalidKeyException();
         }
-        
+
         sigOID = this.getSigAlgName();
         sigBuf = this.getSignature();
 
@@ -242,14 +242,14 @@ public class WolfSSLX509 extends X509Certificate {
         if (sig == null || sigBuf == null) {
             throw new CertificateException();
         }
-        
+
         try {
             sig.initVerify(key);
             sig.update(this.getTBSCertificate());
         } catch (Exception e) {
             throw new CertificateException();
         }
-        
+
         if (sig.verify(this.getSignature()) == false) {
             throw new SignatureException();
         }
@@ -259,7 +259,7 @@ public class WolfSSLX509 extends X509Certificate {
     public String toString() {
         return this.cert.toString();
     }
-    
+
     public void free() {
         try {
             this.cert.free();
@@ -267,7 +267,7 @@ public class WolfSSLX509 extends X509Certificate {
             /* was already free'd */
         }
     }
-    
+
     @SuppressWarnings("deprecation")
     @Override
     public void finalize() throws Throwable {
@@ -302,16 +302,16 @@ public class WolfSSLX509 extends X509Certificate {
     public Set<String> getCriticalExtensionOIDs() {
         int i;
         Set<String> ret = new TreeSet<String>();
-        
+
         for (i = 0; i < this.extensionOid.length; i++) {
             if (this.cert.getExtensionSet(this.extensionOid[i]) == 2) {
                 ret.add(this.extensionOid[i]);
             }
         }
-        
+
         if (ret.size() == 0)
             return null;
-        
+
         return ret;
     }
 
@@ -319,24 +319,24 @@ public class WolfSSLX509 extends X509Certificate {
     public Set<String> getNonCriticalExtensionOIDs() {
         int i;
         Set<String> ret = new TreeSet<String>();
-        
+
         for (i = 0; i < this.extensionOid.length; i++) {
             if (this.cert.getExtensionSet(this.extensionOid[i]) == 1) {
                 ret.add(this.extensionOid[i]);
             }
         }
-        
+
         return ret;
     }
 
-    
+
     /* slight difference in that the ASN1 syntax is not returned.
      * i.e. no OCTET STRING Id "04 16 04 14" before subject key id */
     public byte[] getExtensionValue(String oid) {
         return this.cert.getExtension(oid);
     }
-    
-    
+
+
     /* wolfSSL public key class */
     private class WolfSSLPubKey implements PublicKey {
         /**
@@ -346,13 +346,13 @@ public class WolfSSLX509 extends X509Certificate {
         private byte[] encoding;
         private String type;
         private String format = "X.509";
-        
+
         /**
          * Creates a new public key class
          * @param der DER format key
          * @param type key type i.e. WolfSSL.RSAk
          * @param curveOID can be null in RSA case
-         * @throws WolfSSLException 
+         * @throws WolfSSLException
          */
         private WolfSSLPubKey(byte[] der, String type, String format) throws WolfSSLException {
             this.format = format;
@@ -362,7 +362,7 @@ public class WolfSSLX509 extends X509Certificate {
             }
             this.type = type;
         }
-        
+
         @Override
         public String getAlgorithm() {
             return this.type;
@@ -377,15 +377,15 @@ public class WolfSSLX509 extends X509Certificate {
         public byte[] getEncoded() {
             return this.encoding;
         }
-        
+
     }
-    
+
     /* wolfSSL Principal class */
     private class WolfSSLPrincipal implements Principal {
         private String name;
         private String[] DNs = { "/emailAddress=", "/CN=", "/OU=",
                 "/O=", "/L=", "/ST=", "/C="};
-        
+
         /* replace the wolfSSL version of the tag. Returns replacement on success. */
         private String getReplace(String in) {
             if (in.equals("/emailAddress=")) {
@@ -422,7 +422,7 @@ public class WolfSSLX509 extends X509Certificate {
             }
             return -1;
         }
-        
+
         /* convert name from having "/DN=" format to "DN= ," format
          * returns the new reformatted string on success */
         private String reformatList(String in) {
@@ -430,7 +430,7 @@ public class WolfSSLX509 extends X509Certificate {
             int i, j;
             String tmp = in;
             ArrayList<String> list = new ArrayList<String>();
-            
+
             ret = in.split("/");
 
             while (tmp.length() > 3) {
@@ -444,26 +444,26 @@ public class WolfSSLX509 extends X509Certificate {
                     }
                 }
             }
-            
+
             ret = list.toArray(new String[list.size()]);
             tmp = "";
             for (i = 0; i < ret.length - 1; i++) {
                 tmp = tmp.concat(ret[i]);
-                tmp = tmp.concat(", ");   
+                tmp = tmp.concat(", ");
             }
             tmp = tmp.concat(ret[i]);
-            
+
             return tmp;
         }
-        
+
         private WolfSSLPrincipal(String in) {
             this.name = reformatList(in);
         }
-        
+
         @Override
         public String getName() {
             return this.name;
         }
-        
+
     }
 }

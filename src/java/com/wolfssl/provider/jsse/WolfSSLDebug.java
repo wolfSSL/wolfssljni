@@ -52,10 +52,10 @@ public class WolfSSLDebug {
     public static void print(String string) {
         System.out.println("wolfJSSE: " + string);
     }
-    
+
     /**
      * Checks if debugging is turned on and prints out the message.
-     * 
+     *
      * @param cl class being called from to get debug info
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
      * @param string message to be printed out

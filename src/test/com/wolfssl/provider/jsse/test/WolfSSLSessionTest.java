@@ -59,13 +59,13 @@ public class WolfSSLSessionTest {
         throws NoSuchProviderException {
 
         System.out.println("WolfSSLImplementSSLSession Class");
-        
+
         /* install wolfJSSE provider at runtime */
         Security.addProvider(new WolfSSLProvider());
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
-        
+
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
@@ -74,12 +74,12 @@ public class WolfSSLSessionTest {
         }
     }
 
-    
+
     @Test
     public void testSessionTimeAndCerts() {
         int ret;
         SSLSession session;
-        
+
         /* create new SSLEngine */
         System.out.print("\tTesting session time");
 
@@ -91,30 +91,30 @@ public class WolfSSLSessionTest {
             fail("failed to create engine");
             return;
         }
-        
+
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
-            fail("failed to connect");   
+            fail("failed to connect");
         }
-       
+
         session = client.getSession();
         if (session.getCreationTime() <= 0) {
             error("\t... failed");
             fail("failed to get creation time");
         }
-        
+
         if (session.getCreationTime() > session.getLastAccessedTime() ||
                 session.getLastAccessedTime() <= 0) {
             error("\t... failed");
             fail("failed creation time does not equal accessed time");
         }
-       
+
         pass("\t\t... passed");
-        
+
 
         /* test certificates */
         System.out.print("\tTesting session cert");
@@ -123,7 +123,7 @@ public class WolfSSLSessionTest {
             error("\t... failed");
             fail("found unexpected principal");
         }
-        
+
         try {
             /* @TODO make match SunJSSE better */
             session.getPeerPrincipal().getName();
@@ -131,22 +131,22 @@ public class WolfSSLSessionTest {
             error("\t... failed");
             fail("failed to find peer principal");
         }
-        
+
         try {
             session.getPeerCertificateChain();
         } catch (SSLPeerUnverifiedException e) {
             error("\t... failed");
             fail("failed to get peer certificate chain");
         }
-        
+
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testNullSession() {
         int ret;
         SSLSession session;
-        
+
         /* create new SSLEngine */
         System.out.print("\tTesting null session");
 
@@ -159,22 +159,22 @@ public class WolfSSLSessionTest {
             return;
         }
         session = client.getSession(); /* get null session since handshake not done */
-        
+
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
-       
+
         /* session stored before handshake should still be null */
         if (session.getId() == null) {
             error("\t... failed");
-            fail("failed to get ID"); 
+            fail("failed to get ID");
         }
-        
+
         if (session.getId().length != 0) {
             error("\t... failed");
             fail("ID longer than expected");
@@ -187,17 +187,17 @@ public class WolfSSLSessionTest {
         } catch (SSLPeerUnverifiedException e) {
             /* expected to fail with unverified exception */
         }
-        
+
         if (!session.getCipherSuite().equals("SSL_NULL_WITH_NULL_NULL")) {
             error("\t... failed");
             fail("Unexpected cipher suite found");
         }
-        
+
         if (!session.getProtocol().equals("NONE")) {
             error("\t... failed");
             fail("Unexpected protocol found");
         }
-        
+
         try {
             session.getPeerPrincipal();
             error("\t... failed");
@@ -205,7 +205,7 @@ public class WolfSSLSessionTest {
         } catch (SSLPeerUnverifiedException e) {
             /* expected to fail here */
         }
-        
+
         try {
             session.getPeerCertificateChain();
             error("\t... failed");
@@ -216,15 +216,15 @@ public class WolfSSLSessionTest {
 
         pass("\t\t... passed");
     }
-    
-    
+
+
     @Test
     public void testBinding() {
         int ret;
         String[] values;
         listner bound  = new listner();
         listner bound2 = new listner();
-        
+
         /* create new SSLEngine */
         System.out.print("\tTesting binding session");
 
@@ -239,39 +239,39 @@ public class WolfSSLSessionTest {
         SSLSession session = client.getSession();
         session.putValue("testing", bound);
         bound.setInvalid();
-        
+
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
             error("\t\t... failed");
-            fail("failed to create engine");   
+            fail("failed to create engine");
         }
-       
+
         /* override null session set before handshake */
         session = client.getSession();
         session.putValue("testing", bound);
         if (!bound.checkID(session.getId())) {
             error("\t\t... failed");
-            fail("test of ID failed");   
+            fail("test of ID failed");
         }
-        
+
         if (!bound.checkPeer("server", 12345)) {
             error("\t\t... failed");
-            fail("test of port and host fail");   
-            
+            fail("test of port and host fail");
+
         }
 
         try {
             if (session.getPeerCertificates() != null) {
                 Certificate[] certs = session.getPeerCertificates();
-                
+
                 if (certs.length != 1) {
                     error("\t\t... failed");
                     fail("unexpected number of peer certs found");
                 }
-                
+
                 if (!certs[0].getType().equals("X.509")) {
                     error("\t\t... failed");
                     fail("unexpected cert type found");
@@ -279,14 +279,14 @@ public class WolfSSLSessionTest {
             }
         } catch (SSLPeerUnverifiedException e) {
             error("\t\t... failed");
-            fail("failed to get peer certificate");  
+            fail("failed to get peer certificate");
         }
-        
+
         if (!bound.checkCipher(server.getSession().getCipherSuite())) {
             error("\t\t... failed");
             fail("unexpected cipher suite");
         }
-        
+
         session.removeValue("testing");
         if (bound.isBound) {
             error("\t\t... failed");
@@ -302,41 +302,41 @@ public class WolfSSLSessionTest {
             error("\t\t... failed");
             fail("override failed");
         }
-        
+
         if (!bound2.checkPeer("server", 12345)) {
             error("\t\t... failed");
             fail("test of port and host fail");
         }
-        
+
         if (!session.getValue("testing").equals(bound2)) {
             error("\t\t... failed");
             fail("failed to get value");
         }
-        
+
         if (session.getValue("bad") != null) {
             error("\t\t... failed");
             fail("able to get bogus value");
         }
-        
+
         session.putValue("testing 2", bound);
         values = session.getValueNames();
         if (values.length != 2) {
             error("\t\t... failed");
             fail("unexpected number of values");
         }
-        
+
         if (!values[0].equals("testing 2") || !values[1].equals("testing")) {
             error("\t\t... failed");
             fail("unexpected value names");
         }
-        
+
         try {
             session.removeValue("bad");
         } catch (IllegalArgumentException ex) {
             error("\t\t... failed");
             fail("could not remove a bogus value");
         }
-        
+
         try {
             session.removeValue(null);
             error("\t\t... failed");
@@ -344,7 +344,7 @@ public class WolfSSLSessionTest {
         } catch (IllegalArgumentException ex) {
             /* expected to throw exception */
         }
-        
+
         if (!server.getSession().getProtocol().equals(
                 client.getSession().getProtocol())) {
             error("\t... failed");
@@ -352,21 +352,67 @@ public class WolfSSLSessionTest {
         }
         pass("\t\t... passed");
     }
-    
-    /* @TODO testing getSessionContext */
-    
+
+    @Test
+    public void testSessionContext() {
+        int ret;
+        String[] values;
+        SSLSession session;
+        SSLSessionContext context;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting session context");
+
+        SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine client = ctx.createSSLEngine("server", 12345);
+        SSLEngine server = ctx.createSSLEngine();
+        if (client == null || server == null) {
+            error("\t\t... failed");
+            fail("failed to create engine");
+            return;
+        }
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        ret = tf.testConnection(server, client, null, null, "Test reuse");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create engine");
+        }
+        session = client.getSession();
+        context = session.getSessionContext();
+
+        context.setSessionTimeout(100);
+        if (context.getSessionTimeout() != 100) {
+            error("\t\t... failed");
+            fail("failed to set session timeout");
+        }
+
+        /* @TODO difference in cache size for SunJSSE vs wolfJSSE  0 vs 33 */
+        context.getSessionCacheSize();
+        try {
+            context.setSessionCacheSize(2);
+            error("\t\t... failed");
+            fail("unexpected set cache size passed, create test case");
+        } catch (Exception e) {
+            /* currently not available for wolfSSL, is set at build time */
+        }
+    }
+
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
-    
+
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }
-    
+
     private class listner implements SSLSessionBindingListener {
         private SSLSession ses;
         private boolean isBound = false;
-        
+
         /**
          * Used to test if the right session was passed in
          * @param in ID to compare to local ID
@@ -375,18 +421,18 @@ public class WolfSSLSessionTest {
         protected boolean checkID(byte[] in) {
             int i;
             byte id[] = ses.getId();
-            
+
             if (id.length != in.length) {
                 return false;
             }
-            
+
             for (i = 0; i < id.length; i++) {
                 if (id[i] != in[i])
                     return false;
             }
             return true;
         }
-        
+
         /**
          * Used to test host and port
          * @param host host to compare
@@ -398,15 +444,15 @@ public class WolfSSLSessionTest {
                 return false;
             return true;
         }
-        
+
         protected void setInvalid() {
             ses.invalidate();
         }
-        
+
         protected boolean checkCipher(String in) {
             return in.equals(ses.getCipherSuite());
         }
-        
+
         @Override
         public void valueBound(SSLSessionBindingEvent event) {
             ses = event.getSession();
@@ -417,6 +463,6 @@ public class WolfSSLSessionTest {
         public void valueUnbound(SSLSessionBindingEvent event) {
             isBound = false;
         }
-        
+
     }
 }
