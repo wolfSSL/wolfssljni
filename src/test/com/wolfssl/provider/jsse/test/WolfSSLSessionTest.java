@@ -398,6 +398,7 @@ public class WolfSSLSessionTest {
         } catch (Exception e) {
             /* currently not available for wolfSSL, is set at build time */
         }
+        pass("\t\t... passed");
     }
 
 
