@@ -71,6 +71,8 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
         unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
         void* ctx);
 
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+
 /* get JavaEnv from JavaVM
  * sets needDetach == 1 if DeteachCurrentThread() needs to be called
  * upon caller exit/cleanup
@@ -96,6 +98,8 @@ static int GetJNIEnvFromVM(JavaVM* vm, JNIEnv** jenv, int* needsDetach)
 
     return 0;
 }
+
+#endif /* HAVE_PK_CALLBACKS && HAVE_ECC */
 
 /* check is exception has occurred, if so describes and clears it.
  * returns 0 if no exception occurred, 1 if occurred. */
@@ -2794,6 +2798,36 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccSharedSecretCb
 #endif
 }
 
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+
+/* Get MethodID from provided object, method name, and method signature.
+ * Stores MethodID in mid.
+ * return 0 on success, negative on error. */
+static int GetMethodIDFromObject(JNIEnv* jenv, jobject obj,
+               const char* methodName, const char* methodSig,
+               jmethodID* mid)
+{
+    jclass class;
+
+    if (jenv == NULL || methodName == NULL || methodSig == NULL)
+        return BAD_FUNC_ARG;
+
+    class = (*jenv)->GetObjectClass(jenv, obj);
+    if (!class) {
+        printf("GetObjectClass failed in GetMethodIDFromObject");
+        return -1;
+    }
+
+    *mid = (*jenv)->GetMethodID(jenv, class, methodName, methodSig);
+    if (*mid == NULL) {
+        printf("GetMethodID failed in GetMethodIDFromObject");
+        CheckException(jenv);
+        return -1;
+    }
+
+    return 0;
+}
+
 /* get WolfSSLContext from WolfSSLSession ID, storing context in ctxRef.
  * return 0 on success, negative on error */
 static int GetWolfSSLContextFromSessionObj(JNIEnv* jenv, jobject* sessObj,
@@ -2836,36 +2870,6 @@ static int GetWolfSSLContextFromSessionObj(JNIEnv* jenv, jobject* sessObj,
 
     return 0;
 }
-
-/* Get MethodID from provided object, method name, and method signature.
- * Stores MethodID in mid.
- * return 0 on success, negative on error. */
-static int GetMethodIDFromObject(JNIEnv* jenv, jobject obj,
-               const char* methodName, const char* methodSig,
-               jmethodID* mid)
-{
-    jclass class;
-
-    if (jenv == NULL || methodName == NULL || methodSig == NULL)
-        return BAD_FUNC_ARG;
-
-    class = (*jenv)->GetObjectClass(jenv, obj);
-    if (!class) {
-        printf("GetObjectClass failed in GetMethodIDFromObject");
-        return -1;
-    }
-
-    *mid = (*jenv)->GetMethodID(jenv, class, methodName, methodSig);
-    if (*mid == NULL) {
-        printf("GetMethodID failed in GetMethodIDFromObject");
-        CheckException(jenv);
-        return -1;
-    }
-
-    return 0;
-}
-
-#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
 
 /* Java JCE uses ECC public keys that are DER formatted with a header
  * that specifies the key type and curve. wolfSSL requires a raw ECC

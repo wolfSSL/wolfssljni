@@ -648,7 +648,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
   (JNIEnv* jenv, jclass jcl)
 {
-    return MAX_DIGEST_SIZE;
+    return WC_MAX_DIGEST_SIZE;
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
