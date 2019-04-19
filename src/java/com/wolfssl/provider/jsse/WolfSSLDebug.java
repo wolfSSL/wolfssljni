@@ -23,15 +23,28 @@ package com.wolfssl.provider.jsse;
 
 /**
  * Central location for all debugging messages
- * 
+ *
  * This class is used internally for displaying debug message.
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLDebug {
 
+    /**
+     * boolean to check if debug mode is on
+     */
     public static boolean DEBUG = checkProperty();
+
+
+    /**
+     * Error level debug message
+     */
     public static String ERROR = "ERROR";
+
+
+    /**
+     * Info level debug message
+     */
     public static String INFO = "INFO";
 
     private static boolean checkProperty() {

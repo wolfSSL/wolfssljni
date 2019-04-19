@@ -63,7 +63,14 @@ public class WolfSSLEngine extends SSLEngine {
     static private SendCB sendCb = null;
     static private RecvCB recvCb = null;
 
-    /* has no hints for session reuse */
+    /**
+     *  Create a new engine with no hints for session reuse
+     *
+     * @param ctx JNI level WolfSSLContext
+     * @param auth WolfSSLAuthStore to use
+     * @param params connection parameters to be used
+     * @throws WolfSSLException if there is an issue creating the engine
+     */
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
             SSLParameters params)
             throws WolfSSLException {
@@ -81,7 +88,16 @@ public class WolfSSLEngine extends SSLEngine {
                 this.params);
     }
 
-    /* host and port values for possible session reuse */
+    /**
+     *  Create a new engine with hints for session reuse
+     *
+     * @param ctx JNI level WolfSSLContext
+     * @param auth WolfSSLAuthStore to use
+     * @param params connection parameters to be used
+     * @param host to connect to
+     * @param port to connect to
+     * @throws WolfSSLException if there is an issue creating the engine
+     */
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
             SSLParameters params, String host, int port) throws WolfSSLException {
         super();
@@ -326,7 +342,7 @@ public class WolfSSLEngine extends SSLEngine {
             ret = this.ssl.read(tmp, max);
             if (ret <= 0) {
                 int err = ssl.getError(ret);
-    // 
+    //
     //            if (ssl.handshakeDone()) {
     //                in.position(pos); /* no data was consumed from buffer */
     //                cns = 0;

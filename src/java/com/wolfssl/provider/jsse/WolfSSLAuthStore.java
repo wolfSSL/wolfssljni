@@ -60,8 +60,6 @@ public class WolfSSLAuthStore {
     private X509TrustManager tm = null;
     private SecureRandom sr = null;
     private String alias = null;
-    private WolfSSLDebug debug;
-
     private SessionStore<Integer, WolfSSLImplementSSLSession> store;
 
     /**

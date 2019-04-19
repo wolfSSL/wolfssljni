@@ -356,7 +356,6 @@ public class WolfSSLSessionTest {
     @Test
     public void testSessionContext() {
         int ret;
-        String[] values;
         SSLSession session;
         SSLSessionContext context;
 

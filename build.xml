@@ -227,6 +227,7 @@
                 </sourcefiles>
             </structure>
             <html destdir="report"/>
+            <csv destfile="report/report.csv"/>
         </jacoco:report>
     </target>
 
