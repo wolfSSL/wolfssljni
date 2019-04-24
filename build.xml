@@ -164,8 +164,8 @@
         <formatter type="xml"/>
 
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
-        <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
-        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/${junit4}" />
+        <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
+        <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
@@ -193,8 +193,8 @@
         <formatter type="xml"/>
 
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
-        <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
-        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/${junit4}" />
+        <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
+        <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
