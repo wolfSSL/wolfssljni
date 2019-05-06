@@ -152,6 +152,7 @@ public class ServerJSSE {
             switch (sslVersion) {
                 case -1:
                     version = "TLS";
+                    break;
                 case 0:
                     version = "SSLv3";
                     break;
