@@ -55,7 +55,7 @@ rm server.jks &> /dev/null
 add_cert_key "server.jks" "/server-cert.pem" "/server-key.pem" "server" "wolfSSL test"
 add_cert_key "server.jks" "/1024/server-cert.pem" "/1024/server-key.pem" "server-1024" "wolfSSL test"
 add_cert_key "server.jks" "/server-ecc.pem" "/ecc-key.pem" "server-ecc" "wolfSSL test"
-add_cert_key "server.jks" "/ca-ecc-cert.pem" "/ca-ecc-key.pem" "ca-ecc" "wolfSSL test"
+add_cert_key "server.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc" "wolfSSL test"
 add_cert_key "server.jks" "/client-cert.pem" "/client-key.pem" "client" "wolfSSL test"
 add_cert_key "server.jks" "/1024/client-cert.pem" "/1024/client-key.pem" "client-1024" "wolfSSL test"
 printf "done\n"

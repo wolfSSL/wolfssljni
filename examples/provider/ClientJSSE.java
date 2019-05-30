@@ -76,15 +76,15 @@ public class ClientJSSE {
 
         /* config info */
         String version;
-        String cipherList = null;             /* default ciphersuite list */
-        int sslVersion = 3;                   /* default to TLS 1.2 */
-        boolean verifyPeer = true;            /* verify peer by default */
-        boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
-        boolean listSuites = false;           /* list all supported cipher suites */
+        String cipherList = null;        /* default ciphersuite list */
+        int sslVersion = 3;              /* default to TLS 1.2 */
+        boolean verifyPeer = true;       /* verify peer by default */
+        boolean useEnvVar  = false;      /* load cert/key from enviorn var */
+        boolean listSuites = false;      /* list all supported cipher suites */
 
         /* cert info */
-        String clientJKS  = "../provider/rsa.jks";
-        String caJKS      = "../provider/cacerts.jks";
+        String clientJKS  = "../provider/client.jks";
+        String caJKS      = "../provider/client.jks";
         String clientPswd = "wolfSSL test";
         String caPswd = "wolfSSL test";
 

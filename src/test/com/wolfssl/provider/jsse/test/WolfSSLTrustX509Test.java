@@ -141,8 +141,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 6;
-        String OU[] = { "OU=ECC", "OU=Programming-1024", 
-            "OU=Support", "OU=Support_1024", "OU=Development", "OU=Programming-2048"};
+        String OU[] = { "OU=Programming-1024", "OU=Support", "OU=Support_1024",
+            "OU=Fast", "OU=Programming-2048"};
         
         System.out.print("\tTesting parsing server.jks");
 
@@ -168,7 +168,7 @@ public class WolfSSLTrustX509Test {
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
             error("\t... failed");
-            fail("no CAs where found");
+            fail("no CAs were found");
             return;
         }
         
@@ -178,10 +178,6 @@ public class WolfSSLTrustX509Test {
         }
 
         for (String x : OU) {
-            if (this.provider != null &&
-                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
-                continue;
-            }
             
             if (!cas[i].getSubjectDN().getName().contains(x)) {
                 error("\t... failed");
@@ -364,7 +360,7 @@ public class WolfSSLTrustX509Test {
         stream.close();
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
-            (X509Certificate)ks.getCertificate("client-ecc") }, "ECC");
+            (X509Certificate)ks.getCertificate("ca-ecc-cert") }, "ECC");
             error("\t\t\t... failed");
             fail("able to verify when should not have"); 
         }

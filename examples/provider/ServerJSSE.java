@@ -51,16 +51,16 @@ public class ServerJSSE {
         byte[] response = new byte[80];
 
         /* config info */
-        String cipherList = null;             /* default ciphersuite list */
-        int sslVersion = 3;                   /* default to TLS 1.2 */
+        String cipherList = null;        /* default ciphersuite list */
+        int sslVersion = 3;              /* default to TLS 1.2 */
         String version = null;
-        boolean verifyPeer = true;            /* verify peer by default */
-        boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
-        boolean listSuites = false;           /* list all supported cipher suites */
+        boolean verifyPeer = true;       /* verify peer by default */
+        boolean useEnvVar  = false;      /* load cert/key from environ var */
+        boolean listSuites = false;      /* list all supported cipher suites */
 
         /* cert info */
-        String serverJKS  = "../provider/rsa.jks";
-        String caJKS      = "../provider/client.jks";
+        String serverJKS  = "../provider/server.jks";
+        String caJKS      = "../provider/server.jks";
         String serverPswd = "wolfSSL test";
         String caPswd     = "wolfSSL test";
 
