@@ -93,6 +93,12 @@ public class WolfSSLInputStream extends InputStream {
                     int err = ssl.getError(ret);
                     String errStr = WolfSSL.getErrorString(err);
 
+                    /* received CloseNotify, InputStream should return "-1"
+                       when there is no more data */
+                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                        return -1;
+                    }
+
                     throw new IOException("Native wolfSSL read() failed: " +
                         errStr + " (error code: " + err + ")");
                 }
