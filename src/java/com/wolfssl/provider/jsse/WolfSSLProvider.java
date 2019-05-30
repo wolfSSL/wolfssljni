@@ -64,6 +64,8 @@ public final class WolfSSLProvider extends Provider {
         }
         put("SSLContext.TLS",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV23_Context");
+        put("SSLContext.DEFAULT",
+                "com.wolfssl.provider.jsse.WolfSSLContext$DEFAULT_Context");
 
         /* Trust Factory */
         put("TrustManagerFactory.X509",

@@ -405,5 +405,16 @@ public class WolfSSLContext extends SSLContextSpi {
             super(TLS_VERSION.SSLv23);
         }
     }
+
+    public static final class DEFAULT_Context extends WolfSSLContext {
+        public DEFAULT_Context() {
+            super(TLS_VERSION.SSLv23);
+            try {
+                this.engineInit(null, null, null);
+            } catch (Exception e) {
+                /* TODO: log this */
+            }
+        }
+    }
 }
 
