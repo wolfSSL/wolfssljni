@@ -51,16 +51,18 @@ public class ServerJSSE {
         byte[] response = new byte[80];
 
         /* config info */
-        String cipherList = null;        /* default ciphersuite list */
-        int sslVersion = 3;              /* default to TLS 1.2 */
+        String cipherList = null;             /* default ciphersuite list */
+        int sslVersion = 3;                   /* default to TLS 1.2 */
         String version = null;
-        boolean verifyPeer = true;       /* verify peer by default */
-        boolean useEnvVar  = false;      /* load cert/key from environ var */
-        boolean listSuites = false;      /* list all supported cipher suites */
+        boolean verifyPeer = true;            /* verify peer by default */
+        boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
+        boolean listSuites = false;           /* list all supported cipher suites */
+        boolean listEnabledProtocols = false;  /* show enabled protocols */
+        boolean putEnabledProtocols  = false;  /* set enabled protocols */
 
         /* cert info */
-        String serverJKS  = "../provider/server.jks";
-        String caJKS      = "../provider/server.jks";
+        String serverJKS  = "../provider/rsa.jks";
+        String caJKS      = "../provider/client.jks";
         String serverPswd = "wolfSSL test";
         String caPswd     = "wolfSSL test";
 
@@ -76,6 +78,9 @@ public class ServerJSSE {
         String ctxProvider = "wolfJSSE";
         String tmfProvider = "wolfJSSE";
         String kmfProvider = "wolfJSSE";
+
+        /* set/get enabled protocols */
+        String[] protocols = null;
 
         try {
 
@@ -143,6 +148,14 @@ public class ServerJSSE {
                 } else if (arg.equals("-env")) {
                     useEnvVar = true;
 
+                } else if (arg.equals("-getp")) {
+                    listEnabledProtocols = true;
+
+                } else if (arg.equals("-setp")) {
+                    putEnabledProtocols = true;
+                    protocols = args[++i].split(" ");
+                    sslVersion = -1;
+
                 } else {
                     printUsage();
                 }
@@ -179,11 +192,9 @@ public class ServerJSSE {
                 serverPswd.toCharArray());
             KeyStore truststore = KeyStore.getInstance("JKS");
             truststore.load(new FileInputStream(caJKS), caPswd.toCharArray());
-            
             TrustManagerFactory tm =
                 TrustManagerFactory.getInstance("SunX509", tmfProvider);
             tm.init(truststore);
-            
             KeyManagerFactory km =
                 KeyManagerFactory.getInstance("SunX509", kmfProvider);
             km.init(keystore, serverPswd.toCharArray());
@@ -202,11 +213,26 @@ public class ServerJSSE {
                 return;
             }
 
-            System.out.printf("Using SSLContext provider %s\n",
-                ctx.getProvider().getName());
-
             SSLServerSocket ss = (SSLServerSocket)ctx.
                 getServerSocketFactory().createServerSocket(port);
+
+            /* print enabled protocols if requested */
+            if (listEnabledProtocols) {
+                String[] prtolists = ss.getEnabledProtocols();
+                for (String str : prtolists) {
+                    System.out.println("\t" + str);
+                }
+                return;
+            }
+
+            /* put enabled protocols if requested */
+            if (putEnabledProtocols) {
+                if (protocols != null)
+                    ss.setEnabledProtocols(protocols);
+            }
+
+            System.out.printf("Using SSLContext provider %s\n",
+                ctx.getProvider().getName());
 
             if (verifyPeer == false) {
                 ss.setNeedClientAuth(false);
@@ -270,6 +296,9 @@ public class ServerJSSE {
         System.out.println("-l <str>\tCipher list");
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-e\t\tGet all supported cipher suites");
+        System.out.println("-getp\t\tGet enabled protocols");
+        System.out.println("-setp <protocols> \tSet enabled protocols " +
+                           "e.g \"TLSv1.1 TLSv1.2\"");
         System.out.println("-c <file>:<password>\tCertificate/key JKS,\t\tdefault " +
                 "../provider/rsa.jks:wolfSSL test");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
