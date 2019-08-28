@@ -36,6 +36,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPublicKeyToDer
     byte result[ECC_BUFSIZE];
     jbyteArray resultArray = NULL;
 #endif
+    (void)jcl;
 
     if (!jenv)
         return NULL;
@@ -99,6 +100,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToDe
     byte result[ECC_BUFSIZE];
     jbyteArray resultArray = NULL;
 #endif
+    (void)jcl;
 
     if (!jenv)
         return NULL;
@@ -162,6 +164,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToPK
     byte* result;
     jbyteArray resultArray = NULL;
 #endif
+    (void)jcl;
 
     if (!jenv)
         return NULL;
