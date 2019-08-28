@@ -31,7 +31,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPublicKeyToDer
     jclass excClass;
 #ifdef HAVE_ECC
     int ret = 0;
-    ecc_key* key = (ecc_key*)eccKey;
+    ecc_key* key = (ecc_key*)(intptr_t)eccKey;
     word32 resultSz = ECC_BUFSIZE;
     byte result[ECC_BUFSIZE];
     jbyteArray resultArray = NULL;
@@ -95,7 +95,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToDe
     jclass excClass;
 #ifdef HAVE_ECC
     int ret = 0;
-    ecc_key* key = (ecc_key*)eccKey;
+    ecc_key* key = (ecc_key*)(intptr_t)eccKey;
     word32 resultSz = ECC_BUFSIZE;
     byte result[ECC_BUFSIZE];
     jbyteArray resultArray = NULL;
@@ -159,7 +159,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToPK
     jclass excClass;
 #ifdef HAVE_ECC
     int ret = 0;
-    ecc_key* key = (ecc_key*)eccKey;
+    ecc_key* key = (ecc_key*)(intptr_t)eccKey;
     word32 resultSz = ECC_BUFSIZE;
     byte* result;
     jbyteArray resultArray = NULL;

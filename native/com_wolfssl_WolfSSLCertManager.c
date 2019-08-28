@@ -30,13 +30,13 @@
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerNew
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfSSL_CertManagerNew();
+    return (jlong)(intptr_t)wolfSSL_CertManagerNew();
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerFree
   (JNIEnv* jenv, jclass jcl, jlong cm)
 {
-    wolfSSL_CertManagerFree((WOLFSSL_CERT_MANAGER*)cm);
+    wolfSSL_CertManagerFree((WOLFSSL_CERT_MANAGER*)(intptr_t)cm);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
@@ -47,7 +47,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
 
     certFile = (*jenv)->GetStringUTFChars(jenv, f, 0);
     certPath = (*jenv)->GetStringUTFChars(jenv, d, 0);
-    return (jint)wolfSSL_CertManagerLoadCA((WOLFSSL_CERT_MANAGER*)cm,
+    return (jint)wolfSSL_CertManagerLoadCA((WOLFSSL_CERT_MANAGER*)(intptr_t)cm,
             certFile, certPath);
 }
 
@@ -78,8 +78,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
         return SSL_FAILURE;
     }
 
-    return (jint)wolfSSL_CertManagerLoadCABuffer((WOLFSSL_CERT_MANAGER*)cm,
-            buff, sz, format);
+    return (jint)wolfSSL_CertManagerLoadCABuffer(
+            (WOLFSSL_CERT_MANAGER*)(intptr_t)cm, buff, sz, format);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuffer
@@ -109,7 +109,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
         return SSL_FAILURE;
     }
 
-    return (jint)wolfSSL_CertManagerVerifyBuffer((WOLFSSL_CERT_MANAGER*)cm,
-            buff, sz, format);
+    return (jint)wolfSSL_CertManagerVerifyBuffer(
+            (WOLFSSL_CERT_MANAGER*)(intptr_t)cm, buff, sz, format);
 }
 

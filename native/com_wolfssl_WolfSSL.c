@@ -57,8 +57,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
   (JNIEnv* jenv, jobject jcl, jlong ptr)
 {
-    if((void*)ptr)
-        free((void*)ptr);
+    if((void*)(intptr_t)ptr)
+        free((void*)(intptr_t)ptr);
 }
 
 /* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */
@@ -214,7 +214,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
-    return (jlong)wolfSSLv3_server_method();
+    return (jlong)(intptr_t)wolfSSLv3_server_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -224,7 +224,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
-    return (jlong)wolfSSLv3_client_method();
+    return (jlong)(intptr_t)wolfSSLv3_client_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -234,7 +234,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
   (JNIEnv* jenv, jclass jcl)
 {
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
-    return (jlong)wolfTLSv1_method();
+    return (jlong)(intptr_t)wolfTLSv1_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -244,7 +244,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
-    return (jlong)wolfTLSv1_server_method();
+    return (jlong)(intptr_t)wolfTLSv1_server_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -254,7 +254,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
-    return (jlong)wolfTLSv1_client_method();
+    return (jlong)(intptr_t)wolfTLSv1_client_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -263,44 +263,44 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_1_method();
+    return (jlong)(intptr_t)wolfTLSv1_1_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_1_server_method();
+    return (jlong)(intptr_t)wolfTLSv1_1_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_1_client_method();
+    return (jlong)(intptr_t)wolfTLSv1_1_client_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1Method
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_2_method();
+    return (jlong)(intptr_t)wolfTLSv1_2_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_2_server_method();
+    return (jlong)(intptr_t)wolfTLSv1_2_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod(
     JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfTLSv1_2_client_method();
+    return (jlong)(intptr_t)wolfTLSv1_2_client_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_TLS13
-    return (jlong)wolfTLSv1_3_method();
+    return (jlong)(intptr_t)wolfTLSv1_3_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -310,7 +310,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_method();
+    return (jlong)(intptr_t)wolfDTLSv1_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -320,7 +320,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_client_method();
+    return (jlong)(intptr_t)wolfDTLSv1_client_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -330,7 +330,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_server_method();
+    return (jlong)(intptr_t)wolfDTLSv1_server_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -340,7 +340,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_2_method();
+    return (jlong)(intptr_t)wolfDTLSv1_2_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -350,7 +350,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_2_client_method();
+    return (jlong)(intptr_t)wolfDTLSv1_2_client_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -360,7 +360,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef WOLFSSL_DTLS
-    return (jlong)wolfDTLSv1_2_server_method();
+    return (jlong)(intptr_t)wolfDTLSv1_2_server_method();
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -369,13 +369,13 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1Method
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfSSLv23_method();
+    return (jlong)(intptr_t)wolfSSLv23_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfSSLv23_server_method();
+    return (jlong)(intptr_t)wolfSSLv23_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ClientMethod
@@ -625,7 +625,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
     if (!jenv || !x509)
         return NULL;
 
-    derCert = wolfSSL_X509_get_der((WOLFSSL_X509*)x509, outSz);
+    derCert = wolfSSL_X509_get_der((WOLFSSL_X509*)(intptr_t)x509, outSz);
 
     if (*outSz >= 0) {
 
