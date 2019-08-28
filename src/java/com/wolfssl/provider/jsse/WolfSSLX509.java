@@ -225,7 +225,8 @@ public class WolfSSLX509 extends X509Certificate {
         }
     }
 
-    @Override
+    /* This method was added in Android API level 24 */
+    /* @Override */
     public void verify(PublicKey key, Provider p) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature sig;
         String sigOID;
