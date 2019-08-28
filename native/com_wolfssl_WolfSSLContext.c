@@ -2943,7 +2943,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     jobject    eccKeyObject;
 
     ecc_key    tmpKey;                /* tmp key, used in conversion */
-    byte*      tmpKeyDer;             /* tmp der buffer, used in conversion */
+    byte*      tmpKeyDer = NULL;      /* tmp der buffer, used in conversion */
     word32     tmpKeyDerSz;           /* stores size of tmpKeyDer */
 
     jobject pubKeyDerBB;
@@ -3066,7 +3066,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         }
 
         tmpKeyDerSz = wc_EccPublicKeyToDer(&tmpKey, tmpKeyDer, ECC_BUFSIZE, 1);
-        if (tmpKeyDer <= 0) {
+        if (tmpKeyDerSz <= 0) {
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
             wc_ecc_free(&tmpKey);
