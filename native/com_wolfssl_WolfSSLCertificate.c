@@ -36,6 +36,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_d2i_1X509
     unsigned char buff[sz];
     const unsigned char* pt = buff;
 
+    (void)jcl;
+
     if (!jenv || !in || (sz < 0))
         return BAD_FUNC_ARG;
 
@@ -142,6 +144,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1free
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
+    (void)jenv;
+    (void)jcl;
+
     wolfSSL_X509_free((WOLFSSL_X509*)(intptr_t)x509);
 }
 
@@ -151,6 +156,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1serial_1nu
 {
     unsigned char s[MAX_SERIAL_SIZE];
     int sz = MAX_SERIAL_SIZE;
+
+    (void)jcl;
 
     if (wolfSSL_X509_get_serial_number((WOLFSSL_X509*)(intptr_t)x509, s, &sz) ==
             WOLFSSL_SUCCESS) {
@@ -184,6 +191,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notBefore
     const byte* date = NULL;
     char ret[32];
 
+    (void)jcl;
+
     date = wolfSSL_X509_notBefore((WOLFSSL_X509*)(intptr_t)x509);
 
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
@@ -201,6 +210,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notAfter
     const byte* date = NULL;
     char ret[32];
 
+    (void)jcl;
+
     date = wolfSSL_X509_notAfter((WOLFSSL_X509*)(intptr_t)x509);
 
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
@@ -215,6 +226,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notAfter
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1version
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jint)wolfSSL_X509_version((WOLFSSL_X509*)(intptr_t)x509);
 }
 
@@ -308,6 +322,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
     int  oidSz = sizeof(oid);
     int  nid;
 
+    (void)jcl;
+
     nid = wolfSSL_X509_get_signature_nid((WOLFSSL_X509*)(intptr_t)x509);
     obj = wolfSSL_OBJ_nid2obj(nid);
     if (obj == NULL) {
@@ -328,6 +344,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
     WOLFSSL_BIO* bio;
     jstring ret = NULL;
     const char* mem = NULL;
+
+    (void)jcl;
 
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     if (bio == NULL) {
@@ -351,6 +369,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1isCA
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jint)wolfSSL_X509_get_isCA((WOLFSSL_X509*)(intptr_t)x509);
 }
 
@@ -359,6 +380,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
     WOLFSSL_X509_NAME* name = NULL;
+
+    (void)jcl;
 
     name = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)(intptr_t)x509);
     if (name != NULL) {
@@ -378,6 +401,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
     WOLFSSL_X509_NAME* name = NULL;
+
+    (void)jcl;
 
     name = wolfSSL_X509_get_issuer_name((WOLFSSL_X509*)(intptr_t)x509);
     if (name != NULL) {
@@ -458,6 +483,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey_
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pathLength
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
+    (void)jenv;
+    (void)jcl;
+
     if (wolfSSL_X509_get_isSet_pathLength((WOLFSSL_X509*)(intptr_t)x509)) {
         return (jint)wolfSSL_X509_get_pathLength((WOLFSSL_X509*)(intptr_t)x509);
     }
@@ -474,6 +502,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1verify
     int ret;
     unsigned char buff[sz];
     unsigned char* ptr = buff;
+
+    (void)jcl;
 
     if (!jenv || !pubKey || (sz < 0))
         return BAD_FUNC_ARG;
@@ -627,6 +657,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
 {
     int nid;
     const char* oid;
+
+    (void)jcl;
 
     oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
     nid = wolfSSL_OBJ_txt2nid(oid);

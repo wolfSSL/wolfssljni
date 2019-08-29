@@ -42,6 +42,8 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage);
 /* called when native library is loaded */
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+    (void)reserved;
+
     /* store JavaVM */
     g_vm = vm;
     return JNI_VERSION_1_6;
@@ -50,6 +52,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
   (JNIEnv* jenv, jobject jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jint)wolfSSL_Init();
 }
 
@@ -57,6 +62,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
   (JNIEnv* jenv, jobject jcl, jlong ptr)
 {
+    (void)jenv;
+    (void)jcl;
+
     if((void*)(intptr_t)ptr)
         free((void*)(intptr_t)ptr);
 }
@@ -65,42 +73,63 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumNULL
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_cipher_null;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC4
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_rc4;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRC2
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_rc2;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_des;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnum3DES
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_triple_des;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES40
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_des40;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_IDEA
     return wolfssl_idea;
 #else
@@ -111,48 +140,72 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAES
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_aes;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESGCM
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_aes_gcm;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAESCCM
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_aes_ccm;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCHACHA
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_chacha;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELLIA
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_camellia;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumHC128
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_hc128;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfssl_rabbit;
 }
 
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return JNI_TRUE;
 #else
@@ -163,6 +216,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv11Enabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS)
     return JNI_TRUE;
 #else
@@ -173,6 +229,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv11Enabled
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv12Enabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS)
     return JNI_TRUE;
 #else
@@ -183,6 +242,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv12Enabled
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_TLS13
     return JNI_TRUE;
 #else
@@ -193,6 +255,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_EccEnabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_ECC
     return JNI_TRUE;
 #else
@@ -203,6 +268,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_EccEnabled
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifndef NO_RSA
     return JNI_TRUE;
 #else
@@ -213,6 +281,9 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)(intptr_t)wolfSSLv3_server_method();
 #else
@@ -223,6 +294,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)(intptr_t)wolfSSLv3_client_method();
 #else
@@ -233,6 +307,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(intptr_t)wolfTLSv1_method();
 #else
@@ -243,6 +320,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(intptr_t)wolfTLSv1_server_method();
 #else
@@ -253,6 +333,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(intptr_t)wolfTLSv1_client_method();
 #else
@@ -263,42 +346,63 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_1_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_1_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_1_client_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_2_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_2_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod(
     JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfTLSv1_2_client_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_TLS13
     return (jlong)(intptr_t)wolfTLSv1_3_method();
 #else
@@ -309,6 +413,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_method();
 #else
@@ -319,6 +426,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_client_method();
 #else
@@ -329,6 +439,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_server_method();
 #else
@@ -339,6 +452,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_2_method();
 #else
@@ -349,6 +465,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_2_client_method();
 #else
@@ -359,6 +478,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return (jlong)(intptr_t)wolfDTLSv1_2_server_method();
 #else
@@ -369,19 +491,28 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1Method
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfSSLv23_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfSSLv23_server_method();
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1ClientMethod
   (JNIEnv* jenv, jclass jcl)
 {
-    return (jlong)wolfSSLv23_client_method();
+    (void)jenv;
+    (void)jcl;
+
+    return (jlong)(intptr_t)wolfSSLv23_client_method();
 }
 
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
@@ -389,6 +520,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
 {
     char buffer[WOLFSSL_MAX_ERROR_SZ];
     jstring retString;
+
+    (void)jcl;
 
     wolfSSL_ERR_error_string(errNumber, buffer);
     retString = (*jenv)->NewStringUTF(jenv, buffer);
@@ -399,18 +532,27 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfSSL_Cleanup();
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_debuggingON
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfSSL_Debugging_ON();
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_debuggingOFF
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return wolfSSL_Debugging_OFF();
 }
 
@@ -418,6 +560,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
   (JNIEnv* jenv, jclass jcl, jobject callback)
 {
     int ret = 0;
+
+    (void)jcl;
 
     if (!jenv || !callback) {
         return BAD_FUNC_ARG;
@@ -530,6 +674,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
     int cacheSz;
     char memBuf[sz];
 
+    (void)jcl;
+
     if (!jenv || !mem || (sz <= 0))
         return BAD_FUNC_ARG;
 
@@ -550,6 +696,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
 
     return ret;
 #else
+    (void)jenv;
+    (void)jcl;
+    (void)mem;
+    (void)sz;
     return NOT_COMPILED_IN;
 #endif
 }
@@ -560,6 +710,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
 #ifdef PERSIST_SESSION_CACHE
     int ret;
     char memBuf[sz];
+
+    (void)jcl;
 
     if (!jenv || !mem || (sz <= 0))
         return BAD_FUNC_ARG;
@@ -574,6 +726,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
     ret = wolfSSL_memrestore_session_cache(memBuf, sz);
     return ret;
 #else
+    (void)jenv;
+    (void)jcl;
+    (void)mem;
+    (void)sz;
     return NOT_COMPILED_IN;
 #endif
 }
@@ -581,6 +737,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSessionCacheMemsize
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
 #ifdef PERSIST_SESSION_CACHE
     return wolfSSL_get_session_cache_memsize();
 #else
@@ -594,6 +752,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
     int ret;
     word32 inOutIdx;
     unsigned char inBuf[sz];
+
+    (void)jcl;
 
     if (!jenv || !in || (sz <= 0))
         return BAD_FUNC_ARG;
@@ -622,6 +782,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
     const unsigned char* derCert;
     jbyteArray out = NULL;
 
+    (void)jcl;
+
     if (!jenv || !x509)
         return NULL;
 
@@ -641,6 +803,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
         return NULL;
     }
 #else
+    (void)jenv;
+    (void)jcl;
+    (void)x509;
     return NULL;
 #endif
 }
@@ -648,6 +813,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return WC_MAX_DIGEST_SIZE;
 }
 
@@ -657,6 +825,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
     int ret;
     char ciphers[4096];
     jstring retString;
+
+    (void)jcl;
 
     ret = wolfSSL_get_ciphers(ciphers, sizeof(ciphers));
     if (ret != WOLFSSL_SUCCESS) {
@@ -675,6 +845,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
     char ciphers[4096];
     jstring retString;
 
+    (void)jcl;
+
     ret = wolfSSL_get_ciphers_iana(ciphers, sizeof(ciphers));
     if (ret != WOLFSSL_SUCCESS) {
         return NULL;
@@ -688,6 +860,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_CRL
     return 1;
 #else
@@ -698,6 +873,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRLMonitor
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_CRL_MONITOR
     return 1;
 #else
@@ -708,6 +886,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRLMonitor
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledOCSP
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_OCSP
     return 1;
 #else
@@ -718,6 +899,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledOCSP
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPSK
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifndef NO_PSK
     return 1;
 #else
@@ -728,6 +912,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPSK
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef WOLFSSL_DTLS
     return 1;
 #else
@@ -738,6 +925,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef ATOMIC_USER
     return 1;
 #else
@@ -748,6 +938,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifdef HAVE_PK_CALLBACKS
     return 1;
 #else
@@ -760,6 +953,8 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
 {
     jobjectArray ret;
     int numProtocols = 0, idx = 0;
+
+    (void)jcl;
 
     /* get the number of protocols enabled */
 #ifdef WOLFSSL_TLS13

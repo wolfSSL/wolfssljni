@@ -34,6 +34,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     unsigned int idx;
     unsigned int tmpOut;
 
+    (void)jcl;
+
     /* check in and key sz */
     if ((inSz  < 0) || (keySz < 0)) {
         return -1;
@@ -93,6 +95,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
     RsaKey  myKey;
     unsigned int idx;
 
+    (void)jcl;
+
     /* check in and key sz */
     if ((sigSz < 0) || (keySz < 0) || (outSz < 0)) {
         return -1;
@@ -146,6 +150,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     RNG     rng;
     unsigned int idx;
     unsigned int tmpOut;
+
+    (void)jcl;
 
     /* check in and key sz */
     if ((inSz  < 0) || (keySz < 0)) {
@@ -204,6 +210,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
     int     ret;
     RsaKey  myKey;
     unsigned int idx;
+
+    (void)jcl;
 
     /* check in and key sz */
     if ((inSz < 0) || (keySz < 0) || (outSz < 0)) {

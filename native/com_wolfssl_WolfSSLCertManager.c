@@ -30,12 +30,18 @@
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerNew
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)(intptr_t)wolfSSL_CertManagerNew();
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerFree
   (JNIEnv* jenv, jclass jcl, jlong cm)
 {
+    (void)jenv;
+    (void)jcl;
+
     wolfSSL_CertManagerFree((WOLFSSL_CERT_MANAGER*)(intptr_t)cm);
 }
 
@@ -44,6 +50,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
 {
     const char* certFile;
     const char* certPath;
+
+    (void)jcl;
 
     certFile = (*jenv)->GetStringUTFChars(jenv, f, 0);
     certPath = (*jenv)->GetStringUTFChars(jenv, d, 0);
@@ -55,6 +63,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
   (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
 {
     unsigned char buff[sz];
+
+    (void)jcl;
 
     if (!jenv || !in || (sz < 0))
         return BAD_FUNC_ARG;
@@ -86,6 +96,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
   (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
 {
     unsigned char buff[sz];
+
+    (void)jcl;
 
     if (!jenv || !in || (sz < 0))
         return BAD_FUNC_ARG;
