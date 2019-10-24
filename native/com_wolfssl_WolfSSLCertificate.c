@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <wolfssl/options.h>
+#include <wolfssl/version.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
@@ -188,18 +189,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1serial_1nu
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notBefore
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
-    const byte* date = NULL;
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    WOLFSSL_ASN1_TIME* date = NULL;
+#else
+    const unsigned char* date = NULL;
+#endif
     char ret[32];
 
     (void)jcl;
 
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    date = wolfSSL_X509_get_notBefore((WOLFSSL_X509*)(intptr_t)x509);
+#else
     date = wolfSSL_X509_notBefore((WOLFSSL_X509*)(intptr_t)x509);
-
+#endif
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
     if (date != NULL) {
         return (*jenv)->NewStringUTF(jenv,
                 wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date, ret,
-                sizeof(ret)));
+                    sizeof(ret)));
     }
     return NULL;
 }
@@ -207,18 +215,25 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notBefore
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notAfter
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
-    const byte* date = NULL;
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    WOLFSSL_ASN1_TIME* date = NULL;
+#else
+    const unsigned char* date = NULL;
+#endif
     char ret[32];
 
     (void)jcl;
 
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    date = wolfSSL_X509_get_notAfter((WOLFSSL_X509*)(intptr_t)x509);
+#else
     date = wolfSSL_X509_notAfter((WOLFSSL_X509*)(intptr_t)x509);
-
+#endif
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
     if (date != NULL) {
         return (*jenv)->NewStringUTF(jenv,
-                wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date, ret,
-                sizeof(ret)));
+                wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date,
+                    ret, sizeof(ret)));
     }
     return NULL;
 }
@@ -555,7 +570,7 @@ static unsigned int getOBJSize(WOLFSSL_ASN1_OBJECT* obj)
 JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1key_1usage
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
-    WOLFSSL_STACK* sk;
+    void* sk;
     WOLFSSL_ASN1_OBJECT* obj;
     jbooleanArray ret = NULL;
     jboolean values[9];
@@ -568,7 +583,14 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
         return NULL;
     }
 
-    obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    if (nid == BASIC_CA_OID) {
+        obj = (WOLFSSL_ASN1_OBJECT*)sk;
+    }
+    else
+#endif
+        obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
+
     if (obj != NULL) {
         unsigned short kuse = *(unsigned short*)getOBJData(obj);
 
@@ -608,7 +630,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
   (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
 {
     int nid;
-    WOLFSSL_STACK* sk;
+    void* sk;
     WOLFSSL_ASN1_OBJECT* obj;
     jbyteArray ret = NULL;
     const char* oid;
@@ -625,7 +647,15 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
         /* extension was not found or error was encountered */
         return NULL;
     }
-    obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    if (nid == BASIC_CA_OID) {
+        obj = (WOLFSSL_ASN1_OBJECT*)sk;
+    }
+    else
+#endif
+        obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
+
     if (obj != NULL) {
         unsigned char* data = getOBJData(obj);
         unsigned int sz = getOBJSize(obj);
