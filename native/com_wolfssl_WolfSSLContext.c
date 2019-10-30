@@ -1559,7 +1559,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
     (void)jenv;
     (void)jcl;
     (void)ctx;
-    (void)cb
+    (void)cb;
     return NOT_COMPILED_IN;
 #endif
 }
