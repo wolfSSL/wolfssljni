@@ -63,6 +63,8 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void createCtx() throws WolfSSLException {
         long method = 0;
+        long[] m_ref = { 0 };
+        String[] cipherList = {""};
 
         switch (this.currentVersion) {
             case TLSv1:
@@ -85,6 +87,10 @@ public class WolfSSLContext extends SSLContextSpi {
                     "Invalid SSL/TLS protocol version");
         }
 
+        m_ref[0] = method;
+        WolfSSL.GetCtxAttributes(m_ref, cipherList);
+        method = m_ref[0];
+
         if (method == WolfSSL.NOT_COMPILED_IN) {
             throw new IllegalArgumentException("Protocol version not " +
                 "compiled into native wolfSSL library");
@@ -102,7 +108,11 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         /* auto-populate enabled ciphersuites with supported ones */
-        params.setCipherSuites(WolfSSL.getCiphersIana());
+        if(cipherList[0] != "") {
+            params.setCipherSuites(cipherList);
+        } else {
+            params.setCipherSuites(WolfSSL.getCiphersIana());
+        }
 
         /* auto-populate enabled protocols with supported ones */
         params.setProtocols(WolfSSL.getProtocols());
