@@ -22,22 +22,21 @@
 
 package com.wolfssl;
 /**
- * Base class is intended to give some custiming points. Currently it is limited
- * to be invoked from WolfSSLConetx.Create
+ * User custom callback from Context.Create.
  *
  * @author  wolfSSL
- * @version 1.1, September 2013
+ * @version 1.0, August 2013
  */
 public class WolfSSLCustomUser {
     public long method = 0;
-    public String[] list = null;
+    public String[] list;
 
     /**
      * Set callback for Context attributes, TLS protocol and Cipher lsit
      *
-     * @param method       version of TLS method to match 
-     * @param list         pointer to available cipher list
-     *
+     * @param method       default version of TLS method
+     * @return             method: Lowest TLS protocol version allowed to the context
+     *                     list:   Cipher list allwed to the context
      */
 
     public static WolfSSLCustomUser GetCtxAttributes(long method) {
@@ -49,7 +48,7 @@ public class WolfSSLCustomUser {
         ***/
 
         ctxAttr.method = method;
-
+        ctxAttr.list   = null;
         return ctxAttr;
     }
 
