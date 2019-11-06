@@ -21,7 +21,6 @@
  */
 
 package com.wolfssl;
-
 /**
  * Base class is intended to give some custiming points. Currently it is limited
  * to be invoked from WolfSSLConetx.Create
@@ -30,9 +29,9 @@ package com.wolfssl;
  * @version 1.1, September 2013
  */
 public class WolfSSLCustomUser {
-    public WolfSSLCustomUser() throws WolfSSLException {
-        
-    }
+    public long method = 0;
+    public String[] list = null;
+
     /**
      * Set callback for Context attributes, TLS protocol and Cipher lsit
      *
@@ -40,12 +39,18 @@ public class WolfSSLCustomUser {
      * @param list         pointer to available cipher list
      *
      */
-    public static void GetCtxAttributes(long[] method, String[] list) {
-        
+
+    public static WolfSSLCustomUser GetCtxAttributes(long method) {
+
+        WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
+
         /*** 
             custom code 
         ***/
-    
+
+        ctxAttr.method = method;
+
+        return ctxAttr;
     }
 
 } /* end WolfSSL */
