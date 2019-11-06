@@ -45,6 +45,7 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+import com.wolfssl.WolfSSLCustomUser;
 
 /**
  * wolfSSL implementation of SSLContextSpi
@@ -88,7 +89,7 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         m_ref[0] = method;
-        WolfSSL.GetCtxAttributes(m_ref, cipherList);
+        WolfSSLCustomUser.GetCtxAttributes(m_ref, cipherList);
         method = m_ref[0];
 
         if (method == WolfSSL.NOT_COMPILED_IN) {
