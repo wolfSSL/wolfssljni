@@ -22,7 +22,8 @@
 
 package com.wolfssl;
 /**
- * User custom callback from Context.Create.
+ * Base class is intended to give some customizing points. Currently it is limited
+ * to be invoked from WolfSSLContext.Create
  *
  * @author  wolfSSL
  * @version 1.0, August 2013
@@ -32,14 +33,20 @@ public class WolfSSLCustomUser {
     public String[] list;
 
     /**
-     * Set callback for Context attributes, TLS protocol and Cipher lsit
+     * Set callback for Context attributes, TLS protocol and Cipher list
      *
-     * @param method       default version of TLS method
-     * @return             method: Lowest TLS protocol version allowed to the context
-     *                     list:   Cipher list allwed to the context
+     *      WARNING: inappropriate code or use of this callback may cause serious security issue.
+     *
+     * @param method       default version of TLS method for refernce.
+     * @param list         default cipher list for refernce.
+     * @return             method: Lowest TLS protocol version allowed to the context. The value has
+     *                             to be one compiled in.
+     *                     list:   Cipher list allowed to the context. list has to contain subset of 
+     *                             default cipher list. If it is null, default list is applied.
+     *                              
      */
 
-    public static WolfSSLCustomUser GetCtxAttributes(long method) {
+    public static WolfSSLCustomUser GetCtxAttributes(long method, String[] list) {
 
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
 
@@ -48,7 +55,7 @@ public class WolfSSLCustomUser {
         ***/
 
         ctxAttr.method = method;
-        ctxAttr.list   = null;
+        ctxAttr.list   = list;
         return ctxAttr;
     }
 

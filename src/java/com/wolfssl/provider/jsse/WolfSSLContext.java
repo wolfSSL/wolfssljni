@@ -88,7 +88,7 @@ public class WolfSSLContext extends SSLContextSpi {
                     "Invalid SSL/TLS protocol version");
         }
 
-        ctxAttr = ctxAttr.GetCtxAttributes(method);
+        ctxAttr = ctxAttr.GetCtxAttributes(method, WolfSSL.getCiphersIana());
         method  = ctxAttr.method;
         list    = ctxAttr.list;
 
