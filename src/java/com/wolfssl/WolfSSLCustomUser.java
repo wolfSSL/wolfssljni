@@ -39,13 +39,13 @@ public class WolfSSLCustomUser {
      *
      *      WARNING: inappropriate code or use of this callback may cause serious security issue.
      *
-     * @param version       default version of TLS method for refernce.
+     * @param version      default version of TLS for refernce.
      * @param list         default cipher list for refernce.
-     * @return             method: Lowest TLS protocol version allowed to the context. The value has
+     * @return             version: TLS protocol version to the context. The value has
      *                             to be one compiled in.
      *                     list:   Cipher list allowed to the context. list has to contain subset of 
      *                             default cipher list. If it is null, default list is applied.
-     *                              
+     * 
      */
 
     public static WolfSSLCustomUser GetCtxAttributes(TLS_VERSION version, String[] list) {
