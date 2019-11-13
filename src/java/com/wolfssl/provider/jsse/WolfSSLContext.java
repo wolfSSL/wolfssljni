@@ -45,7 +45,6 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
-import com.wolfssl.WolfSSLCustomUser;
 
 /**
  * wolfSSL implementation of SSLContextSpi
@@ -63,9 +62,19 @@ public class WolfSSLContext extends SSLContextSpi {
     }
 
     private void createCtx() throws WolfSSLException {
-        long method = 0;
+        long method;
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
-        String[] list;
+
+        ctxAttr = ctxAttr.GetCtxAttributes(this.currentVersion, WolfSSL.getCiphersIana());
+
+        if(ctxAttr.version == TLS_VERSION.TLSv1   || ctxAttr.version == TLS_VERSION.TLSv1_1 ||
+           ctxAttr.version == TLS_VERSION.TLSv1_2 || ctxAttr.version == TLS_VERSION.TLSv1_3 ||
+           ctxAttr.version == TLS_VERSION.SSLv23) {
+            this.currentVersion = ctxAttr.version;
+        } else {
+            throw new IllegalArgumentException(
+                "Invalid SSL/TLS protocol version");
+        }
 
         switch (this.currentVersion) {
             case TLSv1:
@@ -88,9 +97,6 @@ public class WolfSSLContext extends SSLContextSpi {
                     "Invalid SSL/TLS protocol version");
         }
 
-        ctxAttr = ctxAttr.GetCtxAttributes(method, WolfSSL.getCiphersIana());
-        method  = ctxAttr.method;
-        list    = ctxAttr.list;
 
         if (method == WolfSSL.NOT_COMPILED_IN) {
             throw new IllegalArgumentException("Protocol version not " +
@@ -109,8 +115,8 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         /* auto-populate enabled ciphersuites with supported ones */
-        if(list != null) {
-            params.setCipherSuites(list);
+        if(ctxAttr.list != null) {
+            params.setCipherSuites(ctxAttr.list);
         } else {
             params.setCipherSuites(WolfSSL.getCiphersIana());
         }

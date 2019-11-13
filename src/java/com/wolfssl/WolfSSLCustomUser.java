@@ -20,7 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.provider.jsse;
+import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+
 /**
  * Base class is intended to give some customizing points. Currently it is limited
  * to be invoked from WolfSSLContext.Create
@@ -29,7 +31,7 @@ package com.wolfssl;
  * @version 1.0, August 2013
  */
 public class WolfSSLCustomUser {
-    public long method = 0;
+    public TLS_VERSION version;
     public String[] list;
 
     /**
@@ -37,7 +39,7 @@ public class WolfSSLCustomUser {
      *
      *      WARNING: inappropriate code or use of this callback may cause serious security issue.
      *
-     * @param method       default version of TLS method for refernce.
+     * @param version       default version of TLS method for refernce.
      * @param list         default cipher list for refernce.
      * @return             method: Lowest TLS protocol version allowed to the context. The value has
      *                             to be one compiled in.
@@ -46,7 +48,7 @@ public class WolfSSLCustomUser {
      *                              
      */
 
-    public static WolfSSLCustomUser GetCtxAttributes(long method, String[] list) {
+    public static WolfSSLCustomUser GetCtxAttributes(TLS_VERSION version, String[] list) {
 
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
 
@@ -54,7 +56,7 @@ public class WolfSSLCustomUser {
             custom code 
         ***/
 
-        ctxAttr.method = method;
+        ctxAttr.version = version;
         ctxAttr.list   = list;
         return ctxAttr;
     }
