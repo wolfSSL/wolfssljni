@@ -66,9 +66,9 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, javah, javadoc, examples, test"/>
+    <target name="build" depends="init, compile, jar, javadoc, examples, test"/>
 
-    <target name="javah">
+    <!-- target name="javah">
         <javah destdir="${native.dir}" force="yes" classpathref="classpath">
             <class name="com.wolfssl.WolfSSL"/>
             <class name="com.wolfssl.WolfSSLSession"/>
@@ -77,11 +77,12 @@
             <class name="com.wolfssl.wolfcrypt.RSA"/>
             <class name="com.wolfssl.wolfcrypt.EccKey"/>
         </javah>
-    </target>
+    </target -->
 
     <target name="compile">
         <javac srcdir="${src.dir}"
                destdir="${build.dir}"
+               nativeheaderdir="${native.dir}"
                debug="${java.debug}"
                debuglevel="${java.debuglevel}"
                deprecation="${java.deprecation}"
