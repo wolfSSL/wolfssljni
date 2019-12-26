@@ -30,10 +30,12 @@ import com.wolfssl.WolfSSLSession;
 public class WolfSSLInputStream extends InputStream {
 
     private WolfSSLSession ssl;
+    private WolfSSLSocket  socket;
     final private Object readLock = new Object();
 
-    public WolfSSLInputStream(WolfSSLSession ssl) {
+    public WolfSSLInputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
         this.ssl = ssl;
+        this.socket = socket; /* parent socket */
     }
 
     @Override
@@ -87,6 +89,10 @@ public class WolfSSLInputStream extends InputStream {
 
         synchronized (readLock) {
             try {
+                if (socket.handshakeInitCalled == false) {
+                    socket.handshakeInitCalled = true;
+                    socket.startHandshake();
+                }
 
                 ret = ssl.read(data, len);
                 if (ret <= 0) {

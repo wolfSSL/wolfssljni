@@ -377,8 +377,15 @@ public class WolfSSLEngineHelper {
 
         if (!this.session.isValid()) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session is marked as invalid");
-            return WolfSSL.SSL_HANDSHAKE_FAILURE;
+                    "session is marked as invalid, try creating a new seesion");
+            if (this.sessionCreation == false) {
+                /* new handshakes can not be made in this case. */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session creation not allowed");
+
+                return WolfSSL.SSL_HANDSHAKE_FAILURE;
+            }
+            this.session = this.authStore.getSession(ssl);
         }
 
         if (this.clientMode) {

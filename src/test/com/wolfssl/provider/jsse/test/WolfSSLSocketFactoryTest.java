@@ -291,6 +291,9 @@ public class WolfSSLSocketFactoryTest {
                 System.out.println("\t\t\t... failed");
                 throw e;
             }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+            }
 
             /* bad arguments */
             try {
@@ -301,6 +304,10 @@ public class WolfSSLSocketFactoryTest {
             } catch (NullPointerException ne) {
                 /* expected */
             }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return NullPointerException");
+            }
 
             try {
                 /* InetAddress, int - port out of range {0:65535} */
@@ -309,6 +316,10 @@ public class WolfSSLSocketFactoryTest {
                 fail("createSocket() should return IllegalArgumentException");
             } catch (IllegalArgumentException ie) {
                 /* expected */
+            }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IllegalArgumentException");
             }
 
             try {
@@ -319,6 +330,9 @@ public class WolfSSLSocketFactoryTest {
             } catch (UnknownHostException ne) {
                 /* expected */
             }
+            catch (Exception e) {
+                /* could also be java.net.ConnectException from connect */
+            }
 
             try {
                 /* String, int - port out of range {0:65535} */
@@ -327,6 +341,10 @@ public class WolfSSLSocketFactoryTest {
                 fail("createSocket() should return IllegalArgumentException");
             } catch (IllegalArgumentException ie) {
                 /* expected */
+            }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IllegalArgumentException");
             }
 
             try {
@@ -337,6 +355,10 @@ public class WolfSSLSocketFactoryTest {
                 fail("createSocket() should return NullPointerException");
             } catch (NullPointerException ne) {
                 /* expected */
+            }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return NullPointerException");
             }
 
             try {
@@ -349,6 +371,10 @@ public class WolfSSLSocketFactoryTest {
             } catch (IOException ne) {
                 /* expected */
             }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should return IOException");
+            }
             s.close();
 
             try {
@@ -360,6 +386,10 @@ public class WolfSSLSocketFactoryTest {
                 fail("createSocket() should throw exception");
             } catch (NullPointerException e) {
                 /* expected */
+            }
+            catch (Exception e) {
+                System.out.println("\t\t\t... failed");
+                fail("createSocket() should throw exception");
             }
             in.close();
         }

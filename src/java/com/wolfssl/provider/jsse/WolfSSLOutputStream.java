@@ -30,10 +30,12 @@ import com.wolfssl.WolfSSLSession;
 public class WolfSSLOutputStream extends OutputStream {
 
     private WolfSSLSession ssl;
+    private WolfSSLSocket  socket;
     final private Object writeLock = new Object();
 
-    public WolfSSLOutputStream(WolfSSLSession ssl) {
+    public WolfSSLOutputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
         this.ssl = ssl;
+        this.socket = socket; /* parent socket */
     }
 
     public void write(int b) throws IOException {
@@ -69,6 +71,11 @@ public class WolfSSLOutputStream extends OutputStream {
 
         synchronized (writeLock) {
             try {
+                if (socket.handshakeInitCalled == false) {
+                    socket.handshakeInitCalled = true;
+                    socket.startHandshake();
+                }
+
                 ret = ssl.write(data, len);
 
                 if (ret <= 0) {
