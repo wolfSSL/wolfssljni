@@ -570,31 +570,13 @@ static unsigned int getOBJSize(WOLFSSL_ASN1_OBJECT* obj)
 JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1key_1usage
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
-    void* sk;
-    WOLFSSL_ASN1_OBJECT* obj;
     jbooleanArray ret = NULL;
     jboolean values[9];
-    int nid = NID_key_usage;
+    unsigned short kuse;
 
-    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)(intptr_t)x509, nid, NULL,
-                                  NULL);
-    if (sk == NULL) {
-        /* either error case or no extension was found */
-        return NULL;
-    }
+    kuse = wolfSSL_X509_get_keyUsage((WOLFSSL_X509*)(intptr_t)x509);
 
-#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
-    if (nid == BASIC_CA_OID) {
-        obj = (WOLFSSL_ASN1_OBJECT*)sk;
-    }
-    else
-#endif
-        obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
-
-    if (obj != NULL) {
-        unsigned short kuse = *(unsigned short*)getOBJData(obj);
-
-        wolfSSL_ASN1_OBJECT_free(obj);
+    if (kuse != 0) {
         ret = (*jenv)->NewBooleanArray(jenv, 9);
         if (!ret) {
             (*jenv)->ThrowNew(jenv, jcl,
@@ -618,11 +600,10 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->ThrowNew(jenv, jcl,
                     "Failed to set boolean region getting key usage");
-            wolfSSL_sk_ASN1_OBJECT_free(sk);
             return NULL;
         }
     }
-    wolfSSL_sk_ASN1_OBJECT_free(sk);
+
     return ret;
 }
 
