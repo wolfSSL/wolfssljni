@@ -73,6 +73,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
     private WolfSSLDebug debug;
+    protected volatile boolean handshakeInitCalled = false;
 
     public WolfSSLSocket(WolfSSLContext context, WolfSSLAuthStore authStore,
         SSLParameters params, boolean clientMode)
@@ -313,8 +314,8 @@ public class WolfSSLSocket extends SSLSocket {
                 "created new native WOLFSSL");
 
         /* set up I/O streams */
-        this.inStream = new WolfSSLInputStream(ssl);
-        this.outStream = new WolfSSLOutputStream(ssl);
+        this.inStream = new WolfSSLInputStream(ssl, this);
+        this.outStream = new WolfSSLOutputStream(ssl, this);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "created default Input/Output streams");
     }
@@ -507,6 +508,7 @@ public class WolfSSLSocket extends SSLSocket {
         /* will throw SSLHandshakeException if session creation is
            not allowed */
         EngineHelper.initHandshake();
+        handshakeInitCalled = true;
 
         ret = EngineHelper.doHandshake();
 
