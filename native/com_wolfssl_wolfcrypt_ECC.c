@@ -1,6 +1,6 @@
 /* com_wolfssl_wolfcrypt_ECC.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -77,6 +77,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
 
     (*jenv)->SetIntArrayRegion(jenv, result, 0, 1, &tmpResult);
 
+    (void)jcl;
     return ret;
 }
 
@@ -140,6 +141,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
 
     (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, (jlong*)&tmpOut);
 
+    (void)jcl;
     return ret;
 }
 

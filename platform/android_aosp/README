@@ -1,0 +1,32 @@
+
+Installing wolfJSSE into Android OSP as a System Security Provider
+--------------------------------------------------------------------------------
+
+This directory contains a script and support files required when installing
+wolfJSSE into Android OSP (AOSP) source tree as a system security provider.
+
+Files included in this directory:
+
+jsse_install.sh - Script to install wolfSSL and wolfSSL JNI source files into
+                  Android AOSP source tree.
+
+wolfssl/ - Directory containing Android.mk and CleanSpec.mk files to be placed
+           in "<android_aosp>/external/wolfssl" directory. Used by
+           jsse_install.sh
+
+wolfssljni/ - Directory containing Android.mk file to be placed in
+              <android_aosp>/external/wolfssljni" directory. Used by
+              jsse_install.sh
+
+For instructions on installing wolfJSSE as a Android security provider, please
+reference the document titled:
+
+"Installing a JSSE Provider in Android OSP" by wolfSSL
+
+Support:
+--------------------------------------------------------------------------------
+
+Please email support@wolfssl.com with any questions or inquiries.
+
+Copyright (C) 2020 wolfSSL Inc.
+

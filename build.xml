@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="wolfssl" default="build" basedir=".">
+<project name="wolfssl" default="build" basedir="." xmlns:jacoco="antlib:org.jacoco.ant">
 
     <description>
     wolfSSL JNI is a Java wrapper for the wolfSSL lightweight SSL/TLS library.
@@ -24,11 +24,15 @@
     <property name="reports.dir" value="build/reports"/>
 
     <!-- These paths should be relative to JUNIT_HOME -->
-    <property name="junit4" value="junit-4.12.jar" />
-    <property name="hamcrest-core" value="hamcrest-core-1.3.jar" />
+    <property name="junit4" value="junit-4.13.jar" />
+    <property name="hamcrest-core" value="hamcrest-all-1.3.jar" />
     <property name="ant-junit4" value="ant/ant-junit4.jar" />
 
     <property environment="env"/>
+
+    <taskdef uri="antlib:org.jacoco.ant" resource="org/jacoco/ant/antlib.xml">
+        <classpath path="${env.JACOCO_HOME}/jacocoant.jar"/>
+    </taskdef>
 
     <!-- classpath to compiled wolfssl.jar, for running tests -->
     <path id="classpath">
@@ -55,6 +59,7 @@
         <delete dir="${reports.dir}"/>
         <delete>
             <fileset dir="${lib.dir}" includes="wolfssl.jar" />
+            <fileset dir="${lib.dir}" includes="wolfssl-jsse.jar" />
         </delete>
     </target>
 
@@ -66,22 +71,13 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, javah, javadoc, examples, test"/>
-
-    <target name="javah">
-        <javah destdir="${native.dir}" force="yes" classpathref="classpath">
-            <class name="com.wolfssl.WolfSSL"/>
-            <class name="com.wolfssl.WolfSSLSession"/>
-            <class name="com.wolfssl.WolfSSLContext"/>
-            <class name="com.wolfssl.wolfcrypt.ECC"/>
-            <class name="com.wolfssl.wolfcrypt.RSA"/>
-            <class name="com.wolfssl.wolfcrypt.EccKey"/>
-        </javah>
-    </target>
+    <target name="build" depends="init, compile, jar, jar-jsse, javadoc, examples, test"/>
+    <target name="build-jacoco" depends="init, compile, jar, jar-jsse, javadoc, examples, test-jacoco, coverage-report"/>
 
     <target name="compile">
         <javac srcdir="${src.dir}"
                destdir="${build.dir}"
+               nativeheaderdir="${native.dir}"
                debug="${java.debug}"
                debuglevel="${java.debuglevel}"
                deprecation="${java.deprecation}"
@@ -106,7 +102,16 @@
     </target>
 
     <target name="jar">
-        <jar jarfile="${lib.dir}/wolfssl.jar" basedir="${build.dir}"></jar>
+        <jar jarfile="${lib.dir}/wolfssl.jar">
+            <fileset dir="${build.dir}">
+                <include name="com/wolfssl/*.class"/>
+                <include name="com/wolfssl/wolfcrypt/*.class"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="jar-jsse">
+        <jar jarfile="${lib.dir}/wolfssl-jsse.jar" basedir="${build.dir}"></jar>
     </target>
 
     <target name="javadoc" description="generate documentation">
@@ -159,8 +164,8 @@
         <formatter type="xml"/>
 
         <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
-        <env key="LD_LIBRARY_PATH" path="$LD_LIBRARY_PATH:{lib.dir}:/usr/local/lib" />
-        <env key="CLASSPATH" path="$LD_LIBRARY_PATH:${env.JUNIT_HOME}/${junit4}" />
+        <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
+        <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
 
         <batchtest fork="yes" todir="${reports.dir}">
             <fileset dir="${test.dir}">
@@ -170,5 +175,62 @@
 
         </junit>
     </target>
+
+    <target name="test-jacoco" depends="build-test">
+        <jacoco:coverage destfile="${build.dir}/jacoco.exec">
+        <junit printsummary="yes" showoutput="yes" haltonfailure="yes" fork="true">
+        <classpath>
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${test.build.dir}"/>
+            <fileset dir="${env.JUNIT_HOME}">
+                <include name="${junit4}"/>
+                <include name="${hamcrest-core}"/>
+                <include name="${ant-junit4}"/>
+            </fileset>
+        </classpath>
+
+        <formatter type="plain"/>
+        <formatter type="xml"/>
+
+        <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
+        <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
+        <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
+
+        <batchtest fork="yes" todir="${reports.dir}">
+            <fileset dir="${test.dir}">
+                <include name="**/*TestSuite.java"/>
+            </fileset>
+        </batchtest>
+
+        </junit>
+        </jacoco:coverage>
+    </target>
+
+    <target name="coverage-report">
+        <jacoco:report>
+            <executiondata>
+                <file file="${build.dir}/jacoco.exec"/>
+            </executiondata>
+
+            <structure name="wolfSSL JNI/JSSE">
+                <classfiles>
+                    <fileset dir="${build.dir}">
+                        <include name="com/wolfssl/*.class"/>
+                        <include name="com/wolfssl/provider/jsse/*.class"/>
+                    </fileset>
+                </classfiles>
+                <sourcefiles>
+                    <fileset dir="${src.dir}">
+                        <include name="com/wolfssl/*.java"/>
+                        <include name="com/wolfssl/provider/jsse/*.java"/>
+                    </fileset>
+                </sourcefiles>
+            </structure>
+            <html destdir="report"/>
+            <csv destfile="report/report.csv"/>
+        </jacoco:report>
+    </target>
+
+    <target name="coverage" depends="build-jacoco"/>
 
 </project>

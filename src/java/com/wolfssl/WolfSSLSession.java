@@ -1,6 +1,6 @@
 /* WolfSSLSession.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,12 @@ public class WolfSSLSession {
     /* user-registered PSK callbacks, also at WolfSSLContext level */
     private WolfSSLPskClientCallback internPskClientCb = null;
     private WolfSSLPskServerCallback internPskServerCb = null;
+    
+    /* user-registerd I/O callbacks, called by internal WolfSSLSession
+     * I/O callback. This is done in order to pass references to
+     * WolfSSLSession object */
+    private WolfSSLIORecvCallback internRecvSSLCb;
+    private WolfSSLIOSendCallback internSendSSLCb;
 
     /* is this context active, or has it been freed? */
     private boolean active = false;
@@ -188,6 +194,11 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private native byte[] getSessionID(long session);
+    private native int setTimeout(long ssl, long t);
+    private native long getTimeout(long ssl);
+    private native int setSessTimeout(long session, long t);
+    private native long getSessTimeout(long session);
     private native int setCipherList(long ssl, String list);
     private native int dtlsGetCurrentTimeout(long ssl);
     private native int dtlsGotTimeout(long ssl);
@@ -244,6 +255,14 @@ public class WolfSSLSession {
     private native String getPskIdentityHint(long ssl);
     private native String getPskIdentity(long ssl);
     private native int usePskIdentityHint(long ssl, String hint);
+    private native boolean handshakeDone(long ssl);
+    private native void setConnectState(long ssl);
+    private native void setAcceptState(long ssl);
+    private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
+    private native long setOptions(long ssl, long op);
+    private native int getShutdown(long ssl);
+    private native void setSSLIORecv(long ssl);
+    private native void setSSLIOSend(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -744,6 +763,102 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return getSession(getSessionPtr());
+    }
+
+    /**
+     * Returns the session ID.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return      the session ID
+     * @see         #setSession(long)
+     */
+    public byte[] getSessionID() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getSessionID(getSession());
+    }
+
+    /**
+     * Gets the cache size is set at compile time.
+     * This function returns the current cache size which has been set at compile
+     * time.
+     *
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public long getCacheSize() throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return this.getAssociatedContextPtr().getCacheSize();
+    }
+    
+    /**
+     * Sets the timeout in seconds in the given WOLFSSL_SESSION.
+     *
+     * @param t time in seconds to set
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long setSessTimeout(long t) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setSessTimeout(this.getSession(), t);
+    }
+    
+    /**
+     * Gets the timeout in seconds in the given WOLFSSL_SESSION.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return current timeout in seconds
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long getSessTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getSessTimeout(this.getSession());
+    }
+    
+    /**
+     * Sets the timeout in seconds in the given SSL object.
+     *
+     * @param t time in seconds to set
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long setTimeout(long t) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setTimeout(getSessionPtr(), t);
+    }
+    
+    /**
+     * Gets the timeout in seconds in the given SSL object.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return current timeout in seconds
+     * @see         #setSession(long)
+     * @see         #getSession(long)
+     */
+    public long getTimeout() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getTimeout(getSessionPtr());
     }
 
     /**
@@ -2131,7 +2246,198 @@ public class WolfSSLSession {
 
         return usePskIdentityHint(getSessionPtr(), hint);
     }
+    
+    /**
+     * Used to determine if the handshake has been completed.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @return true if the handshake is completed -- false if not.
+     */
+    public boolean handshakeDone() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        return handshakeDone(getSessionPtr());
+    }
 
+    /**
+     * Sets the WOLFSSL to be a client
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public void setConnectState() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        setConnectState(getSessionPtr());
+    }
+    
+    /**
+     * Sets the WOLFSSL to be a server
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed\
+     */
+    public void setAcceptState() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        setAcceptState(getSessionPtr());
+    }
+    
+    /**
+     * Sets the verification method for remote peers and also allows a
+     * verify callback to be registered with the SSL session.
+     * If no verify callback is desired, null can be used for <code>
+     * callback</code>.
+     * <p>
+     * The verification <b>mode</b> of peer certificates is a logically
+     * OR'd list of flags. The possible flag values include:
+     * <p>
+     * <code>SSL_VERIFY_NONE</code><br>
+     * <b>Client mode:</b> the client will not verify the certificate
+     * received from teh server and the handshake will continue as normal.<br>
+     * <b>Server mode:</b> the server will not send a certificate request to
+     * the client. As such, client verification will not be enabled.
+     * <p>
+     * <code>SSL_VERIFY_PEER</code><br>
+     * <b>Client mode:</b> the client will verify the certificate received
+     * from the server during the handshake. This is turned on by default in
+     * wolfSSL, therefore, using this option has no effect.<br>
+     * <b>Server mode:</b> the server will send a certificate request to the
+     * client and verify the client certificate received.
+     * <p>
+     * <code>SSL_VERIFY_FAIL_IF_NO_PEER_CERT</code><br>
+     * <b>Client mode:</b> no effect when used on the client side.<br>
+     * <b>Server mode:</b> the verification will fail on the server side if
+     * the client fails to send a certificate when requested to do so (when
+     * using SSL_VERIFY_PEER on the SSL server).
+     *
+     * @param mode      verification type
+     * @param callback  custom verification callback to register with the SSL
+     *                  session. If no callback is desired, <code>null</code>
+     *                  may be used.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public void setVerify(int mode, WolfSSLVerifyCallback callback)
+        throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        setVerify(getSessionPtr(), mode, callback);
+    }
+
+    /**
+     * Sets the options to use for the WOLFSSL structure.Example options are WolfSSL.SSL_OP_NO_SSLv3
+     *
+     *
+     * @param op      bit mask of options to set
+     * @return returns the revised options bit mask on success
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long setOptions(long op)
+            throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setOptions(getSessionPtr(), op);
+    }
+    
+    /**
+     * Registers a receive callback for wolfSSL to get input data.
+     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
+     * This uses the system's TCP recv() function. The user can register a
+     * function to get input from memory, some other network module, or from
+     * anywhere. Please see the EmbedReceive() function in src/io.c as a
+     * guide for how the function should work and for error codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_READ</b> should be returned for
+     * non-blocking receive when no data is ready.
+     *
+     * @param callback  method to be registered as the receive callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLIORecvCallback#receiveCallback(WolfSSLSession,
+     *                  byte[], int, long).
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIOSend(WolfSSLIOSendCallback)
+     */
+    public void setIORecv(WolfSSLIORecvCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set user I/O recv */
+        internRecvSSLCb = callback;
+
+        /* register internal callback with native library */
+        setSSLIORecv(getSessionPtr());
+    }
+
+    /**
+     * Registers a send callback for wolfSSL to write output data.
+     * By default, wolfSSL uses EmbedSend() in src/io.c as the callback,
+     * which uses the system's TCP send() function. The user can register
+     * a function to send output to memory, some other network module, or
+     * to anywhere. Please see the EmbedSend() function in src/io.c as a
+     * guide for how the function should work and for error codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_WRITE</b> should be returned for
+     * non-blocking send when the action cannot be taken yet.
+     *
+     * @param callback  method to be registered as the send callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLIOSendCallback#sendCallback(WolfSSLSession,
+     *                  byte[], int, Object).
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIORecv(WolfSSLIORecvCallback)
+     */
+    public void setIOSend(WolfSSLIOSendCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        /* set user I/O send */
+        internSendSSLCb = callback;
+
+        /* register internal callback with native library */
+        setSSLIOSend(getSessionPtr());
+    }
+    
+    /**
+     * Getter function to tell if shutdown has been sent or received
+     * @return WolfSSL.SSL_SENT_SHUTDOWN or WolfSSL.SSL_RECEIVED_SHUTDOWN
+     */
+    public int getShutdown() {
+        return getShutdown(getSessionPtr());
+    }
+    
+        /* this will be registered with native wolfSSL library */
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internRecvSSLCb.receiveCallback(ssl, buf, sz,
+                    ssl.getIOReadCtx());
+
+        return ret;
+    }
+
+    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internSendSSLCb.sendCallback(ssl, buf, sz,
+                    ssl.getIOWriteCtx());
+
+        return ret;
+    }
+    
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {

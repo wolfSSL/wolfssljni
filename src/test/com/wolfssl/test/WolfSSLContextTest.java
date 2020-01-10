@@ -1,6 +1,6 @@
 /* WolfSSLContextTest.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.test;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,15 +27,20 @@ import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLPskClientCallback;
+import com.wolfssl.WolfSSLPskServerCallback;
+import com.wolfssl.WolfSSLSession;
 
 public class WolfSSLContextTest {
 
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public final static String cliCert = "./examples/certs/client-cert.pem";
-    public final static String cliKey  = "./examples/certs/client-key.pem";
-    public final static String caCert  = "./examples/certs/ca-cert.pem";
+    public static String cliCert = "examples/certs/client-cert.pem";
+    public static String cliKey  = "examples/certs/client-key.pem";
+    public static String caCert  = "examples/certs/ca-cert.pem";
     public final static String bogusFile = "/dev/null";
 
     WolfSSLContext ctx;
@@ -44,7 +49,11 @@ public class WolfSSLContextTest {
     public void testWolfSSLContext() throws WolfSSLException {
 
         System.out.println("WolfSSLContext Class");
-
+        
+        cliCert = WolfSSLTestCommon.getPath(cliCert);
+        cliKey = WolfSSLTestCommon.getPath(cliKey);
+        caCert = WolfSSLTestCommon.getPath(caCert);
+        
         test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
         test_WolfSSLContext_useCertificateFile();
         test_WolfSSLContext_usePrivateKeyFile();

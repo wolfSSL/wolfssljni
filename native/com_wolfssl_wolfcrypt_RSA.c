@@ -1,6 +1,6 @@
 /* com_wolfssl_wolfcrypt_RSA.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,6 +33,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     RsaKey  myKey;
     unsigned int idx;
     unsigned int tmpOut;
+
+    (void)jcl;
 
     /* check in and key sz */
     if ((inSz  < 0) || (keySz < 0)) {
@@ -93,6 +95,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
     RsaKey  myKey;
     unsigned int idx;
 
+    (void)jcl;
+
     /* check in and key sz */
     if ((sigSz < 0) || (keySz < 0) || (outSz < 0)) {
         return -1;
@@ -146,6 +150,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     RNG     rng;
     unsigned int idx;
     unsigned int tmpOut;
+
+    (void)jcl;
 
     /* check in and key sz */
     if ((inSz  < 0) || (keySz < 0)) {
@@ -204,6 +210,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
     int     ret;
     RsaKey  myKey;
     unsigned int idx;
+
+    (void)jcl;
 
     /* check in and key sz */
     if ((inSz < 0) || (keySz < 0) || (outSz < 0)) {

@@ -1,6 +1,6 @@
-/* WolfCryptRSATest.java
+/* WolfSSLJSSETestSuite.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,33 +19,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.provider.jsse.test;
 
-import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-import static org.junit.Assert.*;
+import org.junit.runners.Suite;
 
-import com.wolfssl.wolfcrypt.RSA;
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+    WolfSSLTrustX509Test.class,
+    WolfSSLContextTest.class,
+    WolfSSLEngineTest.class,
+    WolfSSLSocketFactoryTest.class,
+    WolfSSLSocketTest.class,
+    WolfSSLServerSocketFactoryTest.class,
+    WolfSSLServerSocketTest.class,
+    WolfSSLSessionTest.class,
+    WolfSSLX509Test.class,
+    WolfSSLKeyX509Test.class,
+})
 
-public class WolfCryptRSATest {
 
-    RSA rsa;
-
-    @Test
-    public void testRSA() throws WolfSSLException {
-
-        System.out.println("RSA Class");
-
-        test_RSA_new();
-    }
-
-    public void test_RSA_new() {
-
-        System.out.print("\tRSA()");
-        rsa = new RSA();
-        System.out.println("\t\t\t\t... passed");
-    }
+public class WolfSSLJSSETestSuite {
+    /* this class remains empty,
+     * only used as a holder for the above
+     * annotations */
 }
-
 

@@ -1,0 +1,12 @@
+/WolfCryptECCTest.class
+/WolfCryptRSATest.class
+/WolfSSLCertificateTest.class
+/WolfSSLContextTest$TestPskClientCb.class
+/WolfSSLContextTest$TestPskServerCb.class
+/WolfSSLContextTest.class
+/WolfSSLSessionTest$TestPskClientCb.class
+/WolfSSLSessionTest$TestPskServerCb.class
+/WolfSSLSessionTest.class
+/WolfSSLTest.class
+/WolfSSLTestSuite.class
+/WolfSSLTestCommon.class

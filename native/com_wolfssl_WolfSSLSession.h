@@ -153,6 +153,46 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSessionID
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setTimeout
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
+  (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getTimeout
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getTimeout
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSessTimeout
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
+  (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSessTimeout
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSessTimeout
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setCipherList
  * Signature: (JLjava/lang/String;)I
  */
@@ -566,6 +606,70 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentity
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
   (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    handshakeDone
+ * Signature: (J)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setConnectState
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setAcceptState
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setAcceptState
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setVerify
+ * Signature: (JILcom/wolfssl/WolfSSLVerifyCallback;)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
+  (JNIEnv *, jobject, jlong, jint, jobject);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setOptions
+ * Signature: (JJ)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
+  (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getShutdown
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getShutdown
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSSLIORecv
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSSLIOSend
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIOSend
+  (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus
 }

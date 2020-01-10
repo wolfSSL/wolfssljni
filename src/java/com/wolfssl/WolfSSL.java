@@ -1,6 +1,6 @@
 /* WolfSSL.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,6 +39,7 @@ public class WolfSSL {
     public final static int SSL_ERROR_NONE      =  0;
     public final static int SSL_FAILURE         =  0;
     public final static int SSL_SUCCESS         =  1;
+    public final static int SSL_SHUTDOWN_NOT_DONE = 2;
 
     public final static int SSL_BAD_CERTTYPE    = -8;
     public final static int SSL_BAD_STAT        = -7;
@@ -156,6 +157,12 @@ public class WolfSSL {
     public final static int SSL_RECEIVED_SHUTDOWN               = 2;
     public final static int SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4;
     public final static int SSL_OP_NO_SSLv2                     = 8;
+    public final static int SSL_OP_NO_SSLv3                     = 0x00001000;
+    public final static int SSL_OP_NO_TLSv1                     = 0x00002000;
+    public final static int SSL_OP_NO_TLSv1_1                   = 0x04000000;
+    public final static int SSL_OP_NO_TLSv1_2                   = 0x08000000;
+    public final static int SSL_OP_NO_COMPRESSION               = 0x10000000;
+    public final static int SSL_OP_NO_TLSv1_3                   = 0x20000000;
 
     public final static int SSL_HANDSHAKE_FAILURE                 = 101;
     public final static int SSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102;
@@ -210,6 +217,13 @@ public class WolfSSL {
     public final static int SHA512 = 4;
     public final static int SHA384 = 5;
 
+    /* key types */
+    public final static int DSAk     = 515;
+    public final static int RSAk     = 645;
+    public final static int NTRUk    = 274;
+    public final static int ECDSAk   = 518;
+    public final static int ED25519k = 256;
+
     /* ------------------------ constructors ---------------------------- */
 
     /**
@@ -244,7 +258,7 @@ public class WolfSSL {
 
     private native int init();
 
-    static native void nativeFree(long ptr);
+    public static native void nativeFree(long ptr);
 
     static native int getBulkCipherAlgorithmEnumNULL();
     static native int getBulkCipherAlgorithmEnumRC4();
@@ -261,18 +275,21 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumHC128();
     static native int getBulkCipherAlgorithmEnumRABBIT();
 
+    static native String getEnabledCipherSuites();
+    static native String getEnabledCipherSuitesIana();
+
     /* ------------------------- Java methods --------------------------- */
 
     /**
      * Loads JNI library; must be called prior to any other calls in this class.
      *
-     * The native library is expected to be be called "wolfssl", and must be
+     * The native library is expected to be be called "wolfssljni", and must be
      * on the system library search path.
      *
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
-        System.loadLibrary("wolfSSL");
+        System.loadLibrary("wolfssljni");
     }
 
     /**
@@ -310,6 +327,52 @@ public class WolfSSL {
         System.load(libPath);
     }
 
+    /* --------------- native feature detection functions --------------- */
+
+    /**
+     * Tests if TLS 1.0 has been compiled into the native wolfSSL library.
+     * TLS 1.0 is disabled by default in native wolfSSL, unless the user
+     * has configured wolfSSL with "--enable-tls10".
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv1Enabled();
+
+    /**
+     * Tests if TLS 1.1 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv11Enabled();
+
+    /**
+     * Tests if TLS 1.2 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv12Enabled();
+
+    /**
+     * Tests if TLS 1.3 has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean TLSv13Enabled();
+
+    /**
+     * Tests if ECC support has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean EccEnabled();
+
+    /**
+     * Tests if RSA support has been compiled into the native wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if not compiled in.
+     */
+    public static native boolean RsaEnabled();
+
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
@@ -343,6 +406,20 @@ public class WolfSSL {
     public final static native long SSLv3_ClientMethod();
 
     /**
+     * Indicates that the application will only support the TLS 1.0 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_Method();
+
+    /**
      * Indicates that the application is a server and will only support the
      * TLS 1.0 protocol.
      * This method allocates memory for and initializes a new native
@@ -367,6 +444,20 @@ public class WolfSSL {
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_ClientMethod();
+
+    /**
+     * Indicates that the application will only support the TLS 1.1 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_1_Method();
 
     /**
      * Indicates that the application is a server and will only support the
@@ -395,6 +486,20 @@ public class WolfSSL {
     public final static native long TLSv1_1_ClientMethod();
 
     /**
+     * Indicates that the application will only support the TLS 1.2 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_2_Method();
+
+    /**
      * Indicates that the application is a server and will only support the
      * TLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
@@ -419,6 +524,34 @@ public class WolfSSL {
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long TLSv1_2_ClientMethod();
+
+    /**
+     * Indicates that the application will only support the TLS 1.3 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long TLSv1_3_Method();
+
+    /**
+     * Indicates that the application will only support the DTLS 1.0 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_Method();
 
     /**
      * Indicates that the application is a server and will only support the
@@ -447,6 +580,20 @@ public class WolfSSL {
     public final static native long DTLSv1_ClientMethod();
 
     /**
+     * Indicates that the application will only support the DTLS 1.2 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long DTLSv1_2_Method();
+
+    /**
      * Indicates that the application is a server and will only support the
      * DTLS 1.2 protocol.
      * This method allocates memory for and initializes a new native
@@ -471,6 +618,20 @@ public class WolfSSL {
      * @see     WolfSSLContext#newContext(long)
      */
     public final static native long DTLSv1_2_ClientMethod();
+
+    /**
+     * Indicates that the application will use the highest possible SSL/TLS
+     * version from SSL 3.0 up to TLS 1.2, but is side-independent at creation
+     * time. Client/server side will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public final static native long SSLv23_Method();
 
     /**
      * Indicates that the application is a server and will use the highest
@@ -625,6 +786,21 @@ public class WolfSSL {
     public static native int getSessionCacheMemsize();
 
     /**
+     * Strips off PKCS#8 header from byte array.
+     * This function starts reading the input array for a PKCS#8 header,
+     * beginning at input offset, idx. If found, it returns the offset of
+     * the inner traditional data.
+     *
+     * @param in  input buffer containing PKCS#8 formatted key
+     * @param idx index/offset into input array to begin reading
+     * @param sz  size of input array
+     * @return    offset where the traditional key begins, or negative on
+     *            failure.
+     */
+    public static native int getPkcs8TraditionalOffset(byte[] in, long idx,
+        long sz);
+
+    /**
      * Returns the DER-encoded form of the certificate pointed to by
      * x509.
      *
@@ -644,6 +820,32 @@ public class WolfSSL {
      * @return  value of native MAX_DIGEST_SIZE define
      */
     public static native int getHmacMaxSize();
+
+    public static String[] getCiphers() {
+
+        String cipherSuites = getEnabledCipherSuites();
+        if (cipherSuites == null)
+            return null;
+
+        String[] suiteArray = cipherSuites.split(":");
+
+        return suiteArray;
+    }
+    
+    
+    /**
+     * Gets a list of all cipher suites supported and uses the format TLS_*
+     * @return list of all cipher suites supported
+     */
+    public static String[] getCiphersIana() {
+        String cipherSuites = getEnabledCipherSuitesIana();
+        if (cipherSuites == null)
+            return null;
+
+        String[] suiteArray = cipherSuites.split(":");
+
+        return suiteArray;
+    }
 
     /* ------------------------- isEnabled methods -------------------------- */
 
@@ -696,6 +898,14 @@ public class WolfSSL {
      * @return 1 if enabled, 0 if not compiled in
      */
     public static native int isEnabledPKCallbacks();
+    
+    /**
+     * Checks which protocols where built into wolfSSL
+     *
+     * @return an array of Strings for supported protocols
+     */
+    public static native String[] getProtocols();
+
 
 } /* end WolfSSL */
 

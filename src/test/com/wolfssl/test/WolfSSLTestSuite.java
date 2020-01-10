@@ -1,6 +1,6 @@
 /* WolfSSLTestSuite.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package com.wolfssl;
+package com.wolfssl.test;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -30,7 +30,8 @@ import org.junit.runners.Suite;
     WolfSSLContextTest.class,
     WolfSSLSessionTest.class,
     WolfCryptRSATest.class,
-    WolfCryptECCTest.class
+    WolfCryptECCTest.class,
+    WolfSSLCertificateTest.class
 })
 
 
@@ -38,6 +39,5 @@ public class WolfSSLTestSuite {
     /* this class remains empty,
      * only used as a holder for the above
      * annotations */
-
 }
 

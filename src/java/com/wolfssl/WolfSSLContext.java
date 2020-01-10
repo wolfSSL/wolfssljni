@@ -1,6 +1,6 @@
 /* WolfSSLContext.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -322,6 +322,8 @@ public class WolfSSLContext {
             int[] used);
     private native int memrestoreCertCache(long ctx, byte[] mem, int sz);
     private native int getCertCacheMemsize(long ctx);
+    private native long setCacheSize(long ctx, long sz);
+    private native long getCacheSize(long ctx);
     private native int setCipherList(long ctx, String list);
     private native int loadVerifyBuffer(long ctx, byte[] in, long sz,
             int format);
@@ -330,6 +332,8 @@ public class WolfSSLContext {
     private native int usePrivateKeyBuffer(long ctx, byte[] in, long sz,
             int format);
     private native int useCertificateChainBuffer(long ctx, byte[] in, long sz);
+    private native int useCertificateChainBufferFormat(long ctx, byte[] in,
+            long sz, int format);
     private native int setGroupMessages(long ctx);
     private native void setIORecv(long ctx);
     private native void setIOSend(long ctx);
@@ -533,7 +537,7 @@ public class WolfSSLContext {
      * the client fails to send a certificate when requested to do so (when
      * using SSL_VERIFY_PEER on the SSL server).
      *
-     * @param mode      session timeout value in seconds
+     * @param mode      verification type
      * @param callback  custom verification callback to register with the SSL
      *                  session. If no callback is desired, <code>null</code>
      *                  may be used.
@@ -657,6 +661,38 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         return getCertCacheMemsize(getContextPtr());
+    }
+    
+    /**
+     * Cache size is set at compile time.This function returns the current cache
+     * size which has been set at compile time.
+     * An example of macros to set cache size are HUGE_SESSION_CACHE and
+     * SMALL_SESSION_CACHE.
+     *
+     * @param sz unused size to set cache as
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long setCacheSize(long sz) throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        
+        return setCacheSize(getContextPtr(), sz);
+    }
+    
+    /**
+     * Gets the cache size is set at compile time.
+     * This function returns the current cache size which has been set at compile
+     * time.
+     *
+     * @return size of compile time cache.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long getCacheSize() throws IllegalStateException {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+        
+        return getCacheSize(getContextPtr());
     }
 
     /**
@@ -855,6 +891,50 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         return useCertificateChainBuffer(getContextPtr(), in, sz);
+    }
+
+    /**
+     * Loads a certificate chain buffer into the SSL context in specific format.
+     * This method behaves like the non-buffered version, only differing
+     * in its ability to be called with a buffer as input instead of a file.
+     * This function is similar to useCertificateChainBuffer(), but allows
+     * the input format to be specified. The format must be either DER or PEM,
+     * and start with the subject's certificate, ending with the root
+     * certificate.
+     *
+     * @param in        the input buffer containing the PEM-formatted
+     *                  certificate chain to be loaded.
+     * @param sz        the size of the input buffer, <b>in</b>
+     * @param format    format of the certificate buffer being loaded - either
+     *                  <b>SSL_FILETYPE_PEM</b> or <b>SSL_FILETYPE_ASN1</b>
+     * @return          <b><code>SSL_SUCCESS</code></b> upon success,
+     *                  <b><code>SSL_FAILURE</code></b> upon general failure,
+     *                  <b><code>SSL_BAD_FILETYPE</code></b> if the file is
+     *                  in the wrong format, <b><code>SSL_BAD_FILE</code></b>
+     *                  if the file doesn't exist, can't be read, or is
+     *                  corrupted. <b><code>MEMORY_E</code></b> if an out of
+     *                  memory condition occurs, <b><code>ASN_INPUT_E</code></b>
+     *                  if Base16 decoding fails on the file,
+     *                  <b><code>BUFFER_E</code></b> if a chain buffer is
+     *                  bigger than the receiving buffer, and <b><code>
+     *                  BAD_FUNC_ARG</code></b> if invalid input arguments
+     *                  are provided.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #loadVerifyBuffer(byte[], long, int)
+     * @see    #useCertificateBuffer(byte[], long, int)
+     * @see    #usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateBuffer(byte[], long, int)
+     * @see    WolfSSLSession#usePrivateKeyBuffer(byte[], long, int)
+     * @see    WolfSSLSession#useCertificateChainBuffer(byte[], long)
+     */
+    public int useCertificateChainBufferFormat(byte[] in, long sz, int format)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return useCertificateChainBufferFormat(getContextPtr(), in, sz, format);
     }
 
     /**
@@ -1610,6 +1690,7 @@ public class WolfSSLContext {
         return usePskIdentityHint(getContextPtr(), hint);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {

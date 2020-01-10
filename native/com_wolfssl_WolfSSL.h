@@ -13,6 +13,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_FAILURE 0L
 #undef com_wolfssl_WolfSSL_SSL_SUCCESS
 #define com_wolfssl_WolfSSL_SSL_SUCCESS 1L
+#undef com_wolfssl_WolfSSL_SSL_SHUTDOWN_NOT_DONE
+#define com_wolfssl_WolfSSL_SSL_SHUTDOWN_NOT_DONE 2L
 #undef com_wolfssl_WolfSSL_SSL_BAD_CERTTYPE
 #define com_wolfssl_WolfSSL_SSL_BAD_CERTTYPE -8L
 #undef com_wolfssl_WolfSSL_SSL_BAD_STAT
@@ -115,6 +117,18 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER 4L
 #undef com_wolfssl_WolfSSL_SSL_OP_NO_SSLv2
 #define com_wolfssl_WolfSSL_SSL_OP_NO_SSLv2 8L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_SSLv3
+#define com_wolfssl_WolfSSL_SSL_OP_NO_SSLv3 4096L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1 8192L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_1
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_1 67108864L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_2
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_2 134217728L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_COMPRESSION
+#define com_wolfssl_WolfSSL_SSL_OP_NO_COMPRESSION 268435456L
+#undef com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_3
+#define com_wolfssl_WolfSSL_SSL_OP_NO_TLSv1_3 536870912L
 #undef com_wolfssl_WolfSSL_SSL_HANDSHAKE_FAILURE
 #define com_wolfssl_WolfSSL_SSL_HANDSHAKE_FAILURE 101L
 #undef com_wolfssl_WolfSSL_SSL_R_TLSV1_ALERT_UNKNOWN_CA
@@ -159,6 +173,16 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SHA512 4L
 #undef com_wolfssl_WolfSSL_SHA384
 #define com_wolfssl_WolfSSL_SHA384 5L
+#undef com_wolfssl_WolfSSL_DSAk
+#define com_wolfssl_WolfSSL_DSAk 515L
+#undef com_wolfssl_WolfSSL_RSAk
+#define com_wolfssl_WolfSSL_RSAk 645L
+#undef com_wolfssl_WolfSSL_NTRUk
+#define com_wolfssl_WolfSSL_NTRUk 274L
+#undef com_wolfssl_WolfSSL_ECDSAk
+#define com_wolfssl_WolfSSL_ECDSAk 518L
+#undef com_wolfssl_WolfSSL_ED25519k
+#define com_wolfssl_WolfSSL_ED25519k 256L
 /*
  * Class:     com_wolfssl_WolfSSL
  * Method:    init
@@ -289,6 +313,70 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getEnabledCipherSuites
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getEnabledCipherSuitesIana
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1Enabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv11Enabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv11Enabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv12Enabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv12Enabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv13Enabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    EccEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_EccEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    RsaEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    SSLv3_ServerMethod
  * Signature: ()J
  */
@@ -301,6 +389,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
   (JNIEnv *, jclass);
 
 /*
@@ -321,6 +417,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    TLSv1_1_ServerMethod
  * Signature: ()J
  */
@@ -333,6 +437,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_2_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1Method
   (JNIEnv *, jclass);
 
 /*
@@ -353,6 +465,22 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    TLSv1_3_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    DTLSv1_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    DTLSv1_ServerMethod
  * Signature: ()J
  */
@@ -369,6 +497,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    DTLSv1_2_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    DTLSv1_2_ServerMethod
  * Signature: ()J
  */
@@ -381,6 +517,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    SSLv23_Method
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv23_1Method
   (JNIEnv *, jclass);
 
 /*
@@ -465,6 +609,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSessionCacheMemsize
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getPkcs8TraditionalOffset
+ * Signature: ([BJJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
+  (JNIEnv *, jclass, jbyteArray, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    x509_getDer
  * Signature: (J)[B
  */
@@ -533,6 +685,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getProtocols
+ * Signature: ()[Ljava/lang/String;
+ */
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
   (JNIEnv *, jclass);
 
 #ifdef __cplusplus
