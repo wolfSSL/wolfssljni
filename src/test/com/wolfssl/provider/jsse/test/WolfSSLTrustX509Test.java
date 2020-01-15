@@ -220,7 +220,12 @@ public class WolfSSLTrustX509Test {
         String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
             "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
             "OU=Programming-2048" };
-        
+
+        /* OpenJDK 1.7 KeyStore load order */
+        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
+            "OU=Consulting_1024", "OU=Fast", "OU=Support",
+            "OU=Programming-1024", "OU=Consulting", "OU=ECC" };
+
         System.out.print("\tTesting parse all_mixed.jks");
 
         if (tf.isAndroid()) {
@@ -233,11 +238,26 @@ public class WolfSSLTrustX509Test {
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
             expected = 7; /* one less than SunJSSE because of server-ecc */
         }
-        
+
+        /* Test for KeyStore provider/version, cert order is different */
+        try {
+            KeyStore tmpStore = KeyStore.getInstance("JKS");
+            String tmpStoreProv = tmpStore.getProvider().getName();
+            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
+
+            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
+                OU = OU_17;
+            }
+
+        } catch (KeyStoreException kse) {
+            error("\t... failed");
+            fail("failed to detect KeyStore provider version");
+        }
+
         tm = tf.createTrustManager("SunX509", tf.mixedJKS, provider);
         if (tm == null) {
             error("\t... failed");
-            fail("failed to create trustmanager"); 
+            fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
@@ -247,28 +267,28 @@ public class WolfSSLTrustX509Test {
             fail("no CAs where found");
             return;
         }
-        
+
         if (cas.length != expected) {
             error("\t... failed");
             fail("wrong number of CAs found");
         }
-        
+
         for (j = 0; j < OU.length && i < cas.length; j++) {
             if (this.provider != null &&
                     provider.equals("wolfJSSE") && OU[j].equals("OU=ECC")) {
                 continue;
             }
-            
+
             if (!cas[i].getSubjectDN().getName().contains(OU[j])) {
                 error("\t... failed");
                 fail("wrong CA found");
             }
             i++;
-           
+
         }
         pass("\t... passed");
     }
-    
+
     @Test
     public void testSystemLoad() {
         String file = System.getProperty("javax.net.ssl.trustStore");
