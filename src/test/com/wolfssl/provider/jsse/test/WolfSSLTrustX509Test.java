@@ -143,7 +143,11 @@ public class WolfSSLTrustX509Test {
         int expected = 6;
         String OU[] = { "OU=Programming-1024", "OU=Support", "OU=Support_1024",
             "OU=Fast", "OU=Programming-2048"};
-        
+
+        /* OpenJDK 1.7 KeyStore load order */
+        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
+            "OU=Fast", "OU=Programming-1024", "OU=Support"};
+
         System.out.print("\tTesting parsing server.jks");
 
         if (tf.isAndroid()) {
@@ -152,16 +156,31 @@ public class WolfSSLTrustX509Test {
             return;
         }
 
+        /* Test for KeyStore provider/version, some order certs differently */
+        try {
+            KeyStore tmpStore = KeyStore.getInstance("JKS");
+            String tmpStoreProv = tmpStore.getProvider().getName();
+            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
+
+            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
+                OU = OU_17;
+            }
+
+        } catch (KeyStoreException kse) {
+            error("\t... failed");
+            fail("failed to detect KeyStore provider version");
+        }
+
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
          * to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
             expected = expected-1; /* one less than SunJSSE because of server-ecc */
         }
-        
+
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
             error("\t... failed");
-            fail("failed to create trustmanager"); 
+            fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
@@ -171,25 +190,25 @@ public class WolfSSLTrustX509Test {
             fail("no CAs were found");
             return;
         }
-        
+
         if (cas.length != expected) {
             error("\t... failed");
             fail("wrong number of CAs found");
         }
 
         for (String x : OU) {
-            
+
             if (!cas[i].getSubjectDN().getName().contains(x)) {
                 error("\t... failed");
                 fail("wrong CA found");
             }
             i++;
-           
+
         }
         pass("\t... passed");
     }
-    
-        
+
+
     @Test
     public void testCAParsingMixed()
         throws NoSuchProviderException, NoSuchAlgorithmException {
