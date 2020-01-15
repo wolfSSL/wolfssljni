@@ -71,7 +71,7 @@ public class WolfSSLTrustX509Test {
         }
 
     }
-    
+
     @Test
     public void testCAParsing()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -83,7 +83,13 @@ public class WolfSSLTrustX509Test {
         String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
             "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
             "OU=Development", "OU=Programming-2048" };
-        
+
+        /* OpenJDK 1.7 KeyStore load order */
+        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
+            "OU=Consulting_1024", "OU=Fast", "OU=Support",
+            "OU=Programming-1024", "OU=Consulting", "OU=Development",
+            "OU=ECC" };
+
         System.out.print("\tTesting parse all.jks");
 
         if (tf.isAndroid()) {
@@ -97,7 +103,21 @@ public class WolfSSLTrustX509Test {
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
             expected = 8; /* one less than SunJSSE because of server-ecc */
         }
-        
+
+        /* Test for KeyStore provider/version, cert order is different */
+        try {
+            KeyStore tmpStore = KeyStore.getInstance("JKS");
+            String tmpStoreProv = tmpStore.getProvider().getName();
+            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
+
+            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
+                OU = OU_17;
+            }
+        } catch (KeyStoreException kse) {
+            error("\t\t... failed");
+            fail("failed to detect KeyStore provider version");
+        }
+
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
         if (tm == null) {
             error("\t\t... failed");
@@ -122,17 +142,17 @@ public class WolfSSLTrustX509Test {
                     provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
                 continue;
             }
-            
+
             if (!cas[i].getSubjectDN().getName().contains(x)) {
                 error("\t\t... failed");
                 fail("wrong CA found");
             }
             i++;
-           
+
         }
         pass("\t\t... passed");
     }
-    
+
     @Test
     public void testServerParsing()
         throws NoSuchProviderException, NoSuchAlgorithmException {
