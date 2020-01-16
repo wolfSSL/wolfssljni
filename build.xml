@@ -39,7 +39,7 @@
         <fileset dir="${lib.dir}" includes="*.jar">
             <include name="wolfssl.jar"/>
         </fileset>
-        <fileset dir="${env.JUNIT_HOME}">
+        <fileset dir="${env.JUNIT_HOME}" erroronmissingdir="false">
             <include name="${junit4}"/>
         </fileset>
     </path>
