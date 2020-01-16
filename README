@@ -20,6 +20,7 @@ Release X.X.X has bug fixes and new features including:
 - New JSSE provider (wolfJSSE) including TLS 1.3 support!
 - Add JSSE debug logging with wolfjsse.debug system parameter
 - Add JSSE install script and helper files for Android AOSP
+- Add JSSE example apps (examples/provider)
 - Add JNI wrappers to detect if native features/protocols are compiled in
 - Add JNI wrapper for PKCS#8 offset getter
 - Add JNI wrapper for wolfSSL_get_ciphers_iana()
