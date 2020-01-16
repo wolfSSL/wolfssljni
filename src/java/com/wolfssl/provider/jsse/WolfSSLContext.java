@@ -156,6 +156,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
         int ret, offset;
         X509KeyManager km = authStore.getX509KeyManager();
+        String javaVersion = System.getProperty("java.version");
 
         if (km == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
@@ -164,9 +165,12 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         /* We only load keys from algorithms enabled in native wolfSSL,
-         * and in the priority order of ECC first, then RSA */
+         * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
+         * has a bug that causes PrivateKey.getEncoded() to fail for EC keys.
+         * This has been fixed in later JDK versions, but skip adding EC
+         * here if we're running on OpenJDK 1.7.0_201. */
         ArrayList<String> keyAlgos = new ArrayList<String>();
-        if (WolfSSL.EccEnabled()) {
+        if (WolfSSL.EccEnabled() && !javaVersion.equals("1.7.0_201")) {
             keyAlgos.add("EC");
         }
         if (WolfSSL.RsaEnabled()) {
