@@ -71,7 +71,7 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, jar-jsse, javadoc, examples, test"/>
+    <target name="build" depends="init, compile, jar, jar-jsse, javadoc"/>
     <target name="build-jacoco" depends="init, compile, jar, jar-jsse, javadoc, examples, test-jacoco, coverage-report"/>
 
     <target name="compile">
@@ -118,7 +118,7 @@
         <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
     </target>
 
-    <target name="examples">
+    <target name="examples" depends="build">
         <javac srcdir="${examples.dir}"
                destdir="${examples.build.dir}"
                debug="${java.debug}"
@@ -133,7 +133,7 @@
         </javac>
     </target>
 
-    <target name="build-test">
+    <target name="build-test" depends="build">
         <javac srcdir="${test.dir}"
                destdir="${test.build.dir}"
                debug="${java.debug}"

@@ -12,6 +12,12 @@ If your Java install location is different, this could lead to an error
 when running java.sh. In this case, you should modify java.sh to match
 your environment.
 
+Build options are :
+- ant build (only builds the jar necessary for an app to use)
+- ant test  (builds the jar and tests then runs the tests, requires JUNIT setup)
+- ant examples (builds the jar and example cases)
+- ant clean   (cleans all)
+
 
 wolfSSL JNI Release X.X.X (TBD)
 
@@ -26,6 +32,7 @@ Release X.X.X has bug fixes and new features including:
 - Add JNI wrapper for wolfSSL_get_ciphers_iana()
 - Update build.xml to use nativeheaderdir instead of javah target
 - Update tests to use junit-4.13-beta-2 / hamcrest-all-1.3
+- Update to build, now ant build does not build and run tests / examples
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
