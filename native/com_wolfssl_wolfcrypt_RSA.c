@@ -29,7 +29,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
    jintArray outSz, jobject keyDer, jlong keySz)
 {
     int     ret;
-    RNG     rng;
+    WC_RNG  rng;
     RsaKey  myKey;
     unsigned int idx;
     unsigned int tmpOut;
@@ -147,7 +147,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
 {
     int     ret;
     RsaKey  myKey;
-    RNG     rng;
+    WC_RNG  rng;
     unsigned int idx;
     unsigned int tmpOut;
 

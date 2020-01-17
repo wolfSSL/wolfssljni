@@ -86,7 +86,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
    jlongArray outSz, jobject keyDer, jlong keySz)
 {
     int     ret;
-    RNG     rng;
+    WC_RNG  rng;
     ecc_key myKey;
     unsigned int tmpOut;
     unsigned int idx = 0;

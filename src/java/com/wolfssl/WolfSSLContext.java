@@ -314,7 +314,7 @@ public class WolfSSLContext {
     private native long newContext(long method);
     private native int useCertificateFile(long ctx, String file, int format);
     private native int usePrivateKeyFile(long ctx, String file, int format);
-    private native int loadVerifyLocations(long ctx, String file, String path); 
+    private native int loadVerifyLocations(long ctx, String file, String path);
     private native int useCertificateChainFile(long ctx, String file);
     private native void freeContext(long ctx);
     private native void setVerify(long ctx, int mode, WolfSSLVerifyCallback vc);
@@ -662,7 +662,7 @@ public class WolfSSLContext {
 
         return getCertCacheMemsize(getContextPtr());
     }
-    
+
     /**
      * Cache size is set at compile time.This function returns the current cache
      * size which has been set at compile time.
@@ -676,10 +676,10 @@ public class WolfSSLContext {
     public long setCacheSize(long sz) throws IllegalStateException {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-        
+
         return setCacheSize(getContextPtr(), sz);
     }
-    
+
     /**
      * Gets the cache size is set at compile time.
      * This function returns the current cache size which has been set at compile
@@ -691,7 +691,7 @@ public class WolfSSLContext {
     public long getCacheSize() throws IllegalStateException {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
-        
+
         return getCacheSize(getContextPtr());
     }
 

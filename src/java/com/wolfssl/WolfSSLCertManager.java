@@ -36,8 +36,10 @@ public class WolfSSLCertManager {
     static native long CertManagerNew();
     static native void CertManagerFree(long cm);
     static native int CertManagerLoadCA(long cm, String f, String d);
-    static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz, int format);
-    static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz, int format);
+    static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz,
+                                              int format);
+    static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz,
+                                              int format);
 
     public WolfSSLCertManager() throws WolfSSLException {
         cmPtr = CertManagerNew();

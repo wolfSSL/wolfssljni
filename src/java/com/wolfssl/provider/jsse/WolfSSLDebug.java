@@ -75,7 +75,8 @@ public class WolfSSLDebug {
      */
     public static void log(Class cl, String tag, String string) {
         if (DEBUG) {
-            System.out.println("[wolfJSSE " + tag + " : " + cl.getSimpleName() + "] " + string);
+            System.out.println("[wolfJSSE " + tag + " : " +
+                               cl.getSimpleName() + "] " + string);
         }
     }
 }

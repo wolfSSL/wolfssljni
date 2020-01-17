@@ -62,10 +62,12 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 if (file == null) {
                     String home = System.getenv("JAVA_HOME");
                     if (home != null) {
-                        File f = new File(home.concat("lib/security/jssecacerts"));
+                        File f = new File(home.concat(
+                                            "lib/security/jssecacerts"));
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "Loading certs from " + home.concat("lib/security/jssecacerts"));
+                                    "Loading certs from " +
+                                    home.concat("lib/security/jssecacerts"));
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                         }
@@ -73,7 +75,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             f = new File(home.concat("lib/security/cacerts"));
                             if (f.exists()) {
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                        "Loading certs from " + home.concat("lib/security/cacerts"));
+                                        "Loading certs from " +
+                                        home.concat("lib/security/cacerts"));
                                 stream = new FileInputStream(f);
                                 certs.load(stream, passAr);
                             }
@@ -91,13 +94,21 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     certs.load(stream, passAr);
                 }
             } catch (FileNotFoundException ex) {
-                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(
+                        WolfSSLTrustManager.class.getName()).log(
+                            Level.SEVERE, null, ex);
             } catch (IOException ex) {
-                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(
+                        WolfSSLTrustManager.class.getName()).log(
+                            Level.SEVERE, null, ex);
             } catch (NoSuchAlgorithmException ex) {
-                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(
+                        WolfSSLTrustManager.class.getName()).log(
+                            Level.SEVERE, null, ex);
             } catch (CertificateException ex) {
-                Logger.getLogger(WolfSSLTrustManager.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(
+                        WolfSSLTrustManager.class.getName()).log(
+                            Level.SEVERE, null, ex);
             }
 
             if (stream != null) {
@@ -112,8 +123,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     }
 
     @Override
-    protected void engineInit(ManagerFactoryParameters arg0) throws InvalidAlgorithmParameterException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    protected void engineInit(ManagerFactoryParameters arg0)
+        throws InvalidAlgorithmParameterException {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override

@@ -480,9 +480,10 @@ public class WolfSSLServerSocketTest {
         serverFuture.get();
         ss.close();
 
-        /* fail case, incorrect root CA loaded to verify server cert */
+        /* fail case, incorrect root CA loaded to verify server cert.
+         * serverJKS doesn't verify serverJKS */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", tf.rsaJKS, ctxProvider),
+                tf.createTrustManager("SunX509", tf.serverJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
         ss = (SSLServerSocket)ctx.getServerSocketFactory()

@@ -77,7 +77,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
 
-    public WolfSSLImplementSSLSession (WolfSSLSession in, WolfSSLAuthStore params) {
+    public WolfSSLImplementSSLSession (WolfSSLSession in,
+                                       WolfSSLAuthStore params) {
         this.ssl = in;
         this.port = -1;
         this.host = null;
@@ -175,7 +176,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
          return binding.keySet().toArray(new String[binding.keySet().size()]);
     }
 
-    public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
+    public Certificate[] getPeerCertificates()
+            throws SSLPeerUnverifiedException {
         long x509;
         WolfSSLX509 cert;
 
@@ -186,7 +188,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
             return null;
         }
 
@@ -206,7 +210,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     @Override
-    public X509Certificate[] getPeerCertificateChain() throws SSLPeerUnverifiedException {
+    public X509Certificate[] getPeerCertificateChain()
+        throws SSLPeerUnverifiedException {
         WolfSSLX509X x509;
 
         if (ssl == null) {
@@ -218,7 +223,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             return new X509Certificate[]{ (X509Certificate)x509 };
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -234,7 +241,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             return x509.getSubjectDN();
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -265,7 +274,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         try {
             return this.ssl.cipherGetName();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -279,7 +290,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         try {
             return this.ssl.getVersion();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLImplementSSLSession.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -364,9 +377,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
         /* set during compile time with wolfSSL */
         @Override
-        public void setSessionCacheSize(int in) throws IllegalArgumentException {
-            throw new UnsupportedOperationException("Not supported. Cache size is"
-                    + " set at compile time with wolfSSL");
+        public void setSessionCacheSize(int in)
+            throws IllegalArgumentException {
+            throw new UnsupportedOperationException("Not supported. Cache size "
+                    + "is set at compile time with wolfSSL");
         }
 
         @Override

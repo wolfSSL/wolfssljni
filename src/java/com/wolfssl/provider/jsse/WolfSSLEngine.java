@@ -58,7 +58,9 @@ public class WolfSSLEngine extends SSLEngine {
 
     private boolean inBoundOpen = true;
     private boolean outBoundOpen = true;
-    private boolean closed = true; /* closed completely (post shutdown or before handshake) */
+
+    /* closed completely (post shutdown or before handshake) */
+    private boolean closed = true;
 
     static private SendCB sendCb = null;
     static private RecvCB recvCb = null;
@@ -71,8 +73,8 @@ public class WolfSSLEngine extends SSLEngine {
      * @param params connection parameters to be used
      * @throws WolfSSLException if there is an issue creating the engine
      */
-    protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
-            SSLParameters params)
+    protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLAuthStore auth, SSLParameters params)
             throws WolfSSLException {
         super();
         this.ctx = ctx;
@@ -81,7 +83,8 @@ public class WolfSSLEngine extends SSLEngine {
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE,
+                             null, ex);
             throw new WolfSSLException("Error with init");
         }
         EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -98,8 +101,9 @@ public class WolfSSLEngine extends SSLEngine {
      * @param port to connect to
      * @throws WolfSSLException if there is an issue creating the engine
      */
-    protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx, WolfSSLAuthStore auth,
-            SSLParameters params, String host, int port) throws WolfSSLException {
+    protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
+            WolfSSLAuthStore auth, SSLParameters params, String host,
+            int port) throws WolfSSLException {
         super();
         this.ctx = ctx;
         this.authStore = auth;
@@ -107,7 +111,8 @@ public class WolfSSLEngine extends SSLEngine {
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE,
+                             null, ex);
             throw new WolfSSLException("Error with init");
         }
         EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
@@ -229,7 +234,8 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException("bad arguments");
         }
 
-        /* check if left over data to be wrapped (pro can be negative on error) */
+        /* check if left over data to be wrapped
+         * (pro can be negative on error) */
         pro = CopyOutPacket(out, status);
 
         /* check if closing down connection */
@@ -269,7 +275,8 @@ public class WolfSSLEngine extends SSLEngine {
                     }
                 }
 
-                /* if the handshake is not done then reset input buffer postions */
+                /* if the handshake is not done then reset input
+                 * buffer postions */
                 if (!ssl.handshakeDone()) {
                     idx = 0;
                     for (i = ofst; i < ofst + len; i++) {
@@ -297,8 +304,8 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out, int ofst,
-            int length) throws SSLException {
+    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
+            int ofst, int length) throws SSLException {
         int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
         byte[] tmp;
         Status status;
@@ -318,7 +325,8 @@ public class WolfSSLEngine extends SSLEngine {
 
         for (i = 0; i < length; i++) {
             if (out[i + ofst] == null || out[i + ofst].isReadOnly()) {
-                throw new IllegalArgumentException("null or readonly out buffer found");
+                throw new IllegalArgumentException(
+                        "null or readonly out buffer found");
             }
             max += out[i + ofst].remaining();
         }
@@ -326,7 +334,8 @@ public class WolfSSLEngine extends SSLEngine {
         sz = cns = in.remaining();
         pos = in.position();
         if (sz > 0) {
-            /* add new encrypted input to the read buffer for wolfSSL_read call */
+            /* add new encrypted input to the read buffer for
+             * wolfSSL_read call */
             tmp = new byte[sz];
             in.get(tmp);
             addToRead(tmp);
@@ -342,12 +351,6 @@ public class WolfSSLEngine extends SSLEngine {
             ret = this.ssl.read(tmp, max);
             if (ret <= 0) {
                 int err = ssl.getError(ret);
-    //
-    //            if (ssl.handshakeDone()) {
-    //                in.position(pos); /* no data was consumed from buffer */
-    //                cns = 0;
-    //                System.out.println("reset positiong to " + pos + "remaning now is " + in.remaining());
-    //            }
 
                 switch (err) {
                     case WolfSSL.SSL_ERROR_WANT_READ:
@@ -590,7 +593,8 @@ public class WolfSSLEngine extends SSLEngine {
 
         }
 
-        public int sendCallback(WolfSSLSession ssl, byte[] toSend, int sz, Object engine) {
+        public int sendCallback(WolfSSLSession ssl, byte[] toSend, int sz,
+                                Object engine) {
             return ((WolfSSLEngine)engine).setOut(toSend, sz);
         }
 
@@ -602,7 +606,8 @@ public class WolfSSLEngine extends SSLEngine {
 
         }
 
-        public int receiveCallback(WolfSSLSession ssl, byte[] out, int sz, Object engine) {
+        public int receiveCallback(WolfSSLSession ssl, byte[] out, int sz,
+                                   Object engine) {
             return ((WolfSSLEngine)engine).setIn(out, sz);
         }
 

@@ -831,8 +831,7 @@ public class WolfSSL {
 
         return suiteArray;
     }
-    
-    
+
     /**
      * Gets a list of all cipher suites supported and uses the format TLS_*
      * @return list of all cipher suites supported
@@ -898,7 +897,7 @@ public class WolfSSL {
      * @return 1 if enabled, 0 if not compiled in
      */
     public static native int isEnabledPKCallbacks();
-    
+
     /**
      * Checks which protocols where built into wolfSSL
      *

@@ -65,10 +65,13 @@ public class WolfSSLContext extends SSLContextSpi {
         long method;
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
 
-        ctxAttr = ctxAttr.GetCtxAttributes(this.currentVersion, WolfSSL.getCiphersIana());
+        ctxAttr = ctxAttr.GetCtxAttributes(this.currentVersion,
+                                           WolfSSL.getCiphersIana());
 
-        if(ctxAttr.version == TLS_VERSION.TLSv1   || ctxAttr.version == TLS_VERSION.TLSv1_1 ||
-           ctxAttr.version == TLS_VERSION.TLSv1_2 || ctxAttr.version == TLS_VERSION.TLSv1_3 ||
+        if(ctxAttr.version == TLS_VERSION.TLSv1   ||
+           ctxAttr.version == TLS_VERSION.TLSv1_1 ||
+           ctxAttr.version == TLS_VERSION.TLSv1_2 ||
+           ctxAttr.version == TLS_VERSION.TLSv1_3 ||
            ctxAttr.version == TLS_VERSION.SSLv23) {
             this.currentVersion = ctxAttr.version;
         } else {
@@ -224,7 +227,8 @@ public class WolfSSLContext extends SSLContextSpi {
                     "buffer, err = " + ret);
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded private key from KeyManager (alias: " + alias + ")");
+                    "loaded private key from KeyManager (alias: " + alias +
+                    ")");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "no private key found, skipped loading");
