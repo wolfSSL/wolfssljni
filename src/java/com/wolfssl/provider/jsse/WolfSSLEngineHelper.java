@@ -217,10 +217,11 @@ public class WolfSSLEngineHelper {
         return this.sessionCreation;
     }
 
-    /*********** Calls to transfer over parameter to wolfSSL before connection */
+    /********** Calls to transfer over parameter to wolfSSL before connection */
 
     /*transfer over cipher suites right before establishing a connection */
-    private void setLocalCiphers(String[] suites) throws IllegalArgumentException {
+    private void setLocalCiphers(String[] suites)
+            throws IllegalArgumentException {
         try {
             String list;
             StringBuilder sb = new StringBuilder();
@@ -411,8 +412,8 @@ public class WolfSSLEngineHelper {
     }
 
     /**
-     * Creates a new SSLPArameters class with the same settings as the one passed
-     * in.
+     * Creates a new SSLPArameters class with the same settings as the one
+     * passed in.
      *
      * @param in SSLParameters settings to copy
      * @return new parameters object holding same settings as "in"
@@ -433,7 +434,8 @@ public class WolfSSLEngineHelper {
         ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
         ret.setApplicationProtocols(in.getApplicationProtocols());
         ret.setEnableRetransmissions(in.getEnableRetransmissions());
-        ret.setEndpointIdentificationAlgorithm(in.getEndpointIdentificationAlgorithm());
+        ret.setEndpointIdentificationAlgorithm(
+            in.getEndpointIdentificationAlgorithm());
         ret.setMaximumPacketSize(in.getMaximumPacketSize());
         ret.setSNIMatchers(in.getSNIMatchers());
         ret.setServerNames(in.getServerNames());

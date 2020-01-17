@@ -58,7 +58,7 @@ public class WolfSSLSession {
     /* user-registered PSK callbacks, also at WolfSSLContext level */
     private WolfSSLPskClientCallback internPskClientCb = null;
     private WolfSSLPskServerCallback internPskServerCb = null;
-    
+
     /* user-registerd I/O callbacks, called by internal WolfSSLSession
      * I/O callback. This is done in order to pass references to
      * WolfSSLSession object */
@@ -794,13 +794,13 @@ public class WolfSSLSession {
 
         return this.getAssociatedContextPtr().getCacheSize();
     }
-    
+
     /**
      * Sets the timeout in seconds in the given WOLFSSL_SESSION.
      *
      * @param t time in seconds to set
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.
      * @see         #setSession(long)
      * @see         #getSession(long)
      */
@@ -811,7 +811,7 @@ public class WolfSSLSession {
 
         return setSessTimeout(this.getSession(), t);
     }
-    
+
     /**
      * Gets the timeout in seconds in the given WOLFSSL_SESSION.
      *
@@ -827,13 +827,13 @@ public class WolfSSLSession {
 
         return getSessTimeout(this.getSession());
     }
-    
+
     /**
      * Sets the timeout in seconds in the given SSL object.
      *
      * @param t time in seconds to set
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return WOLFSSL_SUCCESS on success, negative values on failure.  
+     * @return WOLFSSL_SUCCESS on success, negative values on failure.
      * @see         #setSession(long)
      * @see         #getSession(long)
      */
@@ -844,7 +844,7 @@ public class WolfSSLSession {
 
         return setTimeout(getSessionPtr(), t);
     }
-    
+
     /**
      * Gets the timeout in seconds in the given SSL object.
      *
@@ -2246,7 +2246,7 @@ public class WolfSSLSession {
 
         return usePskIdentityHint(getSessionPtr(), hint);
     }
-    
+
     /**
      * Used to determine if the handshake has been completed.
      *
@@ -2269,7 +2269,7 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
         setConnectState(getSessionPtr());
     }
-    
+
     /**
      * Sets the WOLFSSL to be a server
      *
@@ -2280,7 +2280,7 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
         setAcceptState(getSessionPtr());
     }
-    
+
     /**
      * Sets the verification method for remote peers and also allows a
      * verify callback to be registered with the SSL session.
@@ -2325,7 +2325,8 @@ public class WolfSSLSession {
     }
 
     /**
-     * Sets the options to use for the WOLFSSL structure.Example options are WolfSSL.SSL_OP_NO_SSLv3
+     * Sets the options to use for the WOLFSSL structure.
+     * Example options are WolfSSL.SSL_OP_NO_SSLv3
      *
      *
      * @param op      bit mask of options to set
@@ -2340,7 +2341,7 @@ public class WolfSSLSession {
 
         return setOptions(getSessionPtr(), op);
     }
-    
+
     /**
      * Registers a receive callback for wolfSSL to get input data.
      * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
@@ -2405,7 +2406,7 @@ public class WolfSSLSession {
         /* register internal callback with native library */
         setSSLIOSend(getSessionPtr());
     }
-    
+
     /**
      * Getter function to tell if shutdown has been sent or received
      * @return WolfSSL.SSL_SENT_SHUTDOWN or WolfSSL.SSL_RECEIVED_SHUTDOWN
@@ -2413,9 +2414,10 @@ public class WolfSSLSession {
     public int getShutdown() {
         return getShutdown(getSessionPtr());
     }
-    
+
         /* this will be registered with native wolfSSL library */
-    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf,
+                                          int sz)
     {
         int ret;
 
@@ -2426,7 +2428,8 @@ public class WolfSSLSession {
         return ret;
     }
 
-    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf, int sz)
+    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf,
+                                          int sz)
     {
         int ret;
 
@@ -2436,7 +2439,7 @@ public class WolfSSLSession {
 
         return ret;
     }
-    
+
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable

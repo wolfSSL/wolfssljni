@@ -75,12 +75,14 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
     @Override
-    public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
+    public void checkValidity()
+        throws CertificateExpiredException, CertificateNotYetValidException {
         this.checkValidity(new Date());
     }
 
     @Override
-    public void checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException {
+    public void checkValidity(Date date)
+        throws CertificateExpiredException, CertificateNotYetValidException {
         Date after = this.cert.notAfter();
         Date before = this.cert.notBefore();
 
@@ -186,7 +188,9 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
     @Override
-    public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+    public void verify(PublicKey key)
+        throws CertificateException, NoSuchAlgorithmException,
+               InvalidKeyException, SignatureException {
         byte[] pubKey;
         boolean ret;
 
@@ -202,7 +206,10 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
     @Override
-    public void verify(PublicKey key, String sigProvider) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException {
+    public void verify(PublicKey key, String sigProvider)
+        throws CertificateException, NoSuchAlgorithmException,
+               InvalidKeyException, NoSuchProviderException,
+               SignatureException {
         Signature sig;
         String sigOID;
         byte[] sigBuf;
@@ -227,7 +234,9 @@ public class WolfSSLX509 extends X509Certificate {
 
     /* This method was added in Android API level 24 */
     /* @Override */
-    public void verify(PublicKey key, Provider p) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+    public void verify(PublicKey key, Provider p)
+            throws CertificateException, NoSuchAlgorithmException,
+                   InvalidKeyException, SignatureException {
         Signature sig;
         String sigOID;
         byte[] sigBuf;
@@ -355,7 +364,8 @@ public class WolfSSLX509 extends X509Certificate {
          * @param curveOID can be null in RSA case
          * @throws WolfSSLException
          */
-        private WolfSSLPubKey(byte[] der, String type, String format) throws WolfSSLException {
+        private WolfSSLPubKey(byte[] der, String type, String format)
+                throws WolfSSLException {
             this.format = format;
             this.encoding = der;
             if (this.encoding == null) {
@@ -387,7 +397,8 @@ public class WolfSSLX509 extends X509Certificate {
         private String[] DNs = { "/emailAddress=", "/CN=", "/OU=",
                 "/O=", "/L=", "/ST=", "/C="};
 
-        /* replace the wolfSSL version of the tag. Returns replacement on success. */
+        /* replace the wolfSSL version of the tag. Returns replacement
+         * on success. */
         private String getReplace(String in) {
             if (in.equals("/emailAddress=")) {
                 return "EMAILADDRESS=";
@@ -438,7 +449,8 @@ public class WolfSSLX509 extends X509Certificate {
                 for (i = tmp.length() - 3; i >= 0; i--) {
                     if ((j = containsDN(in.substring(i))) >= 0) {
                         String current = tmp.substring(i, tmp.length());
-                        current = current.replaceAll(DNs[j], getReplace(DNs[j]));
+                        current = current.replaceAll(DNs[j],
+                                                     getReplace(DNs[j]));
                         list.add(current);
                         tmp = tmp.substring(0, i);
                         break;

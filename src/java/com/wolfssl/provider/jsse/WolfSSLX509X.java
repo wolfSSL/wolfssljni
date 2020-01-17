@@ -34,7 +34,8 @@ import javax.security.cert.*;
 import com.wolfssl.WolfSSLException;
 
 /**
- * javax version of certificates. Depreciated, WolfSSLX509 should be used instead
+ * javax version of certificates. Depreciated, WolfSSLX509 should be
+ * used instead
  *
  * @author wolfSSL
  */
@@ -55,7 +56,8 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
     @Override
-    public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
+    public void checkValidity()
+        throws CertificateExpiredException, CertificateNotYetValidException {
         try {
             this.cert.checkValidity();
         } catch (java.security.cert.CertificateExpiredException ex) {
@@ -66,7 +68,8 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
     @Override
-    public void checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException {
+    public void checkValidity(Date date)
+        throws CertificateExpiredException, CertificateNotYetValidException {
         try {
             this.cert.checkValidity(date);
         } catch (java.security.cert.CertificateExpiredException ex) {
@@ -134,7 +137,10 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
     @Override
-    public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException {
+    public void verify(PublicKey key)
+        throws CertificateException, NoSuchAlgorithmException,
+               InvalidKeyException, NoSuchProviderException,
+               SignatureException {
         try {
             this.cert.verify(key);
         } catch (java.security.cert.CertificateException ex) {
@@ -143,7 +149,10 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
     @Override
-    public void verify(PublicKey key, String provider) throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException {
+    public void verify(PublicKey key, String provider)
+        throws CertificateException, NoSuchAlgorithmException,
+               InvalidKeyException, NoSuchProviderException,
+               SignatureException {
         try {
             this.cert.verify(key, provider);
         } catch (java.security.cert.CertificateException ex) {

@@ -63,7 +63,8 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         try {
             aliases = this.store.aliases();
         } catch (KeyStoreException ex) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR, "getting alias error");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                             "getting alias error");
             return null;
         }
 
@@ -73,11 +74,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
             try {
                 cert = (X509Certificate)this.store.getCertificate(current);
             } catch (KeyStoreException ex) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR, "checking alias error");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                 "checking alias error");
                 continue;
             }
 
-            if (type != null && !cert.getPublicKey().getAlgorithm().equals(type)) {
+            if (type != null &&
+                !cert.getPublicKey().getAlgorithm().equals(type)) {
                 /* different public key type */
                 continue;
             }
@@ -105,7 +108,8 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return getAliases(type, issuers);
     }
 
-    public String chooseClientAlias(String[] type, Principal[] issuers, Socket sock) {
+    public String chooseClientAlias(String[] type, Principal[] issuers,
+                                    Socket sock) {
         int i;
 
         if (type == null) {
@@ -130,7 +134,8 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return getAliases(type, issuers);
     }
 
-    public String chooseServerAlias(String type, Principal[] issuers, Socket sock) {
+    public String chooseServerAlias(String type, Principal[] issuers,
+                                    Socket sock) {
         /* for now using same behavior ad choose client alias */
         return chooseClientAlias(new String[]{ type }, issuers, sock);
     }
@@ -149,7 +154,8 @@ public class WolfSSLKeyX509 implements X509KeyManager{
             if (certs != null) {
                 int i;
 
-                /* @TODO this conversion from Certificate to WolfX509X adds overhead */
+                /* @TODO this conversion from Certificate to WolfX509X
+                 * adds overhead */
                 ret = new X509Certificate[certs.length];
                 for (i = 0; i < certs.length; i++) {
                     ret[i] = new WolfSSLX509(certs[i].getEncoded());

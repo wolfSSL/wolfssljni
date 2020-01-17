@@ -300,7 +300,6 @@ public class WolfSSLAuthStore {
         private final int maxSz;
 
         /**
-         * 
          * @param in max size of hash map before oldest entry is overwritten
          */
         protected SessionStore(int in) {

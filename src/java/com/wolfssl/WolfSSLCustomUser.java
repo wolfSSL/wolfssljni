@@ -24,8 +24,8 @@ package com.wolfssl.provider.jsse;
 import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
- * Base class is intended to give some customizing points. Currently it is limited
- * to be invoked from WolfSSLContext.Create
+ * Base class is intended to give some customizing points.
+ * Currently it is limited to be invoked from WolfSSLContext.Create
  *
  * @author  wolfSSL
  * @version 1.0, August 2013
@@ -37,23 +37,24 @@ public class WolfSSLCustomUser {
     /**
      * Set callback for Context attributes, TLS protocol and Cipher list
      *
-     *      WARNING: inappropriate code or use of this callback may cause serious security issue.
+     *      WARNING: inappropriate code or use of this callback may cause
+     *               serious security issue.
      *
-     * @param version      default version of TLS for refernce.
-     * @param list         default cipher list for refernce.
-     * @return             version: TLS protocol version to the context. The value has
-     *                             to be one compiled in.
-     *                     list:   Cipher list allowed to the context. list has to contain subset of 
-     *                             default cipher list. If it is null, default list is applied.
-     * 
+     * @param version default version of TLS for refernce.
+     * @param list    default cipher list for refernce.
+     * @return        version: TLS protocol version to the context. The value
+     *                         has to be one compiled in.
+     *                list: Cipher list allowed to the context. list has to
+     *                      contain subset of default cipher list. If it is
+     *                      null, default list is applied.
      */
-
-    public static WolfSSLCustomUser GetCtxAttributes(TLS_VERSION version, String[] list) {
+    public static WolfSSLCustomUser GetCtxAttributes(TLS_VERSION version,
+                                                     String[] list) {
 
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();
 
-        /*** 
-            custom code 
+        /***
+         custom code
         ***/
 
         ctxAttr.version = version;
