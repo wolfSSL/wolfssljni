@@ -351,13 +351,6 @@ public class WolfSSLEngine extends SSLEngine {
             ret = this.ssl.read(tmp, max);
             if (ret <= 0) {
                 int err = ssl.getError(ret);
-    //
-    //            if (ssl.handshakeDone()) {
-    //                in.position(pos); /* no data was consumed from buffer */
-    //                cns = 0;
-    //                System.out.println("reset positiong to " + pos +
-    //                                   "remaning now is " + in.remaining());
-    //            }
 
                 switch (err) {
                     case WolfSSL.SSL_ERROR_WANT_READ:
