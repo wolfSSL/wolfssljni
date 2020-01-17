@@ -1,6 +1,6 @@
 /* ThreadedSSLSocketClientServer.java
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -145,9 +145,9 @@ public class ThreadedSSLSocketClientServer
         Security.addProvider(new WolfSSLProvider());
 
         String serverKS = "./examples/provider/server.jks";
-        String serverTS = "./examples/provider/server.jks";
+        String serverTS = "./examples/provider/client.jks";
         String clientKS = "./examples/provider/client.jks";
-        String clientTS = "./examples/provider/cacerts.jks";
+        String clientTS = "./examples/provider/client.jks";
         String pass = "wolfSSL test";
 
         ServerThread server = new ServerThread(
