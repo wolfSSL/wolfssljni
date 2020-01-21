@@ -443,6 +443,10 @@ public class WolfSSLX509 extends X509Certificate {
             String tmp = in;
             ArrayList<String> list = new ArrayList<String>();
 
+            if (in == NULL) {
+                return null;
+            }
+
             ret = in.split("/");
 
             while (tmp.length() > 3) {
