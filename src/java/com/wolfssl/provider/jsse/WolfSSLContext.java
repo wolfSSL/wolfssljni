@@ -142,6 +142,11 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         X509Certificate[] caList =  tm.getAcceptedIssuers();
+        if (caList == null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "internal TrustManager has no accepted issuers to load");
+            return;
+        }
 
         for (int i = 0; i < caList.length; i++) {
 
