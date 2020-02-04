@@ -38,6 +38,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.SSLParameters;
 import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
@@ -270,8 +271,126 @@ public class WolfSSLContextTest {
                 /* expected */
             }
         }
-
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testGetSupportedSSLParameters() throws NoSuchProviderException,
+        NoSuchAlgorithmException, IllegalStateException,
+        KeyManagementException {
+
+        System.out.print("\tgetSupportedSSLParameters()");
+
+        SSLContext ctx = null;
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            try {
+                ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                        ctxProvider);
+                ctx.init(null, null, null);
+            } catch (Exception e) {
+                System.out.println("\t\t... failed");
+                fail("Failed to init SSLContext");
+                return;
+            }
+
+            /* test for UnsupportedOperationException */
+            try {
+                SSLParameters params = ctx.getSupportedSSLParameters();
+                if (params == null) {
+                    System.out.println("\t... failed");
+                    fail("Failed to valid supported SSLParameters");
+                }
+
+                /* make sure protocol list is not null */
+                String[] protocols = params.getProtocols();
+                if (protocols == null || protocols.length == 0) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getProtocols() returned null");
+                }
+
+                /* make sure cipher suite list is not null */
+                String[] ciphers = params.getCipherSuites();
+                if (ciphers == null || ciphers.length == 0) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getCipherSuites() returned null");
+                }
+
+            } catch (UnsupportedOperationException e) {
+                System.out.println("\t... failed");
+                fail("UnsupportedOperationException thrown but not expected");
+            }
+        }
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testGetDefaultSSLParameters() throws NoSuchProviderException,
+        NoSuchAlgorithmException, IllegalStateException,
+        KeyManagementException {
+
+        System.out.print("\tgetDefaultSSLParameters()");
+
+        SSLContext ctx = null;
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            try {
+                ctx = SSLContext.getInstance(enabledProtocols.get(i),
+                        ctxProvider);
+                ctx.init(null, null, null);
+            } catch (Exception e) {
+                System.out.println("\t\t... failed");
+                fail("Failed to init SSLContext");
+                return;
+            }
+
+            /* test for UnsupportedOperationException */
+            try {
+                SSLParameters params = ctx.getDefaultSSLParameters();
+                if (params == null) {
+                    System.out.println("\t... failed");
+                    fail("Failed to valid default SSLParameters");
+                }
+
+                /* make sure protocol list is not null */
+                String[] protocols = params.getProtocols();
+                if (protocols == null || protocols.length == 0) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getProtocols() returned null");
+                }
+
+                /* make sure cipher suite list is not null */
+                String[] ciphers = params.getCipherSuites();
+                if (ciphers == null || ciphers.length == 0) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getCipherSuites() returned null");
+                }
+
+                /* needClientAuth should default to false */
+                boolean needClientAuth = params.getNeedClientAuth();
+                if (needClientAuth == true) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getNeedClientAuth() should default " +
+                         "to false");
+                }
+
+                /* wantClientAuth should default to false */
+                boolean wantClientAuth = params.getWantClientAuth();
+                if (wantClientAuth == true) {
+                    System.out.println("\t... failed");
+                    fail("SSLParameters.getWantClientAuth() should default " +
+                         "to false");
+                }
+
+            } catch (UnsupportedOperationException e) {
+                System.out.println("\t... failed");
+                fail("UnsupportedOperationException thrown but not expected");
+            }
+        }
+
+        System.out.println("\t... passed");
     }
 }
 
