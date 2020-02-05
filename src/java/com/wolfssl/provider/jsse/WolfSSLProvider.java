@@ -23,6 +23,7 @@ package com.wolfssl.provider.jsse;
 
 import java.security.Provider;
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLException;
 
 /**
  * wolfSSL JSSE Provider implementation
@@ -38,6 +39,14 @@ public final class WolfSSLProvider extends Provider {
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();
+
+        try {
+            /* initialize native wolfSSL */
+            WolfSSL sslLib = new WolfSSL();
+        } catch (WolfSSLException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Failed to initialize native wolfSSL library");
+        }
 
         /* Key Factory */
         put("KeyManagerFactory.X509",
