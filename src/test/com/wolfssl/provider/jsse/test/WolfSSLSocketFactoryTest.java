@@ -149,6 +149,29 @@ public class WolfSSLSocketFactoryTest {
             SSLSocketFactory sf = ctx.getSocketFactory();
             sockFactories.add(sf);
         }
+
+        /* add default SSLSocketFactory to tests */
+        SSLSocketFactory sfDefault =
+            new com.wolfssl.provider.jsse.WolfSSLSocketFactory();
+        sockFactories.add(sfDefault);
+    }
+
+    @Test
+    public void testUseDefaultSSLSocketFactory()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        /* CHRIS */
+        System.out.print("\tgetDefault()");
+
+        SSLSocketFactory sf =
+            new com.wolfssl.provider.jsse.WolfSSLSocketFactory();
+
+        if (sf == null) {
+            System.out.println("\t\t\t... failed");
+            fail("SSLSocketFactory.getDefault() failed");
+        }
+
+        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -293,6 +316,7 @@ public class WolfSSLSocketFactoryTest {
             }
             catch (Exception e) {
                 System.out.println("\t\t\t... failed");
+                throw e;
             }
 
             /* bad arguments */
