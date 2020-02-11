@@ -79,13 +79,15 @@ public class WolfSSLCertificate {
             stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate", ex);
         }
 
 
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
         }
         this.active = true;
     }
