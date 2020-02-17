@@ -26,16 +26,22 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLCertificate;
+import com.wolfssl.WolfSSLException;
 
 /**
  * wolfSSL implemenation of TrustManagerFactorySpi
@@ -54,6 +60,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             char passAr[] = null;
             InputStream stream = null;
             boolean systemCertsFound = false;
+            int aliasCnt = 0;
 
             try {
                 if (pass != null) {
@@ -96,12 +103,58 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             stream.close();
                             systemCertsFound = true;
                         }
+                    }
 
-                        if (systemCertsFound == false) {
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "No trusted system certs found, " +
-                                    "using Anonymous cipher suite");
+                    /* ANDROID, detect based on ANDROID_ROOT */
+                    home = System.getenv("ANDROID_ROOT");
+                    if (home != null) {
+                        /* try: "/system/security/cacerts/*"
+                         * this is a directory of individual PEM files */
+
+                        if (!home.endsWith("/") && !home.endsWith("\\")) {
+                            /* add trailing slash if not there already */
+                            home = home.concat("/");
                         }
+
+                        File cadir =
+                            new File(home.concat("etc/security/cacerts"));
+                        String[] cafiles = cadir.list();
+
+                        /* get factory for cert creation */
+                        CertificateFactory cfactory =
+                            CertificateFactory.getInstance("X.509");
+
+                        /* loop over all PEM certs */
+                        for (String cafile : cafiles) {
+
+                            WolfSSLCertificate certPem;
+                            try {
+                                certPem = new WolfSSLCertificate(
+                                    cafile, WolfSSL.SSL_FILETYPE_PEM);
+                            } catch (WolfSSLException we) {
+                                /* skip, error parsing PEM */
+                                continue;
+                            }
+
+                            /* convert DER arry to Certificate */
+                            Certificate tmpCert =
+                                cfactory.generateCertificate(
+                                        new ByteArrayInputStream(
+                                                certPem.getDer()));
+
+                            /* import into KeyStore */
+                            certs.setCertificateEntry(
+                                "alias"+aliasCnt, tmpCert);
+
+                            /* increment alias counter for unique aliases */
+                            aliasCnt++;
+                        }
+                    }
+
+                    if (systemCertsFound == false) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "No trusted system certs found, " +
+                                "using Anonymous cipher suite");
                     }
                 }
                 else {
