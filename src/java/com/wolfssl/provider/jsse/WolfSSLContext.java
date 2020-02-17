@@ -141,6 +141,9 @@ public class WolfSSLContext extends SSLContextSpi {
             return;
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Using X509TrustManager: " + tm.toString());
+
         X509Certificate[] caList =  tm.getAcceptedIssuers();
         if (caList == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,

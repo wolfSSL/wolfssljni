@@ -129,8 +129,13 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
     @Override
     public X509Certificate[] getAcceptedIssuers() {
-        if (CAs != null)
+        if (CAs != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "accepted issuer array size = " + CAs.size());
             return CAs.toArray(new X509Certificate[CAs.size()]);
+        }
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "accepted issuer array is null");
         return null;
     }
 }
