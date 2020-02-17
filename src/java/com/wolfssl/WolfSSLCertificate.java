@@ -43,6 +43,7 @@ public class WolfSSLCertificate {
     private long x509Ptr = 0;
 
     static native long d2i_X509(byte[] der, int len);
+    static native byte[] certPemToDer(byte[] pem, int len);
     static native byte[] X509_get_der(long x509);
     static native byte[] X509_get_tbs(long x509);
     static native void X509_free(long x509);
@@ -68,7 +69,38 @@ public class WolfSSLCertificate {
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
+        }
+        this.active = true;
+    }
+
+    public WolfSSLCertificate(byte[] in, int format) throws WolfSSLException {
+        byte[] input = in;
+
+        if (in == null || in.length == 0) {
+            throw new WolfSSLException(
+                "Input array must not be null or zero length");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        if (format == WolfSSL.SSL_FILETYPE_PEM) {
+            /* convert PEM to DER */
+            input = certPemToDer(in, in.length);
+            if (input == null) {
+                throw new WolfSSLException("Failed to convert PEM to DER");
+            }
+        }
+
+        /* create from DER array */
+        x509Ptr = d2i_X509(input, input.length);
+        if (x509Ptr == 0) {
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
         this.active = true;
     }
@@ -88,6 +120,51 @@ public class WolfSSLCertificate {
                 "Failed to create WolfSSLCertificate", ex);
         }
 
+        x509Ptr = d2i_X509(der, der.length);
+        if (x509Ptr == 0) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
+        }
+        this.active = true;
+    }
+
+    public WolfSSLCertificate(String fileName, int format)
+        throws WolfSSLException {
+        InputStream stream = null;
+        byte[] bytes = null;
+        byte[] der = null;
+
+        if (fileName == null) {
+            throw new WolfSSLException("Input file must not be null");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        File f = new File(fileName);
+        try {
+            bytes = new byte[(int) f.length()];
+            stream = new FileInputStream(f);
+            stream.read(bytes, 0, bytes.length);
+            stream.close();
+        } catch (IOException ex) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate", ex);
+        }
+
+        if (format == WolfSSL.SSL_FILETYPE_PEM) {
+            /* convert PEM to DER */
+            der = certPemToDer(bytes, bytes.length);
+            if (der == null) {
+                throw new WolfSSLException("Failed to convert PEM to DER");
+            }
+        } else {
+            der = bytes;
+        }
 
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
