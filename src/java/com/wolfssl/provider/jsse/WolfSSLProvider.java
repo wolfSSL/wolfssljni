@@ -77,6 +77,8 @@ public final class WolfSSLProvider extends Provider {
                 "com.wolfssl.provider.jsse.WolfSSLContext$DEFAULT_Context");
 
         /* Trust Factory */
+        put("TrustManagerFactory.PKIX",
+                "com.wolfssl.provider.jsse.WolfSSLTrustManager");
         put("TrustManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
         put("TrustManagerFactory.SunX509",
