@@ -21,12 +21,18 @@
 package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
+import com.wolfssl.WolfSSLCertificate;
+import com.wolfssl.WolfSSLX509StoreCtx;
 import java.util.Arrays;
 import java.util.List;
+import java.security.cert.X509Certificate;
+import java.security.cert.CertificateException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
 
 /**
@@ -314,7 +320,17 @@ public class WolfSSLEngineHelper {
                     WolfSSL.SSL_VERIFY_FAIL_IF_NO_PEER_CERT);
         }
 
-        this.ssl.setVerify(mask, null);
+        X509TrustManager tm = authStore.getX509TrustManager();
+        if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
+            /* use internal peer verification logic */
+            this.ssl.setVerify(mask, null);
+
+        } else {
+            /* not our own TrustManager, set up callback so JSSE can use
+             * TrustManager.checkClientTrusted/checkServerTrusted() */
+            this.ssl.setVerify(WolfSSL.SSL_VERIFY_PEER,
+                               new WolfSSLInternalVerifyCb());
+        }
     }
 
     private void setLocalParams() {
@@ -443,5 +459,81 @@ public class WolfSSLEngineHelper {
         */
 
         return ret;
+    }
+
+    /* Internal verify callback. This is used when a user registers a
+     * TrustManager which is NOT com.wolfssl.provider.jsse.WolfSSLTrustManager
+     * and is used to call TrustManager checkClientTrusted() or
+     * checkServerTrusted(). If wolfJSSE TrustManager is used, native wolfSSL
+     * does certificate verification internally. */
+    public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
+        public int verifyCallback(int preverify_ok, long x509StorePtr) {
+
+            X509TrustManager tm = authStore.getX509TrustManager();
+            WolfSSLCertificate[] certs = null;
+            X509Certificate[] x509certs = null;
+            String authType = null;
+
+            if (preverify_ok == 1) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Native wolfSSL peer verification passed");
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "WARNING: Native wolfSSL peer verification failed!");
+            }
+
+            try {
+                /* get WolfSSLCertificate[] from x509StorePtr */
+                WolfSSLX509StoreCtx store =
+                    new WolfSSLX509StoreCtx(x509StorePtr);
+                certs = store.getCerts();
+
+            } catch (WolfSSLException e) {
+                /* failed to get certs from native, give app null array */
+                certs = null;
+            }
+
+            if (certs != null && certs.length > 0) {
+                try {
+                    /* Convert WolfSSLCertificate[] to X509Certificate[] */
+                    x509certs = new X509Certificate[certs.length];
+                    for (int i = 0; i < certs.length; i++) {
+                        x509certs[i] = certs[i].getX509Certificate();
+                    }
+                } catch (CertificateException ce) {
+                    /* failed to get cert array, give app null array */
+                    x509certs = null;
+                }
+
+                /* get authType, use first cert */
+                String sigType = certs[0].getSignatureType();
+                if (sigType.contains("RSA")) {
+                    authType = "RSA";
+                } else if (sigType.contains("ECDSA")) {
+                    authType = "ECDSA";
+                } else if (sigType.contains("DSA")) {
+                    authType = "DSA";
+                } else if (sigType.contains("ED25519")) {
+                    authType = "ED25519";
+                }
+            }
+
+
+            try {
+                /* poll TrustManager for cert verification, should throw
+                 * CertificateException if verification fails */
+                if (clientMode) {
+                    tm.checkServerTrusted(x509certs, authType);
+                } else {
+                    tm.checkClientTrusted(x509certs, authType);
+                }
+            } catch (Exception e) {
+                /* TrustManager rejected certificate, not valid */
+                return 0;
+            }
+
+            /* continue handshake, verification succeeded */
+            return 1;
+        }
     }
 }

@@ -160,7 +160,6 @@ public class WolfSSLSocketFactoryTest {
     public void testUseDefaultSSLSocketFactory()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        /* CHRIS */
         System.out.print("\tgetDefault()");
 
         SSLSocketFactory sf =

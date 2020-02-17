@@ -42,12 +42,17 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import java.security.KeyStore;
 import java.security.Security;
 import java.security.Provider;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.security.cert.CertificateException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
@@ -62,6 +67,7 @@ public class WolfSSLServerSocketTest {
     private final static String ctxProvider = "wolfJSSE";
     private static WolfSSLTestFactory tf;
     private SSLContext ctx = null;
+    private static KeyManagerFactory km;
 
     private static String allProtocols[] = {
         "TLSv1",
@@ -83,7 +89,6 @@ public class WolfSSLServerSocketTest {
         KeyManagementException, Exception {
 
         SSLContext ctx;
-        KeyManagerFactory km;
         TrustManagerFactory tm;
         KeyStore pKey, cert;
 
@@ -117,7 +122,7 @@ public class WolfSSLServerSocketTest {
 
         try {
             /* set up KeyStore */
-                InputStream stream = new FileInputStream(tf.serverJKS);
+            InputStream stream = new FileInputStream(tf.serverJKS);
             pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
@@ -650,6 +655,143 @@ public class WolfSSLServerSocketTest {
         ss.close();
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testCustomTrustManager() throws Exception {
+
+        System.out.print("\tCustom TrustManager - ALL");
+
+        /* TrustManager that trusts all certificates */
+        TrustManager[] trustAllCerts = {
+            new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                public void checkClientTrusted(X509Certificate[] xc,
+                                               String type) {
+                }
+                public void checkServerTrusted(X509Certificate[] xc,
+                                               String type) {
+                }
+            }
+        };
+
+        /* create new CTX */
+        this.ctx = SSLContext.getInstance("TLS", "wolfJSSE");
+        this.ctx.init(km.getKeyManagers(), trustAllCerts, new SecureRandom());
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+        ss.setWantClientAuth(true);
+        ss.setNeedClientAuth(true);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                } catch (SSLHandshakeException e) {
+                    e.printStackTrace();
+                    /* should not fail, trust all certs */
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+        } catch (SSLHandshakeException e) {
+            e.printStackTrace();
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testCustomTrustManagerNone() throws Exception {
+
+        System.out.print("\tCustom TrustManager - NONE");
+
+        /* TrustManager that trusts no certificates */
+        TrustManager[] trustNoCerts = {
+            new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                public void checkClientTrusted(X509Certificate[] xc,
+                                       String type) throws CertificateException{
+                    throw new CertificateException();
+                }
+                public void checkServerTrusted(X509Certificate[] xc,
+                                       String type) throws CertificateException{
+                    throw new CertificateException();
+                }
+            }
+        };
+
+        /* create new CTX */
+        this.ctx = SSLContext.getInstance("TLS", "wolfJSSE");
+        this.ctx.init(km.getKeyManagers(), trustNoCerts, new SecureRandom());
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+        ss.setWantClientAuth(true);
+        ss.setNeedClientAuth(true);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                    System.out.println("\t... failed");
+                    fail();
+                } catch (SSLHandshakeException e) {
+                    /* should fail, trust no certs */
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            System.out.println("\t... failed");
+            fail();
+        } catch (SSLHandshakeException e) {
+            /* should fail, trust no certs */
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t... passed");
     }
 }
 

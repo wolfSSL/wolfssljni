@@ -19,7 +19,18 @@ Build options are :
 - ant clean   (cleans all)
 
 
-wolfSSL JNI Release 1.5.0 (01/17/2020)
+wolfSSL JNI Release X.X.X (TBD)
+
+Release X.X.X has bug fixes and new features including:
+
+- Support for custom TrustManager checkClientTrusted(), checkServerTrusted()
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
+
+************ wolfSSL JNI Release 1.5.0 (01/17/2020)
 
 Release 1.5.0 has bug fixes and new features including:
 

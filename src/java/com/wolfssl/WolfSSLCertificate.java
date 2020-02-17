@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -31,6 +32,10 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.cert.CertificateException;
 
 public class WolfSSLCertificate {
 
@@ -79,13 +84,15 @@ public class WolfSSLCertificate {
             stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate", ex);
         }
 
 
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
         }
         this.active = true;
     }
@@ -216,6 +223,23 @@ public class WolfSSLCertificate {
      */
     public int getExtensionSet(String oid) {
         return X509_is_extension_set(this.x509Ptr, oid);
+    }
+
+    /**
+     * Returns X509Certificate object based on this certificate.
+     *
+     * @return X509Certificate object
+     * @throws CertificateException on error
+     */
+    public X509Certificate getX509Certificate() throws CertificateException {
+
+        X509Certificate cert;
+
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        InputStream in = new ByteArrayInputStream(this.getDer());
+        cert = (X509Certificate)cf.generateCertificate(in);
+
+        return cert;
     }
 
     @Override
