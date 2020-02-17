@@ -53,6 +53,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String file = System.getProperty("javax.net.ssl.trustStore");
             char passAr[] = null;
             InputStream stream = null;
+            boolean systemCertsFound = false;
 
             try {
                 if (pass != null) {
@@ -60,30 +61,46 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 }
                 certs = KeyStore.getInstance("JKS");
                 if (file == null) {
+                    /* try to load trusted system certs if possible */
                     String home = System.getenv("JAVA_HOME");
                     if (home != null) {
+                        if (!home.endsWith("/") && !home.endsWith("\\")) {
+                            /* add trailing slash if not there already */
+                            home = home.concat("/");
+                        }
+
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "$JAVA_HOME = " + home);
+
+                        /* trying: "lib/security/jssecacerts" */
                         File f = new File(home.concat(
-                                            "lib/security/jssecacerts"));
+                                            "jre/lib/security/jssecacerts"));
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     "Loading certs from " +
                                     home.concat("lib/security/jssecacerts"));
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
+                            stream.close();
+                            systemCertsFound = true;
                         }
-                        else {
-                            f = new File(home.concat("lib/security/cacerts"));
-                            if (f.exists()) {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                        "Loading certs from " +
-                                        home.concat("lib/security/cacerts"));
-                                stream = new FileInputStream(f);
-                                certs.load(stream, passAr);
-                            }
-                            else {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                        "Using Anonymous cipher suite");
-                            }
+
+                        /* trying: "lib/security/cacerts" */
+                        f = new File(home.concat("jre/lib/security/cacerts"));
+                        if (f.exists()) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "Loading certs from " +
+                                    home.concat("lib/security/cacerts"));
+                            stream = new FileInputStream(f);
+                            certs.load(stream, passAr);
+                            stream.close();
+                            systemCertsFound = true;
+                        }
+
+                        if (systemCertsFound == false) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "No trusted system certs found, " +
+                                    "using Anonymous cipher suite");
                         }
                     }
                 }
@@ -92,6 +109,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             "Loading certs from " + file);
                     stream = new FileInputStream(file);
                     certs.load(stream, passAr);
+                    stream.close();
                 }
             } catch (FileNotFoundException ex) {
                 Logger.getLogger(
@@ -109,14 +127,6 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 Logger.getLogger(
                         WolfSSLTrustManager.class.getName()).log(
                             Level.SEVERE, null, ex);
-            }
-
-            if (stream != null) {
-                try {
-                    stream.close();
-                } catch (IOException e) {
-                    throw new KeyStoreException("Unable to close stream");
-                }
             }
         }
         this.store = certs;
