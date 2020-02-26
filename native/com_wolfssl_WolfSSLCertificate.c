@@ -765,3 +765,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
     return 0;
 }
 
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1altname
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    char* altname;
+    jstring retString;
+    (void)jcl;
+
+    if (!jenv || !x509)
+        return NULL;
+
+    altname = wolfSSL_X509_get_next_altname((WOLFSSL_X509*)(intptr_t)x509);
+    if (altname == NULL) {
+        return NULL;
+    }
+    retString = (*jenv)->NewStringUTF(jenv, altname);
+    return retString;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ssl;
+    (void)x509;
+    return NULL;
+#endif
+}
+
