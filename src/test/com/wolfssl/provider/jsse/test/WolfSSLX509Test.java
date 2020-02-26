@@ -571,7 +571,7 @@ public class WolfSSLX509Test {
         List<String> found = new ArrayList<>();
 
         try {
-            x509 = new WolfSSLX509(tf.exampleCert);
+            x509 = new WolfSSLX509(tf.exampleComCert);
 
             Collection<?> subjectAltNames = x509.getSubjectAlternativeNames();
             if (subjectAltNames == null) {
