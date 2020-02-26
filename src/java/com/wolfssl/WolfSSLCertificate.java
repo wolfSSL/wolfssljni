@@ -321,7 +321,7 @@ public class WolfSSLCertificate {
      * Note: this currently returns all altNames as dNSName types, with the
      * second list element being a String.
      *
-     * @returns immutable Collection of subject alternative names, or null
+     * @return immutable Collection of subject alternative names, or null
      */
     public Collection<List<?>> getSubjectAltNames() {
 
