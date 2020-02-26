@@ -34,11 +34,14 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.List;
+import java.util.Collection;
 
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
@@ -185,6 +188,12 @@ public class WolfSSLX509 extends X509Certificate {
             throw new CertificateEncodingException();
         }
         return ret;
+    }
+
+    @Override
+    public Collection<List<?>> getSubjectAlternativeNames()
+        throws CertificateParsingException {
+        return this.cert.getSubjectAltNames();
     }
 
     @Override

@@ -24,6 +24,10 @@ wolfSSL JNI Release X.X.X (TBD)
 Release X.X.X has bug fixes and new features including:
 
 - Support for custom TrustManager checkClientTrusted(), checkServerTrusted()
+- wolfJSSE TrustManager registered as PKIX provider
+- Improved support for auto-loading system CA certificates
+- Improved Android TrustManager support
+- Support for X509Certificate.getSubjectAlternativeNames()
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build

@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import static org.junit.Assert.fail;
 import org.junit.Test;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 
@@ -44,7 +45,8 @@ public class WolfSSLCertificateTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public static String cliCert = "examples/certs/client-cert.der";
+    public static String cliCertDer = "examples/certs/client-cert.der";
+    public static String cliCertPem = "examples/certs/client-cert.pem";
     public static String external = "examples/certs/ca-google-root.der";
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
@@ -54,10 +56,29 @@ public class WolfSSLCertificateTest {
 
         System.out.println("WolfSSLCertificate Class");
 
-        cliCert = WolfSSLTestCommon.getPath(cliCert);
-        external = WolfSSLTestCommon.getPath(external);
-        		
-        test_WolfSSLCertificate_new();
+        cliCertDer = WolfSSLTestCommon.getPath(cliCertDer);
+        cliCertPem = WolfSSLTestCommon.getPath(cliCertPem);
+        external   = WolfSSLTestCommon.getPath(external);
+
+        /* WolfSSLCertificate(byte[] der) */
+        test_WolfSSLCertificate_new_derArray();
+        test_runCertTestsAfterConstructor();
+
+        /* WolfSSLCertificate(String der) */
+        test_WolfSSLCertificate_new_pemArray();
+        test_runCertTestsAfterConstructor();
+
+        /* WolfSSLCertificate(byte[] pem) */
+        test_WolfSSLCertificate_new_derFile();
+        test_runCertTestsAfterConstructor();
+
+        /* WolfSSLCertificate(String pem) */
+        test_WolfSSLCertificate_new_pemFile();
+        test_runCertTestsAfterConstructor();
+    }
+
+
+    public void test_runCertTestsAfterConstructor() {
         test_getSerial();
         test_notBefore();
         test_notAfter();
@@ -77,89 +98,154 @@ public class WolfSSLCertificateTest {
         test_toString();
         test_free();
     }
-    
-    
-    public void test_WolfSSLCertificate_new() {
-        File f = new File(cliCert);
+
+
+    public void test_WolfSSLCertificate_new_derArray() {
+        File f = new File(cliCertDer);
         byte[] der = null;
 
-        System.out.print("\tWolfSSLCertificate_new");
+        System.out.print("\tnew(byte[] der)");
+
         try {
             InputStream stream = new FileInputStream(f);
             der = new byte[(int) f.length()];
             stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
-            System.out.println("\t\t... failed");
-            fail("Unable to read file " + cliCert);
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("\t\t\t... failed");
+            fail("Unable to read file " + cliCertDer);
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
         }
-        
 
         try {
             this.cert = new WolfSSLCertificate(der);
         } catch (WolfSSLException ex) {
-            System.out.println("\t\t... failed");
+            System.out.println("\t\t\t... failed");
             fail("Unable to initialize class");
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
         }
-        System.out.println("\t\t... passed");
+        System.out.println("\t\t\t... passed");
     }
-    
+
+
+    public void test_WolfSSLCertificate_new_derFile() {
+        System.out.print("\tnew(String der, int format)");
+
+        try {
+            this.cert = new WolfSSLCertificate(cliCertDer,
+                                WolfSSL.SSL_FILETYPE_ASN1);
+        } catch (WolfSSLException ex) {
+            System.out.println("\t... failed");
+            fail("Unable to initialize class");
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+        }
+        System.out.println("\t... passed");
+    }
+
+
+    public void test_WolfSSLCertificate_new_pemArray() {
+        File f = new File(cliCertPem);
+        byte[] pem = null;
+
+        System.out.print("\tnew(byte[] in, int format)");
+
+        try {
+            InputStream stream = new FileInputStream(f);
+            pem = new byte[(int) f.length()];
+            stream.read(pem, 0, pem.length);
+            stream.close();
+        } catch (IOException ex) {
+            System.out.println("\t... failed");
+            fail("Unable to read file " + cliCertPem);
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+        }
+
+        try {
+            this.cert = new WolfSSLCertificate(pem, WolfSSL.SSL_FILETYPE_PEM);
+        } catch (WolfSSLException ex) {
+            System.out.println("\t... failed");
+            fail("Unable to initialize class");
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+        }
+        System.out.println("\t... passed");
+    }
+
+
+    public void test_WolfSSLCertificate_new_pemFile() {
+        System.out.print("\tnew(String pem, int format)");
+
+        try {
+            this.cert = new WolfSSLCertificate(cliCertPem,
+                                WolfSSL.SSL_FILETYPE_PEM);
+        } catch (WolfSSLException ex) {
+            System.out.println("\t... failed");
+            fail("Unable to initialize class");
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+        }
+        System.out.println("\t... passed");
+    }
+
+
     public void test_getSerial() {
         byte[] expected = new byte[]{(byte)0xaa, (byte)0xc4, (byte)0xbf,
             (byte)0x4c, (byte)0x50, (byte)0xbd, (byte)0x55, (byte)0x77};
         byte[] serial;
         int i;
         BigInteger bigi = cert.getSerial();
-        
-        System.out.print("\tgetSerial");
+
+        System.out.print("\t\tgetSerial");
         serial = bigi.toByteArray();
         for (i = 0; i < serial.length && i < expected.length; i++) {
             if (serial[i] != expected[i]) {
-                System.out.println("\t\t\t... failed");
+                System.out.println("\t\t... failed");
                 fail("Unexpected serial number");
             }
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     @SuppressWarnings("deprecation")
     public void test_notBefore() {
         Date date = cert.notBefore();
         Date expected = new Date("Fri Apr 13 09:23:09 MDT 2018");
-        System.out.print("\tnotBefore");        
+        System.out.print("\t\tnotBefore");
         if (date.compareTo(expected) != 0) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Unexpected not before date");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
-        
+
+
     @SuppressWarnings("deprecation")
     public void test_notAfter() {
         Date date = cert.notAfter();
         Date expected = new Date("Thu Jan 07 08:23:09 MST 2021");
-        System.out.print("\tnotAfter");
+        System.out.print("\t\tnotAfter");
         if (date.compareTo(expected) != 0) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Unexpected not after date");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getVersion() {
         int version = cert.getVersion();
-      
-        System.out.print("\tgetVersion");
+
+        System.out.print("\t\tgetVersion");
         if (version != 3) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Unexpected version number");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getSignature() {
         byte[] sig = cert.getSignature();
         byte[] expected = new byte[] {
@@ -217,47 +303,47 @@ public class WolfSSLCertificateTest {
             (byte)0xB4
         };
         int i;
-        System.out.print("\tgetSignature");
+        System.out.print("\t\tgetSignature");
         for (i = 0; i < sig.length && i < expected.length; i++) {
             if (sig[i] != expected[i]) {
-                System.out.println("\t\t\t... failed");
-                fail("Unexpected signature");             
+                System.out.println("\t\t... failed");
+                fail("Unexpected signature");
             }
         }
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_isCA() {
+        System.out.print("\t\tisCA");
+        if (this.cert.isCA() != 1) {
+            System.out.println("\t\t\t... failed");
+            fail("Expected isCA to be set");
+        }
         System.out.println("\t\t\t... passed");
     }
-    
-    public void test_isCA() {
-        System.out.print("\tisCA");
-        if (this.cert.isCA() != 1) {
-            System.out.println("\t\t\t\t... failed");
-            fail("Expected isCA to be set");      
-        }
-        System.out.println("\t\t\t\t... passed");
-    }
-    
+
     public void test_getSubject() {
         String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
-        
-        System.out.print("\tgetSubject");
+
+        System.out.print("\t\tgetSubject");
         if (!cert.getSubject().equals(expected)) {
-            System.out.println("\t\t\t... failed");
-            fail("Unexpected subject");   
+            System.out.println("\t\t... failed");
+            fail("Unexpected subject");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getIssuer() {
         String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
-        
-        System.out.print("\tgetIssuer");
+
+        System.out.print("\t\tgetIssuer");
         if (!cert.getIssuer().equals(expected)) {
-            System.out.println("\t\t\t... failed");
-            fail("Unexpected issuer");   
+            System.out.println("\t\t... failed");
+            fail("Unexpected issuer");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getPubkey() {
         byte[] expected = new byte[] {
             (byte)0x30, (byte)0x82, (byte)0x01, (byte)0x22,
@@ -331,147 +417,147 @@ public class WolfSSLCertificateTest {
         };
         int i;
         byte[] pub;
-        
-        System.out.print("\tgetPubkey");
+
+        System.out.print("\t\tgetPubkey");
         pub = cert.getPubkey();
         for (i = 0; i < pub.length && i < expected.length; i++) {
             if (pub[i] != expected[i]) {
-                System.out.println("\t\t\t... failed");
+                System.out.println("\t\t... failed");
                 fail("Unexpected public key value");
             }
         }
 
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getPubkeyType() {
         String expected = "RSA";
-        System.out.print("\tgetPubkeyType");
+        System.out.print("\t\tgetPubkeyType");
         if (!expected.equals(this.cert.getPubkeyType())) {
-                System.out.println("\t\t\t... failed");
-                fail("Unexpected public key type value");            
-        }
-        System.out.println("\t\t\t... passed");
-    }
-    
-    public void test_getPathLen() {
-        int expected = -1;
-        System.out.print("\tgetPathLen");
-        if (this.cert.getPathLen() != expected) {
-                System.out.println("\t\t\t... failed");
-                fail("Unexpected path length value");            
-        }
-        System.out.println("\t\t\t... passed");
-    }
-    
-    public void test_getSignatureType() {
-        String expected = "SHA256withRSA";
-        System.out.print("\tgetSignatureType");
-        if (!expected.equals(this.cert.getSignatureType())) {
                 System.out.println("\t\t... failed");
-                fail("Unexpected signature type");            
+                fail("Unexpected public key type value");
         }
         System.out.println("\t\t... passed");
     }
-    
+
+    public void test_getPathLen() {
+        int expected = -1;
+        System.out.print("\t\tgetPathLen");
+        if (this.cert.getPathLen() != expected) {
+                System.out.println("\t\t... failed");
+                fail("Unexpected path length value");
+        }
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_getSignatureType() {
+        String expected = "SHA256withRSA";
+        System.out.print("\t\tgetSignatureType");
+        if (!expected.equals(this.cert.getSignatureType())) {
+                System.out.println("\t... failed");
+                fail("Unexpected signature type");
+        }
+        System.out.println("\t... passed");
+    }
+
     public void test_verify() {
         byte[] pubkey;
-        
-        System.out.print("\tverify");
+
+        System.out.print("\t\tverify");
         pubkey = this.cert.getPubkey();
         if (pubkey == null) {
-            System.out.println("\t\t\t\t... failed");
+            System.out.println("\t\t\t... failed");
             fail("Could not get public key");
             return;
         }
-        
+
         if (this.cert.verify(pubkey, pubkey.length) != true) {
-            System.out.println("\t\t\t\t... failed");
-            fail("Verify signature failed");            
+            System.out.println("\t\t\t... failed");
+            fail("Verify signature failed");
         }
-        System.out.println("\t\t\t\t... passed");        
+        System.out.println("\t\t\t... passed");
     }
-    
+
     public void test_getSignatureOID() {
-        System.out.print("\tgetSignatureOID");
-        
+        System.out.print("\t\tgetSignatureOID");
+
         /* make sure is sha256WithRSAEncryption OID */
         if (!this.cert.getSignatureOID().equals("1.2.840.113549.1.1.11")) {
-            System.out.println("\t\t\t... failed");
-            fail("Could not get public key");              
+            System.out.println("\t\t... failed");
+            fail("Could not get public key");
         }
-        System.out.println("\t\t\t... passed");             
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getKeyUsage() {
         WolfSSLCertificate ext;
         boolean[] expected = {
             false, false, false, false, false, true, true, false, false
         };
-                
-        System.out.print("\tgetKeyUsage");
+
+        System.out.print("\t\tgetKeyUsage");
         if (this.cert.getKeyUsage() != null) {
-            System.out.println("\t\t\t... failed");
-            fail("Found key usage extension when not expecting any");     
+            System.out.println("\t\t... failed");
+            fail("Found key usage extension when not expecting any");
         }
-        
+
         /* test with certificate that has key usage extension */
         try {
             int i;
             boolean[] kuse;
-            
+
             ext = new WolfSSLCertificate(this.external);
             kuse = ext.getKeyUsage();
             if (kuse == null) {
-                System.out.println("\t\t\t... failed");
+                System.out.println("\t\t... failed");
                 fail("Did not find key usage extension");
                 return;
             }
-            
+
             for (i = 0; i < kuse.length; i++) {
                 if (kuse[i] != expected[i]) {
-                    System.out.println("\t\t\t... failed");
-                    fail("Found wrong key usage extension");  
+                    System.out.println("\t\t... failed");
+                    fail("Found wrong key usage extension");
                 }
             }
             ext.free();
         } catch (WolfSSLException ex) {
             Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
-            System.out.println("\t\t\t... failed");
-            fail("Error loading external certificate");  
+            System.out.println("\t\t... failed");
+            fail("Error loading external certificate");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_getExtensionSet() {
-        System.out.print("\tgetExtensionSet");
-        
+        System.out.print("\t\tgetExtensionSet");
+
         if (this.cert.getExtensionSet("2.5.29.19") != 1) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Error with basic constraint extension");
         }
-        
+
         if (this.cert.getExtensionSet("2.5.29.14") != 1) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Error with subject key ID extension");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_toString() {
         String s;
-        System.out.print("\ttoString");
+        System.out.print("\t\ttoString");
         s =  cert.toString();
         if (s == null) {
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t... failed");
             fail("Error getting certificate string");
         }
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t... passed");
     }
-    
+
     public void test_free() {
-        System.out.print("\tfree");
+        System.out.print("\t\tfree");
         this.cert.free();
-        System.out.println("\t\t\t\t... passed");
+        System.out.println("\t\t\t... passed");
     }
 }

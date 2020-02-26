@@ -64,6 +64,84 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_d2i_1X509
     return (jlong)(intptr_t)wolfSSL_d2i_X509(NULL, &pt, sz);
 }
 
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_certPemToDer
+  (JNIEnv* jenv, jclass jcl, jbyteArray pem, jint pemSz)
+{
+    unsigned char* der = NULL;
+    unsigned char* tmpPem = NULL;
+    int derSz = 0;
+    jbyteArray ret;
+
+    if (!jenv || !pem || (pemSz < 0))
+        return NULL;
+
+    /* find exception class */
+    jclass excClass = (*jenv)->FindClass(jenv,
+            "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    /* allocate space for DER, using PEM sz. DER will be smaller than PEM */
+    derSz = pemSz;
+    der = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return NULL;
+    }
+    XMEMSET(der, 0, derSz);
+
+    /* allocate space for converted jbyteArray */
+    tmpPem = (unsigned char*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpPem == NULL) {
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->GetByteArrayRegion(jenv, pem, 0, pemSz, (jbyte*)tmpPem);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        XFREE(tmpPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to get byte region in native certPemToDer");
+        return NULL;
+    }
+
+    derSz = wc_CertPemToDer(tmpPem, pemSz, der, derSz, CERT_TYPE);
+    if (derSz < 0) {
+        XFREE(tmpPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        (*jenv)->ThrowNew(jenv, excClass,
+                "wc_CertPemToDer() failed in native certPemToDer");
+        return NULL;
+    }
+    XFREE(tmpPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    ret = (*jenv)->NewByteArray(jenv, derSz);
+    if (!ret) {
+        XFREE(der,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create Java byte array in native certPemToDer");
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, derSz, (jbyte*)der);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        XFREE(der,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to set byte region in native certPemToDer");
+        return NULL;
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
   (JNIEnv* jenv, jclass jcl, jlong x509)
 {
@@ -686,5 +764,31 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
     }
 
     return 0;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1altname
+  (JNIEnv* jenv, jclass jcl, jlong x509)
+{
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    char* altname;
+    jstring retString;
+    (void)jcl;
+
+    if (!jenv || !x509)
+        return NULL;
+
+    altname = wolfSSL_X509_get_next_altname((WOLFSSL_X509*)(intptr_t)x509);
+    if (altname == NULL) {
+        return NULL;
+    }
+    retString = (*jenv)->NewStringUTF(jenv, altname);
+    return retString;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509;
+    return NULL;
+#endif
 }
 

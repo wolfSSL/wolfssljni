@@ -17,6 +17,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_d2i_1X509
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    certPemToDer
+ * Signature: ([BI)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_certPemToDer
+  (JNIEnv *, jclass, jbyteArray, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_get_der
  * Signature: (J)[B
  */
@@ -182,6 +190,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1set
   (JNIEnv *, jclass, jlong, jstring);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_next_altname
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1altname
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

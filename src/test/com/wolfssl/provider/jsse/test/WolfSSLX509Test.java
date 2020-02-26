@@ -43,6 +43,9 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -545,6 +548,79 @@ public class WolfSSLX509Test {
         pass("\t\t... passed");
     }
 
+    @Test
+    public void testSubjectAlternativeNames() {
+
+        X509Certificate x509;
+        int ALT_DNS_NAME = 2; /* dNSName type */
+
+        System.out.print("\tTesting getting alt names");
+
+        /* populate known alt name list for example.com cert, for comparison */
+        List<String> expected = new ArrayList<>();
+        expected.add("www.example.net");
+        expected.add("www.example.edu");
+        expected.add("www.example.com");
+        expected.add("example.org");
+        expected.add("example.net");
+        expected.add("example.edu");
+        expected.add("example.com");
+        expected.add("www.example.org");
+
+        /* list to hold found altNames */
+        List<String> found = new ArrayList<>();
+
+        try {
+            x509 = new WolfSSLX509(tf.exampleComCert);
+
+            Collection<?> subjectAltNames = x509.getSubjectAlternativeNames();
+            if (subjectAltNames == null) {
+                error("\t... failed");
+                fail("subjectAltNames Collection was null");
+            }
+
+            for (Object subjectAltName : subjectAltNames) {
+                List<?> entry = (List<?>)subjectAltName;
+                if (entry == null || entry.size() < 2) {
+                    error("\t... failed");
+                    fail("subjectAltName List<?> null or length < 2");
+                }
+                Integer altNameType = (Integer)entry.get(0);
+                if (altNameType == null) {
+                    error("\t... failed");
+                    fail("subjectAltName List[0] was null, should be Integer");
+                }
+                if (altNameType != ALT_DNS_NAME) {
+                    error("\t... failed");
+                    fail("subjectAltName type is not ALT_DNS_NAME (2)");
+                }
+                String altName = (String)entry.get(1);
+                if (altName == null) {
+                    error("\t... failed");
+                    fail("Individual altName was null, should not be");
+                }
+                found.add(altName);
+            }
+
+            if (found.size() != expected.size()) {
+                error("\r... failed");
+                fail("altName list size differs from expected size");
+            }
+
+            for (int i = 0; i < found.size(); i++) {
+                if (!found.get(i).equals(expected.get(i))) {
+                    error("\r... failed");
+                    fail("altName entry does not match expected: found: " +
+                         found.get(i) + ", expected: " + expected.get(i));
+                }
+            }
+
+        } catch (Exception ex) {
+            error("\t... failed");
+            fail("unexpected exception found");
+        }
+        pass("\t... passed");
+    }
 
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);

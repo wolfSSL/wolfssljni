@@ -30,6 +30,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,7 +46,11 @@ public class WolfSSLCertificate {
     private boolean active = false;
     private long x509Ptr = 0;
 
+    /* cache alt names once retrieved once */
+    private Collection<List<?>> altNames = null;
+
     static native long d2i_X509(byte[] der, int len);
+    static native byte[] certPemToDer(byte[] pem, int len);
     static native byte[] X509_get_der(long x509);
     static native byte[] X509_get_tbs(long x509);
     static native void X509_free(long x509);
@@ -64,11 +72,43 @@ public class WolfSSLCertificate {
     static native boolean[] X509_get_key_usage(long x509);
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
+    static native String X509_get_next_altname(long x509);
 
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
-            throw new WolfSSLException("Failed to create SSL Context");
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
+        }
+        this.active = true;
+    }
+
+    public WolfSSLCertificate(byte[] in, int format) throws WolfSSLException {
+        byte[] input = in;
+
+        if (in == null || in.length == 0) {
+            throw new WolfSSLException(
+                "Input array must not be null or zero length");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        if (format == WolfSSL.SSL_FILETYPE_PEM) {
+            /* convert PEM to DER */
+            input = certPemToDer(in, in.length);
+            if (input == null) {
+                throw new WolfSSLException("Failed to convert PEM to DER");
+            }
+        }
+
+        /* create from DER array */
+        x509Ptr = d2i_X509(input, input.length);
+        if (x509Ptr == 0) {
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
         this.active = true;
     }
@@ -88,6 +128,51 @@ public class WolfSSLCertificate {
                 "Failed to create WolfSSLCertificate", ex);
         }
 
+        x509Ptr = d2i_X509(der, der.length);
+        if (x509Ptr == 0) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
+        }
+        this.active = true;
+    }
+
+    public WolfSSLCertificate(String fileName, int format)
+        throws WolfSSLException {
+        InputStream stream = null;
+        byte[] bytes = null;
+        byte[] der = null;
+
+        if (fileName == null) {
+            throw new WolfSSLException("Input file must not be null");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        File f = new File(fileName);
+        try {
+            bytes = new byte[(int) f.length()];
+            stream = new FileInputStream(f);
+            stream.read(bytes, 0, bytes.length);
+            stream.close();
+        } catch (IOException ex) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCertificate", ex);
+        }
+
+        if (format == WolfSSL.SSL_FILETYPE_PEM) {
+            /* convert PEM to DER */
+            der = certPemToDer(bytes, bytes.length);
+            if (der == null) {
+                throw new WolfSSLException("Failed to convert PEM to DER");
+            }
+        } else {
+            der = bytes;
+        }
 
         x509Ptr = d2i_X509(der, der.length);
         if (x509Ptr == 0) {
@@ -223,6 +308,49 @@ public class WolfSSLCertificate {
      */
     public int getExtensionSet(String oid) {
         return X509_is_extension_set(this.x509Ptr, oid);
+    }
+
+    /**
+     * Returns an immutable Collection of subject alternative names from this
+     * certificate's SubjectAltName extension.
+     *
+     * Each collection item is a List containing two objects:
+     *     [0] = Integer representing type of name, 0-8 (ex: 2 == dNSName)
+     *     [1] = String representing altname entry.
+     *
+     * Note: this currently returns all altNames as dNSName types, with the
+     * second list element being a String.
+     *
+     * @return immutable Collection of subject alternative names, or null
+     */
+    public Collection<List<?>> getSubjectAltNames() {
+
+        if (this.active == false) {
+            throw new IllegalStateException("Object has been freed");
+        }
+
+        if (this.altNames != null) {
+            /* already gathered, return cached version */
+            return this.altNames;
+        }
+
+        Collection<List<?>> names = new ArrayList<List<?>>();
+
+        String nextAltName = X509_get_next_altname(this.x509Ptr);
+        while (nextAltName != null) {
+            Object[] entry = new Object[2];
+            entry[0] = 2; // Only return dNSName type for now
+            entry[1] = nextAltName;
+            List<?> entryList = Arrays.asList(entry);
+
+            names.add(Collections.unmodifiableList(entryList));
+            nextAltName = X509_get_next_altname(this.x509Ptr);
+        }
+
+        /* cache altNames collection for later use */
+        this.altNames = Collections.unmodifiableCollection(names);
+
+        return this.altNames;
     }
 
     /**
