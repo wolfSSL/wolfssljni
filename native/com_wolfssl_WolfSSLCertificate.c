@@ -137,6 +137,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_certPemToDer
                 "Failed to set byte region in native certPemToDer");
         return NULL;
     }
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -786,7 +787,6 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1a
 #else
     (void)jenv;
     (void)jcl;
-    (void)ssl;
     (void)x509;
     return NULL;
 #endif
