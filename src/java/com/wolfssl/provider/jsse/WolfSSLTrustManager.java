@@ -57,16 +57,50 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         if (in == null) {
             String pass = System.getProperty("javax.net.ssl.trustStorePassword");
             String file = System.getProperty("javax.net.ssl.trustStore");
+            String type = System.getProperty("javax.net.ssl.trustStoreType");
+            String vmVendor = System.getProperty("java.vm.vendor");
             char passAr[] = null;
             InputStream stream = null;
             boolean systemCertsFound = false;
             int aliasCnt = 0;
+            String[] cafiles = null;
 
             try {
                 if (pass != null) {
                     passAr = pass.toCharArray();
                 }
-                certs = KeyStore.getInstance("JKS");
+
+                /* default to JKS KeyStore type if not set at system level */
+                try {
+                    if (type != null && type != "") {
+                        certs = KeyStore.getInstance(type);
+                    } else {
+                        if (vmVendor.equals("The Android Project")) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "Detected Android VM, using BKS KeyStore type");
+                            certs = KeyStore.getInstance("BKS");
+                        } else {
+                            certs = KeyStore.getInstance("JKS");
+                        }
+                    }
+                } catch (KeyStoreException kse) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                        "Unsupported KeyStore type: " + type);
+                    throw kse;
+                }
+
+                try {
+                    /* initialize KeyStore, loading certs below will
+                     * overwrite if needed, otherwise Android needs
+                     * this to be initialized here */
+                    certs.load(null, null);
+
+                } catch (Exception e) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                        "Error initializing KeyStore with load(null, null)");
+                    throw e;
+                }
+
                 if (file == null) {
                     /* try to load trusted system certs if possible */
                     String home = System.getenv("JAVA_HOME");
@@ -116,9 +150,20 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             home = home.concat("/");
                         }
 
-                        File cadir =
-                            new File(home.concat("etc/security/cacerts"));
-                        String[] cafiles = cadir.list();
+                        String caStoreDir = home.concat("etc/security/cacerts");
+                        File cadir = new File(caStoreDir);
+                        try {
+                            cafiles = cadir.list();
+                        } catch (Exception e) {
+                            /* denied access reading cacerts directory */
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                "Permission error when trying to read " +
+                                "system CA certificates");
+                            throw e;
+                        }
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Found " + cafiles.length + " CA files to load " +
+                            "into KeyStore");
 
                         /* get factory for cert creation */
                         CertificateFactory cfactory =
@@ -128,27 +173,47 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         for (String cafile : cafiles) {
 
                             WolfSSLCertificate certPem;
+                            String fullCertPath = caStoreDir.concat("/");
+                            fullCertPath = fullCertPath.concat(cafile);
+
                             try {
                                 certPem = new WolfSSLCertificate(
-                                    cafile, WolfSSL.SSL_FILETYPE_PEM);
+                                    fullCertPath, WolfSSL.SSL_FILETYPE_PEM);
                             } catch (WolfSSLException we) {
                                 /* skip, error parsing PEM */
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "Skipped loading cert: " + fullCertPath);
                                 continue;
                             }
 
-                            /* convert DER arry to Certificate */
-                            Certificate tmpCert =
-                                cfactory.generateCertificate(
-                                        new ByteArrayInputStream(
-                                                certPem.getDer()));
+                            byte[] derArray = certPem.getDer();
+                            ByteArrayInputStream bis =
+                                new ByteArrayInputStream(derArray);
+                            Certificate tmpCert = null;
 
-                            /* import into KeyStore */
-                            certs.setCertificateEntry(
-                                "alias"+aliasCnt, tmpCert);
+                            try {
+                                tmpCert = cfactory.generateCertificate(bis);
+                            } catch (CertificateException ce) {
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                    "Error generating certificate from " +
+                                    "ByteArrayInputStream");
+                                throw ce;
+                            }
+
+                            String aliasString = "alias" + aliasCnt;
+                            try {
+                                certs.setCertificateEntry(aliasString, tmpCert);
+                            } catch (KeyStoreException kse) {
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                    "Error setting certificate entry in " +
+                                    "KeyStore, skipping loading cert");
+                                continue;
+                            }
 
                             /* increment alias counter for unique aliases */
                             aliasCnt++;
                         }
+                        systemCertsFound = true;
                     }
 
                     if (systemCertsFound == false) {
