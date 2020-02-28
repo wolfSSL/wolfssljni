@@ -97,7 +97,7 @@ public class WolfSSLServerSocketTest {
         tf = new WolfSSLTestFactory();
 
         /* install wolfJSSE provider at runtime */
-        Security.addProvider(new WolfSSLProvider());
+        Security.insertProviderAt(new WolfSSLProvider(), 1);
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
