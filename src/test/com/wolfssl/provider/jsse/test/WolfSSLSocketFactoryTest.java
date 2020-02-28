@@ -90,7 +90,7 @@ public class WolfSSLSocketFactoryTest {
         System.out.println("WolfSSLSocketFactory Class");
 
         /* install wolfJSSE provider at runtime */
-        Security.addProvider(new WolfSSLProvider());
+        Security.insertProviderAt(new WolfSSLProvider(), 1);
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);

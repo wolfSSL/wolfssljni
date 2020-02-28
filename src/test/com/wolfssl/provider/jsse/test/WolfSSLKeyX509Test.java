@@ -52,7 +52,7 @@ public class WolfSSLKeyX509Test {
         System.out.println("WolfSSLKeyX509 Class");
 
         /* install wolfJSSE provider at runtime */
-        Security.addProvider(new WolfSSLProvider());
+        Security.insertProviderAt(new WolfSSLProvider(), 1);
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);

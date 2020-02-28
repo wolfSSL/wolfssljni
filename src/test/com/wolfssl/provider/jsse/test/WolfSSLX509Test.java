@@ -71,7 +71,7 @@ public class WolfSSLX509Test {
         System.out.println("WolfSSLX509 Class");
 
                 /* install wolfJSSE provider at runtime */
-        Security.addProvider(new WolfSSLProvider());
+        Security.insertProviderAt(new WolfSSLProvider(), 1);
 
 
         Provider p = Security.getProvider("wolfJSSE");
