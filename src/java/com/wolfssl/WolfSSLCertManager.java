@@ -87,4 +87,16 @@ public class WolfSSLCertManager {
         /* free Java resources */
         this.active = false;
     }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable
+    {
+        if (this.active == true) {
+            /* free resources, set state */
+            this.free();
+            this.active = false;
+        }
+        super.finalize();
+    }
 }
