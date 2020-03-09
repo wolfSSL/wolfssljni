@@ -187,6 +187,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             }
 
                             byte[] derArray = certPem.getDer();
+                            certPem.free();
                             ByteArrayInputStream bis =
                                 new ByteArrayInputStream(derArray);
                             Certificate tmpCert = null;
