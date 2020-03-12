@@ -256,6 +256,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(authStore.getCertAlias());
 
+        if (certs == null) {
+            return null;
+        }
+
         for (i = 0; i < certs.length; i++) {
             if (certs[i].getBasicConstraints() < 0) {
                 /* is not a CA treat as end of chain */
