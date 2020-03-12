@@ -44,9 +44,9 @@ import java.util.Set;
  * @author wolfSSL
  */
 public class WolfSSLTrustX509 implements X509TrustManager {
-    private KeyStore store;
-    private Set<X509Certificate> CAs;
-    private WolfSSLCertManager cm;
+    private KeyStore store = null;
+    private Set<X509Certificate> CAs = null;
+    private WolfSSLCertManager cm = null;
 
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
@@ -138,4 +138,18 @@ public class WolfSSLTrustX509 implements X509TrustManager {
                 "accepted issuer array is null");
         return null;
     }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        this.store = null;
+        this.CAs = null;
+        if (this.cm != null) {
+            /* free WolfSSLCertManager resources */
+            this.cm.free();
+            this.cm = null;
+        }
+        super.finalize();
+    }
 }
+
