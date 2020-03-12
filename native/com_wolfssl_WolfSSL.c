@@ -66,7 +66,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
     (void)jcl;
 
     if((void*)(intptr_t)ptr)
-        free((void*)(intptr_t)ptr);
+        XFREE((void*)(intptr_t)ptr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
 /* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */

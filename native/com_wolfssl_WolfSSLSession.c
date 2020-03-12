@@ -150,7 +150,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
 
     if (sslPtr != 0) {
         /* create global reference to WolfSSLSession jobject */
-        g_cachedObj = (jobject*)malloc(sizeof(jobject));
+        g_cachedObj = (jobject*)XMALLOC(sizeof(jobject), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (!g_cachedObj) {
             printf("error mallocing memory in newSSL\n");
             wolfSSL_free((WOLFSSL*)(intptr_t)sslPtr);
@@ -539,7 +540,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)(intptr_t)ssl);
     if (g_cachedSSLObj != NULL) {
         (*jenv)->DeleteGlobalRef(jenv, (jobject)(*g_cachedSSLObj));
-        free(g_cachedSSLObj);
+        XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     /* reset internal pointer to NULL to prevent accidental usage */
@@ -2228,12 +2229,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
         myCtx = (internCtx*)eccSignCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for ECC sign context\n");
@@ -2303,12 +2304,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
         myCtx = (internCtx*)eccVerifyCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for ECC verify context\n");
@@ -2379,12 +2380,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSharedSecretCtx
         myCtx = (internCtx*)eccSharedSecretCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for ECC shared secret context\n");
@@ -2454,12 +2455,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
         myCtx = (internCtx*)rsaSignCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for RSA sign context\n");
@@ -2529,12 +2530,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
         myCtx = (internCtx*)rsaVerifyCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for RSA verify context\n");
@@ -2604,12 +2605,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
         myCtx = (internCtx*)rsaEncCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for RSA encrypt context\n");
@@ -2679,12 +2680,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
         myCtx = (internCtx*)rsaDecCtx;
         if (myCtx->active == 1) {
             (*jenv)->DeleteGlobalRef(jenv, myCtx->obj);
-            free(myCtx);
+            XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
     /* allocate memory for internal JNI object reference */
-    myCtx = malloc(sizeof(internCtx));
+    myCtx = XMALLOC(sizeof(internCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!myCtx) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Unable to allocate memory for RSA decrypt context\n");
