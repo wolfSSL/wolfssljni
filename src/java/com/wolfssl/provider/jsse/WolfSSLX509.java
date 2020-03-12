@@ -52,7 +52,7 @@ import com.wolfssl.WolfSSLException;
  * @author wolfSSL
  */
 public class WolfSSLX509 extends X509Certificate {
-    private WolfSSLCertificate cert;
+    private WolfSSLCertificate cert = null;
     private String[] extensionOid = {
         "2.5.29.15", /* key usage */
         "2.5.29.19", /* basic constraint */
@@ -287,16 +287,6 @@ public class WolfSSLX509 extends X509Certificate {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public void finalize() throws Throwable {
-        try {
-            this.free();
-        } finally {
-            super.finalize();
-        }
-    }
-
     @Override
     public PublicKey getPublicKey() {
         String type  = this.cert.getPubkeyType();
@@ -353,6 +343,17 @@ public class WolfSSLX509 extends X509Certificate {
      * i.e. no OCTET STRING Id "04 16 04 14" before subject key id */
     public byte[] getExtensionValue(String oid) {
         return this.cert.getExtension(oid);
+    }
+
+
+    @SuppressWarnings("deprecation")
+    @Override
+    public void finalize() throws Throwable {
+        try {
+            this.free();
+        } finally {
+            super.finalize();
+        }
     }
 
 
