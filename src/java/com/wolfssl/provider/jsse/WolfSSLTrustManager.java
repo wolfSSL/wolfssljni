@@ -172,7 +172,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         /* loop over all PEM certs */
                         for (String cafile : cafiles) {
 
-                            WolfSSLCertificate certPem;
+                            WolfSSLCertificate certPem = null;
                             String fullCertPath = caStoreDir.concat("/");
                             fullCertPath = fullCertPath.concat(cafile);
 
@@ -183,6 +183,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                                 /* skip, error parsing PEM */
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     "Skipped loading cert: " + fullCertPath);
+                                if (certPem != null) {
+                                    certPem.free();
+                                }
                                 continue;
                             }
 
@@ -194,10 +197,12 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
                             try {
                                 tmpCert = cfactory.generateCertificate(bis);
+                                bis.close();
                             } catch (CertificateException ce) {
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                                     "Error generating certificate from " +
                                     "ByteArrayInputStream");
+                                bis.close();
                                 throw ce;
                             }
 
