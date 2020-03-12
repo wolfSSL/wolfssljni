@@ -69,66 +69,45 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuffer
   (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
 {
-    unsigned char buff[sz];
-
+    int ret = 0;
+    word32 buffSz = 0;
+    byte* buff = NULL;
     (void)jcl;
 
-    if (!jenv || !in || (sz < 0))
+    if (jenv == NULL || in == NULL || (sz < 0)) {
         return BAD_FUNC_ARG;
-
-    /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv,
-            "com/wolfssl/WolfSSLJNIException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return SSL_FAILURE;
     }
 
-    (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)buff);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+    buffSz = (*jenv)->GetArrayLength(jenv, in);
 
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to get byte region in native useCertificateBuffer");
-        return SSL_FAILURE;
-    }
+    ret = wolfSSL_CertManagerLoadCABuffer((WOLFSSL_CERT_MANAGER*)(intptr_t)cm,
+                                          buff, buffSz, format);
 
-    return (jint)wolfSSL_CertManagerLoadCABuffer(
-            (WOLFSSL_CERT_MANAGER*)(intptr_t)cm, buff, sz, format);
+    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+
+    return (jint)ret;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuffer
   (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
 {
-    unsigned char buff[sz];
-
+    int ret = 0;
+    word32 buffSz = 0;
+    byte* buff = NULL;
     (void)jcl;
 
-    if (!jenv || !in || (sz < 0))
+    if (jenv == NULL || in == NULL || (sz < 0))
         return BAD_FUNC_ARG;
 
-    /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv,
-            "com/wolfssl/WolfSSLJNIException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return SSL_FAILURE;
-    }
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+    buffSz = (*jenv)->GetArrayLength(jenv, in);
 
-    (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)buff);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
+    ret = wolfSSL_CertManagerVerifyBuffer((WOLFSSL_CERT_MANAGER*)(intptr_t)cm,
+                                          buff, buffSz, format);
 
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to get byte region in native useCertificateBuffer");
-        return SSL_FAILURE;
-    }
+    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
 
-    return (jint)wolfSSL_CertManagerVerifyBuffer(
-            (WOLFSSL_CERT_MANAGER*)(intptr_t)cm, buff, sz, format);
+    return (jint)ret;
 }
 
