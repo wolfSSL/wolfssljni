@@ -799,6 +799,15 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        if (this.ssl != null) {
+            this.ssl.freeSSL();
+        }
+        super.finalize();
+    }
+
     class ConsumedRecvCtx {
         private Socket s;
         private DataInputStream consumed;
