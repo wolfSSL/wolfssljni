@@ -32,7 +32,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
     jclass arrType;
     X509* x509 = NULL;
     WOLFSSL_STACK* sk = NULL;
-    WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)(intptr_t)ctx;
+    WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)(uintptr_t)ctx;
     const unsigned char* der = NULL;
     int derSz = 0, skNum = 0, i = 0;
     (void)jcl;
