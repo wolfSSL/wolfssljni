@@ -130,6 +130,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void LoadTrustedRootCerts() {
 
+        int ret = 0;
         int loadedCACount = 0;
 
         /* extract root certs from X509TrustManager */
@@ -156,10 +157,15 @@ public class WolfSSLContext extends SSLContextSpi {
             try {
                 byte[] derCert = caList[i].getEncoded();
 
-                ctx.loadVerifyBuffer(derCert, derCert.length,
-                    WolfSSL.SSL_FILETYPE_ASN1);
+                ret = ctx.loadVerifyBuffer(derCert, derCert.length,
+                                           WolfSSL.SSL_FILETYPE_ASN1);
 
-                loadedCACount++;
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    loadedCACount++;
+                } else {
+                    /* skip loading on failure, move to next */
+                    continue;
+                }
 
             } catch (CertificateEncodingException ce) {
                 /* skip loading if encoding error is encountered */
@@ -254,6 +260,7 @@ public class WolfSSLContext extends SSLContextSpi {
                 chainLength++;
             }
             byte certChain[] = certStream.toByteArray();
+            certStream.close();
 
             ret = ctx.useCertificateChainBufferFormat(certChain,
                 certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
@@ -441,9 +448,30 @@ public class WolfSSLContext extends SSLContextSpi {
         return this.ctx;
     }
 
+    protected void cleanup() {
+        if (this.ctx != null) {
+            this.ctx.free();
+            this.ctx = null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        this.cleanup();
+        super.finalize();
+    }
+
     public static final class TLSV1_Context extends WolfSSLContext {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -451,11 +479,25 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
         }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
+        }
     }
 
     public static final class TLSV12_Context extends WolfSSLContext {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -463,11 +505,25 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
         }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
+        }
     }
 
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -479,6 +535,13 @@ public class WolfSSLContext extends SSLContextSpi {
             } catch (Exception e) {
                 /* TODO: log this */
             }
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 }
