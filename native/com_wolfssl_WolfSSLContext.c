@@ -507,6 +507,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memrestoreCertCache
     byte* buff = NULL;
     word32 buffSz = 0;
     (void)jcl;
+    (void)sz;
 
     if (jenv == NULL || ctx == 0 || mem == NULL) {
         return (jint)BAD_FUNC_ARG;
@@ -635,6 +636,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateBuffer
     byte* buff = NULL;
     word32 buffSz = 0;
     (void)jcl;
+    (void)sz;
 
     if (jenv == NULL || ctx == 0 || in == NULL) {
         return (jint)BAD_FUNC_ARG;
@@ -660,6 +662,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyBuffer
     byte* buff = NULL;
     word32 buffSz = 0;
     (void)jcl;
+    (void)sz;
 
     if (jenv == NULL || ctx == 0 || in == NULL) {
         return (jint)BAD_FUNC_ARG;
@@ -685,6 +688,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
     byte* buff = NULL;
     word32 buffSz = 0;
     (void)jcl;
+    (void)sz;
 
     if (jenv == NULL || ctx == 0 || in == NULL) {
         return (jint)BAD_FUNC_ARG;
@@ -710,6 +714,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
     byte* buff = NULL;
     word32 buffSz = 0;
     (void)jcl;
+    (void)sz;
 
     if (jenv == NULL || ctx == 0 || in == NULL) {
         return (jint)BAD_FUNC_ARG;
