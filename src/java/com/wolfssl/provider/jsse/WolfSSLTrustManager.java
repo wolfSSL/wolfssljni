@@ -59,11 +59,12 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String file = System.getProperty("javax.net.ssl.trustStore");
             String type = System.getProperty("javax.net.ssl.trustStoreType");
             String vmVendor = System.getProperty("java.vm.vendor");
+            String javaHome = System.getenv("JAVA_HOME");
+            String androidRoot = System.getenv("ANDROID_ROOT");
             char passAr[] = null;
             InputStream stream = null;
             boolean systemCertsFound = false;
             int aliasCnt = 0;
-            String[] cafiles = null;
 
             try {
                 if (pass != null) {
@@ -71,6 +72,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 }
 
                 /* default to JKS KeyStore type if not set at system level */
+                /* We default to use a JKS KeyStore type if not set at the
+                 * system level, except on Android we use BKS */
                 try {
                     if (type != null && type != "") {
                         certs = KeyStore.getInstance(type);
@@ -103,23 +106,23 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
                 if (file == null) {
                     /* try to load trusted system certs if possible */
-                    String home = System.getenv("JAVA_HOME");
-                    if (home != null) {
-                        if (!home.endsWith("/") && !home.endsWith("\\")) {
+                    if (javaHome != null) {
+                        if (!javaHome.endsWith("/") &&
+                            !javaHome.endsWith("\\")) {
                             /* add trailing slash if not there already */
-                            home = home.concat("/");
+                            javaHome = javaHome.concat("/");
                         }
 
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "$JAVA_HOME = " + home);
+                                "$JAVA_HOME = " + javaHome);
 
                         /* trying: "lib/security/jssecacerts" */
-                        File f = new File(home.concat(
+                        File f = new File(javaHome.concat(
                                             "jre/lib/security/jssecacerts"));
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "Loading certs from " +
-                                    home.concat("lib/security/jssecacerts"));
+                                   "Loading certs from " +
+                                   javaHome.concat("lib/security/jssecacerts"));
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                             stream.close();
@@ -127,11 +130,11 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         }
 
                         /* trying: "lib/security/cacerts" */
-                        f = new File(home.concat("jre/lib/security/cacerts"));
+                        f = new File(javaHome.concat("jre/lib/security/cacerts"));
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     "Loading certs from " +
-                                    home.concat("lib/security/cacerts"));
+                                    javaHome.concat("lib/security/cacerts"));
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                             stream.close();
@@ -139,87 +142,107 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         }
                     }
 
-                    /* ANDROID, detect based on ANDROID_ROOT */
-                    home = System.getenv("ANDROID_ROOT");
-                    if (home != null) {
-                        /* try: "/system/security/cacerts/*"
-                         * this is a directory of individual PEM files */
+                    if (androidRoot != null) {
 
-                        if (!home.endsWith("/") && !home.endsWith("\\")) {
-                            /* add trailing slash if not there already */
-                            home = home.concat("/");
-                        }
-
-                        String caStoreDir = home.concat("etc/security/cacerts");
-                        File cadir = new File(caStoreDir);
+                        /* first try to use AndroidCAStore KeyStore, this is
+                         * pre-loaded with Android system CA certs */
                         try {
-                            cafiles = cadir.list();
-                        } catch (Exception e) {
-                            /* denied access reading cacerts directory */
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                                "Permission error when trying to read " +
-                                "system CA certificates");
-                            throw e;
+                            certs = KeyStore.getInstance("AndroidCAStore");
+                            certs.load(null, null);
+                            systemCertsFound = true;
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "Using AndroidCAStore KeyStore for default " +
+                                "system certs");
+                        } catch (KeyStoreException e) {
+                            /* error finding AndroidCAStore */
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "AndroidCAStore KeyStore not found, trying " +
+                                "to manually load system certs");
+                            systemCertsFound = false;
                         }
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "Found " + cafiles.length + " CA files to load " +
-                            "into KeyStore");
 
-                        /* get factory for cert creation */
-                        CertificateFactory cfactory =
-                            CertificateFactory.getInstance("X.509");
+                        /* Otherwise, try to manually load system certs */
+                        if (systemCertsFound == false) {
+                            if (!androidRoot.endsWith("/") &&
+                                !androidRoot.endsWith("\\")) {
+                                /* add trailing slash if not there already */
+                                androidRoot = androidRoot.concat("/");
+                            }
 
-                        /* loop over all PEM certs */
-                        for (String cafile : cafiles) {
-
-                            WolfSSLCertificate certPem = null;
-                            String fullCertPath = caStoreDir.concat("/");
-                            fullCertPath = fullCertPath.concat(cafile);
-
+                            String caStoreDir = androidRoot.concat(
+                                                    "etc/security/cacerts");
+                            File cadir = new File(caStoreDir);
+                            String[] cafiles = null;
                             try {
-                                certPem = new WolfSSLCertificate(
-                                    fullCertPath, WolfSSL.SSL_FILETYPE_PEM);
-                            } catch (WolfSSLException we) {
-                                /* skip, error parsing PEM */
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "Skipped loading cert: " + fullCertPath);
-                                if (certPem != null) {
-                                    certPem.free();
+                                cafiles = cadir.list();
+                            } catch (Exception e) {
+                                /* denied access reading cacerts directory */
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                    "Permission error when trying to read " +
+                                    "system CA certificates");
+                                throw e;
+                            }
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "Found " + cafiles.length + " CA files to load " +
+                                "into KeyStore");
+
+                            /* get factory for cert creation */
+                            CertificateFactory cfactory =
+                                CertificateFactory.getInstance("X.509");
+
+                            /* loop over all PEM certs */
+                            for (String cafile : cafiles) {
+
+                                WolfSSLCertificate certPem = null;
+                                String fullCertPath = caStoreDir.concat("/");
+                                fullCertPath = fullCertPath.concat(cafile);
+
+                                try {
+                                    certPem = new WolfSSLCertificate(
+                                        fullCertPath, WolfSSL.SSL_FILETYPE_PEM);
+                                } catch (WolfSSLException we) {
+                                    /* skip, error parsing PEM */
+                                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                        "Skipped loading cert: " + fullCertPath);
+                                    if (certPem != null) {
+                                        certPem.free();
+                                    }
+                                    continue;
                                 }
-                                continue;
+
+                                byte[] derArray = certPem.getDer();
+                                certPem.free();
+                                ByteArrayInputStream bis =
+                                    new ByteArrayInputStream(derArray);
+                                Certificate tmpCert = null;
+
+                                try {
+                                    tmpCert = cfactory.generateCertificate(bis);
+                                    bis.close();
+                                } catch (CertificateException ce) {
+                                    WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                        "Error generating certificate from " +
+                                        "ByteArrayInputStream");
+                                    bis.close();
+                                    throw ce;
+                                }
+
+                                String aliasString = "alias" + aliasCnt;
+                                try {
+                                    certs.setCertificateEntry(aliasString, tmpCert);
+                                } catch (KeyStoreException kse) {
+                                    WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                                        "Error setting certificate entry in " +
+                                        "KeyStore, skipping loading cert");
+                                    continue;
+                                }
+
+                                /* increment alias counter for unique aliases */
+                                aliasCnt++;
                             }
+                            systemCertsFound = true;
 
-                            byte[] derArray = certPem.getDer();
-                            certPem.free();
-                            ByteArrayInputStream bis =
-                                new ByteArrayInputStream(derArray);
-                            Certificate tmpCert = null;
-
-                            try {
-                                tmpCert = cfactory.generateCertificate(bis);
-                                bis.close();
-                            } catch (CertificateException ce) {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                                    "Error generating certificate from " +
-                                    "ByteArrayInputStream");
-                                bis.close();
-                                throw ce;
-                            }
-
-                            String aliasString = "alias" + aliasCnt;
-                            try {
-                                certs.setCertificateEntry(aliasString, tmpCert);
-                            } catch (KeyStoreException kse) {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                                    "Error setting certificate entry in " +
-                                    "KeyStore, skipping loading cert");
-                                continue;
-                            }
-
-                            /* increment alias counter for unique aliases */
-                            aliasCnt++;
-                        }
-                        systemCertsFound = true;
+                        } /* end Android manual load */
                     }
 
                     if (systemCertsFound == false) {
