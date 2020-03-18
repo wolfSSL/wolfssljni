@@ -112,7 +112,7 @@ public class WolfSSLCertificate {
     }
 
     public WolfSSLCertificate(String fileName) throws WolfSSLException {
-        
+
         if (fileName == null) {
             throw new WolfSSLException("Input filename cannot be null");
         }
@@ -184,7 +184,7 @@ public class WolfSSLCertificate {
         if (this.active == false) {
             return null;
         }
-        
+
         sz = X509_get_serial_number(this.x509Ptr, out);
         if (sz <= 0) {
             return null;
@@ -201,7 +201,7 @@ public class WolfSSLCertificate {
         if (this.active == false) {
             return null;
         }
-       
+
         nb  = X509_notBefore(this.x509Ptr);
         if (nb != null) {
             SimpleDateFormat format =
@@ -221,7 +221,7 @@ public class WolfSSLCertificate {
         if (this.active == false) {
             return null;
         }
-       
+
         nb = X509_notAfter(this.x509Ptr);
         if (nb != null) {
             SimpleDateFormat format =
@@ -333,7 +333,7 @@ public class WolfSSLCertificate {
         if (this.active == false) {
             return false;
         }
-       
+
         ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
         if (ret == WolfSSL.SSL_SUCCESS) {
             return true;
@@ -466,6 +466,7 @@ public class WolfSSLCertificate {
 
         /* free Java resources */
         this.active = false;
+        this.x509Ptr = 0;
     }
 
     @SuppressWarnings("deprecation")
@@ -473,8 +474,12 @@ public class WolfSSLCertificate {
     protected void finalize() throws Throwable
     {
         if (this.active == true) {
-            /* free resources, set state */
-            this.free();
+            try {
+                this.free();
+            } catch (IllegalStateException e) {
+                /* already freed */
+            }
+            this.active = false;
         }
         super.finalize();
     }
