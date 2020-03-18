@@ -53,7 +53,7 @@ public class WolfSSLSession {
     private Object rsaDecCtx;
 
     /* reference to the associated WolfSSLContext */
-    private WolfSSLContext ctx;
+    private WolfSSLContext ctx = null;
 
     /* user-registered PSK callbacks, also at WolfSSLContext level */
     private WolfSSLPskClientCallback internPskClientCb = null;
@@ -637,7 +637,7 @@ public class WolfSSLSession {
         throws IllegalStateException, WolfSSLJNIException {
 
         if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+            return;
 
         /* free native resources */
         freeSSL(getSessionPtr());
@@ -2448,6 +2448,7 @@ public class WolfSSLSession {
             /* free resources, set state */
             this.freeSSL();
             this.active = false;
+            this.sslPtr = 0;
         }
         super.finalize();
     }
