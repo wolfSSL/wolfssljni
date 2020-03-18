@@ -40,7 +40,7 @@ import com.wolfssl.WolfSSLJNIException;
 public class WolfSSLContext {
 
     /* internal native WOLFSSL_CTX pointer */
-    private long sslCtxPtr;
+    private long sslCtxPtr = 0;
 
     /* user-registerd I/O callbacks, called by internal WolfSSLContext
      * I/O callback. This is done in order to pass references to
@@ -100,6 +100,9 @@ public class WolfSSLContext {
 
     long getContextPtr()
     {
+        if (this.active == false) {
+            return 0;
+        }
         return sslCtxPtr;
     }
 
@@ -566,10 +569,11 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         /* free native resources */
-        freeContext(getContextPtr());
+        freeContext(this.sslCtxPtr);
 
         /* free Java resources */
         this.active = false;
+        this.sslCtxPtr = 0;
     }
 
     /**
@@ -1695,8 +1699,11 @@ public class WolfSSLContext {
     protected void finalize() throws Throwable
     {
         if (this.active == true) {
-            /* free resources, set state */
-            this.free();
+            try {
+                this.free();
+            } catch (IllegalStateException e) {
+                /* already freed */
+            }
             this.active = false;
         }
         super.finalize();
