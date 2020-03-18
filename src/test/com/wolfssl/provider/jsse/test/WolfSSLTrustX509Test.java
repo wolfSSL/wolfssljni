@@ -50,7 +50,7 @@ import org.junit.Test;
 public class WolfSSLTrustX509Test {
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
-    
+
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
         throws NoSuchProviderException {
@@ -80,9 +80,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 9;
-        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
-            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Development", "OU=Programming-2048" };
+        String OU[] = { "OU=Programming-2048", "OU=Programming-1024",
+            "OU=Support", "OU=Support_1024", "OU=Fast", "OU=Consulting",
+            "OU=ECC", "OU=Consulting_1024" };
 
         /* OpenJDK 1.7 KeyStore load order */
         String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
@@ -161,8 +161,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 6;
-        String OU[] = { "OU=Programming-1024", "OU=Support", "OU=Support_1024",
-            "OU=Fast", "OU=Programming-2048"};
+        String OU[] = { "OU=Support", "OU=Support_1024", "OU=Fast",
+            "OU=Programming-2048", "OU=Programming-1024" };
 
         /* OpenJDK 1.7 KeyStore load order */
         String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
@@ -237,9 +237,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0, j;
         int expected = 8;
-        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
-            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Programming-2048" };
+        String OU[] = { "OU=Fast", "OU=Consulting", "OU=Programming-1024",
+            "OU=Programming-2048", "OU=ECC", "OU=Support", "OU=Support_1024",
+            "OU=Consulting_1024" };
 
         /* OpenJDK 1.7 KeyStore load order */
         String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",

@@ -26,6 +26,8 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -45,41 +47,9 @@ import java.util.Set;
  */
 public class WolfSSLTrustX509 implements X509TrustManager {
     private KeyStore store = null;
-    private Set<X509Certificate> CAs = null;
 
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
-        LoadCAsFromStore();
-    }
-
-    /* Loads all CAs from the key store into the cert manager structure */
-    private int LoadCAsFromStore() {
-        try {
-            /* Store the alias of all CAs */
-            Enumeration<String> aliases = store.aliases();
-            CAs = new HashSet<X509Certificate>();
-            while (aliases.hasMoreElements()) {
-                String name = aliases.nextElement();
-                X509Certificate cert = null;
-
-                if (store.isKeyEntry(name)) {
-                    Certificate[] chain = store.getCertificateChain(name);
-                    if (chain != null)
-                        cert = (X509Certificate) chain[0];
-                }
-                else {
-                    cert = (X509Certificate) store.getCertificate(name);
-                }
-
-                if (cert != null && cert.getBasicConstraints() >= 0) {
-                    CAs.add(cert);
-                }
-            }
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLTrustX509.class.getName()).log(
-                    Level.SEVERE, null, ex);
-        }
-        return WolfSSL.SSL_SUCCESS;
     }
 
     /**
@@ -143,21 +113,38 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
     @Override
     public X509Certificate[] getAcceptedIssuers() {
-        if (CAs != null) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "accepted issuer array size = " + CAs.size());
+        try {
+            List<X509Certificate> CAs = new ArrayList<X509Certificate>();
+            /* Store the alias of all CAs */
+            Enumeration<String> aliases = store.aliases();
+            while (aliases.hasMoreElements()) {
+                final String name = aliases.nextElement();
+                X509Certificate cert = null;
+
+                if (store.isKeyEntry(name)) {
+                    Certificate[] chain = store.getCertificateChain(name);
+                    if (chain != null)
+                        cert = (X509Certificate) chain[0];
+                } else {
+                    cert = (X509Certificate) store.getCertificate(name);
+                }
+
+                if (cert != null && cert.getBasicConstraints() >= 0) {
+                    CAs.add(cert);
+                }
+            }
+
             return CAs.toArray(new X509Certificate[CAs.size()]);
+
+        } catch (KeyStoreException ex) {
+            return new X509Certificate[0];
         }
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "accepted issuer array is null");
-        return null;
     }
 
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable {
         this.store = null;
-        this.CAs = null;
         super.finalize();
     }
 }
