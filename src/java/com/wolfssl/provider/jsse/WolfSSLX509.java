@@ -86,6 +86,11 @@ public class WolfSSLX509 extends X509Certificate {
     @Override
     public void checkValidity(Date date)
         throws CertificateExpiredException, CertificateNotYetValidException {
+
+        if (this.cert == null) {
+            throw new CertificateExpiredException();
+        }
+
         Date after = this.cert.notAfter();
         Date before = this.cert.notBefore();
 
@@ -99,53 +104,83 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public int getVersion() {
+        if (this.cert == null) {
+            return 0;
+        }
         return this.cert.getVersion();
     }
 
     @Override
     public BigInteger getSerialNumber() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getSerial();
     }
 
     @Override
     public Principal getIssuerDN() {
+        if (this.cert == null) {
+            return null;
+        }
         String name = this.cert.getIssuer();
         return new WolfSSLPrincipal(name);
     }
 
     @Override
     public Principal getSubjectDN() {
+        if (this.cert == null) {
+            return null;
+        }
         String name = this.cert.getSubject();
         return new WolfSSLPrincipal(name);
     }
 
     @Override
     public Date getNotBefore() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.notBefore();
     }
 
     @Override
     public Date getNotAfter() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.notAfter();
     }
 
     @Override
     public byte[] getTBSCertificate() throws CertificateEncodingException {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getTbs();
     }
 
     @Override
     public byte[] getSignature() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getSignature();
     }
 
     @Override
     public String getSigAlgName() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getSignatureType();
     }
 
     @Override
     public String getSigAlgOID() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getSignatureOID();
     }
 
@@ -166,11 +201,17 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public boolean[] getKeyUsage() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getKeyUsage();
     }
 
     @Override
     public int getBasicConstraints() {
+        if (this.cert == null) {
+            return 0;
+        }
         if (this.cert.isCA() == 1) {
             int pLen = this.cert.getPathLen();
             if (pLen == -1) { /* if not set then return max int value */
@@ -183,6 +224,9 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getEncoded() throws CertificateEncodingException {
+        if (this.cert == null) {
+            return null;
+        }
         byte[] ret = this.cert.getDer();
         if (ret == null) {
             throw new CertificateEncodingException();
@@ -193,6 +237,9 @@ public class WolfSSLX509 extends X509Certificate {
     @Override
     public Collection<List<?>> getSubjectAlternativeNames()
         throws CertificateParsingException {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getSubjectAltNames();
     }
 
@@ -205,6 +252,9 @@ public class WolfSSLX509 extends X509Certificate {
 
         if (key == null) {
             throw new InvalidKeyException();
+        }
+        if (this.cert == null) {
+            throw new CertificateException();
         }
         pubKey = key.getEncoded();
 
@@ -225,6 +275,9 @@ public class WolfSSLX509 extends X509Certificate {
 
         if (key == null || sigProvider == null) {
             throw new InvalidKeyException();
+        }
+        if (this.cert == null) {
+            throw new CertificateException();
         }
 
         sigOID = this.getSigAlgName();
@@ -253,6 +306,9 @@ public class WolfSSLX509 extends X509Certificate {
         if (key == null || p == null) {
             throw new InvalidKeyException();
         }
+        if (this.cert == null) {
+            throw new CertificateException();
+        }
 
         sigOID = this.getSigAlgName();
         sigBuf = this.getSignature();
@@ -276,12 +332,18 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public String toString() {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.toString();
     }
 
     public void free() {
         try {
-            this.cert.free();
+            if (this.cert != null) {
+                this.cert.free();
+                this.cert = null;
+            }
         } catch (IllegalStateException e) {
             /* was already free'd */
         }
@@ -289,6 +351,9 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public PublicKey getPublicKey() {
+        if (this.cert == null) {
+            return null;
+        }
         String type  = this.cert.getPubkeyType();
         byte der[]   = this.cert.getPubkey();
 
@@ -312,6 +377,10 @@ public class WolfSSLX509 extends X509Certificate {
         int i;
         Set<String> ret = new TreeSet<String>();
 
+        if (this.cert == null) {
+            return null;
+        }
+
         for (i = 0; i < this.extensionOid.length; i++) {
             if (this.cert.getExtensionSet(this.extensionOid[i]) == 2) {
                 ret.add(this.extensionOid[i]);
@@ -329,6 +398,10 @@ public class WolfSSLX509 extends X509Certificate {
         int i;
         Set<String> ret = new TreeSet<String>();
 
+        if (this.cert == null) {
+            return null;
+        }
+
         for (i = 0; i < this.extensionOid.length; i++) {
             if (this.cert.getExtensionSet(this.extensionOid[i]) == 1) {
                 ret.add(this.extensionOid[i]);
@@ -342,6 +415,9 @@ public class WolfSSLX509 extends X509Certificate {
     /* slight difference in that the ASN1 syntax is not returned.
      * i.e. no OCTET STRING Id "04 16 04 14" before subject key id */
     public byte[] getExtensionValue(String oid) {
+        if (this.cert == null) {
+            return null;
+        }
         return this.cert.getExtension(oid);
     }
 
