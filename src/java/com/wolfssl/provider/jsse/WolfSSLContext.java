@@ -200,11 +200,13 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* We only load keys from algorithms enabled in native wolfSSL,
          * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
-         * has a bug that causes PrivateKey.getEncoded() to fail for EC keys.
-         * This has been fixed in later JDK versions, but skip adding EC
-         * here if we're running on OpenJDK 1.7.0_201. */
+         * and 1.7.0_171 have a bug that causes PrivateKey.getEncoded() to
+         * fail for EC keys. This has been fixed in later JDK versions,
+         * but skip adding EC here if we're running on those versions . */
         ArrayList<String> keyAlgos = new ArrayList<String>();
-        if (WolfSSL.EccEnabled() && !javaVersion.equals("1.7.0_201")) {
+        if (WolfSSL.EccEnabled() &&
+            (!javaVersion.equals("1.7.0_201") &&
+             !javaVersion.equals("1.7.0_171"))) {
             keyAlgos.add("EC");
         }
         if (WolfSSL.RsaEnabled()) {
