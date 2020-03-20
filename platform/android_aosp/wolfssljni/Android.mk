@@ -9,12 +9,12 @@ native_cflags := -Wall
 # Create the wolfSSL JNI library
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES := $(call all-java-files-under,src/java)
-LOCAL_NO_STANDARD_LIBRARIES := true
 LOCAL_JAVACFLAGS := $(javac_flags)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := wolfssljni
 LOCAL_REQUIRED_MODULES := libwolfssljni libwolfssl
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_JAVA_LIBRARIES := core-libart
 include $(BUILD_JAVA_LIBRARY)
 
 # Create wolfSSL JNI native library
