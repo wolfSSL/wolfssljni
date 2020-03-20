@@ -993,28 +993,22 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
 #ifdef KEEP_PEER_CERT
-    jclass excClass;
-
+    WOLFSSL_X509* x509 = NULL;
+    (void)jenv;
     (void)jcl;
 
-    if (!ssl) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            return SSL_FAILURE;
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLSession object was null in getPeerCertificate");
-        return SSL_FAILURE;
+    if (ssl == 0) {
+        return (jlong)0;
     }
 
-    return (long)wolfSSL_get_peer_certificate((WOLFSSL*)(uintptr_t)ssl);
+    x509 = wolfSSL_get_peer_certificate((WOLFSSL*)(uintptr_t)ssl);
+
+    return (jlong)(uintptr_t)x509;
 #else
     (void)jenv;
     (void)jcl;
     (void)ssl;
-    return NOT_COMPILED_IN;
+    return (jlong)0;
 #endif
 }
 
