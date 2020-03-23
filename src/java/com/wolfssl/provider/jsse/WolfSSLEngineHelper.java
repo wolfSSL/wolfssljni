@@ -34,6 +34,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
+import java.io.IOException;
 
 /**
  * This is a helper function to account for similar methods between SSLSocket
@@ -500,7 +501,7 @@ public class WolfSSLEngineHelper {
                     for (int i = 0; i < certs.length; i++) {
                         x509certs[i] = certs[i].getX509Certificate();
                     }
-                } catch (CertificateException ce) {
+                } catch (CertificateException | IOException ce) {
                     /* failed to get cert array, give app null array */
                     x509certs = null;
                 }

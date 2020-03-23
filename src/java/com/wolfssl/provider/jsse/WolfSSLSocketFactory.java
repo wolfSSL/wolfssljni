@@ -42,7 +42,7 @@ import com.wolfssl.WolfSSLContext;
 public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     private WolfSSLAuthStore authStore = null;
-    private WolfSSLContext ctx = null;
+    private com.wolfssl.WolfSSLContext ctx = null;
     private SSLParameters params;
 
     /* This constructor is used when the JSSE call

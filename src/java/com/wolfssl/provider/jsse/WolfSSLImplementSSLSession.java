@@ -194,6 +194,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             return null;
         }
 
+        /* if no peer cert, throw SSLPeerUnverifiedException */
+        if (x509 == 0) {
+            throw new SSLPeerUnverifiedException("No peer certificate");
+        }
+
         try {
             cert = new WolfSSLX509(x509);
         } catch (WolfSSLException ex) {

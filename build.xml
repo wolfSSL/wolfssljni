@@ -30,6 +30,19 @@
 
     <property environment="env"/>
 
+    <condition property="have-nativeheaderdir">
+        <and>
+            <antversion atleast="1.9.8"/>
+            <not>
+                <or>
+                    <equals arg1="${ant.java.version}" arg2="1.5"/>
+                    <equals arg1="${ant.java.version}" arg2="1.6"/>
+                    <equals arg1="${ant.java.version}" arg2="1.7"/>
+                </or>
+            </not>
+        </and>
+    </condition>
+
     <taskdef uri="antlib:org.jacoco.ant" resource="org/jacoco/ant/antlib.xml">
         <classpath path="${env.JACOCO_HOME}/jacocoant.jar"/>
     </taskdef>
@@ -71,10 +84,10 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile, jar, jar-jsse, javadoc"/>
-    <target name="build-jacoco" depends="init, compile, jar, jar-jsse, javadoc, examples, test-jacoco, coverage-report"/>
+    <target name="build" depends="init, compile-nativeheaderdir, compile-javah, jar, jar-jsse, javah, javadoc"/>
+    <target name="build-jacoco" depends="init, compile-nativeheaderdir, compile-javah, jar, jar-jsse, javah, javadoc, examples, test-jacoco, coverage-report"/>
 
-    <target name="compile">
+    <target name="compile-nativeheaderdir" if="have-nativeheaderdir">
         <javac srcdir="${src.dir}"
                destdir="${build.dir}"
                nativeheaderdir="${native.dir}"
@@ -88,6 +101,35 @@
                includeantruntime="false">
             <compilerarg value="-Xlint:-options"/>
         </javac>
+    </target>
+
+    <target name="compile-javah" unless="have-nativeheaderdir">
+        <javac srcdir="${src.dir}"
+               destdir="${build.dir}"
+               debug="${java.debug}"
+               debuglevel="${java.debuglevel}"
+               deprecation="${java.deprecation}"
+               optimize="${java.optimize}"
+               source="${java.source}"
+               target="${java.target}"
+               classpathref="classpath"
+               includeantruntime="false">
+            <compilerarg value="-Xlint:-options"/>
+        </javac>
+    </target>
+
+    <target name="javah" unless="have-nativeheaderdir">
+        <javah destdir="${native.dir}" force="yes" classpathref="classpath">
+            <class name="com.wolfssl.WolfSSL"/>
+            <class name="com.wolfssl.WolfSSLCertManager"/>
+            <class name="com.wolfssl.WolfSSLCertificate"/>
+            <class name="com.wolfssl.WolfSSLContext"/>
+            <class name="com.wolfssl.WolfSSLSession"/>
+            <class name="com.wolfssl.WolfSSLX509StoreCtx"/>
+            <class name="com.wolfssl.wolfcrypt.ECC"/>
+            <class name="com.wolfssl.wolfcrypt.EccKey"/>
+            <class name="com.wolfssl.wolfcrypt.RSA"/>
+        </javah>
     </target>
 
     <target name="default-javac-flags"

@@ -27,7 +27,15 @@ Release X.X.X has bug fixes and new features including:
 - wolfJSSE TrustManager registered as PKIX provider
 - Improved support for auto-loading system CA certificates
 - Improved Android TrustManager support
+- Use AndroidCAStore KeyStore when available on Android
 - Support for X509Certificate.getSubjectAlternativeNames()
+- Fix for native memory leak in JSSE WolfSSLTrustX509
+- Optimization of WolfSSLTrustX509 to hold less memory at idle
+- Addition of missing finalize() methods in some JSSE classes
+- Casts to uintptr_t instead of intptr_t at native JNI level
+- Conversion to use GetByteArrayElements for potential memory use savings
+- Consistently use wolfCrypt XMALLOC/XFREE for native memory allocation
+- Use javah in build.xml for older ant/Java versions without nativeheaderdir
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build

@@ -39,7 +39,7 @@ import com.wolfssl.WolfSSLContext;
  */
 public class WolfSSLServerSocket extends SSLServerSocket {
 
-    private WolfSSLContext context = null;
+    private com.wolfssl.WolfSSLContext context = null;
     private WolfSSLAuthStore authStore = null;
     private SSLParameters params = null;
 
@@ -48,7 +48,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     private WolfSSLSocket socket = null;
     private WolfSSLDebug debug;
 
-    public WolfSSLServerSocket(WolfSSLContext context,
+    public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             SSLParameters params) throws IOException {
 
@@ -60,7 +60,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = WolfSSLEngineHelper.decoupleParams(params);
     }
 
-    public WolfSSLServerSocket(WolfSSLContext context,
+    public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, SSLParameters params, int port)
         throws IOException {
 
@@ -72,7 +72,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = WolfSSLEngineHelper.decoupleParams(params);
     }
 
-    public WolfSSLServerSocket(WolfSSLContext context,
+    public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             SSLParameters params, int port, int backlog)
         throws IOException {
@@ -85,7 +85,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = WolfSSLEngineHelper.decoupleParams(params);
     }
 
-    public WolfSSLServerSocket(WolfSSLContext context,
+    public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             SSLParameters params, int port, int backlog, InetAddress address)
         throws IOException {

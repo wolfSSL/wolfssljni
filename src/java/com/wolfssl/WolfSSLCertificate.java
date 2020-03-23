@@ -49,8 +49,6 @@ public class WolfSSLCertificate {
     /* cache alt names once retrieved once */
     private Collection<List<?>> altNames = null;
 
-    static native long d2i_X509(byte[] der, int len);
-    static native byte[] certPemToDer(byte[] pem, int len);
     static native byte[] X509_get_der(long x509);
     static native byte[] X509_get_tbs(long x509);
     static native void X509_free(long x509);
@@ -73,133 +71,121 @@ public class WolfSSLCertificate {
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
+    static native long X509_load_certificate_buffer(byte[] buf, int format);
+    static native long X509_load_certificate_file(String path, int format);
 
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
-        x509Ptr = d2i_X509(der, der.length);
-        if (x509Ptr == 0) {
+
+        if (der == null || der.length == 0) {
+            throw new WolfSSLException(
+                "Input array must not be null or zero length");
+        }
+
+        x509Ptr = X509_load_certificate_buffer(der, WolfSSL.SSL_FILETYPE_ASN1);
+        if (x509Ptr <= 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
+
         this.active = true;
     }
 
     public WolfSSLCertificate(byte[] in, int format) throws WolfSSLException {
-        byte[] input = in;
 
         if (in == null || in.length == 0) {
             throw new WolfSSLException(
                 "Input array must not be null or zero length");
         }
 
-        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
-            format != WolfSSL.SSL_FILETYPE_PEM) {
+        if ((format != WolfSSL.SSL_FILETYPE_ASN1) &&
+            (format != WolfSSL.SSL_FILETYPE_PEM)) {
             throw new WolfSSLException(
                 "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
                 "WolfSSL.SSL_FILETYPE_PEM");
         }
 
-        if (format == WolfSSL.SSL_FILETYPE_PEM) {
-            /* convert PEM to DER */
-            input = certPemToDer(in, in.length);
-            if (input == null) {
-                throw new WolfSSLException("Failed to convert PEM to DER");
-            }
-        }
-
-        /* create from DER array */
-        x509Ptr = d2i_X509(input, input.length);
-        if (x509Ptr == 0) {
+        x509Ptr = X509_load_certificate_buffer(in, format);
+        if (x509Ptr <= 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
+
         this.active = true;
     }
 
     public WolfSSLCertificate(String fileName) throws WolfSSLException {
-        File f = new File(fileName);
-        InputStream stream = null;
-        byte[] der = null;
 
-        try {
-            der = new byte[(int) f.length()];
-            stream = new FileInputStream(f);
-            stream.read(der, 0, der.length);
-            stream.close();
-        } catch (IOException ex) {
-            throw new WolfSSLException(
-                "Failed to create WolfSSLCertificate", ex);
+        if (fileName == null) {
+            throw new WolfSSLException("Input filename cannot be null");
         }
 
-        x509Ptr = d2i_X509(der, der.length);
-        if (x509Ptr == 0) {
-            throw new WolfSSLException(
-                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
+        x509Ptr = X509_load_certificate_file(fileName,
+                                             WolfSSL.SSL_FILETYPE_ASN1);
+        if (x509Ptr <= 0) {
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
+
         this.active = true;
     }
 
     public WolfSSLCertificate(String fileName, int format)
-        throws WolfSSLException {
-        InputStream stream = null;
-        byte[] bytes = null;
-        byte[] der = null;
+            throws WolfSSLException {
 
         if (fileName == null) {
-            throw new WolfSSLException("Input file must not be null");
+            throw new WolfSSLException("Input filename cannot be null");
         }
 
-        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
-            format != WolfSSL.SSL_FILETYPE_PEM) {
+        if ((format != WolfSSL.SSL_FILETYPE_ASN1) &&
+            (format != WolfSSL.SSL_FILETYPE_PEM)) {
             throw new WolfSSLException(
                 "Input format must be WolfSSL.SSL_FILETYPE_ASN1 or " +
                 "WolfSSL.SSL_FILETYPE_PEM");
         }
 
-        File f = new File(fileName);
-        try {
-            bytes = new byte[(int) f.length()];
-            stream = new FileInputStream(f);
-            stream.read(bytes, 0, bytes.length);
-            stream.close();
-        } catch (IOException ex) {
-            throw new WolfSSLException(
-                "Failed to create WolfSSLCertificate", ex);
+        x509Ptr = X509_load_certificate_file(fileName, format);
+        if (x509Ptr <= 0) {
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
-        if (format == WolfSSL.SSL_FILETYPE_PEM) {
-            /* convert PEM to DER */
-            der = certPemToDer(bytes, bytes.length);
-            if (der == null) {
-                throw new WolfSSLException("Failed to convert PEM to DER");
-            }
-        } else {
-            der = bytes;
-        }
-
-        x509Ptr = d2i_X509(der, der.length);
-        if (x509Ptr == 0) {
-            throw new WolfSSLException(
-                "Failed to create WolfSSLCertificate, d2i_X509() returned 0");
-        }
         this.active = true;
     }
 
     public WolfSSLCertificate(long x509) throws WolfSSLException {
+
+        if (x509 <= 0) {
+            throw new WolfSSLException("Input pointer may not be <= 0");
+        }
         x509Ptr = x509;
         this.active = true;
     }
 
     /* return DER encoding of certificate */
     public byte[] getDer() {
-        return X509_get_der(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_der(this.x509Ptr);
+        }
+
+        return null;
     }
 
     /* return the buffer that is To Be Signed */
     public byte[] getTbs() {
-        return X509_get_tbs(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_tbs(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public BigInteger getSerial() {
         byte[] out = new byte[32];
-        int sz = X509_get_serial_number(this.x509Ptr, out);
+        int sz;
+
+        if (this.active == false) {
+            return null;
+        }
+
+        sz = X509_get_serial_number(this.x509Ptr, out);
         if (sz <= 0) {
             return null;
         }
@@ -210,8 +196,13 @@ public class WolfSSLCertificate {
     }
 
     public Date notBefore() {
-        String nb = X509_notBefore(this.x509Ptr);
+        String nb;
 
+        if (this.active == false) {
+            return null;
+        }
+
+        nb  = X509_notBefore(this.x509Ptr);
         if (nb != null) {
             SimpleDateFormat format =
                     new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
@@ -225,8 +216,13 @@ public class WolfSSLCertificate {
     }
 
     public Date notAfter() {
-        String nb = X509_notAfter(this.x509Ptr);
+        String nb;
 
+        if (this.active == false) {
+            return null;
+        }
+
+        nb = X509_notAfter(this.x509Ptr);
         if (nb != null) {
             SimpleDateFormat format =
                     new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
@@ -240,49 +236,105 @@ public class WolfSSLCertificate {
     }
 
     public int getVersion() {
-        return X509_version(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_version(this.x509Ptr);
+        }
+
+        return 0;
     }
 
     public byte[] getSignature() {
-        return X509_get_signature(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_signature(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public String getSignatureType() {
-        return X509_get_signature_type(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_signature_type(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public String getSignatureOID() {
-        return X509_get_signature_OID(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_signature_OID(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public byte[] getPubkey() {
-        return X509_get_pubkey(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_pubkey(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public String getPubkeyType() {
-        return X509_get_pubkey_type(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_pubkey_type(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public int isCA() {
-        return X509_get_isCA(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_isCA(this.x509Ptr);
+        }
+
+        return 0;
     }
 
     /* if not set -1 is returned */
     public int getPathLen() {
-        return X509_get_pathLength(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_pathLength(this.x509Ptr);
+        }
+
+        return 0;
     }
 
     public String getSubject() {
-        return X509_get_subject_name(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_subject_name(this.x509Ptr);
+        }
+
+        return null;
     }
 
     public String getIssuer() {
-        return X509_get_issuer_name(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_issuer_name(this.x509Ptr);
+        }
+
+        return null;
     }
 
     /* returns WOLFSSL_SUCCESS on successful verification */
     public boolean verify(byte[] pubKey, int pubKeySz) {
-        int ret = X509_verify(this.x509Ptr, pubKey, pubKeySz);
+        int ret;
+
+        if (this.active == false) {
+            return false;
+        }
+
+        ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
         if (ret == WolfSSL.SSL_SUCCESS) {
             return true;
         }
@@ -290,12 +342,17 @@ public class WolfSSLCertificate {
     }
 
     public boolean[] getKeyUsage() {
-        return X509_get_key_usage(this.x509Ptr);
+
+        if (this.active == true) {
+            return X509_get_key_usage(this.x509Ptr);
+        }
+
+        return null;
     }
 
     /* gets the DER encoded extension value from an OID passed in */
     public byte[] getExtension(String oid) {
-        if (oid == null) {
+        if (oid == null || this.active == false) {
             return null;
         }
         return X509_get_extension(this.x509Ptr, oid);
@@ -307,6 +364,9 @@ public class WolfSSLCertificate {
      * return negative value on error
      */
     public int getExtensionSet(String oid) {
+        if (this.active == false) {
+            return 0;
+        }
         return X509_is_extension_set(this.x509Ptr, oid);
     }
 
@@ -358,14 +418,27 @@ public class WolfSSLCertificate {
      *
      * @return X509Certificate object
      * @throws CertificateException on error
+     * @throws IOException on error closing ByteArrayInputStream
      */
-    public X509Certificate getX509Certificate() throws CertificateException {
+    public X509Certificate getX509Certificate()
+        throws CertificateException, IOException {
 
-        X509Certificate cert;
+        X509Certificate cert = null;
+        InputStream in = null;
 
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        InputStream in = new ByteArrayInputStream(this.getDer());
-        cert = (X509Certificate)cf.generateCertificate(in);
+
+        try {
+            in = new ByteArrayInputStream(this.getDer());
+            cert = (X509Certificate)cf.generateCertificate(in);
+            in.close();
+
+        } catch (Exception e) {
+            if (in != null) {
+                in.close();
+                throw e;
+            }
+        }
 
         return cert;
     }
@@ -385,11 +458,15 @@ public class WolfSSLCertificate {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
+        /* set this.altNames to null so GC can free */
+        this.altNames = null;
+
         /* free native resources */
         X509_free(this.x509Ptr);
 
         /* free Java resources */
         this.active = false;
+        this.x509Ptr = 0;
     }
 
     @SuppressWarnings("deprecation")
@@ -397,8 +474,11 @@ public class WolfSSLCertificate {
     protected void finalize() throws Throwable
     {
         if (this.active == true) {
-            /* free resources, set state */
-            this.free();
+            try {
+                this.free();
+            } catch (IllegalStateException e) {
+                /* already freed */
+            }
             this.active = false;
         }
         super.finalize();

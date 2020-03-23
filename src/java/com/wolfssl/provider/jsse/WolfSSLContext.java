@@ -130,6 +130,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void LoadTrustedRootCerts() {
 
+        int ret = 0;
         int loadedCACount = 0;
 
         /* extract root certs from X509TrustManager */
@@ -156,10 +157,15 @@ public class WolfSSLContext extends SSLContextSpi {
             try {
                 byte[] derCert = caList[i].getEncoded();
 
-                ctx.loadVerifyBuffer(derCert, derCert.length,
-                    WolfSSL.SSL_FILETYPE_ASN1);
+                ret = ctx.loadVerifyBuffer(derCert, derCert.length,
+                                           WolfSSL.SSL_FILETYPE_ASN1);
 
-                loadedCACount++;
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    loadedCACount++;
+                } else {
+                    /* skip loading on failure, move to next */
+                    continue;
+                }
 
             } catch (CertificateEncodingException ce) {
                 /* skip loading if encoding error is encountered */
@@ -194,11 +200,13 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* We only load keys from algorithms enabled in native wolfSSL,
          * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
-         * has a bug that causes PrivateKey.getEncoded() to fail for EC keys.
-         * This has been fixed in later JDK versions, but skip adding EC
-         * here if we're running on OpenJDK 1.7.0_201. */
+         * and 1.7.0_171 have a bug that causes PrivateKey.getEncoded() to
+         * fail for EC keys. This has been fixed in later JDK versions,
+         * but skip adding EC here if we're running on those versions . */
         ArrayList<String> keyAlgos = new ArrayList<String>();
-        if (WolfSSL.EccEnabled() && !javaVersion.equals("1.7.0_201")) {
+        if (WolfSSL.EccEnabled() &&
+            (!javaVersion.equals("1.7.0_201") &&
+             !javaVersion.equals("1.7.0_171"))) {
             keyAlgos.add("EC");
         }
         if (WolfSSL.RsaEnabled()) {
@@ -254,6 +262,7 @@ public class WolfSSLContext extends SSLContextSpi {
                 chainLength++;
             }
             byte certChain[] = certStream.toByteArray();
+            certStream.close();
 
             ret = ctx.useCertificateChainBufferFormat(certChain,
                 certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
@@ -441,9 +450,30 @@ public class WolfSSLContext extends SSLContextSpi {
         return this.ctx;
     }
 
+    protected void cleanup() {
+        if (this.ctx != null) {
+            this.ctx.free();
+            this.ctx = null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        this.cleanup();
+        super.finalize();
+    }
+
     public static final class TLSV1_Context extends WolfSSLContext {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -451,11 +481,25 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
         }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
+        }
     }
 
     public static final class TLSV12_Context extends WolfSSLContext {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -463,11 +507,25 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
         }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
+        }
     }
 
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 
@@ -479,6 +537,13 @@ public class WolfSSLContext extends SSLContextSpi {
             } catch (Exception e) {
                 /* TODO: log this */
             }
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        protected void finalize() throws Throwable {
+            this.cleanup();
+            super.finalize();
         }
     }
 }

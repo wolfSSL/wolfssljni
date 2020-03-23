@@ -50,7 +50,7 @@ import org.junit.Test;
 public class WolfSSLTrustX509Test {
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
-    
+
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
         throws NoSuchProviderException {
@@ -80,15 +80,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 9;
-        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
-            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Development", "OU=Programming-2048" };
-
-        /* OpenJDK 1.7 KeyStore load order */
-        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
-            "OU=Consulting_1024", "OU=Fast", "OU=Support",
-            "OU=Programming-1024", "OU=Consulting", "OU=Development",
-            "OU=ECC" };
+        String OU[] = { "OU=Programming-2048", "OU=Programming-1024",
+            "OU=Support", "OU=Support_1024", "OU=Fast", "OU=Consulting",
+            "OU=ECC", "OU=Consulting_1024" };
 
         System.out.print("\tTesting parse all.jks");
 
@@ -102,20 +96,6 @@ public class WolfSSLTrustX509Test {
          * to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
             expected = 8; /* one less than SunJSSE because of server-ecc */
-        }
-
-        /* Test for KeyStore provider/version, cert order is different */
-        try {
-            KeyStore tmpStore = KeyStore.getInstance("JKS");
-            String tmpStoreProv = tmpStore.getProvider().getName();
-            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
-
-            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
-                OU = OU_17;
-            }
-        } catch (KeyStoreException kse) {
-            error("\t\t... failed");
-            fail("failed to detect KeyStore provider version");
         }
 
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
@@ -161,12 +141,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 6;
-        String OU[] = { "OU=Programming-1024", "OU=Support", "OU=Support_1024",
-            "OU=Fast", "OU=Programming-2048"};
-
-        /* OpenJDK 1.7 KeyStore load order */
-        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
-            "OU=Fast", "OU=Programming-1024", "OU=Support"};
+        String OU[] = { "OU=Support", "OU=Support_1024", "OU=Fast",
+            "OU=Programming-2048", "OU=Programming-1024" };
 
         System.out.print("\tTesting parsing server.jks");
 
@@ -174,21 +150,6 @@ public class WolfSSLTrustX509Test {
             /* @TODO finding that BKS has different order of certs */
             pass("\t... skipped");
             return;
-        }
-
-        /* Test for KeyStore provider/version, some order certs differently */
-        try {
-            KeyStore tmpStore = KeyStore.getInstance("JKS");
-            String tmpStoreProv = tmpStore.getProvider().getName();
-            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
-
-            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
-                OU = OU_17;
-            }
-
-        } catch (KeyStoreException kse) {
-            error("\t... failed");
-            fail("failed to detect KeyStore provider version");
         }
 
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
@@ -237,14 +198,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0, j;
         int expected = 8;
-        String OU[] = { "OU=Consulting", "OU=Programming-1024", "OU=ECC",
-            "OU=Consulting_1024", "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Programming-2048" };
-
-        /* OpenJDK 1.7 KeyStore load order */
-        String OU_17[] = { "OU=Support_1024", "OU=Programming-2048",
-            "OU=Consulting_1024", "OU=Fast", "OU=Support",
-            "OU=Programming-1024", "OU=Consulting", "OU=ECC" };
+        String OU[] = { "OU=Fast", "OU=Consulting", "OU=Programming-1024",
+            "OU=Programming-2048", "OU=ECC", "OU=Support", "OU=Support_1024",
+            "OU=Consulting_1024" };
 
         System.out.print("\tTesting parse all_mixed.jks");
 
@@ -257,21 +213,6 @@ public class WolfSSLTrustX509Test {
          * to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
             expected = 7; /* one less than SunJSSE because of server-ecc */
-        }
-
-        /* Test for KeyStore provider/version, cert order is different */
-        try {
-            KeyStore tmpStore = KeyStore.getInstance("JKS");
-            String tmpStoreProv = tmpStore.getProvider().getName();
-            double tmpStoreProvVer = tmpStore.getProvider().getVersion();
-
-            if (tmpStoreProv.equals("SUN") && tmpStoreProvVer == 1.7) {
-                OU = OU_17;
-            }
-
-        } catch (KeyStoreException kse) {
-            error("\t... failed");
-            fail("failed to detect KeyStore provider version");
         }
 
         tm = tf.createTrustManager("SunX509", tf.mixedJKS, provider);
@@ -313,9 +254,9 @@ public class WolfSSLTrustX509Test {
     public void testSystemLoad() {
         String file = System.getProperty("javax.net.ssl.trustStore");
         TrustManager[] tm;
-        
+
         System.out.print("\tTesting loading default certs");
-        
+
         if (file == null) {
             String home = System.getenv("JAVA_HOME");
             if (home != null) {
@@ -324,7 +265,7 @@ public class WolfSSLTrustX509Test {
                     tm = tf.createTrustManager("SunX509", null, provider);
                     if (tm == null) {
                         error("\t... failed");
-                        fail("failed to create trustmanager with default"); 
+                        fail("failed to create trustmanager with default");
                     }
                     pass("\t... passed");
                     return;

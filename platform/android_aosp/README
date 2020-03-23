@@ -3,7 +3,7 @@ Installing wolfJSSE into Android OSP as a System Security Provider
 --------------------------------------------------------------------------------
 
 This directory contains a script and support files required when installing
-wolfJSSE into Android OSP (AOSP) source tree as a system security provider.
+wolfJSSE into an Android OSP (AOSP) source tree as a system security provider.
 
 Files included in this directory:
 
@@ -22,6 +22,47 @@ For instructions on installing wolfJSSE as a Android security provider, please
 reference the document titled:
 
 "Installing a JSSE Provider in Android OSP" by wolfSSL
+
+Printing Debug Messages to Android adb logcat
+--------------------------------------------------------------------------------
+
+By default, the wolfJSSE debug logging mechanism prints debug messages using
+System.out.println(). If you would rather use the android logging API, a few
+minor changes can be made to the wolfJSSE source and Android.mk build file:
+
+1. Changes to <wolfssljni>/src/java/com/wolfssl/provider/jse/WolfSSLDebug.java
+
+    a) Add an import for "import android.util.Log"
+    b) Add a static TAG variable to be used with the Log.*() methods, ex:
+
+       public class WolfSSLDebug {
+           private static final String TAG = "WolfJSSE";
+           ...
+       }
+
+    c) Change the print line in WolfSSLDebug.log() to call one of the Android
+       log methods. For example, if using the info method:
+
+       public static void log(Class cl, String tag, String string) {
+           if (DEBUG) {
+               Log.i(TAG, tag + " : " + cl.getSimpleName() + " : " + string);
+           }
+       }
+
+2. Changes to <wolfssljni>/platform/android_aosp/wolfssljn/Android.mk
+
+    a) Add "-llog" to LOCAL_LDFLAGS
+    b) Add "liblog" to LOCAL_SHARED_LIBRARIES
+
+    For example (Android.mk):
+
+        # Create wolfSSL JNI native library
+        ...
+        LOCAL_LDFLAGS := -llog
+        LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/native
+        LOCAL_SHARED_LIBRARIES := libwolfssl liblog
+        ...
+        include $(BUILD_SHARED_LIBRARY)
 
 Support:
 --------------------------------------------------------------------------------
