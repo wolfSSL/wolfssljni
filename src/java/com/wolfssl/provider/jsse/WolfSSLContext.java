@@ -452,8 +452,13 @@ public class WolfSSLContext extends SSLContextSpi {
 
     protected void cleanup() {
         if (this.ctx != null) {
-            this.ctx.free();
-            this.ctx = null;
+            try {
+                this.ctx.free();
+                this.ctx = null;
+            } catch (IllegalStateException e) {
+                /* ctx already freed */
+                this.ctx = null;
+            }
         }
     }
 
