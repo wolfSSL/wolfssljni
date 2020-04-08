@@ -473,25 +473,11 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV11_Context extends WolfSSLContext {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 
@@ -499,38 +485,17 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV13_Context extends WolfSSLContext {
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 
@@ -542,13 +507,6 @@ public class WolfSSLContext extends SSLContextSpi {
             } catch (Exception e) {
                 /* TODO: log this */
             }
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 }
