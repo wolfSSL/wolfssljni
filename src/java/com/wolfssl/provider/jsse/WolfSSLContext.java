@@ -322,7 +322,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLSocketFactory engineGetSocketFactory()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -339,7 +339,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLServerSocketFactory engineGetServerSocketFactory()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -357,7 +357,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLEngine engineCreateSSLEngine()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -381,7 +381,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLEngine engineCreateSSLEngine(String host, int port)
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -450,22 +450,12 @@ public class WolfSSLContext extends SSLContextSpi {
         return this.ctx;
     }
 
-    protected void cleanup() {
-        if (this.ctx != null) {
-            try {
-                this.ctx.free();
-                this.ctx = null;
-            } catch (IllegalStateException e) {
-                /* ctx already freed */
-                this.ctx = null;
-            }
-        }
-    }
-
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable {
-        this.cleanup();
+        if (this.ctx != null) {
+            this.ctx = null;
+        }
         super.finalize();
     }
 
