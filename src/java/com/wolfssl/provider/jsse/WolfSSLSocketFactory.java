@@ -43,14 +43,14 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
+    private com.wolfssl.provider.jsse.WolfSSLContext jsseCtx = null;
     private SSLParameters params;
 
     /* This constructor is used when the JSSE call
      * SSLSocketFactory.getDefault() */
     public WolfSSLSocketFactory() {
         super();
-        com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context jsseCtx =
-            new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
+        this.jsseCtx = new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
         this.ctx = jsseCtx.getInternalWolfSSLContext();
         this.authStore = jsseCtx.getInternalAuthStore();
         this.params = jsseCtx.getInternalSSLParams();

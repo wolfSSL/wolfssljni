@@ -322,7 +322,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLSocketFactory engineGetSocketFactory()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -339,7 +339,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLServerSocketFactory engineGetServerSocketFactory()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -357,7 +357,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLEngine engineCreateSSLEngine()
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -381,7 +381,7 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLEngine engineCreateSSLEngine(String host, int port)
         throws IllegalStateException {
 
-        if (authStore == null) {
+        if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
         }
@@ -450,22 +450,12 @@ public class WolfSSLContext extends SSLContextSpi {
         return this.ctx;
     }
 
-    protected void cleanup() {
-        if (this.ctx != null) {
-            try {
-                this.ctx.free();
-                this.ctx = null;
-            } catch (IllegalStateException e) {
-                /* ctx already freed */
-                this.ctx = null;
-            }
-        }
-    }
-
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable {
-        this.cleanup();
+        if (this.ctx != null) {
+            this.ctx = null;
+        }
         super.finalize();
     }
 
@@ -473,25 +463,11 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV11_Context extends WolfSSLContext {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 
@@ -499,38 +475,17 @@ public class WolfSSLContext extends SSLContextSpi {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV13_Context extends WolfSSLContext {
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
         }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
-        }
     }
 
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 
@@ -542,13 +497,6 @@ public class WolfSSLContext extends SSLContextSpi {
             } catch (Exception e) {
                 /* TODO: log this */
             }
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        protected void finalize() throws Throwable {
-            this.cleanup();
-            super.finalize();
         }
     }
 }
