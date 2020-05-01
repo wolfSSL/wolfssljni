@@ -126,8 +126,6 @@ public class WolfSSLContext extends SSLContextSpi {
 
         /* auto-populate enabled protocols with supported ones */
         params.setProtocols(WolfSSL.getProtocols());
-
-        ctxAttr.SetCtxAttributes(ctx);
     }
 
     private void LoadTrustedRootCerts() {
