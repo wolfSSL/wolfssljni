@@ -76,9 +76,10 @@ public class WolfSSLCustomUser {
     public static void SetCtxAttributes(WolfSSLContext ctx) {
 
         /***
-         custom code
+        custom code
+                Example: 
+                    ctx.setOptions(WolfSSL.SSL_OP_NO_SSLv3);
         ***/
-        ctx.setOptions(WolfSSL.SSL_OP_NO_SSLv3);
         return;
     }
 
