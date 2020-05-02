@@ -22,7 +22,7 @@
 
 package com.wolfssl.provider.jsse;
 import  com.wolfssl.WolfSSL;
-import  com.wolfssl.WolfSSLContext;
+import  com.wolfssl.provider.jsse.WolfSSLContext;
 import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
@@ -73,14 +73,14 @@ public class WolfSSLCustomUser {
      *
      */
 
-    public static void SetCtxAttributes(WolfSSLContext ctx) {
+    public static String[] removeProtocols(WolfSSLContext ctx, String[] all) {
 
         /***
         custom code
-                Example: 
-                    ctx.setOptions(WolfSSL.SSL_OP_NO_SSLv3);
+            Example: 
+                return ctx.removeVersion(all, WolfSSL.SSL_OP_NO_TLSv1);
         ***/
-        return;
+        return all; 
     }
 
 } /* end WolfSSL */
