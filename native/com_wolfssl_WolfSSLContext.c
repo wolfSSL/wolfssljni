@@ -449,6 +449,17 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_setOptions
     return wolfSSL_CTX_set_options((WOLFSSL_CTX*)(uintptr_t)ctx, op);
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_getOptions
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    (void)jcl;
+
+    if (!jenv || !ctx)
+        return 0;
+
+    return wolfSSL_CTX_get_options((WOLFSSL_CTX*)(uintptr_t)ctx);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memsaveCertCache
   (JNIEnv* jenv, jobject jcl, jlong ctx, jbyteArray mem, jint sz,
     jintArray used)

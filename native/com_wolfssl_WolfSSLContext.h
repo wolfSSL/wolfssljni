@@ -73,6 +73,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_setOptions
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setOptions
+ * Signature: (JJ)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_getOptions
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    memsaveCertCache
  * Signature: (J[BI[I)I
  */
