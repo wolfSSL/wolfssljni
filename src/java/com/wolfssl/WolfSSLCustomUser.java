@@ -21,6 +21,7 @@
  */
 
 package com.wolfssl.provider.jsse;
+import  com.wolfssl.WolfSSL;
 import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
