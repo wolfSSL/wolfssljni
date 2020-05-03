@@ -321,7 +321,7 @@ public class WolfSSLContext {
     private native int useCertificateChainFile(long ctx, String file);
     private native void freeContext(long ctx);
     private native void setVerify(long ctx, int mode, WolfSSLVerifyCallback vc);
-    private native long setOptions(long ssl, long op);
+    private native long setOptions(long ctx, long op);
     private native int memsaveCertCache(long ctx, byte[] mem, int sz,
             int[] used);
     private native int memrestoreCertCache(long ctx, byte[] mem, int sz);

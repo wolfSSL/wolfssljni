@@ -905,6 +905,12 @@ public class WolfSSL {
      */
     public static native String[] getProtocols();
 
+    /**
+     * Checks which protocols where built into wolfSSL with Mask
+     *
+     * @return an array of Strings for supported protocols
+     */
+    public static native String[] getProtocolsMask(long mask);
 
 } /* end WolfSSL */
 

@@ -64,10 +64,9 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void createCtx() throws WolfSSLException {
         long method;
-        WolfSSLCustomUser ctxattr = new WolfSSLCustomUser();
 
-        WolfSSLCustomUser ctxAttr = ctxattr.GetCtxAttributes(this.currentVersion,
-                                           WolfSSL.getCiphersIana());
+        WolfSSLCustomUser ctxAttr = WolfSSLCustomUser.GetCtxAttributes
+                          (this.currentVersion, WolfSSL.getCiphersIana());
 
         if(ctxAttr.version == TLS_VERSION.TLSv1   ||
            ctxAttr.version == TLS_VERSION.TLSv1_1 ||
@@ -126,7 +125,7 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         /* auto-populate enabled protocols with supported ones */
-        params.setProtocols(ctxattr.removeProtocols(this, WolfSSL.getProtocols()));
+        params.setProtocols(this.getProtocolsMask(ctxAttr.noOptions));
     }
 
     private void LoadTrustedRootCerts() {
@@ -279,37 +278,6 @@ public class WolfSSLContext extends SSLContextSpi {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "no certificate or chain found, skipped loading");
         }
-    }
-
-    private String ProtocolToString(int v) {
-        switch(v) {
-            case WolfSSL.SSL_OP_NO_SSLv3:   return "SSLv3";
-            case WolfSSL.SSL_OP_NO_TLSv1:   return "TLSv1";
-            case WolfSSL.SSL_OP_NO_TLSv1_1: return "TLSv1_1";
-            case WolfSSL.SSL_OP_NO_TLSv1_2: return "TLSv1_2";
-            case WolfSSL.SSL_OP_NO_TLSv1_3: return "TLSv1_3";
-            default:
-                throw new IllegalArgumentException(
-                    "Invalid SSL/TLS protocol version");
-        }
-    }
-    
-    /* sets all supported protocols */
-    protected String[] removeVersion(String[] all, int ver) {
-        int i, j;
-        String v = ProtocolToString(ver);
-
-        for (i = 0, j = 0; i < all.length; i++) {
-            if(v != all[i]) {
-                all[i] = all[j++];
-            } else {
-                ctx.setOptions(ver);
-            }
-        }
-        if(i != j)
-            all[j] = null;
-
-        return all;
     }
 
     /**
@@ -489,6 +457,11 @@ public class WolfSSLContext extends SSLContextSpi {
             this.ctx = null;
         }
         super.finalize();
+    }
+    
+    public String[] getProtocolsMask(long noOpt) {
+            ctx.setOptions(noOpt);
+            return WolfSSL.getProtocolsMask(noOpt);
     }
 
     public static final class TLSV1_Context extends WolfSSLContext {

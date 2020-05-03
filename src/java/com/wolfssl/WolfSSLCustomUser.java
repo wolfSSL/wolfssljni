@@ -21,8 +21,6 @@
  */
 
 package com.wolfssl.provider.jsse;
-import  com.wolfssl.WolfSSL;
-import  com.wolfssl.provider.jsse.WolfSSLContext;
 import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
@@ -35,6 +33,7 @@ import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 public class WolfSSLCustomUser {
     public TLS_VERSION version;
     public String[] list;
+    public long noOptions;
 
     /**
      * callback for getting Context attributes before creating context,
@@ -58,29 +57,15 @@ public class WolfSSLCustomUser {
 
         /***
          custom code
+         
+         Example: 
+            ctxAttr.NoOptions = WolfSSL.SSL_OP_NO_TLSv1 | WolfSSL.SSL_OP_NO_TLSv1_3;
+
         ***/
 
         ctxAttr.version = version;
         ctxAttr.list   = list;
+        ctxAttr.noOptions = 0;
         return ctxAttr;
     }
-
-    /**
-     * callback for setting Context attributes after creating context
-     *
-     *      WARNING: inappropriate code or use of this callback may cause
-     *               serious security issue.
-     *
-     */
-
-    public static String[] removeProtocols(WolfSSLContext ctx, String[] all) {
-
-        /***
-        custom code
-            Example: 
-                return ctx.removeVersion(all, WolfSSL.SSL_OP_NO_TLSv1);
-        ***/
-        return all; 
-    }
-
 } /* end WolfSSL */
