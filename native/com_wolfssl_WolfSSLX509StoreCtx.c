@@ -21,6 +21,7 @@
 
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
+#include <stdint.h>
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSLX509StoreCtx.h"
