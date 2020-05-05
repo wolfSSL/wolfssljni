@@ -159,8 +159,13 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         }
 
         /* sanitize protocol array for unsupported strings */
-        List<String> supported = 
-            Arrays.asList(WolfSSL.getProtocolsMask(context.getOptions()));
+        List<String> supported;
+        if(context != null)
+            supported = Arrays.asList(
+                            WolfSSL.getProtocolsMask(context.getOptions()));
+        else
+            supported = Arrays.asList(WolfSSL.getProtocols());
+                
         for (int i = 0; i < protocols.length; i++) {
             if (!supported.contains(protocols[i])) {
                 throw new IllegalArgumentException("Unsupported protocol: " +
