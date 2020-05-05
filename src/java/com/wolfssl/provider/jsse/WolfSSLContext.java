@@ -460,7 +460,8 @@ public class WolfSSLContext extends SSLContextSpi {
     }
     
     public String[] getProtocolsMask(long noOpt) {
-            ctx.setOptions(noOpt);
+            if(ctx != null)
+                ctx.setOptions(noOpt);
             return WolfSSL.getProtocolsMask(noOpt);
     }
 
