@@ -20,6 +20,8 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+
 #include <arpa/inet.h>
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
