@@ -908,6 +908,7 @@ public class WolfSSL {
     /**
      * Checks which protocols where built into wolfSSL with Mask
      *
+     * @param mask flags prohibiting TLS version (i.e. SSL_OP_NO_xxx)
      * @return an array of Strings for supported protocols
      */
     public static native String[] getProtocolsMask(long mask);

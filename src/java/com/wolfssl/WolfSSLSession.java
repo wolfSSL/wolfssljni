@@ -2349,7 +2349,6 @@ public class WolfSSLSession {
      * Example options are WolfSSL.SSL_OP_NO_SSLv3
      *
      *
-     * @param op      bit mask of options to set
      * @return returns the revised options bit mask on success
      * @throws IllegalStateException WolfSSLContext has been freed
      */
