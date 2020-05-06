@@ -79,18 +79,23 @@ public class WolfSSLContext extends SSLContextSpi {
                 "Invalid SSL/TLS protocol version");
         }
 
+        method = WolfSSL.NOT_COMPILED_IN;
         switch (this.currentVersion) {
             case TLSv1:
-                method = WolfSSL.TLSv1_Method();
+                if((ctxAttr.noOptions & WolfSSL.SSL_OP_NO_TLSv1) == 0)
+                    method = WolfSSL.TLSv1_Method();
                 break;
             case TLSv1_1:
-                method = WolfSSL.TLSv1_1_Method();
+                if((ctxAttr.noOptions & WolfSSL.SSL_OP_NO_TLSv1_1) == 0)
+                    method = WolfSSL.TLSv1_1_Method();
                 break;
             case TLSv1_2:
-                method = WolfSSL.TLSv1_2_Method();
+                if((ctxAttr.noOptions & WolfSSL.SSL_OP_NO_TLSv1_2) == 0)
+                    method = WolfSSL.TLSv1_2_Method();
                 break;
             case TLSv1_3:
-                method = WolfSSL.TLSv1_3_Method();
+                if((ctxAttr.noOptions & WolfSSL.SSL_OP_NO_TLSv1_3) == 0)
+                    method = WolfSSL.TLSv1_3_Method();
                 break;
             case SSLv23:
                 method = WolfSSL.SSLv23_Method();
@@ -99,7 +104,6 @@ public class WolfSSLContext extends SSLContextSpi {
                 throw new IllegalArgumentException(
                     "Invalid SSL/TLS protocol version");
         }
-
 
         if (method == WolfSSL.NOT_COMPILED_IN) {
             throw new IllegalArgumentException("Protocol version not " +
