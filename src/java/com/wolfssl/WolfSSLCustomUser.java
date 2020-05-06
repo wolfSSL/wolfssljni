@@ -21,6 +21,7 @@
  */
 
 package com.wolfssl.provider.jsse;
+import  com.wolfssl.WolfSSL;
 import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
@@ -33,9 +34,11 @@ import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 public class WolfSSLCustomUser {
     public TLS_VERSION version;
     public String[] list;
+    public long noOptions;
 
     /**
-     * Set callback for Context attributes, TLS protocol and Cipher list
+     * callback for getting Context attributes before creating context,
+     *                                     TLS protocol and Cipher list
      *
      *      WARNING: inappropriate code or use of this callback may cause
      *               serious security issue.
@@ -55,11 +58,15 @@ public class WolfSSLCustomUser {
 
         /***
          custom code
+         
+         Example: 
+            ctxAttr.NoOptions = WolfSSL.SSL_OP_NO_TLSv1 | WolfSSL.SSL_OP_NO_TLSv1_3;
+
         ***/
 
         ctxAttr.version = version;
         ctxAttr.list   = list;
+        ctxAttr.noOptions = 0;
         return ctxAttr;
     }
-
 } /* end WolfSSL */

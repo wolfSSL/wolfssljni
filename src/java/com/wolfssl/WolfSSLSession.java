@@ -260,6 +260,7 @@ public class WolfSSLSession {
     private native void setAcceptState(long ssl);
     private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
     private native long setOptions(long ssl, long op);
+    private native long getOptions(long ssl);
     private native int getShutdown(long ssl);
     private native void setSSLIORecv(long ssl);
     private native void setSSLIOSend(long ssl);
@@ -2342,6 +2343,23 @@ public class WolfSSLSession {
         return setOptions(getSessionPtr(), op);
     }
 
+
+    /**
+     * Gets the options to use for the WOLFSSL structure.
+     * Example options are WolfSSL.SSL_OP_NO_SSLv3
+     *
+     *
+     * @return returns the revised options bit mask on success
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long getOptions()
+            throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getOptions(getSessionPtr());
+    }
     /**
      * Registers a receive callback for wolfSSL to get input data.
      * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.

@@ -2912,6 +2912,17 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
     return wolfSSL_set_options((WOLFSSL*)(uintptr_t)ssl, op);
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getOptions
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jcl;
+
+    if (!jenv || !ssl)
+        return 0;
+
+    return wolfSSL_get_options((WOLFSSL*)(uintptr_t)ssl);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getShutdown
   (JNIEnv *jenv, jobject jcl, jlong ssl)
 {

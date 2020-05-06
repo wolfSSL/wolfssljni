@@ -438,6 +438,28 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     return retval;
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_setOptions
+  (JNIEnv* jenv, jobject jcl, jlong ctx, jlong op)
+{
+    (void)jcl;
+
+    if (!jenv || !ctx)
+        return 0;
+
+    return wolfSSL_CTX_set_options((WOLFSSL_CTX*)(uintptr_t)ctx, op);
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_getOptions
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    (void)jcl;
+
+    if (!jenv || !ctx)
+        return 0;
+
+    return wolfSSL_CTX_get_options((WOLFSSL_CTX*)(uintptr_t)ctx);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memsaveCertCache
   (JNIEnv* jenv, jobject jcl, jlong ctx, jbyteArray mem, jint sz,
     jintArray used)

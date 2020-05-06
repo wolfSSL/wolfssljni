@@ -951,6 +951,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
   (JNIEnv* jenv, jclass jcl)
 {
+    return Java_com_wolfssl_WolfSSL_getProtocolsMask(jenv, jcl, 0);
+}
+
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
+  (JNIEnv* jenv, jclass jcl, jlong mask)
+{
     jobjectArray ret;
     int numProtocols = 0, idx = 0;
 
@@ -958,19 +964,24 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
 
     /* get the number of protocols enabled */
 #ifdef WOLFSSL_TLS13
-    numProtocols += 1;
+    if(!(mask & SSL_OP_NO_TLSv1_3))
+        numProtocols += 1;
 #endif
 #ifndef WOLFSSL_NO_TLS12
-    numProtocols += 1;
+    if(!(mask & SSL_OP_NO_TLSv1_2))
+        numProtocols += 1;
 #endif
 #ifndef NO_OLD_TLS
-    numProtocols += 1;
+    if(!(mask & SSL_OP_NO_TLSv1_1))
+        numProtocols += 1;
 #ifdef WOLFSSL_ALLOW_TLSV10
-    numProtocols += 1;
+    if(!(mask & SSL_OP_NO_TLSv1))
+        numProtocols += 1;
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 #ifdef WOLFSSL_ALLOW_SSLv3
-    numProtocols += 1;
+    if(!(mask & SSL_OP_NO_SSLv3))
+        numProtocols += 1;
 #endif
 
     ret = (*jenv)->NewObjectArray(jenv, numProtocols,
@@ -980,59 +991,67 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
     }
 
 #ifdef WOLFSSL_TLS13
-    (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-            (*jenv)->NewStringUTF(jenv, "TLSv1.3"));
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.3 string");
-        return NULL;
+    if(!(mask & SSL_OP_NO_TLSv1_3)) {
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                (*jenv)->NewStringUTF(jenv, "TLSv1.3"));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.3 string");
+            return NULL;
+        }
     }
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
-    (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-            (*jenv)->NewStringUTF(jenv, "TLSv1.2"));
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.2 string");
-        return NULL;
+    if(!(mask & SSL_OP_NO_TLSv1_2)) {
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                (*jenv)->NewStringUTF(jenv, "TLSv1.2"));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.2 string");
+            return NULL;
+        }
     }
 #endif
 
 #ifndef NO_OLD_TLS
-    (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-            (*jenv)->NewStringUTF(jenv, "TLSv1.1"));
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.1 string");
-        return NULL;
+    if(!(mask & SSL_OP_NO_TLSv1_1)) {
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                (*jenv)->NewStringUTF(jenv, "TLSv1.1"));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.1 string");
+            return NULL;
+        }
     }
-
 #ifdef WOLFSSL_ALLOW_TLSV10
-    (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-            (*jenv)->NewStringUTF(jenv, "TLSv1"));
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1 string");
-        return NULL;
+    if(!(mask & SSL_OP_NO_TLSv1)) {
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                (*jenv)->NewStringUTF(jenv, "TLSv1"));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1 string");
+            return NULL;
+        }
     }
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 
 #ifdef WOLFSSL_ALLOW_SSLv3
-    (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-            (*jenv)->NewStringUTF(jenv, "SSLv3"));
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->ThrowNew(jenv, jcl, "Error setting SSLv3 string");
-        return NULL;
+    if(!(mask & SSL_OP_NO_SSLv3)) {
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                (*jenv)->NewStringUTF(jenv, "SSLv3"));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, jcl, "Error setting SSLv3 string");
+            return NULL;
+        }
     }
 #endif
     return ret;
 }
-

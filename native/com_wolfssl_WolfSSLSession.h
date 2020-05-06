@@ -649,6 +649,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getOptions
+ * Signature: (JJ)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getOptions
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    getShutdown
  * Signature: (J)I
  */

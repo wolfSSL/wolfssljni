@@ -321,6 +321,8 @@ public class WolfSSLContext {
     private native int useCertificateChainFile(long ctx, String file);
     private native void freeContext(long ctx);
     private native void setVerify(long ctx, int mode, WolfSSLVerifyCallback vc);
+    private native long setOptions(long ctx, long op);
+    private native long getOptions(long ctx);
     private native int memsaveCertCache(long ctx, byte[] mem, int sz,
             int[] used);
     private native int memrestoreCertCache(long ctx, byte[] mem, int sz);
@@ -553,6 +555,41 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         setVerify(getContextPtr(), mode, callback);
+    }
+
+    /**
+     * Sets the options to use for the WOLFSSL structure.
+     * Example options are WolfSSL.SSL_OP_NO_SSLv3
+     *
+     *
+     * @param op      bit mask of options to set
+     * @return returns the revised options bit mask on success
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long setOptions(long op)
+            throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return setOptions(getContextPtr(), op);
+    }
+
+        /**
+     * Gets the options to use for the WOLFSSL structure.
+     * Example options are WolfSSL.SSL_OP_NO_SSLv3
+     *
+     *
+     * @return returns options bit mask on success
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public long getOptions()
+            throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return getOptions(getContextPtr());
     }
 
     /**
