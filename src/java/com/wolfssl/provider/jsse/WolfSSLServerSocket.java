@@ -138,7 +138,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     public String[] getSupportedProtocols() {
-        return WolfSSL.getProtocols();
+        return params.getProtocols();
     }
 
     @Override
@@ -160,11 +160,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* sanitize protocol array for unsupported strings */
         List<String> supported;
-        if(context != null)
-            supported = Arrays.asList(
-                            WolfSSL.getProtocolsMask(context.getOptions()));
-        else
-            supported = Arrays.asList(WolfSSL.getProtocols());
+        supported = Arrays.asList(WolfSSL.getProtocols());
                 
         for (int i = 0; i < protocols.length; i++) {
             if (!supported.contains(protocols[i])) {
