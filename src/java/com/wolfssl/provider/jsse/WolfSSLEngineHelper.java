@@ -175,10 +175,7 @@ public class WolfSSLEngineHelper {
 
     /* gets all supported protocols */
     protected String[] getAllProtocols() {
-        if(ssl != null)
-            return WolfSSL.getProtocolsMask(ssl.getOptions());
-        else
-            return WolfSSL.getProtocols();
+        return WolfSSL.getProtocols();
     }
 
     protected void setUseClientMode(boolean mode)
