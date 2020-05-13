@@ -697,11 +697,11 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
 
 /*
  * Class:     com_wolfssl_WolfSSL
- * Method:    getProtocols
- * Signature: ()[Ljava/lang/String;
+ * Method:    getProtocolsMask
+ * Signature: (J)[Ljava/lang/String;
  */
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
-  (JNIEnv*, jclass, jlong);
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

@@ -63,7 +63,7 @@ public class WolfSSLSessionTest {
         cliCert = WolfSSLTestCommon.getPath(cliCert);
         cliKey = WolfSSLTestCommon.getPath(cliKey);
         caCert = WolfSSLTestCommon.getPath(caCert);
-        
+
         test_WolfSSLSession_new();
         test_WolfSSLSession_useCertificateFile();
         test_WolfSSLSession_usePrivateKeyFile();
@@ -75,6 +75,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_getPskIdentity();
         test_WolfSSLSession_timeout();
         test_WolfSSLSession_status();
+        test_WolfSSLSession_useSNI();
         test_WolfSSLSession_freeSSL();
         test_WolfSSLSession_UseAfterFree();
     }
@@ -330,7 +331,7 @@ public class WolfSSLSessionTest {
         }
         System.out.println("\t\t... passed");
     }
-    
+
     public void test_WolfSSLSession_timeout() {
 
         System.out.print("\ttimeout()");
@@ -349,7 +350,23 @@ public class WolfSSLSessionTest {
         }
         System.out.println("\t\t\t... passed");
     }
-    
+
+    public void test_WolfSSLSession_useSNI() {
+
+        int ret;
+        String sniHostName = "www.example.com";
+
+        System.out.print("\tuseSNI()");
+        ret = ssl.useSNI((byte)0, sniHostName.getBytes());
+        if (ret == WolfSSL.NOT_COMPILED_IN) {
+            System.out.println("\t\t\t... skipped");
+        } else if (ret != WolfSSL.SSL_SUCCESS) {
+            System.out.println("\t\t\t... failed");
+        } else {
+            System.out.println("\t\t\t... passed");
+        }
+    }
+
     public void test_WolfSSLSession_freeSSL() {
 
         System.out.print("\tfreeSSL()");
