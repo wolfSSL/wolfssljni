@@ -37,6 +37,7 @@ import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -686,6 +687,17 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     synchronized public OutputStream getOutputStream() throws IOException {
         return outStream;
+    }
+
+    /**
+     * Set the SSLParameters for this SSLSocket.
+     *
+     * @param params SSLParameters to set for this SSLSocket object
+     */
+    synchronized public void setSSLParameters(SSLParameters params) {
+        if (params != null) {
+            WolfSSLParametersHelper.importParams(params, this.params);
+        }
     }
 
     /**

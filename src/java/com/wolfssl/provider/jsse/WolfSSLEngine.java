@@ -36,6 +36,7 @@ import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLParameters;
 
 /**
  * wolfSSL implementation of SSLEngine
@@ -517,6 +518,17 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public boolean getEnableSessionCreation() {
         return EngineHelper.getEnableSessionCreation();
+    }
+
+    /**
+     * Set the SSLParameters for this SSLSocket.
+     *
+     * @param params SSLParameters to set for this SSLSocket object
+     */
+    synchronized public void setSSLParameters(SSLParameters params) {
+        if (params != null) {
+            WolfSSLParametersHelper.importParams(params, this.params);
+        }
     }
 
     /* encrypted packet ready to be sent out. Copies buffer to end of to send

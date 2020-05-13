@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.InetAddress;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLSession;
@@ -229,6 +230,18 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     synchronized public boolean getEnableSessionCreation() {
         return enableSessionCreation;
     }
+
+    /**
+     * Set the SSLParameters for this SSLServerSocket.
+     *
+     * @param params SSLParameters to set for this SSLSocket object
+     */
+    synchronized public void setSSLParameters(SSLParameters params) {
+        if (params != null) {
+            WolfSSLParametersHelper.importParams(params, this.params);
+        }
+    }
+
 
     @Override
     synchronized public Socket accept() throws IOException {

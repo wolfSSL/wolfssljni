@@ -423,7 +423,7 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetDefaultSSLParameters() {
-        return WolfSSLEngineHelper.decoupleParams(this.params);
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /**
@@ -432,7 +432,7 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetSupportedSSLParameters() {
-        return WolfSSLEngineHelper.decoupleParams(this.params);
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /* used internally by SSLSocketFactory() */

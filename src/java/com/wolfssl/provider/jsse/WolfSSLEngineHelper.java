@@ -418,7 +418,6 @@ public class WolfSSLEngineHelper {
         }
     }
 
-
     /**
      * Saves session on connection close for resumption
      */
@@ -426,39 +425,6 @@ public class WolfSSLEngineHelper {
         if (this.session.isValid()) {
             this.session.setResume();
         }
-    }
-
-    /**
-     * Creates a new SSLParameters class with the same settings as the
-     * WolfSSLParameters passed in.
-     *
-     * @param in WolfSSLParameters to convert to SSLParameters
-     * @return new SSLParameters object representing same settings as "in"
-     */
-    protected static SSLParameters decoupleParams(WolfSSLParameters in) {
-
-        SSLParameters ret = new SSLParameters(in.getCipherSuites(),
-                                              in.getProtocols());
-
-        ret.setNeedClientAuth(in.getNeedClientAuth());
-        if (!ret.getNeedClientAuth()) {
-            ret.setWantClientAuth(in.getWantClientAuth());
-        }
-
-        /* Supported by newer version of SSLParameters but to build with API 23
-         * these are currently commented out
-        ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
-        ret.setApplicationProtocols(in.getApplicationProtocols());
-        ret.setEnableRetransmissions(in.getEnableRetransmissions());
-        ret.setEndpointIdentificationAlgorithm(
-            in.getEndpointIdentificationAlgorithm());
-        ret.setMaximumPacketSize(in.getMaximumPacketSize());
-        ret.setSNIMatchers(in.getSNIMatchers());
-        ret.setServerNames(in.getServerNames());
-        ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
-        */
-
-        return ret;
     }
 
     /* Internal verify callback. This is used when a user registers a

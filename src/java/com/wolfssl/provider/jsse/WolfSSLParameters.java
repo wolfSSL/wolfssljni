@@ -20,6 +20,9 @@
  */
 package com.wolfssl.provider.jsse;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.security.AlgorithmConstraints;
 
 /**
@@ -34,7 +37,6 @@ import java.security.AlgorithmConstraints;
  * SSLContext.getSupportedSSLParameters()) wolfJSSE calls
  * WolfSSLEngineHelper.decoupleParams() which creates a SSLParameters object
  * from a WolfSSLParameters.
- *
  */
 final class WolfSSLParameters {
 
@@ -43,6 +45,7 @@ final class WolfSSLParameters {
     private boolean wantClientAuth = false;
     private boolean needClientAuth = false;
     private String endpointIdAlgorithm;
+    private List<WolfSSLSNIServerName> serverNames;
     private boolean useCipherSuiteOrder = true;
     String[] applicationProtocols = new String[0];
     private AlgorithmConstraints algoConstraints;
@@ -54,6 +57,7 @@ final class WolfSSLParameters {
         cp.setProtocols(this.protocols);
         cp.wantClientAuth = this.wantClientAuth;
         cp.needClientAuth = this.needClientAuth;
+        cp.setServerNames(this.getServerNames());
 
         /* TODO: duplicate other properties here when WolfSSLParameters
          * can handle them */
@@ -115,14 +119,23 @@ final class WolfSSLParameters {
         this.endpointIdAlgorithm = algorithm;
     }
 
-    /* TODO, create our own class for SNIServerName, in case Java doesn't support it */
-    //void setServerNames(List<SNIServerName> serverNames) {
-    //}
+    void setServerNames(List<WolfSSLSNIServerName> serverNames) {
+        if (serverNames == null) {
+            this.serverNames = null;
+        } else {
+            this.serverNames = Collections.unmodifiableList(
+                    new ArrayList<WolfSSLSNIServerName>(serverNames));
+        }
+    }
 
-    /* TODO, create our own class for SNIServerName, in case Java doesn't support it */
-    //List<SNIServerName> getServerNames() {
-    //    return null; /* TODO */
-    //}
+    List<WolfSSLSNIServerName> getServerNames() {
+        if (this.serverNames == null) {
+            return null;
+        } else {
+            return Collections.unmodifiableList(
+                    new ArrayList<WolfSSLSNIServerName>(this.serverNames));
+        }
+    }
 
     /* TODO, create our own class for SNIMatcher, in case Java doesn't support it */
     //void setSNIMatchers(Collection<SNIMatcher> matchers) {
