@@ -48,7 +48,7 @@ import java.io.IOException;
 public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
     private WolfSSLImplementSSLSession session = null;
-    private SSLParameters params;
+    private WolfSSLParameters params;
     private WolfSSLDebug debug;
     private int port;
     private String host = null;
@@ -65,7 +65,7 @@ public class WolfSSLEngineHelper {
      * @throws WolfSSLException if an exception happens during session creation
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            SSLParameters params) throws WolfSSLException {
+            WolfSSLParameters params) throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
@@ -86,7 +86,7 @@ public class WolfSSLEngineHelper {
      * @throws WolfSSLException if an exception happens during session resume
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            SSLParameters params, int port, String host)
+            WolfSSLParameters params, int port, String host)
             throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
@@ -340,8 +340,8 @@ public class WolfSSLEngineHelper {
         this.setLocalAuth();
     }
 
-    /* sets all parameters from SSLParameters into WOLFSSL object and creates
-     * session.
+    /* sets all parameters from WolfSSLParameters into WOLFSSL object and
+     * creates session.
      * Should be called before doHandshake */
     protected void initHandshake() throws SSLException {
         if (!modeSet) {
@@ -429,17 +429,16 @@ public class WolfSSLEngineHelper {
     }
 
     /**
-     * Creates a new SSLPArameters class with the same settings as the one
-     * passed in.
+     * Creates a new SSLParameters class with the same settings as the
+     * WolfSSLParameters passed in.
      *
-     * @param in SSLParameters settings to copy
-     * @return new parameters object holding same settings as "in"
+     * @param in WolfSSLParameters to convert to SSLParameters
+     * @return new SSLParameters object representing same settings as "in"
      */
-    protected static SSLParameters decoupleParams(SSLParameters in) {
-        SSLParameters ret = new SSLParameters();
+    protected static SSLParameters decoupleParams(WolfSSLParameters in) {
 
-        ret.setCipherSuites(in.getCipherSuites());
-        ret.setProtocols(in.getProtocols());
+        SSLParameters ret = new SSLParameters(in.getCipherSuites(),
+                                              in.getProtocols());
 
         ret.setNeedClientAuth(in.getNeedClientAuth());
         if (!ret.getNeedClientAuth()) {

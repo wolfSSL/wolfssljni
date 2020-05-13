@@ -35,7 +35,6 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
 /**
@@ -49,7 +48,7 @@ public class WolfSSLEngine extends SSLEngine {
     private WolfSSLSession ssl;
     private com.wolfssl.WolfSSLContext ctx;
     private WolfSSLAuthStore authStore;
-    private SSLParameters params;
+    private WolfSSLParameters params;
     private byte[] toSend; /* encrypted packet to send */
     private byte[] toRead; /* encrypted packet coming in */
     private int toReadSz = 0;
@@ -74,12 +73,12 @@ public class WolfSSLEngine extends SSLEngine {
      * @throws WolfSSLException if there is an issue creating the engine
      */
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore auth, SSLParameters params)
+            WolfSSLAuthStore auth, WolfSSLParameters params)
             throws WolfSSLException {
         super();
         this.ctx = ctx;
         this.authStore = auth;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
@@ -102,12 +101,12 @@ public class WolfSSLEngine extends SSLEngine {
      * @throws WolfSSLException if there is an issue creating the engine
      */
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore auth, SSLParameters params, String host,
+            WolfSSLAuthStore auth, WolfSSLParameters params, String host,
             int port) throws WolfSSLException {
         super();
         this.ctx = ctx;
         this.authStore = auth;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {

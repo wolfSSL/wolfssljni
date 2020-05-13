@@ -27,7 +27,6 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocketFactory;
 
 import com.wolfssl.WolfSSL;
@@ -44,7 +43,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
     private com.wolfssl.provider.jsse.WolfSSLContext jsseCtx = null;
-    private SSLParameters params;
+    private WolfSSLParameters params;
 
     /* This constructor is used when the JSSE call
      * SSLSocketFactory.getDefault() */
@@ -57,7 +56,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     }
 
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore authStore, SSLParameters params) {
+            WolfSSLAuthStore authStore, WolfSSLParameters params) {
         super();
         this.ctx = ctx;
         this.authStore = authStore;
