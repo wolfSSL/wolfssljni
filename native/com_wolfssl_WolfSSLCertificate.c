@@ -603,7 +603,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1verify
     int sz = (int)pubKeySz;
     int ret;
     unsigned char buff[sz];
+#if LIBWOLFSSL_VERSION_HEX >= 0x04004000
+    const unsigned char* ptr = buff;
+#else
     unsigned char* ptr = buff;
+#endif
 
     (void)jcl;
 
