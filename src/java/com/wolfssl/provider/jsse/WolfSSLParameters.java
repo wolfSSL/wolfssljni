@@ -23,7 +23,6 @@ package com.wolfssl.provider.jsse;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.security.AlgorithmConstraints;
 
 /**
  * wolfJSSE implementation of SSLParameters
@@ -48,7 +47,6 @@ final class WolfSSLParameters {
     private List<WolfSSLSNIServerName> serverNames;
     private boolean useCipherSuiteOrder = true;
     String[] applicationProtocols = new String[0];
-    private AlgorithmConstraints algoConstraints;
 
     /* create duplicate copy of these parameters */
     protected WolfSSLParameters copy() {
@@ -101,14 +99,6 @@ final class WolfSSLParameters {
         /* wantClientAuth OR needClientAuth can be set, not both */
         this.needClientAuth = needClientAuth;
         this.wantClientAuth = false;
-    }
-
-    AlgorithmConstraints getAlgorithmConstraints() {
-        return this.algoConstraints;
-    }
-
-    void setAlgorithmConstraints(AlgorithmConstraints constraints) {
-        this.algoConstraints = constraints;
     }
 
     String getEndpointIdentificationAlgorithm() {
