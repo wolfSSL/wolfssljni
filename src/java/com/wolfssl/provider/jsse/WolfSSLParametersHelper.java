@@ -94,7 +94,22 @@ public class WolfSSLParametersHelper
          * Java reflection to detect availability. */
 
         if (setServerNames != null) {
-            WolfSSLJDK8Helper.setServerNames(ret, setServerNames, in);
+
+            try {
+                /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
+                Class<?> cls = Class.forName("com.wolfssl.provider.jsse.adapter.WolfSSLJDK8Helper");
+                Object obj = cls.newInstance();
+                Class[] paramList = new Class[3];
+                paramList[0] = javax.net.ssl.SSLParameters.class;
+                paramList[1] = java.lang.reflect.Method.class;
+                paramList[2] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
+
+                Method mth = cls.getDeclaredMethod("setServerNames", paramList);
+                mth.invoke(obj, ret, setServerNames, in);
+
+            } catch (Exception e) {
+                /* ignore, class not found */
+            }
         }
 
         /* The following SSLParameters features are not yet supported
@@ -149,7 +164,20 @@ public class WolfSSLParametersHelper
          * Java reflection to detect availability. */
 
         if (getServerNames != null) {
-            WolfSSLJDK8Helper.getServerNames(in, out);
+            try {
+                /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
+                Class<?> cls = Class.forName("com.wolfssl.provider.jsse.adapter.WolfSSLJDK8Helper");
+                Object obj = cls.newInstance();
+                Class[] paramList = new Class[2];
+                paramList[0] = javax.net.ssl.SSLParameters.class;
+                paramList[1] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
+
+                Method mth = cls.getDeclaredMethod("getServerNames", paramList);
+                mth.invoke(obj, in, out);
+
+            } catch (Exception e) {
+                /* ignore, class not found */
+            }
         }
 
         /* The following SSLParameters features are not yet supported
