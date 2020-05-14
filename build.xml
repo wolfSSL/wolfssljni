@@ -169,7 +169,13 @@
     </target>
 
     <target name="javadoc" description="generate documentation">
-        <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
+        <javadoc destdir="${doc.dir}">
+            <fileset dir="${src.dir}">
+                <include name="com/wolfssl/**"/>
+                <include name="com/wolfssl/provider/jsse/**"/>
+                <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
+            </fileset>
+        </javadoc>
     </target>
 
     <target name="examples" depends="build">
