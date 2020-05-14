@@ -334,10 +334,25 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    /* sets SNI server names, if set by application in SSLParameters */
+    private void setLocalServerNames() {
+        if (this.clientMode) {
+            List<WolfSSLSNIServerName> names = this.params.getServerNames();
+            if (names != null && names.size() > 0) {
+                /* should only be one server name */
+                WolfSSLSNIServerName sni = names.get(0);
+                if (sni != null) {
+                    this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                }
+            }
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
+        this.setLocalServerNames();
     }
 
     /* sets all parameters from WolfSSLParameters into WOLFSSL object and
