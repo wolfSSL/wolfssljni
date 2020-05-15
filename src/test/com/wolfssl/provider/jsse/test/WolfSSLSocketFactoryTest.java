@@ -40,6 +40,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.net.Socket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.security.Security;
 import java.security.Provider;
@@ -227,6 +228,18 @@ public class WolfSSLSocketFactoryTest {
             Socket s = null;
             InputStream in = null;
 
+            /* test that we can connect to www.example.com */
+            try {
+                Socket testConn = new Socket();
+                testConn.connect(new InetSocketAddress(addrStr, port));
+                testConn.close();
+            } catch (Exception e) {
+                /* unable to connect, skip test */
+                System.out.println("\t\t\t... skipped");
+                return;
+            }
+
+            /* set up InetAddress for www.example.com */
             try {
                 addr = InetAddress.getByName("www.example.com");
             } catch (UnknownHostException e) {

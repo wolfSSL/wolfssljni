@@ -42,7 +42,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     private com.wolfssl.WolfSSLContext context = null;
     private WolfSSLAuthStore authStore = null;
-    private SSLParameters params = null;
+    private WolfSSLParameters params = null;
 
     private boolean clientMode = false;
     private boolean enableSessionCreation = true;
@@ -51,18 +51,18 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
-            SSLParameters params) throws IOException {
+            WolfSSLParameters params) throws IOException {
 
         super();
 
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
     }
 
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params, int port)
+            WolfSSLAuthStore authStore, WolfSSLParameters params, int port)
         throws IOException {
 
         super(port);
@@ -70,12 +70,12 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
     }
 
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
-            SSLParameters params, int port, int backlog)
+            WolfSSLParameters params, int port, int backlog)
         throws IOException {
 
         super(port, backlog);
@@ -83,12 +83,13 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
     }
 
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
-            SSLParameters params, int port, int backlog, InetAddress address)
+            WolfSSLParameters params, int port, int backlog,
+            InetAddress address)
         throws IOException {
 
         super(port, backlog, address);
@@ -96,7 +97,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
     }
 
     @Override
@@ -229,6 +230,18 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     synchronized public boolean getEnableSessionCreation() {
         return enableSessionCreation;
     }
+
+    /**
+     * Set the SSLParameters for this SSLServerSocket.
+     *
+     * @param params SSLParameters to set for this SSLSocket object
+     */
+    synchronized public void setSSLParameters(SSLParameters params) {
+        if (params != null) {
+            WolfSSLParametersHelper.importParams(params, this.params);
+        }
+    }
+
 
     @Override
     synchronized public Socket accept() throws IOException {

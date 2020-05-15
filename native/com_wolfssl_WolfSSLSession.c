@@ -2934,6 +2934,41 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getShutdown
     return (jint)wolfSSL_get_shutdown((WOLFSSL*)(uintptr_t)ssl);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jbyte type, jbyteArray data)
+{
+    int ret = SSL_FAILURE;
+    (void)jcl;
+#ifdef HAVE_SNI
+    byte* dataBuf = NULL;
+    word32 dataSz = 0;
+
+    if (jenv == NULL || ssl <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    dataBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
+    dataSz = (*jenv)->GetArrayLength(jenv, data);
+
+    if (dataBuf != NULL && dataSz > 0) {
+        ret = wolfSSL_UseSNI((WOLFSSL*)(uintptr_t)ssl, (byte)type,
+                             dataBuf, (word16)dataSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, data, (jbyte*)dataBuf, JNI_ABORT);
+
+#else
+    ret = NOT_COMPILED_IN;
+    (void)jenv;
+    (void)ssl;
+    (void)type;
+    (void)data;
+#endif /* HAVE_SNI */
+
+    return (jint)ret;
+
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

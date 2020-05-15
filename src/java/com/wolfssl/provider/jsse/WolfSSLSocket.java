@@ -35,9 +35,9 @@ import java.util.Arrays;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -61,7 +61,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     /* WOLFSSL reference, created in this class */
     private WolfSSLSession ssl = null;
-    private SSLParameters params = null;
+    private WolfSSLParameters params = null;
     private WolfSSLEngineHelper EngineHelper = null;
 
     private Socket socket = null;
@@ -76,13 +76,14 @@ public class WolfSSLSocket extends SSLSocket {
     protected volatile boolean handshakeInitCalled = false;
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-           WolfSSLAuthStore authStore, SSLParameters params, boolean clientMode)
+           WolfSSLAuthStore authStore, WolfSSLParameters params,
+           boolean clientMode)
         throws IOException {
 
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
 
         try {
             initSSL();
@@ -99,14 +100,14 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, InetAddress host, int port)
             throws IOException {
 
         super(host, port);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
 
         try {
             initSSL();
@@ -123,7 +124,7 @@ public class WolfSSLSocket extends SSLSocket {
    }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, InetAddress address, int port,
             InetAddress localAddress, int localPort)
             throws IOException {
@@ -131,7 +132,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(address, port, localAddress, localPort);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
 
         try {
             initSSL();
@@ -148,14 +149,14 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, String host, int port)
             throws IOException {
 
         super(host, port);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
 
         try {
             initSSL();
@@ -172,7 +173,7 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, String host, int port, InetAddress localHost,
             int localPort)
             throws IOException {
@@ -180,7 +181,7 @@ public class WolfSSLSocket extends SSLSocket {
         super(host, port, localHost, localPort);
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
 
         try {
             initSSL();
@@ -200,14 +201,14 @@ public class WolfSSLSocket extends SSLSocket {
        named host, at the given port. host/port refer to logical peer, but
        Socket could be connected to a proxy */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, Socket s, String host, int port,
             boolean autoClose) throws IOException {
 
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
         this.socket = s;
         this.autoClose = autoClose;
         this.address = new InetSocketAddress(host, port);
@@ -236,14 +237,14 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params,
+            WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, Socket s, boolean autoClose)
             throws IOException {
 
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
         this.socket = s;
         this.autoClose = autoClose;
 
@@ -268,13 +269,13 @@ public class WolfSSLSocket extends SSLSocket {
 
     /* only creates a server mode Socket */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
-            WolfSSLAuthStore authStore, SSLParameters params, Socket s,
+            WolfSSLAuthStore authStore, WolfSSLParameters params, Socket s,
             InputStream consumed, boolean autoClose) throws IOException {
 
         super();
         this.ctx = context;
         this.authStore = authStore;
-        this.params = WolfSSLEngineHelper.decoupleParams(params);
+        this.params = params.copy();
         this.socket = s;
         this.autoClose = autoClose;
 
@@ -686,6 +687,17 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     synchronized public OutputStream getOutputStream() throws IOException {
         return outStream;
+    }
+
+    /**
+     * Set the SSLParameters for this SSLSocket.
+     *
+     * @param params SSLParameters to set for this SSLSocket object
+     */
+    synchronized public void setSSLParameters(SSLParameters params) {
+        if (params != null) {
+            WolfSSLParametersHelper.importParams(params, this.params);
+        }
     }
 
     /**

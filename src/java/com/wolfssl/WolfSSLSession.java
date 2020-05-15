@@ -264,6 +264,7 @@ public class WolfSSLSession {
     private native int getShutdown(long ssl);
     private native void setSSLIORecv(long ssl);
     private native void setSSLIOSend(long ssl);
+    private native int useSNI(long ssl, byte type, byte[] data);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2423,6 +2424,18 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         setSSLIOSend(getSessionPtr());
+    }
+
+    public int useSNI(byte type, byte[] data) throws IllegalStateException {
+
+        int ret;
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        ret = useSNI(getSessionPtr(), type, data);
+
+        return ret;
     }
 
     /**

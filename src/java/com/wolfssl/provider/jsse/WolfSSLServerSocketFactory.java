@@ -25,24 +25,23 @@ import java.io.IOException;
 import java.net.InetAddress;
 import javax.net.ssl.SSLServerSocketFactory;
 import java.net.ServerSocket;
-import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 
 /**
  * wolfSSL implementation of SSLServerSocketFactory
- * 
+ *
  * @author wolfSSL
  */
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
     private WolfSSLAuthStore authStore = null;
     private WolfSSLContext ctx = null;
-    private SSLParameters params;
+    private WolfSSLParameters params;
 
     public WolfSSLServerSocketFactory(com.wolfssl.WolfSSLContext ctx,
-            WolfSSLAuthStore authStore, SSLParameters params) {
+            WolfSSLAuthStore authStore, WolfSSLParameters params) {
         super();
         this.ctx = ctx;
         this.authStore = authStore;

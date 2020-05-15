@@ -650,7 +650,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_setOptions
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    getOptions
- * Signature: (JJ)J
+ * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getOptions
   (JNIEnv *, jobject, jlong);
@@ -678,6 +678,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
  */
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIOSend
   (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    useSNI
+ * Signature: (JB[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
+  (JNIEnv *, jobject, jlong, jbyte, jbyteArray);
 
 #ifdef __cplusplus
 }

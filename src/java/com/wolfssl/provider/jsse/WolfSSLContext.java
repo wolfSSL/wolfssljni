@@ -56,7 +56,7 @@ public class WolfSSLContext extends SSLContextSpi {
     private TLS_VERSION currentVersion = TLS_VERSION.SSLv23;
     private WolfSSLAuthStore authStore = null;
     private com.wolfssl.WolfSSLContext ctx = null;
-    private SSLParameters params = null;
+    private WolfSSLParameters params = null;
 
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
@@ -302,7 +302,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
         try {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);
-            params = new SSLParameters();
+            params = new WolfSSLParameters();
             createCtx();
 
         } catch (IllegalArgumentException iae) {
@@ -423,7 +423,7 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetDefaultSSLParameters() {
-        return WolfSSLEngineHelper.decoupleParams(this.params);
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /**
@@ -432,7 +432,7 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetSupportedSSLParameters() {
-        return WolfSSLEngineHelper.decoupleParams(this.params);
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /* used internally by SSLSocketFactory() */
@@ -441,7 +441,7 @@ public class WolfSSLContext extends SSLContextSpi {
     }
 
     /* used internally by SSLSocketFactory() */
-    protected SSLParameters getInternalSSLParams() {
+    protected WolfSSLParameters getInternalSSLParams() {
         return this.params;
     }
 
@@ -458,7 +458,7 @@ public class WolfSSLContext extends SSLContextSpi {
         }
         super.finalize();
     }
-    
+
     public String[] getProtocolsMask(long noOpt) {
             if(ctx != null)
                 ctx.setOptions(noOpt);

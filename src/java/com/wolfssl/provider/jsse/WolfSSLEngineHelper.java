@@ -48,7 +48,7 @@ import java.io.IOException;
 public class WolfSSLEngineHelper {
     private final WolfSSLSession ssl;
     private WolfSSLImplementSSLSession session = null;
-    private SSLParameters params;
+    private WolfSSLParameters params;
     private WolfSSLDebug debug;
     private int port;
     private String host = null;
@@ -65,7 +65,7 @@ public class WolfSSLEngineHelper {
      * @throws WolfSSLException if an exception happens during session creation
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            SSLParameters params) throws WolfSSLException {
+            WolfSSLParameters params) throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
@@ -86,7 +86,7 @@ public class WolfSSLEngineHelper {
      * @throws WolfSSLException if an exception happens during session resume
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            SSLParameters params, int port, String host)
+            WolfSSLParameters params, int port, String host)
             throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
@@ -334,14 +334,29 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    /* sets SNI server names, if set by application in SSLParameters */
+    private void setLocalServerNames() {
+        if (this.clientMode) {
+            List<WolfSSLSNIServerName> names = this.params.getServerNames();
+            if (names != null && names.size() > 0) {
+                /* should only be one server name */
+                WolfSSLSNIServerName sni = names.get(0);
+                if (sni != null) {
+                    this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                }
+            }
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
+        this.setLocalServerNames();
     }
 
-    /* sets all parameters from SSLParameters into WOLFSSL object and creates
-     * session.
+    /* sets all parameters from WolfSSLParameters into WOLFSSL object and
+     * creates session.
      * Should be called before doHandshake */
     protected void initHandshake() throws SSLException {
         if (!modeSet) {
@@ -418,7 +433,6 @@ public class WolfSSLEngineHelper {
         }
     }
 
-
     /**
      * Saves session on connection close for resumption
      */
@@ -426,40 +440,6 @@ public class WolfSSLEngineHelper {
         if (this.session.isValid()) {
             this.session.setResume();
         }
-    }
-
-    /**
-     * Creates a new SSLPArameters class with the same settings as the one
-     * passed in.
-     *
-     * @param in SSLParameters settings to copy
-     * @return new parameters object holding same settings as "in"
-     */
-    protected static SSLParameters decoupleParams(SSLParameters in) {
-        SSLParameters ret = new SSLParameters();
-
-        ret.setCipherSuites(in.getCipherSuites());
-        ret.setProtocols(in.getProtocols());
-
-        ret.setNeedClientAuth(in.getNeedClientAuth());
-        if (!ret.getNeedClientAuth()) {
-            ret.setWantClientAuth(in.getWantClientAuth());
-        }
-
-        /* Supported by newer version of SSLParameters but to build with API 23
-         * these are currently commented out
-        ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
-        ret.setApplicationProtocols(in.getApplicationProtocols());
-        ret.setEnableRetransmissions(in.getEnableRetransmissions());
-        ret.setEndpointIdentificationAlgorithm(
-            in.getEndpointIdentificationAlgorithm());
-        ret.setMaximumPacketSize(in.getMaximumPacketSize());
-        ret.setSNIMatchers(in.getSNIMatchers());
-        ret.setServerNames(in.getServerNames());
-        ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
-        */
-
-        return ret;
     }
 
     /* Internal verify callback. This is used when a user registers a

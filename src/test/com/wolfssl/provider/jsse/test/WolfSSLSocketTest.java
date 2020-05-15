@@ -185,7 +185,7 @@ public class WolfSSLSocketTest {
             SSLSocket s;
             try {
                 s = (SSLSocket)sf.createSocket("www.example.com", 443);
-            } catch (UnknownHostException e) {
+            } catch (Exception e) {
                 /* skip adding, no Internet connection */
                 continue;
             }
@@ -686,30 +686,43 @@ public class WolfSSLSocketTest {
         SSLParameters p = s.getSSLParameters();
         assertNotNull(p);
 
-        /* TODO: this returns null for wolfJSSE. */
-        /* assertNotNull(p.getAlgorithmConstraints()); */
-
+        /* test getting and setting cipher suites */
         String[] suites = p.getCipherSuites();
         assertNotNull(suites);
         assertNotSame(suites, p.getCipherSuites());  /* should return copy */
-        assertNotNull(s.getSupportedCipherSuites());
-        p.setCipherSuites(s.getSupportedCipherSuites());
-        assertArrayEquals(s.getSupportedCipherSuites(), p.getCipherSuites());
 
+        String[] supportedSuites = s.getSupportedCipherSuites();
+        assertNotNull(supportedSuites);
+        p.setCipherSuites(supportedSuites);
+        assertArrayEquals(supportedSuites, p.getCipherSuites());
+
+        /* test getting and setting need client auth */
         assertFalse(p.getNeedClientAuth());          /* default: false */
         p.setNeedClientAuth(true);
         assertTrue(p.getNeedClientAuth());
 
+        /* test getting and setting want client auth */
         assertFalse(p.getWantClientAuth());          /* default: false */
         p.setWantClientAuth(true);
         assertTrue(p.getWantClientAuth());
 
+        /* test getting and setting protocols */
         String[] protos = p.getProtocols();
         assertNotNull(protos);
         assertNotSame(protos, p.getProtocols());
-        assertNotNull(s.getSupportedProtocols());
-        p.setProtocols(s.getSupportedProtocols());
-        assertArrayEquals(s.getSupportedProtocols(), p.getProtocols());
+
+        String[] supportedProtos = s.getSupportedProtocols();
+        assertNotNull(supportedProtos);
+        p.setProtocols(supportedProtos);
+        assertArrayEquals(supportedProtos, p.getProtocols());
+
+        /* test setting SSLParameters on SSLSocket */
+        p = s.getSSLParameters();
+        String[] oneSuite = new String[] { supportedSuites[0] };
+        p.setCipherSuites(oneSuite);
+        s.setSSLParameters(p);
+        p = s.getSSLParameters();
+        assertArrayEquals(oneSuite, p.getCipherSuites());
 
         s.close();
 

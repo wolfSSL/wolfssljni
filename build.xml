@@ -30,6 +30,10 @@
 
     <property environment="env"/>
 
+    <!-- check for SNIHostName class to determine if JDK version >= 1.8 -->
+    <available property="have-SNIHostName" classname="javax.net.ssl.SNIHostName" />
+
+    <!-- check if javac nativeheaderdir is available -->
     <condition property="have-nativeheaderdir">
         <and>
             <antversion atleast="1.9.8"/>
@@ -88,8 +92,7 @@
     <target name="build-jacoco" depends="init, compile-nativeheaderdir, compile-javah, jar, jar-jsse, javah, javadoc, examples, test-jacoco, coverage-report"/>
 
     <target name="compile-nativeheaderdir" if="have-nativeheaderdir">
-        <javac srcdir="${src.dir}"
-               destdir="${build.dir}"
+        <javac destdir="${build.dir}"
                nativeheaderdir="${native.dir}"
                debug="${java.debug}"
                debuglevel="${java.debuglevel}"
@@ -100,12 +103,16 @@
                classpathref="classpath"
                includeantruntime="false">
             <compilerarg value="-Xlint:-options"/>
+            <src path="${src.dir}" />
+            <include name="com/wolfssl/**" />
+            <include name="com/wolfssl/provider/jsse/**" />
+            <include name="com/wolfssl/provider/jsse/adapter/**" />
+            <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
         </javac>
     </target>
 
     <target name="compile-javah" unless="have-nativeheaderdir">
-        <javac srcdir="${src.dir}"
-               destdir="${build.dir}"
+        <javac destdir="${build.dir}"
                debug="${java.debug}"
                debuglevel="${java.debuglevel}"
                deprecation="${java.deprecation}"
@@ -115,6 +122,11 @@
                classpathref="classpath"
                includeantruntime="false">
             <compilerarg value="-Xlint:-options"/>
+            <src path="${src.dir}" />
+            <include name="com/wolfssl/**" />
+            <include name="com/wolfssl/provider/jsse/**" />
+            <include name="com/wolfssl/provider/jsse/adapter/**" />
+            <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
         </javac>
     </target>
 
@@ -157,7 +169,13 @@
     </target>
 
     <target name="javadoc" description="generate documentation">
-        <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
+        <javadoc destdir="${doc.dir}">
+            <fileset dir="${src.dir}">
+                <include name="com/wolfssl/**"/>
+                <include name="com/wolfssl/provider/jsse/**"/>
+                <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
+            </fileset>
+        </javadoc>
     </target>
 
     <target name="examples" depends="build">
