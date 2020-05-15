@@ -185,7 +185,7 @@ public class WolfSSLSocketTest {
             SSLSocket s;
             try {
                 s = (SSLSocket)sf.createSocket("www.example.com", 443);
-            } catch (UnknownHostException e) {
+            } catch (Exception e) {
                 /* skip adding, no Internet connection */
                 continue;
             }
