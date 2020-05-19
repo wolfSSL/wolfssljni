@@ -232,7 +232,7 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv12Enabled
     (void)jenv;
     (void)jcl;
 
-#if !defined(NO_OLD_TLS)
+#if !defined(WOLFSSL_NO_TLS12)
     return JNI_TRUE;
 #else
     return JNI_FALSE;
@@ -349,7 +349,11 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
     (void)jenv;
     (void)jcl;
 
+#ifndef NO_OLD_TLS
     return (jlong)(intptr_t)wolfTLSv1_1_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
@@ -358,7 +362,11 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
     (void)jenv;
     (void)jcl;
 
+#ifndef NO_OLD_TLS
     return (jlong)(intptr_t)wolfTLSv1_1_server_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
@@ -367,7 +375,11 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
     (void)jenv;
     (void)jcl;
 
+#ifndef NO_OLD_TLS
     return (jlong)(intptr_t)wolfTLSv1_1_client_method();
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_12_1Method
@@ -416,7 +428,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(intptr_t)wolfDTLSv1_method();
 #else
     return NOT_COMPILED_IN;
@@ -429,7 +441,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(intptr_t)wolfDTLSv1_client_method();
 #else
     return NOT_COMPILED_IN;
@@ -442,7 +454,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(intptr_t)wolfDTLSv1_server_method();
 #else
     return NOT_COMPILED_IN;
@@ -455,7 +467,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(intptr_t)wolfDTLSv1_2_method();
 #else
     return NOT_COMPILED_IN;
@@ -468,7 +480,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(intptr_t)wolfDTLSv1_2_client_method();
 #else
     return NOT_COMPILED_IN;
@@ -481,7 +493,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
     (void)jenv;
     (void)jcl;
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(intptr_t)wolfDTLSv1_2_server_method();
 #else
     return NOT_COMPILED_IN;
