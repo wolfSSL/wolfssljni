@@ -1229,6 +1229,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
   (JNIEnv* jenv, jobject jcl, jlong ssl, jbyteArray p, jint pSz, jbyteArray g,
    jint gSz)
 {
+#ifndef NO_DH
     unsigned char pBuf[pSz];
     unsigned char gBuf[gSz];
     jclass excClass;
@@ -1267,12 +1268,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
     }
 
     return wolfSSL_SetTmpDH((WOLFSSL*)(uintptr_t)ssl, pBuf, pSz, gBuf, gSz);
-
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ssl;
+    (void)p;
+    (void)pSz;
+    (void)g;
+    (void)gSz;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
   (JNIEnv* jenv, jobject jcl, jlong ssl, jstring file, jint format)
 {
+#ifndef NO_DH
     int ret;
     const char* fname;
     jclass excClass;
@@ -1302,6 +1313,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, fname);
 
     return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ssl;
+    (void)file;
+    (void)format;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateBuffer
