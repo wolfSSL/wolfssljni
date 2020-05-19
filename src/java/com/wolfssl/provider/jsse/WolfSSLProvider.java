@@ -48,6 +48,13 @@ public final class WolfSSLProvider extends Provider {
                 "Failed to initialize native wolfSSL library");
         }
 
+        /* enable native wolfSSL debug logging, native wolfSSL must be
+         * compiled with --enable-debug */
+        String wolfsslDebug = System.getProperty("wolfssl.debug");
+        if ((wolfsslDebug != null) && (wolfsslDebug.equalsIgnoreCase("true"))) {
+            WolfSSL.debuggingON();
+        }
+
         /* Key Factory */
         put("KeyManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLKeyManager");
