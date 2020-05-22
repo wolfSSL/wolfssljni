@@ -37,6 +37,9 @@ Release X.X.X has bug fixes and new features including:
 - Consistently use wolfCrypt XMALLOC/XFREE for native memory allocation
 - Use javah in build.xml for older ant/Java versions without nativeheaderdir
 - Add JSSE debug logging for native wolfSSL with wolfssl.debug system parameter
+- Add internal implementation of SSLParameters, WolfSSLParameters
+- Add client-side SNI support
+- Fix warnings when DH is disabled (--disable-dh)
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
