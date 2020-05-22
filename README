@@ -36,6 +36,7 @@ Release X.X.X has bug fixes and new features including:
 - Conversion to use GetByteArrayElements for potential memory use savings
 - Consistently use wolfCrypt XMALLOC/XFREE for native memory allocation
 - Use javah in build.xml for older ant/Java versions without nativeheaderdir
+- Add JSSE debug logging for native wolfSSL with wolfssl.debug system parameter
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
