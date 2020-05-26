@@ -51,7 +51,7 @@ public class WolfSSLEngineHelper {
     private WolfSSLParameters params;
     private WolfSSLDebug debug;
     private int port;
-    private String host = null;
+    private String hostname = null;  /* used for session lookup and SNI */
     private WolfSSLAuthStore authStore = null;
     private boolean clientMode;
     private boolean sessionCreation = true;
@@ -82,11 +82,11 @@ public class WolfSSLEngineHelper {
      * @param store main auth store holding session tables and managers
      * @param params default parameters to use on connection
      * @param port port number as hint for resume
-     * @param host host as hint for resume
+     * @param hostname hostname as hint for resume and for default SNI
      * @throws WolfSSLException if an exception happens during session resume
      */
     protected WolfSSLEngineHelper(WolfSSLSession ssl, WolfSSLAuthStore store,
-            WolfSSLParameters params, int port, String host)
+            WolfSSLParameters params, int port, String hostname)
             throws WolfSSLException {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
@@ -95,14 +95,14 @@ public class WolfSSLEngineHelper {
         this.ssl = ssl;
         this.params = params;
         this.port = port;
-        this.host = host;
+        this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
     }
 
     /* used internally by SSLSocket.connect(SocketAddress) */
-    protected void setHostAndPort(String host, int port) {
-        this.host = host;
+    protected void setHostAndPort(String hostname, int port) {
+        this.hostname = hostname;
         this.port = port;
     }
 
@@ -337,12 +337,34 @@ public class WolfSSLEngineHelper {
     /* sets SNI server names, if set by application in SSLParameters */
     private void setLocalServerNames() {
         if (this.clientMode) {
+
+            /* explicitly set if user has set through SSLParameters */
             List<WolfSSLSNIServerName> names = this.params.getServerNames();
             if (names != null && names.size() > 0) {
                 /* should only be one server name */
                 WolfSSLSNIServerName sni = names.get(0);
                 if (sni != null) {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                }
+            } else {
+                /* otherwise set based on socket hostname if
+                 * 'jsee.enableSNIExtension' java property is set to true */
+                String enableSNI = System.getProperty("jsse.enableSNIExtension", "true");
+                if (enableSNI.equalsIgnoreCase("true")) {
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "jsse.enableSNIExtension property set to true, " +
+                        "enabling SNI by default");
+
+                    if (this.hostname != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "setting SNI extension with hostname: " +
+                            this.hostname);
+                        this.ssl.useSNI((byte)0, this.hostname.getBytes());
+                    } else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "hostname is null, not setting SNI");
+                    }
                 }
             }
         }
@@ -364,7 +386,7 @@ public class WolfSSLEngineHelper {
         }
 
         /* create non null session */
-        this.session = this.authStore.getSession(ssl, this.port, this.host,
+        this.session = this.authStore.getSession(ssl, this.port, this.hostname,
             this.clientMode);
 
         if (this.session != null && this.sessionCreation == false &&
