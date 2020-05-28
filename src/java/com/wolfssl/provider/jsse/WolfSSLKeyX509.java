@@ -108,16 +108,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return getAliases(type, issuers);
     }
 
+    /* Note: Socket argument not used by wolfJSSE to choose aliases */
     public String chooseClientAlias(String[] type, Principal[] issuers,
                                     Socket sock) {
         int i;
 
         if (type == null) {
             return null;
-        }
-
-        if (sock != null) {
-            throw new UnsupportedOperationException("Not supported yet.");
         }
 
         for (i = 0; i < type.length; i++) {
