@@ -40,6 +40,8 @@ Release X.X.X has bug fixes and new features including:
 - Add internal implementation of SSLParameters, WolfSSLParameters
 - Add client-side SNI support
 - Fix warnings when DH is disabled (--disable-dh)
+- Add Java thread ID to JSSE debug log messages for easier multithreaded debug
+- Improve handshake synchronization in WolfSSLSocket for multi-threaded apps
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
