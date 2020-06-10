@@ -65,27 +65,43 @@ public class WolfSSLX509 extends X509Certificate {
     public WolfSSLX509(byte[] der) throws WolfSSLException{
         super();
         this.cert = new WolfSSLCertificate(der);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509(byte[] der)");
     }
 
     public WolfSSLX509(String derName) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(derName);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509(String derName)");
     }
 
     public WolfSSLX509(long x509) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(x509);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509(long x509)");
     }
 
     @Override
     public void checkValidity()
         throws CertificateExpiredException, CertificateNotYetValidException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkValidity()");
+
         this.checkValidity(new Date());
     }
 
     @Override
     public void checkValidity(Date date)
         throws CertificateExpiredException, CertificateNotYetValidException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkValidity(Date date)");
 
         if (this.cert == null) {
             throw new CertificateExpiredException();
@@ -104,6 +120,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public int getVersion() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getVersion()");
+
         if (this.cert == null) {
             return 0;
         }
@@ -112,6 +132,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public BigInteger getSerialNumber() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSerialNumber()");
+
         if (this.cert == null) {
             return null;
         }
@@ -120,6 +144,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public Principal getIssuerDN() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getIssuerDN()");
+
         if (this.cert == null) {
             return null;
         }
@@ -129,6 +157,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public Principal getSubjectDN() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSubjectDN()");
+
         if (this.cert == null) {
             return null;
         }
@@ -138,6 +170,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public Date getNotBefore() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getNotBefore()");
+
         if (this.cert == null) {
             return null;
         }
@@ -146,6 +182,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public Date getNotAfter() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getNotAfter()");
+
         if (this.cert == null) {
             return null;
         }
@@ -154,6 +194,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getTBSCertificate() throws CertificateEncodingException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getTBSCertificate()");
+
         if (this.cert == null) {
             return null;
         }
@@ -162,6 +206,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getSignature() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSignature()");
+
         if (this.cert == null) {
             return null;
         }
@@ -170,6 +218,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public String getSigAlgName() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSigAlgName()");
+
         if (this.cert == null) {
             return null;
         }
@@ -178,6 +230,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public String getSigAlgOID() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSigAlgOID()");
+
         if (this.cert == null) {
             return null;
         }
@@ -186,21 +242,40 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getSigAlgParams() {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSigAlgParams()");
+
+        throw new UnsupportedOperationException(
+            "X509Certificate.getSigAlgParams() not supported yet");
     }
 
     @Override
     public boolean[] getIssuerUniqueID() {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getIssuerUniqueID()");
+
+        throw new UnsupportedOperationException(
+            "X509Certificate.getIssuerUniqueID() not supported yet");
     }
 
     @Override
     public boolean[] getSubjectUniqueID() {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSubjectUniqueID()");
+
+        throw new UnsupportedOperationException(
+            "X509Certificate.getSubjectUniqueID() not supported yet");
     }
 
     @Override
     public boolean[] getKeyUsage() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getKeyUsage()");
+
         if (this.cert == null) {
             return null;
         }
@@ -209,6 +284,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public int getBasicConstraints() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getBasicConstraints()");
+
         if (this.cert == null) {
             return 0;
         }
@@ -224,6 +303,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public byte[] getEncoded() throws CertificateEncodingException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEncoded()");
+
         if (this.cert == null) {
             return null;
         }
@@ -237,6 +320,10 @@ public class WolfSSLX509 extends X509Certificate {
     @Override
     public Collection<List<?>> getSubjectAlternativeNames()
         throws CertificateParsingException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSubjectAlternativeNames()");
+
         if (this.cert == null) {
             return null;
         }
@@ -249,6 +336,9 @@ public class WolfSSLX509 extends X509Certificate {
                InvalidKeyException, SignatureException {
         byte[] pubKey;
         boolean ret;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered verify(PublicKey key)");
 
         if (key == null) {
             throw new InvalidKeyException();
@@ -272,6 +362,9 @@ public class WolfSSLX509 extends X509Certificate {
         Signature sig;
         String sigOID;
         byte[] sigBuf;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered verify(PublicKey key, String sigProvider)");
 
         if (key == null || sigProvider == null) {
             throw new InvalidKeyException();
@@ -303,6 +396,9 @@ public class WolfSSLX509 extends X509Certificate {
         String sigOID;
         byte[] sigBuf;
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered verify(PublicKey key, Provider p)");
+
         if (key == null || p == null) {
             throw new InvalidKeyException();
         }
@@ -332,6 +428,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public String toString() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered toString()");
+
         if (this.cert == null) {
             return null;
         }
@@ -351,6 +451,10 @@ public class WolfSSLX509 extends X509Certificate {
 
     @Override
     public PublicKey getPublicKey() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getPublicKey()");
+
         if (this.cert == null) {
             return null;
         }
@@ -368,7 +472,11 @@ public class WolfSSLX509 extends X509Certificate {
      * the certificate. */
     @Override
     public boolean hasUnsupportedCriticalExtension() {
-        /* @TODO farther testing*/
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered hasUnsupportedCriticalExtension()");
+
+        /* @TODO further testing*/
         return false;
     }
 
@@ -376,6 +484,9 @@ public class WolfSSLX509 extends X509Certificate {
     public Set<String> getCriticalExtensionOIDs() {
         int i;
         Set<String> ret = new TreeSet<String>();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getCriticalExtensionOIDs()");
 
         if (this.cert == null) {
             return null;
@@ -398,6 +509,9 @@ public class WolfSSLX509 extends X509Certificate {
         int i;
         Set<String> ret = new TreeSet<String>();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getNonCriticalExtensionOIDs()");
+
         if (this.cert == null) {
             return null;
         }
@@ -415,6 +529,10 @@ public class WolfSSLX509 extends X509Certificate {
     /* slight difference in that the ASN1 syntax is not returned.
      * i.e. no OCTET STRING Id "04 16 04 14" before subject key id */
     public byte[] getExtensionValue(String oid) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getExtensionValue()");
+
         if (this.cert == null) {
             return null;
         }
@@ -458,20 +576,35 @@ public class WolfSSLX509 extends X509Certificate {
                 throw new WolfSSLException("Error creating key");
             }
             this.type = type;
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "created new WolfSSLPubKey");
         }
 
         @Override
         public String getAlgorithm() {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered getAlgorithm()");
+
             return this.type;
         }
 
         @Override
         public String getFormat() {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered getFormat()");
+
             return this.format;
         }
 
         @Override
         public byte[] getEncoded() {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered getEncoded()");
+
             return this.encoding;
         }
 
@@ -561,10 +694,17 @@ public class WolfSSLX509 extends X509Certificate {
 
         private WolfSSLPrincipal(String in) {
             this.name = reformatList(in);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "created new WolfSSLPrincipal");
         }
 
         @Override
         public String getName() {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered getName()");
+
             return this.name;
         }
 
