@@ -49,6 +49,9 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     public WolfSSLKeyX509(KeyStore in, char[] password) {
         this.store = in;
         this.password = password;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "creating new WolfSSLKeyX509 object");
     }
 
     private String[] getAliases(String type, Principal[] issuers) {
@@ -105,12 +108,19 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
 
     public String[] getClientAliases(String type, Principal[] issuers) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getClientAliases()");
+
         return getAliases(type, issuers);
     }
 
     public String chooseClientAlias(String[] type, Principal[] issuers,
                                     Socket sock) {
         int i;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered chooseClientAlias()");
 
         if (type == null) {
             return null;
@@ -131,11 +141,18 @@ public class WolfSSLKeyX509 implements X509KeyManager{
 
     public String[] getServerAliases(String type, Principal[] issuers) {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getServerAliases(), type: " + type);
+
         return getAliases(type, issuers);
     }
 
     public String chooseServerAlias(String type, Principal[] issuers,
                                     Socket sock) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered chooseServerAlias(), type: " + type);
+
         /* for now using same behavior ad choose client alias */
         return chooseClientAlias(new String[]{ type }, issuers, sock);
     }
@@ -144,6 +161,9 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     public X509Certificate[] getCertificateChain(String alias) {
 
         X509Certificate[] ret = null;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getCertificateChain(), alias: " + alias);
 
         if (store == null) {
             return null;
@@ -186,6 +206,9 @@ public class WolfSSLKeyX509 implements X509KeyManager{
 
         PrivateKey key = null;
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getPrivateKey(), alias: " + alias);
+
         try {
             key = (PrivateKey)store.getKey(alias, password);
         } catch (Exception e) {
@@ -193,5 +216,5 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         }
         return key;
     }
-
 }
+
