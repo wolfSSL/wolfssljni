@@ -42,18 +42,31 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
             UnrecoverableKeyException {
         this.store = store;
         this.pswd = password;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entering engineInit(KeyStore store, char[] password)");
     }
 
     @Override
     protected void engineInit(ManagerFactoryParameters arg0)
         throws InvalidAlgorithmParameterException {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entering engineInit(ManagerFactoryParameters arg0)");
+
+        throw new UnsupportedOperationException(
+                "KeyManagerFactory.init(ManagerFactoryParameters) not " +
+                "supported yet");
     }
 
     @Override
     protected KeyManager[] engineGetKeyManagers() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetKeyManagers()");
+
         KeyManager[] km = {new WolfSSLKeyX509(this.store, this.pswd)};
         return km;
     }
-
 }
+
