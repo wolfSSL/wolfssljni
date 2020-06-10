@@ -982,14 +982,15 @@ public class WolfSSLSocket extends SSLSocket {
                         int err = ssl.getError(ret);
                         String errStr = WolfSSL.getErrorString(err);
 
-                        /* received CloseNotify, InputStream should return "-1"
-                           when there is no more data */
-                        if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
-                            return -1;
-                        }
-
-                        throw new IOException("Native wolfSSL read() failed: " +
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Native wolfSSL read() failed, errStr = " +
                             errStr + " (error code: " + err + ")");
+
+                        /* for compatibility with other implementations, we
+                         * may need to return -1 when ssl.read() returns
+                         * an error. This should be tested more extensively
+                         * to make sure this is true. */
+                        return -1;
                     }
 
                 } catch (IllegalStateException e) {
