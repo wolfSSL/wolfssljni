@@ -54,6 +54,10 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     @Override
     protected void engineInit(KeyStore in) throws KeyStoreException {
         KeyStore certs = in;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineInit()");
+
         if (in == null) {
             String pass = System.getProperty("javax.net.ssl.trustStorePassword");
             String file = System.getProperty("javax.net.ssl.trustStore");
@@ -282,13 +286,24 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     @Override
     protected void engineInit(ManagerFactoryParameters arg0)
         throws InvalidAlgorithmParameterException {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineInit(ManagerFactoryParameters arg0)");
+
+        throw new UnsupportedOperationException(
+            "TrustManagerFactory.init(ManagerFactoryParameters) " +
+            "not supported yet");
     }
 
     @Override
     protected TrustManager[] engineGetTrustManagers() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetTrustManagers()");
+
         /* array of WolfSSLX509Trust objects to use */
         TrustManager[] tm = {new WolfSSLTrustX509(this.store)};
         return tm;
     }
 }
+
