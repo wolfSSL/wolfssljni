@@ -83,18 +83,28 @@ public class WolfSSLContext extends SSLContextSpi {
         switch (this.currentVersion) {
             case TLSv1:
                 method = WolfSSL.TLSv1_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with TLSv1");
                 break;
             case TLSv1_1:
                 method = WolfSSL.TLSv1_1_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with TLSv1_1");
                 break;
             case TLSv1_2:
                 method = WolfSSL.TLSv1_2_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with TLSv1_2");
                 break;
             case TLSv1_3:
                 method = WolfSSL.TLSv1_3_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with TLSv1_3");
                 break;
             case SSLv23:
                 method = WolfSSL.SSLv23_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with SSLv23");
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -300,6 +310,9 @@ public class WolfSSLContext extends SSLContextSpi {
     protected void engineInit(KeyManager[] km, TrustManager[] tm,
         SecureRandom sr) throws KeyManagementException {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineInit()");
+
         try {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);
             params = new WolfSSLParameters();
@@ -322,6 +335,9 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLSocketFactory engineGetSocketFactory()
         throws IllegalStateException {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetSocketFactory()");
+
         if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
@@ -338,6 +354,9 @@ public class WolfSSLContext extends SSLContextSpi {
     @Override
     protected SSLServerSocketFactory engineGetServerSocketFactory()
         throws IllegalStateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetServerSocketFactory()");
 
         if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
@@ -356,6 +375,9 @@ public class WolfSSLContext extends SSLContextSpi {
     @Override
     protected SSLEngine engineCreateSSLEngine()
         throws IllegalStateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineCreateSSLEngine()");
 
         if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
@@ -381,6 +403,9 @@ public class WolfSSLContext extends SSLContextSpi {
     protected SSLEngine engineCreateSSLEngine(String host, int port)
         throws IllegalStateException {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineCreateSSLEngine(String host, int port)");
+
         if (this.ctx == null || this.authStore == null) {
             throw new IllegalStateException("SSLContext must be initialized " +
                 "before use, please call init()");
@@ -403,6 +428,10 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetServerSessionContext()");
+
         throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
 
@@ -415,6 +444,10 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetClientSessionContext()");
+
         throw new UnsupportedOperationException("Not supported by wolfJSSE");
     }
 
@@ -423,6 +456,10 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetDefaultSSLParameters() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetDefaultSSLParameters()");
+
         return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
@@ -432,6 +469,10 @@ public class WolfSSLContext extends SSLContextSpi {
      */
     @Override
     protected SSLParameters engineGetSupportedSSLParameters() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered engineGetSupportedSSLParameters()");
+
         return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
@@ -460,44 +501,64 @@ public class WolfSSLContext extends SSLContextSpi {
     }
 
     public String[] getProtocolsMask(long noOpt) {
-            if(ctx != null)
-                ctx.setOptions(noOpt);
-            return WolfSSL.getProtocolsMask(noOpt);
+        if (ctx != null) {
+            ctx.setOptions(noOpt);
+        }
+        return WolfSSL.getProtocolsMask(noOpt);
     }
 
     public static final class TLSV1_Context extends WolfSSLContext {
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using TLSV1_Context");
         }
     }
 
     public static final class TLSV11_Context extends WolfSSLContext {
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using TLSV11_Context");
         }
     }
 
     public static final class TLSV12_Context extends WolfSSLContext {
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using TLSV12_Context");
         }
     }
 
     public static final class TLSV13_Context extends WolfSSLContext {
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using TLSV13_Context");
         }
     }
 
     public static final class TLSV23_Context extends WolfSSLContext {
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using TLSV23_Context");
         }
     }
 
     public static final class DEFAULT_Context extends WolfSSLContext {
         public DEFAULT_Context() {
             super(TLS_VERSION.SSLv23);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using DEFAULT_Context");
+
             try {
                 this.engineInit(null, null, null);
             } catch (Exception e) {

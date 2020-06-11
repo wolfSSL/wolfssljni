@@ -44,20 +44,33 @@ public class WolfSSLX509X extends X509Certificate {
     WolfSSLX509 cert;
 
     public WolfSSLX509X(byte[] der) throws WolfSSLException{
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509X(byte[] der)");
+
         this.cert = new WolfSSLX509(der);
     }
 
     public WolfSSLX509X(String derName) throws WolfSSLException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509X(String derName)");
+
         this.cert = new WolfSSLX509(derName);
     }
 
     public WolfSSLX509X(long x509) throws WolfSSLException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLX509X(long x509)");
+
         this.cert = new WolfSSLX509(x509);
     }
 
     @Override
     public void checkValidity()
         throws CertificateExpiredException, CertificateNotYetValidException {
+
         try {
             this.cert.checkValidity();
         } catch (java.security.cert.CertificateExpiredException ex) {
@@ -70,6 +83,7 @@ public class WolfSSLX509X extends X509Certificate {
     @Override
     public void checkValidity(Date date)
         throws CertificateExpiredException, CertificateNotYetValidException {
+
         try {
             this.cert.checkValidity(date);
         } catch (java.security.cert.CertificateExpiredException ex) {
@@ -81,6 +95,7 @@ public class WolfSSLX509X extends X509Certificate {
 
     @Override
     public int getVersion() {
+
         /* this returns the ASN.1 encoding for version
          * i.e. v1 (0) , v2 (1) , v3 (2). To get the correct value subtract 1
          * from the version returned by "cert" which is 1, 2, or 3 */

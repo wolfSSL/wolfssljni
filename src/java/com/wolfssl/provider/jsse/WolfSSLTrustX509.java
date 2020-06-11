@@ -50,6 +50,9 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLTrustX509");
     }
 
     /**
@@ -101,18 +104,28 @@ public class WolfSSLTrustX509 implements X509TrustManager {
     public void checkClientTrusted(X509Certificate[] certs, String type)
             throws CertificateException {
 
-            certManagerVerify(certs, type);
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkClientTrusted()");
+
+        certManagerVerify(certs, type);
     }
 
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type)
         throws CertificateException {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkServerTrusted()");
+
         certManagerVerify(certs, type);
     }
 
     @Override
     public X509Certificate[] getAcceptedIssuers() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getAcceptedIssuers()");
+
         try {
             List<X509Certificate> CAs = new ArrayList<X509Certificate>();
             /* Store the alias of all CAs */

@@ -49,6 +49,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      * SSLSocketFactory.getDefault() */
     public WolfSSLSocketFactory() {
         super();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new default WolfSSLSocketFactory");
+
         this.jsseCtx = new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
         this.ctx = jsseCtx.getInternalWolfSSLContext();
         this.authStore = jsseCtx.getInternalAuthStore();
@@ -58,6 +62,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore authStore, WolfSSLParameters params) {
         super();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLSocketFactory");
+
         this.ctx = ctx;
         this.authStore = authStore;
         this.params = params;
@@ -70,6 +78,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      */
     @Override
     public String[] getDefaultCipherSuites() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getDefaultCipherSuites()");
+
         return WolfSSL.getCiphersIana();
     }
 
@@ -80,6 +92,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      */
     @Override
     public String[] getSupportedCipherSuites() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSupportedCipherSuites()");
+
         return getDefaultCipherSuites();
     }
 
@@ -91,6 +107,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      */
     @Override
     public Socket createSocket() throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket()");
+
         return new WolfSSLSocket(ctx, authStore, params, true);
     }
 
@@ -107,6 +127,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(InetAddress host, int port)
         throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(InetAddress host, int port)");
+
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
 
@@ -126,6 +150,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(InetAddress address, int port,
         InetAddress localAddress, int localPort) throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(InetAddress host, port: " + port + ", " +
+            "InetAddress localAddress, localPort: " + localPort + ")");
+
         return new WolfSSLSocket(ctx, authStore, params,
             true, address, port, localAddress, localPort);
     }
@@ -143,6 +172,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(String host, int port)
         throws IOException, UnknownHostException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(host: " + host + ", port: " + port + ")");
+
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
 
@@ -162,6 +195,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(String host, int port, InetAddress localHost,
         int localPort) throws IOException, UnknownHostException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(host: " + host + ", port: " + port +
+            ", InetAddress localHost, localPort: " + localPort + ")");
+
         return new WolfSSLSocket(ctx, authStore, params,
             true, host, port, localHost, localPort);
     }
@@ -182,6 +220,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     @Override
     public Socket createSocket(Socket s, String host, int port,
         boolean autoClose) throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(Socket s, host: " + host + ", port: " +
+            port + ", autoClose: " + String.valueOf(autoClose) + ")");
+
         return new WolfSSLSocket(ctx, authStore, params,
             true, s, host, port, autoClose);
     }
@@ -203,6 +246,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
      */
     public Socket createSocket(Socket s, InputStream consumed,
         boolean autoClose) throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered createSocket(Socket s, InputStream consumed, autoClose: "
+            + String.valueOf(autoClose) + ")");
+
         return new WolfSSLSocket(ctx, authStore, params, s,
             consumed, autoClose);
     }

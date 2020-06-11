@@ -78,6 +78,9 @@ public class WolfSSLAuthStore {
             throw new IllegalArgumentException("Invalid SSL/TLS version");
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "Creating new WolfSSLAuthStore");
+
         initKeyManager(keyman);
         initTrustManager(trustman);
         initSecureRandom(random);
@@ -98,6 +101,9 @@ public class WolfSSLAuthStore {
         KeyManager[] managers = in;
         if (managers == null || managers.length == 0) {
             try {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "searching installed providers for X509KeyManager");
+
                 /* use key managers from installed security providers */
                 KeyManagerFactory kmFactory = KeyManagerFactory.getInstance(
                     KeyManagerFactory.getDefaultAlgorithm());
@@ -116,6 +122,8 @@ public class WolfSSLAuthStore {
         if (managers != null) {
             for (int i = 0; i < managers.length; i++) {
                 if (managers[i] instanceof X509KeyManager) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "located X509KeyManager instance");
                     km = (X509KeyManager)managers[i];
                     break;
                 }
@@ -135,6 +143,9 @@ public class WolfSSLAuthStore {
         if (managers == null || managers.length == 0) {
 
             try {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "searching installed providers for X509TrustManager");
+
                 /* use trust managers from installed security providers */
                 TrustManagerFactory tmFactory = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
@@ -151,6 +162,8 @@ public class WolfSSLAuthStore {
         if (managers != null) {
             for (int i = 0; i < managers.length; i++) {
                 if (managers[i] instanceof X509TrustManager) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "located X509TrustManager instance");
                     tm = (X509TrustManager)managers[i];
                     break;
                 }

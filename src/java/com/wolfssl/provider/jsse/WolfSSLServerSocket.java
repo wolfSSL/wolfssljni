@@ -55,6 +55,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         super();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "creating new WolfSSLServerSocket()");
+
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
@@ -66,6 +69,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "creating new WolfSSLServerSocket(port: " + port + ")");
 
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
@@ -79,6 +85,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         throws IOException {
 
         super(port, backlog);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "creating new WolfSSLServerSocket(port: " + port +
+            ", backlog: " + backlog + ")");
 
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
@@ -94,6 +104,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         super(port, backlog, address);
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "creating new WolfSSLServerSocket(port: " + port +
+            ", backlog: " + backlog + ", InetAddress)");
+
         /* defer creating WolfSSLSocket until accept() is called */
         this.context = context;
         this.authStore = authStore;
@@ -102,12 +116,19 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     synchronized public String[] getEnabledCipherSuites() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnabledCipherSuites()");
+
         return params.getCipherSuites();
     }
 
     @Override
     synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnabledCipherSuites()");
 
         if (suites == null) {
             throw new IllegalArgumentException("input array is null");
@@ -134,22 +155,37 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     public String[] getSupportedCipherSuites() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSupportedCipherSuites()");
+
         return WolfSSL.getCiphersIana();
     }
 
     @Override
     public String[] getSupportedProtocols() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSupportedProtocols()");
+
         return params.getProtocols();
     }
 
     @Override
     synchronized public String[] getEnabledProtocols() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnabledProtocols()");
+
         return params.getProtocols();
     }
 
     @Override
     synchronized public void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnabledProtocols()");
 
         if (protocols == null) {
             throw new IllegalArgumentException("input array is null");
@@ -162,7 +198,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         /* sanitize protocol array for unsupported strings */
         List<String> supported;
         supported = Arrays.asList(WolfSSL.getProtocols());
-                
+
         for (int i = 0; i < protocols.length; i++) {
             if (!supported.contains(protocols[i])) {
                 throw new IllegalArgumentException("Unsupported protocol: " +
@@ -179,6 +215,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     synchronized public void setNeedClientAuth(boolean need) {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setNeedClientAuth()");
+
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setNeedClientAuth(need);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -187,11 +226,18 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     synchronized public boolean getNeedClientAuth() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getNeedClientAuth()");
+
         return params.getNeedClientAuth();
     }
 
     @Override
     synchronized public void setWantClientAuth(boolean want) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setWantClientAuth()");
 
         /* propogated down to WolfSSLEngineHelper in WolfSSLSocket creation */
         params.setWantClientAuth(want);
@@ -201,12 +247,19 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     synchronized public boolean getWantClientAuth() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getWantClientAuth()");
+
         return params.getWantClientAuth();
     }
 
     @Override
     synchronized public void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setUseClientMode()");
 
         clientMode = mode;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -221,6 +274,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     synchronized public void setEnableSessionCreation(boolean flag) {
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnableSessionCreation()");
+
         enableSessionCreation = flag;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "enable session creation set to: " + flag);
@@ -228,6 +284,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     synchronized public boolean getEnableSessionCreation() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnableSessionCreation()");
+
         return enableSessionCreation;
     }
 
@@ -237,6 +297,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
      * @param params SSLParameters to set for this SSLSocket object
      */
     synchronized public void setSSLParameters(SSLParameters params) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setSSLParameters()");
+
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
@@ -245,6 +309,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     synchronized public Socket accept() throws IOException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered accept()");
 
         /* protected method inherited from ServerSocket, returns
            a connected socket */

@@ -74,6 +74,9 @@ public class WolfSSLEngineHelper {
         this.params = params;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLEngineHelper()");
     }
 
     /**
@@ -98,6 +101,10 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "created new WolfSSLEngineHelper(port: " + port +
+            ", hostname: " + hostname + ")");
     }
 
     /* used internally by SSLSocket.connect(SocketAddress) */
