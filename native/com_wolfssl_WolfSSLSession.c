@@ -2988,6 +2988,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
 
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    int ret = SSL_FAILURE;
+    (void)jcl;
+#ifdef HAVE_SESSION_TICKET
+    if (jenv == NULL || ssl <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_UseSessionTicket((WOLFSSL*)(uintptr_t)ssl);
+#else
+    (void)jenv;
+    (void)ssl;
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

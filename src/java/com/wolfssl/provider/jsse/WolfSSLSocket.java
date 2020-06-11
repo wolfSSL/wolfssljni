@@ -778,6 +778,20 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Enables use of session tickets with this session. Disabled by default.
+     *
+     * @param useTickets true to enable session tickets, otherwise false
+     */
+    synchronized public void setUseSessionTickets(boolean useTickets) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setUseSessionTickets(flag: " +
+            String.valueOf(useTickets) + ")");
+
+        EngineHelper.setUseSessionTickets(useTickets);
+    }
+
+    /**
      * Return the InputStream associated with this SSLSocket.
      *
      * @return InputStream for this Socket
