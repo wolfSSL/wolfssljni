@@ -278,7 +278,7 @@ public class ServerJSSE {
         if (WolfSSLDebug.DEBUG) {
             try {
                 Certificate[] certs = session.getPeerCertificates();
-                if (certs.length > 0) {
+                if (certs != null && certs.length > 0) {
                     System.out.println(((X509Certificate)certs[0]).toString());
                 }
             } catch (Exception e) {
