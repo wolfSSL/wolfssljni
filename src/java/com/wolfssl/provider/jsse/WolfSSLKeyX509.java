@@ -51,6 +51,15 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         this.password = password;
     }
 
+    /**
+     * Return array of aliases from current KeyStore that matches provided
+     * type and issuers array.
+     *
+     * Returns:
+     * null - if current KeyStore is null, error getting aliases from store,
+     *        or no alias mathes found in current KeyStore.
+     * String[] - aliases, if found that match type and/or issuers
+     */
     private String[] getAliases(String type, Principal[] issuers) {
         Enumeration<String> aliases = null;
         int i;
@@ -64,10 +73,11 @@ public class WolfSSLKeyX509 implements X509KeyManager{
             aliases = this.store.aliases();
         } catch (KeyStoreException ex) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                             "getting alias error");
+                             "Error getting aliases from current KeyStore");
             return null;
         }
 
+        /* loop through each alias in KeyStore */
         while (aliases.hasMoreElements()) {
             String current = aliases.nextElement();
             X509Certificate cert = null;
@@ -75,32 +85,49 @@ public class WolfSSLKeyX509 implements X509KeyManager{
                 cert = (X509Certificate)this.store.getCertificate(current);
             } catch (KeyStoreException ex) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                                 "checking alias error");
+                                 "Error getting certificate from KeyStore " +
+                                 "for alias: " + current +
+                                 ", continuing to next alias");
                 continue;
             }
 
-            if (type != null &&
+            if (type != null && cert != null &&
                 !cert.getPublicKey().getAlgorithm().equals(type)) {
-                /* different public key type */
+                /* different public key type, skip */
                 continue;
             }
 
-            /* if issuers is null than it does not matter which issuer */
+            /* if issuers is null then it does not matter which issuer */
             if (issuers == null) {
                 ret.add(current);
             }
             else {
-                for (i = 0; i < issuers.length; i++) {
-                    if (cert != null && cert.getIssuerDN().getName().
-                            equals(issuers[i].getName())) {
-                        ret.add(current);
+                if (cert != null) {
+                    /* search through issuers for matching issuer name */
+                    for (i = 0; i < issuers.length; i++) {
+                        String certIssuer = cert.getIssuerDN().getName();
+                        String issuerName = issuers[i].getName();
+
+                        /* normalize spaces after commas, needed on some JDKs */
+                        certIssuer = certIssuer.replaceAll(", ", ",");
+                        issuerName = issuerName.replaceAll(", ", ",");
+
+                        if (certIssuer.equals(issuerName)) {
+                            /* matched issuer, add alias and continue on */
+                            ret.add(current);
+                            break;
+                        }
                     }
                 }
             }
+        } /* end while */
+
+        if (ret.size() == 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "No aliases found in KeyStore that match type and/or issuer");
+            return null;
         }
 
-        if (ret.size() == 0)
-            return null;
         return ret.toArray(new String[0]);
     }
 
@@ -108,16 +135,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return getAliases(type, issuers);
     }
 
+    /* Note: Socket argument not used by wolfJSSE to choose aliases */
     public String chooseClientAlias(String[] type, Principal[] issuers,
                                     Socket sock) {
         int i;
 
         if (type == null) {
             return null;
-        }
-
-        if (sock != null) {
-            throw new UnsupportedOperationException("Not supported yet.");
         }
 
         for (i = 0; i < type.length; i++) {
