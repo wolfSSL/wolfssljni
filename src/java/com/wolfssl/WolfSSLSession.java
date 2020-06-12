@@ -772,7 +772,8 @@ public class WolfSSLSession {
      * Returns the session ID.
      *
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return      the session ID
+     * @return      the session ID, or a empty array if unable to get valid
+     *              session ID
      * @see         #setSession(long)
      */
     public byte[] getSessionID() throws IllegalStateException {
@@ -780,7 +781,12 @@ public class WolfSSLSession {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return getSessionID(getSession());
+        long sess = getSession();
+        if (sess != 0) {
+            return getSessionID(sess);
+        } else {
+            return new byte[0];
+        }
     }
 
     /**
