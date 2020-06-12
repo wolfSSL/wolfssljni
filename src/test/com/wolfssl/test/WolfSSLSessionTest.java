@@ -73,6 +73,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_usePskIdentityHint();
         test_WolfSSLSession_getPskIdentityHint();
         test_WolfSSLSession_getPskIdentity();
+        test_WolfSSLSession_useSessionTicket();
         test_WolfSSLSession_timeout();
         test_WolfSSLSession_status();
         test_WolfSSLSession_useSNI();
@@ -313,6 +314,22 @@ public class WolfSSLSessionTest {
             if (hint != null && !hint.equals("wolfssl hint")) {
                 System.out.println("\t\t... failed");
                 fail("getPskIdentityHint failed");
+            }
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLSession_useSessionTicket() {
+        System.out.print("\tuseSessionTicket()");
+        try {
+            int ret = ssl.useSessionTicket();
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... failed");
+                fail("useSessionTicket failed");
             }
         } catch (IllegalStateException e) {
             System.out.println("\t\t... failed");

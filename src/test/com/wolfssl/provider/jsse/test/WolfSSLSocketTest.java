@@ -75,9 +75,30 @@ import java.security.cert.CertificateException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
+import com.wolfssl.provider.jsse.WolfSSLSocket;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 
+/* Tests run by this class:
+    public void testGetSupportedCipherSuites();
+    public void testGetSetEnabledCipherSuites();
+    public void testGetSupportedProtocols();
+    public void testGetSetEnabledProtocols();
+    public void testClientServerThreaded();
+    public void testPreConsumedSocket();
+    public void testEnableSessionCreation();
+    public void testSetUseClientMode();
+    public void testGetSSLParameters();
+    public void testAddHandshakeCompletedListener();
+    public void testGetSession();
+    public void testSetNeedClientAuth();
+    public void testProtocolTLSv10();
+    public void testProtocolTLSv11();
+    public void testProtocolTLSv12();
+    public void testProtocolTLSv13();
+    public void testSessionResumption();
+    public void testSessionResumptionWithTicketEnabled();
+ */
 public class WolfSSLSocketTest {
 
     public final static char[] jksPass = "wolfSSL test".toCharArray();
@@ -1246,6 +1267,104 @@ public class WolfSSLSocketTest {
 
             /* connection #2, should resume */
             cs = (SSLSocket)cliFactory.createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                             ss.getLocalPort()));
+            cs.startHandshake();
+            sessionID2 = cs.getSession().getId();
+            cs.close();
+
+            if (!Arrays.equals(sessionID1, sessionID2)) {
+                /* session not resumed */
+                System.out.println("\t... failed");
+                fail();
+            }
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testSessionResumptionWithTicketEnabled() throws Exception {
+
+        /* wolfJSSE currently only supports client-side session tickets
+         * for now. This test verifies that resumption will still fall
+         * back and work with session IDs, since we test against the wolfJSSE
+         * server, which does not have session tickets enabled. The client
+         * side will still send the Session Ticket extension in the
+         * ClientHello */
+
+        byte[] sessionID1 = null;
+        byte[] sessionID2 = null;
+        String protocol = null;
+
+        System.out.print("\tresumption with tickets enabled");
+
+        /* use TLS 1.2, else 1.1, else 1.0, else skip */
+        /* TODO: TLS 1.3 handles session resumption differently */
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+             .createServerSocket(0);
+
+        SSLSocketFactory cliFactory = ctx.getSocketFactory();
+
+        WolfSSLSocket cs = (WolfSSLSocket)cliFactory.createSocket();
+        cs.setUseSessionTickets(true);
+        cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                         ss.getLocalPort()));
+
+        /* start server */
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    for (int i = 0; i < 2; i++) {
+                        SSLSocket server = (SSLSocket)ss.accept();
+                        server.startHandshake();
+                        server.close();
+                    }
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            /* connection #1 */
+            cs.startHandshake();
+            sessionID1 = cs.getSession().getId();
+            cs.close();
+
+            /* connection #2, should resume */
+            cs = (WolfSSLSocket)cliFactory.createSocket();
+            cs.setUseSessionTickets(true);
             cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
                                              ss.getLocalPort()));
             cs.startHandshake();
