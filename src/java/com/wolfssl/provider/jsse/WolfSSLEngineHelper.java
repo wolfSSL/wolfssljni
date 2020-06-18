@@ -505,16 +505,29 @@ public class WolfSSLEngineHelper {
             this.session = this.authStore.getSession(ssl);
         }
 
-        if (this.clientMode) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "calling native wolfSSL_connect()");
-            return this.ssl.connect();
+        int ret, err;
 
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "calling native wolfSSL_accept()");
-            return this.ssl.accept();
-        }
+        do {
+            /* call connect() or accept() to do handshake, looping on
+             * WANT_READ/WANT_WRITE errors in case underlying Socket is
+             * non-blocking */
+            if (this.clientMode) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "calling native wolfSSL_connect()");
+                ret = this.ssl.connect();
+
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "calling native wolfSSL_accept()");
+                ret = this.ssl.accept();
+            }
+            err = ssl.getError(ret);
+
+        } while (ret != WolfSSL.SSL_SUCCESS &&
+                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+        return ret;
     }
 
     /**
