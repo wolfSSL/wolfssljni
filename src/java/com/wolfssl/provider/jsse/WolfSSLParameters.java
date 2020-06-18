@@ -47,6 +47,7 @@ final class WolfSSLParameters {
     private List<WolfSSLSNIServerName> serverNames;
     private boolean useCipherSuiteOrder = true;
     String[] applicationProtocols = new String[0];
+    private boolean useSessionTickets = false;
 
     /* create duplicate copy of these parameters */
     protected WolfSSLParameters copy() {
@@ -56,6 +57,7 @@ final class WolfSSLParameters {
         cp.wantClientAuth = this.wantClientAuth;
         cp.needClientAuth = this.needClientAuth;
         cp.setServerNames(this.getServerNames());
+        cp.useSessionTickets = this.useSessionTickets;
 
         /* TODO: duplicate other properties here when WolfSSLParameters
          * can handle them */
@@ -125,6 +127,15 @@ final class WolfSSLParameters {
             return Collections.unmodifiableList(
                     new ArrayList<WolfSSLSNIServerName>(this.serverNames));
         }
+    }
+
+    /* not part of Java SSLParameters. Needed here for Android compatibility */
+    void setUseSessionTickets(boolean useTickets) {
+        this.useSessionTickets = useTickets;
+    }
+
+    boolean getUseSessionTickets() {
+        return this.useSessionTickets;
     }
 
     /* TODO, create our own class for SNIMatcher, in case Java doesn't support it */

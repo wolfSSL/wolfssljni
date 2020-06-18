@@ -265,6 +265,7 @@ public class WolfSSLSession {
     private native void setSSLIORecv(long ssl);
     private native void setSSLIOSend(long ssl);
     private native int useSNI(long ssl, byte type, byte[] data);
+    private native int useSessionTicket(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -771,7 +772,8 @@ public class WolfSSLSession {
      * Returns the session ID.
      *
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return      the session ID
+     * @return      the session ID, or a empty array if unable to get valid
+     *              session ID
      * @see         #setSession(long)
      */
     public byte[] getSessionID() throws IllegalStateException {
@@ -779,7 +781,12 @@ public class WolfSSLSession {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return getSessionID(getSession());
+        long sess = getSession();
+        if (sess != 0) {
+            return getSessionID(sess);
+        } else {
+            return new byte[0];
+        }
     }
 
     /**
@@ -2409,7 +2416,7 @@ public class WolfSSLSession {
      *                  must follow that as shown in
      *                  WolfSSLIOSendCallback#sendCallback(WolfSSLSession,
      *                  byte[], int, Object).
-     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws IllegalStateException WolfSSLSession has been freed
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setIORecv(WolfSSLIORecvCallback)
      */
@@ -2436,6 +2443,20 @@ public class WolfSSLSession {
         ret = useSNI(getSessionPtr(), type, data);
 
         return ret;
+    }
+
+    /**
+     * Enable session tickets for this session.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int useSessionTicket() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return useSessionTicket(getSessionPtr());
     }
 
     /**

@@ -231,6 +231,10 @@ public class WolfSSLEngineHelper {
         return this.sessionCreation;
     }
 
+    protected void setUseSessionTickets(boolean flag) {
+        this.params.setUseSessionTickets(flag);
+    }
+
     /********** Calls to transfer over parameter to wolfSSL before connection */
 
     /*transfer over cipher suites right before establishing a connection */
@@ -377,11 +381,62 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    /* Session tickets are enabled in different ways depending on the JDK
+     * implementation we are running on. For Oracle/OpenJDK, the following
+     * system properties enable session tickets and were added in JDK 13:
+     *
+     * -Djdk.tls.client.enableSessionTicketExtension=true
+     * -Djdk.tls.server.enableSessionTicketExtension=true
+     *
+     *  wolfJSSE currently supports client-side session ticket support, but
+     *  not yet enabling of server-side support.
+     *
+     *  On Android, some libraries/frameworks (ex: okhttp) expect to enable
+     *  session tickets per SSLSocket by calling a custom SSLSocket extension
+     *  method called SSLSocket.setUseSessionTickets().
+     *
+     *  Note that for session ticket support in wolfJSSE, underlying native
+     *  wolfSSL must be compiled with session ticket support enabled. This
+     *  is done via "--enable-session-ticket" or "-DHAVE_SESSION_TICKET".
+     */
+    private void setLocalSessionTicket() {
+        if (this.clientMode) {
+
+            boolean enableFlag = this.params.getUseSessionTickets();
+            String enableProperty = System.getProperty(
+                    "jdk.tls.client.enableSessionTicketExtension");
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSLSocket.setUseSessionTickets() set to: " +
+                String.valueOf(enableFlag));
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "jdk.tls.client.enableSessionTicketExtension property: " +
+                enableProperty);
+
+            if ((enableFlag == true) ||
+                ((enableProperty != null) &&
+                 (enableProperty.equalsIgnoreCase("true")))) {
+
+                /* enable client-side session ticket support */
+                this.ssl.useSessionTicket();
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session tickets enabled for this session");
+
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "session tickets not enabled on this session");
+            }
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
         this.setLocalServerNames();
+        this.setLocalSessionTicket();
     }
 
     /* sets all parameters from WolfSSLParameters into WOLFSSL object and

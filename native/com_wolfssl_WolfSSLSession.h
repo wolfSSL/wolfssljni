@@ -687,6 +687,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIOSend
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
   (JNIEnv *, jobject, jlong, jbyte, jbyteArray);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    useSessionTicket
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif
