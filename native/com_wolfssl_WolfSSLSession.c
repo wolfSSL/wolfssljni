@@ -3007,6 +3007,27 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
     return ret;
 }
 
+/* return 1 if last alert received was a close_notify alert, otherwise 0 */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    int ret, gotCloseNotify = 0;
+    WOLFSSL_ALERT_HISTORY alert_history;
+
+    if (jenv == NULL || ssl <= 0) {
+        return gotCloseNotify;
+    }
+
+    ret = wolfSSL_get_alert_history((WOLFSSL*)(uintptr_t)ssl, &alert_history);
+    if (ret == WOLFSSL_SUCCESS) {
+        if (alert_history.last_rx.code == 0) {
+            gotCloseNotify = 1;
+        }
+    }
+
+    return gotCloseNotify;
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

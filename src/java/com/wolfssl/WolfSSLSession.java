@@ -266,6 +266,7 @@ public class WolfSSLSession {
     private native void setSSLIOSend(long ssl);
     private native int useSNI(long ssl, byte type, byte[] data);
     private native int useSessionTicket(long ssl);
+    private native int gotCloseNotify(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2368,6 +2369,26 @@ public class WolfSSLSession {
 
         return getOptions(getSessionPtr());
     }
+
+    /**
+     * Returns true if the last alert received by this session was a
+     * close_notify alert from the peer.
+     *
+     * @return true if close_notify has been received, otherwise false
+     */
+    public boolean gotCloseNotify() {
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        int ret = gotCloseNotify(getSessionPtr());
+
+        if (ret == 1) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     /**
      * Registers a receive callback for wolfSSL to get input data.
      * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.

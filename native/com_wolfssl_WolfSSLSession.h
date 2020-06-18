@@ -695,6 +695,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    gotCloseNotify
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif
