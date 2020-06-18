@@ -28,6 +28,7 @@ import static org.junit.Assert.*;
 
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.net.ConnectException;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -435,7 +436,7 @@ public class WolfSSLSessionTest {
             ssl.freeSSL();
             sslCtx.free();
 
-        } catch (UnknownHostException e) {
+        } catch (UnknownHostException | ConnectException e) {
             /* skip if no Internet connection */
             System.out.println("\t\t... skipped");
             return;
@@ -514,7 +515,7 @@ public class WolfSSLSessionTest {
             ssl.freeSSL();
             sslCtx.free();
 
-        } catch (UnknownHostException e) {
+        } catch (UnknownHostException | ConnectException e) {
             /* skip if no Internet connection */
             System.out.println("\t\t... skipped");
             return;
