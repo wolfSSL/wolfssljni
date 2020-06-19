@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,6 +77,7 @@ public class WolfSSLSocket extends SSLSocket {
 
     protected volatile boolean handshakeInitCalled = false;
     protected volatile boolean handshakeComplete = false;
+    protected volatile boolean connectionClosed = false;
 
     /* lock for handshakInitCalled and handshakeComplete */
     final private Object handshakeLock = new Object();
@@ -600,7 +602,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper.initHandshake();
             handshakeInitCalled = true;
 
-            ret = EngineHelper.doHandshake();
+            ret = EngineHelper.doHandshake(0);
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
@@ -862,6 +864,10 @@ public class WolfSSLSocket extends SSLSocket {
                 }
 
                 ssl.shutdownSSL();
+
+                synchronized (handshakeLock) {
+                    this.connectionClosed = true;
+                }
             }
 
             if (this.autoClose) {
@@ -1022,11 +1028,17 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                 } else {
-                    /* read directly from Socket */
-                    ret = current.read(buf, 0, sz);
-                    if (ret == -1) {
-                        /* no data available */
-                        ret = WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
+                    /* read directly from Socket, may throw SocketException
+                     * if underlying socket is non-blocking and returns
+                     * WANT_READ. */
+                    try {
+                        ret = current.read(buf, 0, sz);
+                        if (ret == -1) {
+                            /* no data available, end of stream reached */
+                            return 0;
+                        }
+                    } catch (SocketException se) {
+                        return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
                     }
                 }
             } catch (IOException e) {
@@ -1090,6 +1102,12 @@ public class WolfSSLSocket extends SSLSocket {
                 socket.startHandshake();
             }
 
+            /* check if connection has already been closed/shutdown */
+            synchronized (handshakeLock) {
+                if (WolfSSLSocket.this.connectionClosed == true) {
+                    throw new SocketException("Connection already shutdown");
+                }
+            }
 
             if (b.length == 0 || len == 0) {
                 return 0;
@@ -1108,19 +1126,38 @@ public class WolfSSLSocket extends SSLSocket {
 
             synchronized (readLock) {
                 try {
-                    ret = ssl.read(data, len);
-                    if (ret <= 0) {
-                        int err = ssl.getError(ret);
-                        String errStr = WolfSSL.getErrorString(err);
 
-                        /* received CloseNotify, InputStream should return "-1"
-                           when there is no more data */
-                        if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
-                            return -1;
+                    int err;
+                    do {
+                        ret = ssl.read(data, len);
+                        err = ssl.getError(ret);
+                    } while ((ret < 0) && (err == WolfSSL.SSL_ERROR_WANT_READ));
+
+                    /* check for end of stream */
+                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.read() got SSL_ERROR_ZERO_RETURN, " +
+                            "end of stream");
+
+                        /* check to see if we received a close notify alert.
+                         * if so, throw SocketException since peer has closed
+                         * the connection */
+                        if (ssl.gotCloseNotify() == true) {
+                            throw new SocketException("Peer closed connection");
                         }
+                        return -1;
+                    }
 
-                        throw new IOException("Native wolfSSL read() failed: " +
-                            errStr + " (error code: " + err + ")");
+                    if (ret < 0) {
+                        /* other errors besides end of stream or WANT_READ
+                         * are treated as I/O errors and throw an exception */
+                        String errStr = WolfSSL.getErrorString(err);
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Native wolfSSL_read() error: " + errStr +
+                            " (error code: " + err + ")");
+                        throw new IOException("Native wolfSSL_read() " +
+                            "error: " + errStr +
+                            " (error code: " + err + ")");
                     }
 
                 } catch (IllegalStateException e) {
@@ -1174,6 +1211,13 @@ public class WolfSSLSocket extends SSLSocket {
                 socket.startHandshake();
             }
 
+            /* check if connection has already been closed/shutdown */
+            synchronized (handshakeLock) {
+                if (WolfSSLSocket.this.connectionClosed == true) {
+                    throw new SocketException("Connection already shutdown");
+                }
+            }
+
             if (off < 0 || len < 0 || (off + len) > b.length) {
                 throw new IndexOutOfBoundsException("Array index out of bounds");
             }
@@ -1187,14 +1231,31 @@ public class WolfSSLSocket extends SSLSocket {
 
             synchronized (writeLock) {
                 try {
-                    ret = ssl.write(data, len);
+                    int err;
+                    do {
+                        ret = ssl.write(data, len);
+                        err = ssl.getError(ret);
+                    } while ((ret < 0) && (err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-                    if (ret <= 0) {
-                        int err = ssl.getError(ret);
+                    /* check for end of stream */
+                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.write() got SSL_ERROR_ZERO_RETURN, " +
+                            "end of stream");
+
+                        /* check to see if we received a close notify alert.
+                         * if so, throw SocketException since peer has closed
+                         * the connection */
+                        if (ssl.gotCloseNotify() == true) {
+                            throw new SocketException("Peer closed connection");
+                        }
+                    }
+
+                    if (ret < 0) {
+                        /* print error description string */
                         String errStr = WolfSSL.getErrorString(err);
-
-                        throw new IOException("Native wolfSSL write() failed: " +
-                            errStr + " (error code: " + err + ")");
+                        throw new IOException("Native wolfSSL_write() error: "
+                                + errStr + " (error code: " + err + ")");
                     }
 
                 } catch (IllegalStateException e) {

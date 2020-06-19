@@ -474,8 +474,10 @@ public class WolfSSLEngineHelper {
     }
 
     /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
-     * WolfSSL.SSL_FAILURE */
-    protected int doHandshake() throws SSLException {
+     * WolfSSL.SSL_FAILURE.
+     * isSSLEngine param specifies if this is being called by an SSLEngine
+     * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
+    protected int doHandshake(int isSSLEngine) throws SSLException {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
@@ -523,7 +525,7 @@ public class WolfSSLEngineHelper {
             }
             err = ssl.getError(ret);
 
-        } while (ret != WolfSSL.SSL_SUCCESS &&
+        } while (ret != WolfSSL.SSL_SUCCESS && isSSLEngine == 0 &&
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
