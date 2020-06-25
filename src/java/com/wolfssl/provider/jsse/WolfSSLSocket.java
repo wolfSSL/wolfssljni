@@ -82,6 +82,10 @@ public class WolfSSLSocket extends SSLSocket {
     /* lock for handshakInitCalled and handshakeComplete */
     final private Object handshakeLock = new Object();
 
+    /* protect read/write/connect/accept from multiple threads simultaneously
+     * entering library */
+    final private Object ioLock = new Object();
+
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
            WolfSSLAuthStore authStore, WolfSSLParameters params,
            boolean clientMode)
@@ -596,7 +600,9 @@ public class WolfSSLSocket extends SSLSocket {
                 /* handshake already started or finished */
                 return;
             }
+        }
 
+        synchronized (ioLock) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
             EngineHelper.initHandshake();
@@ -606,7 +612,6 @@ public class WolfSSLSocket extends SSLSocket {
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-
             int err = ssl.getError(ret);
             String errStr = WolfSSL.getErrorString(err);
 
@@ -863,7 +868,9 @@ public class WolfSSLSocket extends SSLSocket {
                     EngineHelper.saveSession();
                 }
 
-                ssl.shutdownSSL();
+                synchronized (ioLock) {
+                    ssl.shutdownSSL();
+                }
 
                 synchronized (handshakeLock) {
                     this.connectionClosed = true;
@@ -1056,7 +1063,6 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        final private Object readLock = new Object();
 
         public WolfSSLInputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
             this.ssl = ssl;
@@ -1124,7 +1130,7 @@ public class WolfSSLSocket extends SSLSocket {
                 data = b;
             }
 
-            synchronized (readLock) {
+            synchronized (ioLock) {
                 try {
 
                     int err;
@@ -1179,7 +1185,6 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        final private Object writeLock = new Object();
 
         public WolfSSLOutputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
             this.ssl = ssl;
@@ -1229,7 +1234,7 @@ public class WolfSSLSocket extends SSLSocket {
                 data = b;
             }
 
-            synchronized (writeLock) {
+            synchronized (ioLock) {
                 try {
                     int err;
                     do {
