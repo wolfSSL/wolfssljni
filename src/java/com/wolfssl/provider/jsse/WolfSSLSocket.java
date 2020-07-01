@@ -86,6 +86,10 @@ public class WolfSSLSocket extends SSLSocket {
      * entering library */
     final private Object ioLock = new Object();
 
+    /* protect read/write operation while copying data into buffers */
+    final private Object readLock = new Object();
+    final private Object writeLock = new Object();
+
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
            WolfSSLAuthStore authStore, WolfSSLParameters params,
            boolean clientMode)
@@ -1130,13 +1134,15 @@ public class WolfSSLSocket extends SSLSocket {
                 data = b;
             }
 
-            synchronized (ioLock) {
+            synchronized (readLock) {
                 try {
 
                     int err;
                     do {
-                        ret = ssl.read(data, len);
-                        err = ssl.getError(ret);
+                        synchronized (ioLock) {
+                            ret = ssl.read(data, len);
+                            err = ssl.getError(ret);
+                        }
                     } while ((ret < 0) && (err == WolfSSL.SSL_ERROR_WANT_READ));
 
                     /* check for end of stream */
@@ -1234,12 +1240,14 @@ public class WolfSSLSocket extends SSLSocket {
                 data = b;
             }
 
-            synchronized (ioLock) {
+            synchronized (writeLock) {
                 try {
                     int err;
                     do {
-                        ret = ssl.write(data, len);
-                        err = ssl.getError(ret);
+                        synchronized (ioLock) {
+                            ret = ssl.write(data, len);
+                            err = ssl.getError(ret);
+                        }
                     } while ((ret < 0) && (err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
                     /* check for end of stream */
