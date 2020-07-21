@@ -269,6 +269,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 
     fd = (*jenv)->GetIntField(jenv, fdesc, fid);
 
+    /* set socket to non-blocking so we can use select() to detect
+     * WANT_READ / WANT_WRITE */
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+
     return (jint)wolfSSL_set_fd((WOLFSSL*)(uintptr_t)ssl, fd);
 }
 
@@ -548,6 +552,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
                         (err == SSL_ERROR_WANT_WRITE))) {
 
             sockfd = wolfSSL_get_fd(ssl);
+            if (sockfd == -1) {
+                /* For I/O that does not use sockets, sockfd may be -1,
+                 * skip try to call select() */
+                break;
+            }
+
             ret = socketSelect(sockfd, 0, 1);
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
@@ -619,6 +629,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
 
                 sockfd = wolfSSL_get_fd(ssl);
+                if (sockfd == -1) {
+                    /* For I/O that does not use sockets, sockfd may be -1,
+                     * skip try to call select() */
+                    break;
+                }
+
                 ret = socketSelect(sockfd, 0, 0);
                 if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                     /* loop around and try wolfSSL_write() again */
@@ -690,6 +706,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
                              (err == SSL_ERROR_WANT_WRITE))) {
 
                 sockfd = wolfSSL_get_fd(ssl);
+                if (sockfd == -1) {
+                    /* For I/O that does not use sockets, sockfd may be -1,
+                     * skip try to call select() */
+                    break;
+                }
+
                 ret = socketSelect(sockfd, 0, 1);
                 if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                     /* loop around and try wolfSSL_read() again */
@@ -755,6 +777,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
                         (err == SSL_ERROR_WANT_WRITE))) {
 
             sockfd = wolfSSL_get_fd(ssl);
+            if (sockfd == -1) {
+                /* For I/O that does not use sockets, sockfd may be -1,
+                 * skip try to call select() */
+                break;
+            }
+
             ret = socketSelect(sockfd, 0, 1);
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
