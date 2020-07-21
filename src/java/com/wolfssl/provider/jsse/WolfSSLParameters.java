@@ -48,6 +48,7 @@ final class WolfSSLParameters {
     private boolean useCipherSuiteOrder = true;
     String[] applicationProtocols = new String[0];
     private boolean useSessionTickets = false;
+    private byte[] alpnProtocols = null;
 
     /* create duplicate copy of these parameters */
     protected WolfSSLParameters copy() {
@@ -136,6 +137,20 @@ final class WolfSSLParameters {
 
     boolean getUseSessionTickets() {
         return this.useSessionTickets;
+    }
+
+    void setAlpnProtocols(byte[] alpnProtos) {
+
+        if (alpnProtos == null || alpnProtos.length == 0) {
+            throw new IllegalArgumentException(
+                "ALPN protocol array null or zero length");
+        }
+
+        this.alpnProtocols = alpnProtos;
+    }
+
+    byte[] getAlpnProtos() {
+        return this.alpnProtocols;
     }
 
     /* TODO, create our own class for SNIMatcher, in case Java doesn't support it */

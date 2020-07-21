@@ -3325,6 +3325,77 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
     return gotCloseNotify;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jbyteArray alpnProtos)
+{
+    int ret = SSL_FAILURE;
+    (void)jcl;
+#ifdef HAVE_ALPN
+    byte* buff = NULL;
+    word32 buffSz = 0;
+
+    if (jenv == NULL || ssl <= 0 || alpnProtos == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, alpnProtos, NULL);
+    buffSz = (*jenv)->GetArrayLength(jenv, alpnProtos);
+
+    if (buff != NULL && buffSz > 0) {
+        ret = wolfSSL_set_alpn_protos((WOLFSSL*)(uintptr_t)ssl, buff, buffSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, alpnProtos,
+                                      (jbyte*)buff, JNI_ABORT);
+#else
+    (void)jenv;
+    (void)ssl;
+    (void)alpnProtos;
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jcl;
+#ifdef HAVE_ALPN
+    const unsigned char* alpn;
+    unsigned int alpnLen;
+    jbyteArray ret;
+
+    if (jenv == NULL || ssl <= 0) {
+        return NULL;
+    }
+
+    wolfSSL_get0_alpn_selected((WOLFSSL*)(uintptr_t)ssl, &alpn, &alpnLen);
+    if (alpn == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewByteArray(jenv, alpnLen);
+    if (ret == NULL) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native sslGet0AlpnSelected");
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, alpnLen, (jbyte*)alpn);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    return ret;
+#else
+    (void)jenv;
+    (void)ssl;
+    return NULL;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

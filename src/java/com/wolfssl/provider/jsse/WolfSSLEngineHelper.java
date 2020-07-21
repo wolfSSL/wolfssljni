@@ -235,6 +235,17 @@ public class WolfSSLEngineHelper {
         this.params.setUseSessionTickets(flag);
     }
 
+    protected void setAlpnProtocols(byte[] alpnProtos) {
+        this.params.setAlpnProtocols(alpnProtos);
+    }
+
+    protected byte[] getAlpnSelectedProtocol() {
+        if (ssl.handshakeDone()) {
+            return ssl.getAlpnSelected();
+        }
+        return null;
+    }
+
     /********** Calls to transfer over parameter to wolfSSL before connection */
 
     /*transfer over cipher suites right before establishing a connection */

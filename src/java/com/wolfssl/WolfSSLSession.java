@@ -267,6 +267,8 @@ public class WolfSSLSession {
     private native int useSNI(long ssl, byte type, byte[] data);
     private native int useSessionTicket(long ssl);
     private native int gotCloseNotify(long ssl);
+    private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
+    private native byte[] sslGet0AlpnSelected(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2478,6 +2480,39 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return useSessionTicket(getSessionPtr());
+    }
+
+    /**
+     * Set ALPN extension protocol for this session.
+     * Calls native SSL_set_alpn_protos() at native level. Format starts with
+     * length, where length does not include length byte itself. Example format:
+     *
+     * byte[] p = "http/1.1".getBytes();
+     *
+     * @param alpnProtos ALPN protocols, encoded as byte array vector
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
+     */
+    public int setAlpnProtos(byte[] alpnProtos) throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return sslSetAlpnProtos(getSessionPtr(), alpnProtos);
+    }
+
+    /**
+     * Get the ALPN protocol selected by the client/server for this session.
+     *
+     * @return byte array representation of selected protocol, starting with
+     *         length byte. Length does not include length byte itself.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public byte[] getAlpnSelected() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return sslGet0AlpnSelected(getSessionPtr());
     }
 
     /**

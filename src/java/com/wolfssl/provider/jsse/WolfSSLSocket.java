@@ -501,6 +501,39 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Set ALPN extension protocol for this session.
+     * Calls native SSL_set_alpn_protos() at native level. Format starts with
+     * length, where length does not include length byte itself. Example format:
+     *
+     * Non-standard JSSE API, needed for Android compatibility. Some frameworks
+     * such as OkHttp expect this API to be here.
+     *
+     * byte[] p = "http/1.1".getBytes();
+     *
+     * @param alpnProtos ALPN protocols, encoded as byte array vector
+     */
+    synchronized public void setAlpnProtocols(byte[] alpnProtos) {
+
+        /* store protocol array in WolfSSLParameters, will push to WOLFSSL
+         * from EngineHelper */
+        EngineHelper.setAlpnProtocols(alpnProtos);
+    }
+
+    /**
+     * Return ALPN protocol established for this session.
+     * Calls native SSL_get0_alpn_selected().
+     *
+     * Non-standard JSSE API, needed for Android compatibility. Some frameworks
+     * such as OkHttp expect this API to be here.
+     *
+     * @return byte array representation of selected protocol, starting with
+     *         length byte. Length does not include length byte itself.
+     */
+    synchronized public byte[] getAlpnSelectedProtocol() {
+        return EngineHelper.getAlpnSelectedProtocol();
+    }
+
+    /**
      * Returns the SSLSession in use by this SSLSocket.
      *
      * @return SSLSession object, otherwise null if not handshaking or
