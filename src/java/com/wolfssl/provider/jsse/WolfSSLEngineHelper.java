@@ -442,12 +442,27 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    /* Set the ALPN to be used for this session */
+    private void setLocalAlpnProtocols() {
+        byte[] alpnProtos = this.params.getAlpnProtos();
+
+        if (alpnProtos != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting ALPN protocols for WOLFSSL session");
+            this.ssl.setAlpnProtos(alpnProtos);
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "No ALPN protocols set, not setting for this WOLFSSL session");
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
         this.setLocalServerNames();
         this.setLocalSessionTicket();
+        this.setLocalAlpnProtocols();
     }
 
     /* sets all parameters from WolfSSLParameters into WOLFSSL object and
