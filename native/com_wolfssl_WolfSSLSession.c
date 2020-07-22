@@ -3424,34 +3424,41 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
 {
     (void)jcl;
 #ifdef HAVE_ALPN
-    const unsigned char* alpn;
-    unsigned int alpnLen;
-    jbyteArray ret;
+    int err = 0;
+    char* protocol_name = NULL;
+    word16 protocol_nameSz = 0;
+    jbyteArray alpnArray;
 
     if (jenv == NULL || ssl <= 0) {
         return NULL;
     }
 
-    wolfSSL_get0_alpn_selected((WOLFSSL*)(uintptr_t)ssl, &alpn, &alpnLen);
-    if (alpn == NULL) {
+    /* get ALPN protocol received from server:
+     * WOLFSSL_SUCCESS - on success
+     * WOLFSSL_ALPN_NOT_FOUND - no ALPN received (no match with server)
+     * other - error case */
+    err = wolfSSL_ALPN_GetProtocol((WOLFSSL*)(uintptr_t)ssl,
+                                   &protocol_name, &protocol_nameSz);
+    if (err != WOLFSSL_SUCCESS) {
         return NULL;
     }
 
-    ret = (*jenv)->NewByteArray(jenv, alpnLen);
-    if (ret == NULL) {
+    alpnArray = (*jenv)->NewByteArray(jenv, protocol_nameSz);
+    if (alpnArray == NULL) {
         (*jenv)->ThrowNew(jenv, jcl,
             "Failed to create byte array in native sslGet0AlpnSelected");
         return NULL;
     }
 
-    (*jenv)->SetByteArrayRegion(jenv, ret, 0, alpnLen, (jbyte*)alpn);
+    (*jenv)->SetByteArrayRegion(jenv, alpnArray, 0, protocol_nameSz,
+                                (jbyte*)protocol_name);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
         return NULL;
     }
 
-    return ret;
+    return alpnArray;
 #else
     (void)jenv;
     (void)ssl;
