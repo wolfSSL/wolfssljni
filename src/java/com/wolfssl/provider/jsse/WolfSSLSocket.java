@@ -1200,7 +1200,8 @@ public class WolfSSLSocket extends SSLSocket {
                         "ssl.read() ret = " + ret + ", err = " + err);
 
                     /* check for end of stream */
-                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                    if ((err == WolfSSL.SSL_ERROR_ZERO_RETURN) ||
+                        ((err == WolfSSL.SSL_ERROR_SOCKET_PEER_CLOSED) && (ret == 0))) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.read() got SSL_ERROR_ZERO_RETURN, " +
                             "end of stream");
