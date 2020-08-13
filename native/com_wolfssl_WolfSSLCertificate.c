@@ -706,23 +706,22 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
   (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
 {
-    int nid;
-    void* sk;
-    WOLFSSL_ASN1_OBJECT* obj;
+    int nid = 0;
+    void* sk = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
     jbyteArray ret = NULL;
-    const char* oid;
+    const char* oid = NULL;
 
-    if (jenv == NULL || x509 <= 0) {
+    if (jenv == NULL || oidIn == NULL || x509 <= 0) {
         return NULL;
     }
 
     oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
     nid = wolfSSL_OBJ_txt2nid(oid);
+    (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
     if (nid == NID_undef) {
-        (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
         return NULL;
     }
-    (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
 
     sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)(uintptr_t)x509, nid, NULL,
                                   NULL);
