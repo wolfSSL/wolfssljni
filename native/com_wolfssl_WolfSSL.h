@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef com_wolfssl_WolfSSL_JNI_SESSION_UNAVAILABLE
+#define com_wolfssl_WolfSSL_JNI_SESSION_UNAVAILABLE -10001L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_NONE
 #define com_wolfssl_WolfSSL_SSL_ERROR_NONE 0L
 #undef com_wolfssl_WolfSSL_SSL_FAILURE

@@ -374,8 +374,18 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
         @Override
         public void setSessionTimeout(int in) throws IllegalArgumentException {
-            if (this.sslCtx.setSessTimeout(in) != WolfSSL.SSL_SUCCESS) {
-                throw new IllegalArgumentException();
+
+            long ret = this.sslCtx.setSessTimeout(in);
+            if (ret == WolfSSL.JNI_SESSION_UNAVAILABLE) {
+                /* not able to get underlying session, print debug log,
+                 * but not an error itself. */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Unable to set session timeout, not able to " +
+                    "get WOLFSSL_SESSION");
+
+            } else if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new IllegalArgumentException(
+                    "Unable to set session timeout, ret = " + ret);
             }
         }
 

@@ -812,16 +812,27 @@ public class WolfSSLSession {
      *
      * @param t time in seconds to set
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @return WOLFSSL_SUCCESS on success, negative values on failure.
+     * @return WolfSSL.SSL_SUCCESS on success, WolfSSL.JNI_SESSION_UNAVAILABLE
+     *         if underlying session is unavailable, or negative values
+     *         on failure.
      * @see         #setSession(long)
      * @see         #getSession(long)
      */
     public long setSessTimeout(long t) throws IllegalStateException {
 
+        long session;
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return setSessTimeout(this.getSession(), t);
+        session = this.getSession();
+        if (session == 0) {
+            /* session may be null if session cache disabled, wolfSSL
+             * doesn't have session ID available, mutex function fails, etc */
+            return WolfSSL.JNI_SESSION_UNAVAILABLE;
+        }
+
+        return setSessTimeout(session, t);
     }
 
     /**
