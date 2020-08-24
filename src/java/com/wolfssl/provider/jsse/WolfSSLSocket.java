@@ -1203,15 +1203,10 @@ public class WolfSSLSocket extends SSLSocket {
                     if ((err == WolfSSL.SSL_ERROR_ZERO_RETURN) ||
                         ((err == WolfSSL.SSL_ERROR_SOCKET_PEER_CLOSED) && (ret == 0))) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "ssl.read() got SSL_ERROR_ZERO_RETURN, " +
-                            "end of stream");
-
-                        /* check to see if we received a close notify alert.
-                         * if so, throw SocketException since peer has closed
-                         * the connection */
-                        if (ssl.gotCloseNotify() == true) {
-                            throw new SocketException("Peer closed connection");
-                        }
+                            "ssl.read() got SSL_ERROR_ZERO_RETURN, " + err +
+                            ", end of stream");
+                            
+                        /* End of stream */
                         return -1;
                     }
 
