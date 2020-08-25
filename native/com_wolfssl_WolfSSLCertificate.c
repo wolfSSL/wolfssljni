@@ -712,6 +712,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
     const char* oid = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
+#if LIBWOLFSSL_VERSION_HEX < 0x04002000
+    void* sk = NULL;
+#endif
 
     if (jenv == NULL || oidIn == NULL || x509 <= 0) {
         return NULL;
@@ -724,6 +727,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
         return NULL;
     }
 
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
     /* get extension index, or -1 if not found */
     idx = wolfSSL_X509_get_ext_by_NID((WOLFSSL_X509*)(uintptr_t)x509, nid, -1);
 
@@ -734,6 +738,17 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
             obj = ext->obj;
         }
     }
+#else
+    /* wolfSSL prior to 4.2.0 did not have wolfSSL_X509_get_ext_by_NID */
+    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)(uintptr_t)x509, nid,
+                                  NULL, NULL);
+    if (sk == NULL) {
+        /* extension was not found or error was encountered */
+        return NULL;
+    }
+
+    obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
+#endif
 
     if (obj != NULL) {
         /* get extension data, set into jbytearray and return */
