@@ -267,8 +267,7 @@ public class Server {
             } else {
 
                 /* load certificate/key files */
-                ret = sslCtx.useCertificateFile(serverCert,
-                        WolfSSL.SSL_FILETYPE_PEM);
+                ret = sslCtx.useCertificateChainFile(serverCert);
                 if (ret != WolfSSL.SSL_SUCCESS) {
                     System.out.println("failed to load server certificate!");
                     System.exit(1);

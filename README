@@ -19,9 +19,9 @@ Build options are :
 - ant clean   (cleans all)
 
 
-wolfSSL JNI Release X.X.X (TBD)
+wolfSSL JNI Release 1.6.0 (08/26/2020)
 
-Release X.X.X has bug fixes and new features including:
+Release 1.6.0 has bug fixes and new features including:
 
 - Support for custom TrustManager checkClientTrusted(), checkServerTrusted()
 - wolfJSSE TrustManager registered as PKIX provider
@@ -37,11 +37,19 @@ Release X.X.X has bug fixes and new features including:
 - Consistently use wolfCrypt XMALLOC/XFREE for native memory allocation
 - Use javah in build.xml for older ant/Java versions without nativeheaderdir
 - Add JSSE debug logging for native wolfSSL with wolfssl.debug system parameter
+- Add more JSSE-level debug messages for easier troubleshooting
 - Add internal implementation of SSLParameters, WolfSSLParameters
 - Add client-side SNI support
 - Fix warnings when DH is disabled (--disable-dh)
 - Add Java thread ID to JSSE debug log messages for easier multithreaded debug
 - Improve handshake synchronization in WolfSSLSocket for multi-threaded apps
+- Add support for jsse.enableSNIExtension system property
+- Add client-side session ticket support
+- Add support for jdk.tls.client.enableSessionTicketExtension system property
+- Enable session ticket and session cert support by default on Android AOSP
+- Fixes compatibility with OkHttp on Android
+- Add support for non-blocking socket operations in WolfSSLSession/Socket
+- Moves I/O mutex locking to native level for more efficient locking
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
