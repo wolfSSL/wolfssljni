@@ -47,7 +47,7 @@ public class Client {
 
     public void run(String[] args) {
 
-        int ret = 0, input;
+        int ret = 0, input, err;
         byte[] back = new byte[80];
         String msg  = "hello from jni";
         WolfSSLSession ssl;
@@ -384,9 +384,17 @@ public class Client {
                     instream = new DataInputStream(sock.getInputStream());
                     ssl = new WolfSSLSession(sslCtx);
                     ssl.setFd(sock);
-                    ret = ssl.connect();
-                    if (ret != WolfSSL.SSL_SUCCESS)
+
+                    do {
+                        ret = ssl.connect();
+                        err = ssl.getError(ret);
+                    } while (ret != WolfSSL.SSL_SUCCESS &&
+                           (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                            err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                    if (ret != WolfSSL.SSL_SUCCESS) {
                         System.out.println("ssl.connect failed");
+                    }
 
                     ssl.shutdownSSL();
                     ssl.freeSSL();
@@ -498,9 +506,15 @@ public class Client {
             }
 
             /* call wolfSSL_connect */
-            ret = ssl.connect();
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
             if (ret != WolfSSL.SSL_SUCCESS) {
-                int err = ssl.getError(ret);
+                err = ssl.getError(ret);
                 String errString = sslLib.getErrorString(err);
                 System.out.println("wolfSSL_connect failed. err = " + err +
                         ", " + errString);
@@ -511,9 +525,21 @@ public class Client {
             showPeer(ssl);
 
             /* test write(long, byte[], int) */
-            ret = ssl.write(msg.getBytes(), msg.length());
+            do {
+                ret = ssl.write(msg.getBytes(), msg.length());
+                err = ssl.getError(0);
+            } while (ret < 0 &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-            input = ssl.read(back, back.length);
+            /* read response */
+            do {
+                input = ssl.read(back, back.length);
+                err = ssl.getError(0);
+            } while (input < 0 &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
             if (input > 0) {
                 System.out.println("got back: " + new String(back));
             } else {

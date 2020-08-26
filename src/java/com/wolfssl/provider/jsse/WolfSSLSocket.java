@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,9 +77,14 @@ public class WolfSSLSocket extends SSLSocket {
 
     protected volatile boolean handshakeInitCalled = false;
     protected volatile boolean handshakeComplete = false;
+    protected volatile boolean connectionClosed = false;
 
     /* lock for handshakInitCalled and handshakeComplete */
     final private Object handshakeLock = new Object();
+
+    /* protect read/write/connect/accept from multiple threads simultaneously
+     * entering library */
+    final private Object ioLock = new Object();
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
            WolfSSLAuthStore authStore, WolfSSLParameters params,
@@ -363,12 +369,6 @@ public class WolfSSLSocket extends SSLSocket {
         ssl = new WolfSSLSession(ctx);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "created new native WOLFSSL");
-
-        /* set up I/O streams */
-        this.inStream = new WolfSSLInputStream(ssl, this);
-        this.outStream = new WolfSSLOutputStream(ssl, this);
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "created default Input/Output streams");
     }
 
     private void setFd() throws IllegalArgumentException, WolfSSLException {
@@ -501,6 +501,39 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Set ALPN extension protocol for this session.
+     * Calls native SSL_set_alpn_protos() at native level. Format starts with
+     * length, where length does not include length byte itself. Example format:
+     *
+     * Non-standard JSSE API, needed for Android compatibility. Some frameworks
+     * such as OkHttp expect this API to be here.
+     *
+     * byte[] p = "http/1.1".getBytes();
+     *
+     * @param alpnProtos ALPN protocols, encoded as byte array vector
+     */
+    synchronized public void setAlpnProtocols(byte[] alpnProtos) {
+
+        /* store protocol array in WolfSSLParameters, will push to WOLFSSL
+         * from EngineHelper */
+        EngineHelper.setAlpnProtocols(alpnProtos);
+    }
+
+    /**
+     * Return ALPN protocol established for this session.
+     * Calls native SSL_get0_alpn_selected().
+     *
+     * Non-standard JSSE API, needed for Android compatibility. Some frameworks
+     * such as OkHttp expect this API to be here.
+     *
+     * @return byte array representation of selected protocol, starting with
+     *         length byte. Length does not include length byte itself.
+     */
+    synchronized public byte[] getAlpnSelectedProtocol() {
+        return EngineHelper.getAlpnSelectedProtocol();
+    }
+
+    /**
      * Returns the SSLSession in use by this SSLSocket.
      *
      * @return SSLSession object, otherwise null if not handshaking or
@@ -594,17 +627,24 @@ public class WolfSSLSocket extends SSLSocket {
                 /* handshake already started or finished */
                 return;
             }
+        }
+
+        synchronized (ioLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                             "thread got ioLock (handshake)");
 
             /* will throw SSLHandshakeException if session creation is
                not allowed */
             EngineHelper.initHandshake();
             handshakeInitCalled = true;
 
-            ret = EngineHelper.doHandshake();
+            ret = EngineHelper.doHandshake(0);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                             "thread exiting ioLock (handshake)");
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-
             int err = ssl.getError(ret);
             String errStr = WolfSSL.getErrorString(err);
 
@@ -799,10 +839,16 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException if InputStream is not able to be returned
      */
     @Override
-    synchronized public InputStream getInputStream() throws IOException {
+    public InputStream getInputStream() throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getInputStream()");
+
+        if (inStream == null) {
+            inStream = new WolfSSLInputStream(ssl, this);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "created WolfSSLInputStream");
+        }
 
         return inStream;
     }
@@ -815,10 +861,16 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException if OutputStream is not able to be returned
      */
     @Override
-    synchronized public OutputStream getOutputStream() throws IOException {
+    public OutputStream getOutputStream() throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getOutputStream()");
+
+        if (outStream == null) {
+            outStream = new WolfSSLOutputStream(ssl, this);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "created WolfSSLOutputStream");
+        }
 
         return outStream;
     }
@@ -861,7 +913,19 @@ public class WolfSSLSocket extends SSLSocket {
                     EngineHelper.saveSession();
                 }
 
-                ssl.shutdownSSL();
+                synchronized (ioLock) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                     "thread got ioLock (shutdown)");
+
+                    ssl.shutdownSSL();
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                     "thread exiting ioLock (shutdown)");
+                }
+
+                synchronized (handshakeLock) {
+                    this.connectionClosed = true;
+                }
             }
 
             if (this.autoClose) {
@@ -1022,11 +1086,17 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                 } else {
-                    /* read directly from Socket */
-                    ret = current.read(buf, 0, sz);
-                    if (ret == -1) {
-                        /* no data available */
-                        ret = WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
+                    /* read directly from Socket, may throw SocketException
+                     * if underlying socket is non-blocking and returns
+                     * WANT_READ. */
+                    try {
+                        ret = current.read(buf, 0, sz);
+                        if (ret == -1) {
+                            /* no data available, end of stream reached */
+                            return 0;
+                        }
+                    } catch (SocketException se) {
+                        return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
                     }
                 }
             } catch (IOException e) {
@@ -1040,7 +1110,7 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    class WolfSSLInputStream extends InputStream {
+    static class WolfSSLInputStream extends InputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
@@ -1085,42 +1155,71 @@ public class WolfSSLSocket extends SSLSocket {
                 throw new NullPointerException("Input array is null");
             }
 
-            /* do handshake if not completed yet, handles synchronization */
-            if (WolfSSLSocket.this.handshakeComplete == false) {
-                socket.startHandshake();
-            }
-
-
-            if (b.length == 0 || len == 0) {
-                return 0;
-            }
-
-            if (off < 0 || len < 0 || len > (b.length - off)) {
-                throw new IndexOutOfBoundsException("Array index out of bounds");
-            }
-
-            if (off != 0) {
-                /* create new tmp buffer to read data into */
-                data = new byte[len];
-            } else {
-                data = b;
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                             "thread trying to get readLock");
 
             synchronized (readLock) {
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                 "thread got readLock");
+
+                /* do handshake if not completed yet, handles synchronization */
+                if (socket.handshakeComplete == false) {
+                    socket.startHandshake();
+                }
+
+                /* check if connection has already been closed/shutdown */
+                synchronized (socket.handshakeLock) {
+                    if (socket.connectionClosed == true) {
+                        throw new SocketException("Connection already shutdown");
+                    }
+                }
+
+                if (b.length == 0 || len == 0) {
+                    return 0;
+                }
+
+                if (off < 0 || len < 0 || len > (b.length - off)) {
+                    throw new IndexOutOfBoundsException("Array index out of bounds");
+                }
+
+                if (off != 0) {
+                    /* create new tmp buffer to read data into */
+                    data = new byte[len];
+                } else {
+                    data = b;
+                }
+
                 try {
+                    int err;
+
                     ret = ssl.read(data, len);
-                    if (ret <= 0) {
-                        int err = ssl.getError(ret);
+                    err = ssl.getError(ret);
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.read() ret = " + ret + ", err = " + err);
+
+                    /* check for end of stream */
+                    if ((err == WolfSSL.SSL_ERROR_ZERO_RETURN) ||
+                        ((err == WolfSSL.SSL_ERROR_SOCKET_PEER_CLOSED) && (ret == 0))) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.read() got SSL_ERROR_ZERO_RETURN, " + err +
+                            ", end of stream");
+                            
+                        /* End of stream */
+                        return -1;
+                    }
+
+                    if (ret < 0) {
+                        /* other errors besides end of stream or WANT_READ
+                         * are treated as I/O errors and throw an exception */
                         String errStr = WolfSSL.getErrorString(err);
-
-                        /* received CloseNotify, InputStream should return "-1"
-                           when there is no more data */
-                        if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
-                            return -1;
-                        }
-
-                        throw new IOException("Native wolfSSL read() failed: " +
-                            errStr + " (error code: " + err + ")");
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Native wolfSSL_read() error: " + errStr +
+                            " (error code: " + err + ")");
+                        throw new IOException("Native wolfSSL_read() " +
+                            "error: " + errStr +
+                            " (error code: " + err + ")");
                     }
 
                 } catch (IllegalStateException e) {
@@ -1132,13 +1231,16 @@ public class WolfSSLSocket extends SSLSocket {
                     System.arraycopy(data, 0, b, off, ret);
                 }
 
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                 "thread exiting readLock");
+
                 /* return number of bytes read */
                 return ret;
             }
         }
     } /* end WolfSSLInputStream inner class */
 
-    class WolfSSLOutputStream extends OutputStream {
+    static class WolfSSLOutputStream extends OutputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
@@ -1169,37 +1271,76 @@ public class WolfSSLSocket extends SSLSocket {
                 throw new NullPointerException("Input array is null");
             }
 
-            /* do handshake if not completed yet, handles synchronization */
-            if (WolfSSLSocket.this.handshakeComplete == false) {
-                socket.startHandshake();
-            }
-
-            if (off < 0 || len < 0 || (off + len) > b.length) {
-                throw new IndexOutOfBoundsException("Array index out of bounds");
-            }
-
-            if (off != 0) {
-                data = new byte[len];
-                System.arraycopy(b, off, data, 0, len);
-            } else {
-                data = b;
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                             "thread trying to get writeLock");
 
             synchronized (writeLock) {
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                 "thread got writeLock");
+
+                /* do handshake if not completed yet, handles synchronization */
+                if (socket.handshakeComplete == false) {
+                    socket.startHandshake();
+                }
+
+                /* check if connection has already been closed/shutdown */
+                synchronized (socket.handshakeLock) {
+                    if (socket.connectionClosed == true) {
+                        throw new SocketException("Connection already shutdown");
+                    }
+                }
+
+                if (off < 0 || len < 0 || (off + len) > b.length) {
+                    throw new IndexOutOfBoundsException("Array index out of bounds");
+                }
+
+                if (off != 0) {
+                    data = new byte[len];
+                    System.arraycopy(b, off, data, 0, len);
+                } else {
+                    data = b;
+                }
+
                 try {
+                    int err;
+
                     ret = ssl.write(data, len);
+                    err = ssl.getError(ret);
 
-                    if (ret <= 0) {
-                        int err = ssl.getError(ret);
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.write returned ret = " + ret + ", err = " + err);
+
+                    /* check for end of stream */
+                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.write() got SSL_ERROR_ZERO_RETURN, " +
+                            "end of stream");
+
+                        /* check to see if we received a close notify alert.
+                         * if so, throw SocketException since peer has closed
+                         * the connection */
+                        if (ssl.gotCloseNotify() == true) {
+                            throw new SocketException("Peer closed connection");
+                        }
+                    }
+
+                    if (ret < 0) {
+                        /* print error description string */
                         String errStr = WolfSSL.getErrorString(err);
-
-                        throw new IOException("Native wolfSSL write() failed: " +
-                            errStr + " (error code: " + err + ")");
+                        throw new IOException("Native wolfSSL_write() error: "
+                                + errStr + " (error code: " + err + ")");
                     }
 
                 } catch (IllegalStateException e) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                     "got IllegalStateException: " + e +
+                                     ", throwing IOException");
                     throw new IOException(e);
                 }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                 "thread exiting writeLock");
             }
         }
     } /* end WolfSSLOutputStream inner class */

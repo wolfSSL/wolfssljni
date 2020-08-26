@@ -401,7 +401,7 @@ public class WolfSSLSessionTest {
 
     public void test_WolfSSLSession_UseAfterFree() {
 
-        int ret;
+        int ret, err;
         WolfSSL sslLib = null;
         WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
@@ -426,7 +426,13 @@ public class WolfSSLSessionTest {
             }
 
             /* successful connection test */
-            ret = ssl.connect();
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
             if (ret != WolfSSL.SSL_SUCCESS) {
                 ssl.freeSSL();
                 sslCtx.free();
@@ -463,7 +469,7 @@ public class WolfSSLSessionTest {
 
     public void test_WolfSSLSession_getSessionID() {
 
-        int ret;
+        int ret, err;
         WolfSSL sslLib = null;
         WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
@@ -497,7 +503,13 @@ public class WolfSSLSessionTest {
             }
 
             /* successful connection test */
-            ret = ssl.connect();
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
             if (ret != WolfSSL.SSL_SUCCESS) {
                 ssl.freeSSL();
                 sslCtx.free();

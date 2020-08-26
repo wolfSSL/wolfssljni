@@ -472,7 +472,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public void beginHandshake() throws SSLException {
         EngineHelper.initHandshake();
-        EngineHelper.doHandshake();
+        EngineHelper.doHandshake(1);
     }
 
     @Override

@@ -34,6 +34,9 @@ import java.net.Socket;
  */
 public class WolfSSL {
 
+    /* ------------------ wolfSSL JNI error codes ----------------------- */
+    public final static int JNI_SESSION_UNAVAILABLE = -10001;
+
     /* ----------------------- wolfSSL codes ---------------------------- */
 
     public final static int SSL_ERROR_NONE      =  0;
@@ -113,6 +116,7 @@ public class WolfSSL {
     public final static int SSL_ERROR_WANT_X509_LOOKUP = 83;
     public final static int SSL_ERROR_ZERO_RETURN      =  6;
     public final static int SSL_ERROR_SSL              = 85;
+    public final static int SSL_ERROR_SOCKET_PEER_CLOSED = -397;
 
     /* extra definitions from ssl.h */
     public final static int WOLFSSL_CRL_CHECKALL      = 1;

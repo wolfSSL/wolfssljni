@@ -695,6 +695,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    gotCloseNotify
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sslSetAlpnProtos
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
+  (JNIEnv *, jobject, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sslGet0AlpnSelected
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

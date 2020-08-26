@@ -235,6 +235,17 @@ public class WolfSSLEngineHelper {
         this.params.setUseSessionTickets(flag);
     }
 
+    protected void setAlpnProtocols(byte[] alpnProtos) {
+        this.params.setAlpnProtocols(alpnProtos);
+    }
+
+    protected byte[] getAlpnSelectedProtocol() {
+        if (ssl.handshakeDone()) {
+            return ssl.getAlpnSelected();
+        }
+        return null;
+    }
+
     /********** Calls to transfer over parameter to wolfSSL before connection */
 
     /*transfer over cipher suites right before establishing a connection */
@@ -431,12 +442,27 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    /* Set the ALPN to be used for this session */
+    private void setLocalAlpnProtocols() {
+        byte[] alpnProtos = this.params.getAlpnProtos();
+
+        if (alpnProtos != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting ALPN protocols for WOLFSSL session");
+            this.ssl.setAlpnProtos(alpnProtos);
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "No ALPN protocols set, not setting for this WOLFSSL session");
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
         this.setLocalAuth();
         this.setLocalServerNames();
         this.setLocalSessionTicket();
+        this.setLocalAlpnProtocols();
     }
 
     /* sets all parameters from WolfSSLParameters into WOLFSSL object and
@@ -474,8 +500,10 @@ public class WolfSSLEngineHelper {
     }
 
     /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
-     * WolfSSL.SSL_FAILURE */
-    protected int doHandshake() throws SSLException {
+     * WolfSSL.SSL_FAILURE.
+     * isSSLEngine param specifies if this is being called by an SSLEngine
+     * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
+    protected int doHandshake(int isSSLEngine) throws SSLException {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
@@ -505,16 +533,29 @@ public class WolfSSLEngineHelper {
             this.session = this.authStore.getSession(ssl);
         }
 
-        if (this.clientMode) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "calling native wolfSSL_connect()");
-            return this.ssl.connect();
+        int ret, err;
 
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "calling native wolfSSL_accept()");
-            return this.ssl.accept();
-        }
+        do {
+            /* call connect() or accept() to do handshake, looping on
+             * WANT_READ/WANT_WRITE errors in case underlying Socket is
+             * non-blocking */
+            if (this.clientMode) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "calling native wolfSSL_connect()");
+                ret = this.ssl.connect();
+
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "calling native wolfSSL_accept()");
+                ret = this.ssl.accept();
+            }
+            err = ssl.getError(ret);
+
+        } while (ret != WolfSSL.SSL_SUCCESS && isSSLEngine == 0 &&
+                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+        return ret;
     }
 
     /**

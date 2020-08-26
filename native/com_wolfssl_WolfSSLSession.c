@@ -143,6 +143,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
     int ret;
     jlong sslPtr;
     jobject* g_cachedObj;
+    wolfSSL_Mutex* jniSessLock;
 
     if (!jenv)
         return SSL_FAILURE;
@@ -169,6 +170,25 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
         ret = wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, g_cachedObj);
         if (ret != SSL_SUCCESS) {
             printf("error storing jobject in wolfSSL native session\n");
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
+
+        /* store mutex lock in SSL app data, used for I/O and session lock.
+         * This is freed in freeSSL. */
+        jniSessLock = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+        if (!jniSessLock) {
+            printf("error mallocing memory in newSSL for jniSessLock\n");
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
+
+        wc_InitMutex(jniSessLock);
+        if (wolfSSL_set_app_data(
+                (WOLFSSL*)(uintptr_t)sslPtr, jniSessLock) != SSL_SUCCESS) {
+            printf("error setting WOLFSSL app data in newSSL\n");
+            XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -248,6 +268,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
         return SSL_FAILURE;
 
     fd = (*jenv)->GetIntField(jenv, fdesc, fid);
+
+    /* set socket to non-blocking so we can use select() to detect
+     * WANT_READ / WANT_WRITE */
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 
     return (jint)wolfSSL_set_fd((WOLFSSL*)(uintptr_t)ssl, fd);
 }
@@ -423,15 +447,77 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getFd
     return wolfSSL_get_fd((WOLFSSL*)(uintptr_t)ssl);
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
-  (JNIEnv* jenv, jobject jcl, jlong ssl)
+/* enum values used in socketSelect() */
+enum {
+    WOLFJNI_SELECT_FAIL,
+    WOLFJNI_TIMEOUT,
+    WOLFJNI_RECV_READY,
+    WOLFJNI_SEND_READY,
+    WOLFJNI_ERROR_READY
+};
+
+/* perform a select() call on underlying socket to wait for socket to be ready
+ * to read/write, or timeout. Note that we explicitly set the underlying
+ * socket descriptor to non-blocking so we can select() on it.
+ *
+ * The Java socket timeout value representing no timeout is NULL, not 0 like
+ * C. We adjust for this when handling timeout_sec here. */
+static int socketSelect(int sockfd, int timeout_sec, int rx)
 {
-    int ret = 0;
+    fd_set fds, errfds;
+    fd_set* recvfds = NULL;
+    fd_set* sendfds = NULL;
+    int nfds = sockfd + 1;
+    struct timeval timeout = {(timeout_sec > 0) ? timeout_sec : 0, 0};
+    int result;
+
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+    FD_ZERO(&errfds);
+    FD_SET(sockfd, &errfds);
+
+    if (rx) {
+        recvfds = &fds;
+    } else {
+        sendfds = &fds;
+    }
+
+    if (timeout_sec == 0) {
+        result = select(nfds, recvfds, sendfds, &errfds, NULL);
+    } else {
+        result = select(nfds, recvfds, sendfds, &errfds, &timeout);
+    }
+
+    if (result == 0) {
+        return WOLFJNI_TIMEOUT;
+    } else if (result > 0) {
+        if (FD_ISSET(sockfd, &fds)) {
+            if (rx) {
+                return WOLFJNI_RECV_READY;
+            } else {
+                return WOLFJNI_SEND_READY;
+            }
+        } else if (FD_ISSET(sockfd, &errfds)) {
+            return WOLFJNI_ERROR_READY;
+        }
+    }
+
+    return WOLFJNI_SELECT_FAIL;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    int ret = 0, err = 0, sockfd = 0;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
 
     (void)jcl;
 
-    if (!jenv || !ssl)
+    if (jenv == NULL || sslPtr <= 0) {
         return SSL_FATAL_ERROR;
+    }
+    ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
     /* make sure we don't have any outstanding exceptions pending */
     if ((*jenv)->ExceptionCheck(jenv)) {
@@ -440,7 +526,51 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
         return SSL_FAILURE;
     }
 
-    ret = wolfSSL_connect((WOLFSSL*)(uintptr_t)ssl);
+    /* get session mutex from SSL app data */
+    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    if (jniSessLock == NULL) {
+        return SSL_FAILURE;
+    }
+
+    do {
+        /* get I/O lock */
+        if (wc_LockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        ret = wolfSSL_connect(ssl);
+        err = wolfSSL_get_error(ssl, ret);
+
+        /* release I/O lock */
+        if (wc_UnLockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        if (ret < 0 && ((err == SSL_ERROR_WANT_READ) ||
+                        (err == SSL_ERROR_WANT_WRITE))) {
+
+            sockfd = wolfSSL_get_fd(ssl);
+            if (sockfd == -1) {
+                /* For I/O that does not use sockets, sockfd may be -1,
+                 * skip try to call select() */
+                break;
+            }
+
+            ret = socketSelect(sockfd, 0, 1);
+            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                /* I/O ready, continue handshake and try again */
+                continue;
+            } else {
+                /* error or timeout */
+                break;
+            }
+        }
+
+    } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
+
+    /* check for Java exceptions beofre returning */
     if ((*jenv)->ExceptionCheck(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -451,15 +581,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
-    jobject jcl, jlong ssl, jbyteArray raw, jint length)
+    jobject jcl, jlong sslPtr, jbyteArray raw, jint length)
 {
     byte* data;
-    int ret = SSL_FAILURE;
+    int ret = SSL_FAILURE, err, sockfd;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
 
     (void)jcl;
 
-    if (!jenv || !ssl || !raw)
+    if (jenv == NULL || sslPtr <= 0 || raw == NULL) {
         return BAD_FUNC_ARG;
+    }
+    ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
     if (length >= 0) {
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
@@ -468,7 +602,51 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
             (*jenv)->ExceptionClear(jenv);
             return SSL_FAILURE;
         }
-        ret = wolfSSL_write((WOLFSSL*)(uintptr_t)ssl, data, length);
+
+        /* get session mutex from SSL app data */
+        jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+        if (jniSessLock == NULL) {
+            return SSL_FAILURE;
+        }
+
+        do {
+
+            /* lock mutex around session I/O before write attempt */
+            if (wc_LockMutex(jniSessLock) != 0) {
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
+
+            ret = wolfSSL_write(ssl, data, length);
+            err = wolfSSL_get_error(ssl, ret);
+
+            /* unlock mutex around session I/O after write attempt */
+            if (wc_UnLockMutex(jniSessLock) != 0) {
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
+
+            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+
+                sockfd = wolfSSL_get_fd(ssl);
+                if (sockfd == -1) {
+                    /* For I/O that does not use sockets, sockfd may be -1,
+                     * skip try to call select() */
+                    break;
+                }
+
+                ret = socketSelect(sockfd, 0, 0);
+                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                    /* loop around and try wolfSSL_write() again */
+                    continue;
+                } else {
+                    /* error or timeout occurred during select */
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
+            }
+
+        } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
 
         (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, JNI_ABORT);
 
@@ -480,15 +658,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
-    jobject jcl, jlong ssl, jbyteArray raw, jint length)
+    jobject jcl, jlong sslPtr, jbyteArray raw, jint length)
 {
     byte* data;
-    int size = 0;
+    int size = 0, ret, err, sockfd;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
 
     (void)jcl;
 
-    if (!jenv || !ssl || !raw)
+    if (jenv == NULL || sslPtr <= 0 || raw == NULL) {
         return BAD_FUNC_ARG;
+    }
+    ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
     if (length >= 0) {
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
@@ -498,7 +680,49 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
             return SSL_FAILURE;
         }
 
-        size = wolfSSL_read((WOLFSSL*)(uintptr_t)ssl, data, length);
+        /* get session mutex from SSL app data */
+        jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+        if (jniSessLock == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        do {
+            /* lock mutex around session I/O before read attempt */
+            if (wc_LockMutex(jniSessLock) != 0) {
+                size = WOLFSSL_FAILURE;
+                break;
+            }
+
+            size = wolfSSL_read(ssl, data, length);
+            err = wolfSSL_get_error(ssl, size);
+
+            /* unlock mutex around session I/O after read attempt */
+            if (wc_UnLockMutex(jniSessLock) != 0) {
+                size = WOLFSSL_FAILURE;
+                break;
+            }
+
+            if (size < 0 && ((err == SSL_ERROR_WANT_READ) || \
+                             (err == SSL_ERROR_WANT_WRITE))) {
+
+                sockfd = wolfSSL_get_fd(ssl);
+                if (sockfd == -1) {
+                    /* For I/O that does not use sockets, sockfd may be -1,
+                     * skip try to call select() */
+                    break;
+                }
+
+                ret = socketSelect(sockfd, 0, 1);
+                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                    /* loop around and try wolfSSL_read() again */
+                    continue;
+                } else {
+                    /* error or timeout occurred during select */
+                    break;
+                }
+            }
+
+        } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
 
         (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, JNI_COMMIT);
     }
@@ -507,14 +731,78 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
-  (JNIEnv* jenv, jobject jcl, jlong ssl)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
+    int ret = 0, err, sockfd;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
+
     (void)jcl;
 
-    if (!jenv || !ssl)
+    if (jenv == NULL || sslPtr <= 0) {
         return SSL_FATAL_ERROR;
+    }
+    ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
-    return wolfSSL_accept((WOLFSSL*)(uintptr_t)ssl);
+    /* make sure we don't have any outstanding exceptions pending */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    /* get session mutex from SSL app data */
+    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    if (jniSessLock == NULL) {
+        return SSL_FAILURE;
+    }
+
+    do {
+        /* get I/O lock */
+        if (wc_LockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        ret = wolfSSL_accept(ssl);
+        err = wolfSSL_get_error(ssl, ret);
+
+        /* release I/O lock */
+        if (wc_UnLockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        if (ret < 0 && ((err == SSL_ERROR_WANT_READ) ||
+                        (err == SSL_ERROR_WANT_WRITE))) {
+
+            sockfd = wolfSSL_get_fd(ssl);
+            if (sockfd == -1) {
+                /* For I/O that does not use sockets, sockfd may be -1,
+                 * skip try to call select() */
+                break;
+            }
+
+            ret = socketSelect(sockfd, 0, 1);
+            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                /* I/O ready, continue handshake and try again */
+                continue;
+            } else {
+                /* error or timeout */
+                break;
+            }
+        }
+
+    } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
+
+    /* check for Java exceptions beofre returning */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    return ret;
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
@@ -522,7 +810,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
 {
     jobject* g_cachedSSLObj;
     jclass excClass;
-
+    wolfSSL_Mutex* jniSessLock;
     (void)jcl;
 
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -538,11 +826,20 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
         return;
     }
 
+    /* free session mutex lock */
+    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data((WOLFSSL*)(uintptr_t)ssl);
+    if (jniSessLock != NULL) {
+        wc_FreeMutex(jniSessLock);
+        XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        jniSessLock = NULL;
+    }
+
     /* delete global WolfSSLSession object reference */
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)(uintptr_t)ssl);
     if (g_cachedSSLObj != NULL) {
         (*jenv)->DeleteGlobalRef(jenv, (jobject)(*g_cachedSSLObj));
         XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        g_cachedSSLObj = NULL;
     }
 
     /* reset internal pointer to NULL to prevent accidental usage */
@@ -563,15 +860,77 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
-  (JNIEnv* jenv, jobject jcl, jlong ssl)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
+    int ret = 0, err, sockfd;
+    WOLFSSL* ssl = NULL;
+    wolfSSL_Mutex* jniSessLock;
     (void)jcl;
 
-    if (!jenv)
+    if (jenv == NULL) {
         return SSL_FAILURE;
+    }
+    ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
-    /* wolfSSL checks ssl for NULL */
-    return wolfSSL_shutdown((WOLFSSL*)(uintptr_t)ssl);
+    /* make sure we don't have any outstanding exceptions pending */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    /* get session mutex from SSL app data */
+    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    if (jniSessLock == NULL) {
+        return SSL_FAILURE;
+    }
+
+    do {
+        /* get I/O lock */
+        if (wc_LockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        ret = wolfSSL_shutdown(ssl);
+        err = wolfSSL_get_error(ssl, ret);
+
+        /* release I/O lock */
+        if (wc_UnLockMutex(jniSessLock) != 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+
+        if (ret < 0 && ((err == SSL_ERROR_WANT_READ) ||
+                        (err == SSL_ERROR_WANT_WRITE))) {
+
+            sockfd = wolfSSL_get_fd(ssl);
+            if (sockfd == -1) {
+                /* For I/O that does not use sockets, sockfd may be -1,
+                 * skip try to call select() */
+                break;
+            }
+
+            ret = socketSelect(sockfd, 0, 1);
+            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                /* I/O ready, continue handshake and try again */
+                continue;
+            } else {
+                /* error or timeout */
+                break;
+            }
+        }
+
+    } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
+
+    /* check for Java exceptions beofre returning */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    return ret;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getError
@@ -3005,6 +3364,106 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
     ret = NOT_COMPILED_IN;
 #endif
     return ret;
+}
+
+/* return 1 if last alert received was a close_notify alert, otherwise 0 */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    int ret, gotCloseNotify = 0;
+    WOLFSSL_ALERT_HISTORY alert_history;
+    (void)jcl;
+
+    if (jenv == NULL || ssl <= 0) {
+        return gotCloseNotify;
+    }
+
+    ret = wolfSSL_get_alert_history((WOLFSSL*)(uintptr_t)ssl, &alert_history);
+    if (ret == WOLFSSL_SUCCESS) {
+        if (alert_history.last_rx.code == 0) {
+            gotCloseNotify = 1;
+        }
+    }
+
+    return gotCloseNotify;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jbyteArray alpnProtos)
+{
+    int ret = SSL_FAILURE;
+    (void)jcl;
+#ifdef HAVE_ALPN
+    byte* buff = NULL;
+    word32 buffSz = 0;
+
+    if (jenv == NULL || ssl <= 0 || alpnProtos == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, alpnProtos, NULL);
+    buffSz = (*jenv)->GetArrayLength(jenv, alpnProtos);
+
+    if (buff != NULL && buffSz > 0) {
+        ret = wolfSSL_set_alpn_protos((WOLFSSL*)(uintptr_t)ssl, buff, buffSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, alpnProtos,
+                                      (jbyte*)buff, JNI_ABORT);
+#else
+    (void)jenv;
+    (void)ssl;
+    (void)alpnProtos;
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jcl;
+#ifdef HAVE_ALPN
+    int err = 0;
+    char* protocol_name = NULL;
+    word16 protocol_nameSz = 0;
+    jbyteArray alpnArray;
+
+    if (jenv == NULL || ssl <= 0) {
+        return NULL;
+    }
+
+    /* get ALPN protocol received from server:
+     * WOLFSSL_SUCCESS - on success
+     * WOLFSSL_ALPN_NOT_FOUND - no ALPN received (no match with server)
+     * other - error case */
+    err = wolfSSL_ALPN_GetProtocol((WOLFSSL*)(uintptr_t)ssl,
+                                   &protocol_name, &protocol_nameSz);
+    if (err != WOLFSSL_SUCCESS) {
+        return NULL;
+    }
+
+    alpnArray = (*jenv)->NewByteArray(jenv, protocol_nameSz);
+    if (alpnArray == NULL) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native sslGet0AlpnSelected");
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, alpnArray, 0, protocol_nameSz,
+                                (jbyte*)protocol_name);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    return alpnArray;
+#else
+    (void)jenv;
+    (void)ssl;
+    return NULL;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv

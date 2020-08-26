@@ -27,7 +27,8 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/openssl/evp.h> /* for EVP_PKEY functions */
+#include <wolfssl/openssl/evp.h>    /* for EVP_PKEY functions */
+#include <wolfssl/openssl/x509v3.h> /* for WOLFSSL_X509_EXTENSION */
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -706,40 +707,51 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
   (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
 {
-    int nid;
-    void* sk;
-    WOLFSSL_ASN1_OBJECT* obj;
+    int nid = 0, idx = 0;
     jbyteArray ret = NULL;
-    const char* oid;
+    const char* oid = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+#if LIBWOLFSSL_VERSION_HEX < 0x04002000
+    void* sk = NULL;
+#endif
 
-    if (jenv == NULL || x509 <= 0) {
+    if (jenv == NULL || oidIn == NULL || x509 <= 0) {
         return NULL;
     }
 
     oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
     nid = wolfSSL_OBJ_txt2nid(oid);
+    (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
     if (nid == NID_undef) {
-        (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
         return NULL;
     }
-    (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
 
-    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)(uintptr_t)x509, nid, NULL,
-                                  NULL);
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    /* get extension index, or -1 if not found */
+    idx = wolfSSL_X509_get_ext_by_NID((WOLFSSL_X509*)(uintptr_t)x509, nid, -1);
+
+    if (idx >= 0) {
+        /* extension found at idx, get WOLFSSL_ASN1_OBJECT */
+        ext = wolfSSL_X509_get_ext((WOLFSSL_X509*)(uintptr_t)x509, idx);
+        if (ext != NULL) {
+            obj = ext->obj;
+        }
+    }
+#else
+    /* wolfSSL prior to 4.2.0 did not have wolfSSL_X509_get_ext_by_NID */
+    sk = wolfSSL_X509_get_ext_d2i((WOLFSSL_X509*)(uintptr_t)x509, nid,
+                                  NULL, NULL);
     if (sk == NULL) {
         /* extension was not found or error was encountered */
         return NULL;
     }
 
-#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
-    if (nid == BASIC_CA_OID) {
-        obj = (WOLFSSL_ASN1_OBJECT*)sk;
-    }
-    else
+    obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
 #endif
-        obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
 
     if (obj != NULL) {
+        /* get extension data, set into jbytearray and return */
         unsigned char* data = getOBJData(obj);
         unsigned int sz = getOBJSize(obj);
 
