@@ -1163,16 +1163,16 @@ public class WolfSSLSocket extends SSLSocket {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                  "thread got readLock");
 
-                /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
-                }
-
                 /* check if connection has already been closed/shutdown */
                 synchronized (socket.handshakeLock) {
                     if (socket.connectionClosed == true) {
                         throw new SocketException("Connection already shutdown");
                     }
+                }
+
+                /* do handshake if not completed yet, handles synchronization */
+                if (socket.handshakeComplete == false) {
+                    socket.startHandshake();
                 }
 
                 if (b.length == 0 || len == 0) {
@@ -1279,16 +1279,16 @@ public class WolfSSLSocket extends SSLSocket {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                  "thread got writeLock");
 
-                /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
-                }
-
                 /* check if connection has already been closed/shutdown */
                 synchronized (socket.handshakeLock) {
                     if (socket.connectionClosed == true) {
                         throw new SocketException("Connection already shutdown");
                     }
+                }
+
+                /* do handshake if not completed yet, handles synchronization */
+                if (socket.handshakeComplete == false) {
+                    socket.startHandshake();
                 }
 
                 if (off < 0 || len < 0 || (off + len) > b.length) {
