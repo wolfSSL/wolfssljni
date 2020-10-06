@@ -24,6 +24,7 @@ package com.wolfssl;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.DatagramSocket;
+import java.net.SocketTimeoutException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
@@ -67,6 +68,10 @@ public class WolfSSLSession {
 
     /* is this context active, or has it been freed? */
     private boolean active = false;
+
+    /* return values from naitve socketSelect(), should match
+     * ones in native/com_wolfssl_WolfSSLSession.c */
+    private int WOLFJNI_TIMEOUT = -11;
 
     /**
      * Creates a new SSL/TLS session.
@@ -187,10 +192,10 @@ public class WolfSSLSession {
     private native int getFd(long ssl);
     private native int connect(long ssl);
     private native int write(long ssl, byte[] data, int length);
-    private native int read(long ssl, byte[] data, int sz);
+    private native int read(long ssl, byte[] data, int sz, int timeout);
     private native int accept(long ssl);
     private native void freeSSL(long ssl);
-    private native int shutdownSSL(long ssl);
+    private native int shutdownSSL(long ssl, int timeout);
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
@@ -594,7 +599,59 @@ public class WolfSSLSession {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return read(getSessionPtr(), data, sz);
+        return read(getSessionPtr(), data, sz, 0);
+    }
+
+    /**
+     * Reads bytes from the SSL session and returns the read bytes as a byte
+     * array, using socket timeout value in milliseconds.
+     * The bytes read are removed from the internal receive buffer.
+     * <p>
+     * If necessary, <code>read()</code> will negotiate an SSL/TLS session
+     * if the handshake has not already been performed yet by <code>connect()
+     * </code> or <code>accept()</code>.
+     * <p>
+     * The SSL/TLS protocol uses SSL records which have a maximum size of
+     * 16kB. As such, wolfSSL needs to read an entire SSL record internally
+     * before it is able to process and decrypt the record. Because of this,
+     * a call to <code>read()</code> will only be able to return the
+     * maximum buffer size which has been decrypted at the time of calling.
+     * There may be additional not-yet-decrypted data waiting in the internal
+     * wolfSSL receive buffer which will be retrieved and decrypted with the
+     * next call to <code>read()</code>.
+     *
+     * @param data  buffer where the data read from the SSL connection
+     *              will be placed.
+     * @param sz    number of bytes to read into <b><code>data</code></b>
+     * @return      the number of bytes read upon success. <code>SSL_FAILURE
+     *              </code> will be returned upon failure which may be caused
+     *              by either a clean (close notify alert) shutdown or just
+     *              that the peer closed the connection. <code>
+     *              SSL_FATAL_ERROR</code> upon failure when either an error
+     *              occurred or, when using non-blocking sockets, the
+     *              <b>SSL_ERROR_WANT_READ</b> or <b>SSL_ERROR_WANT_WRITE</b>
+     *              error was received and the application needs to call
+     *              <code>read()</code> again. Use <code>getError</code> to
+     *              get a specific error code.
+     *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     */
+    public int read(byte[] data, int sz, int timeout)
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        ret = read(getSessionPtr(), data, sz, timeout);
+
+        if (ret == WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException("Socket read timeout");
+        }
+
+        return ret;
     }
 
     /**
@@ -654,6 +711,44 @@ public class WolfSSLSession {
 
     /**
      * Shuts down the active SSL/TLS connection using the SSL session.
+     * This function will try to send a "close notify" alert to the peer,
+     * with read timeout disabled (set to infinite).
+     * <p>
+     * The calling application can choose to wait for the peer to send its
+     * "close notify" alert in response or just go ahead and shut down the
+     * underlying connection after directly calling <code>shutdownSSL</code>
+     * (to save resources). Either option is allowed by the TLS specification.
+     * If the underlying connection will be used again in the future, the
+     * complete two-directional shutdown procedure must be performed to keep
+     * synchronization intact between the peers.
+     * <p>
+     * <code>shutdownSSL()</code> works with both blocking and non-blocking
+     * I/O. When the underlying I/O is non-blocking, <code>shutdownSSL()
+     * </code> will return an error if the underlying I/O could not satisfy the
+     * needs of <code>shutdownSSL()</code> to continue. In this case, a call
+     * to <code>getError()</code> will yield either <b>SSL_ERROR_WANT_READ</b>
+     * or <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat
+     * the call to <code>shutdownSSL()</code> when the underlying I/O is ready.
+     *
+     * @return <code>SSL_SUCCESS</code> on success,
+     *         <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
+     *         getError()</code> for a more specific error code.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    #shutdownSSL(int)
+     * @see    #freeSSL(long)
+     * @see    WolfSSLContext#free()
+     */
+    public int shutdownSSL() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return shutdownSSL(getSessionPtr(), 0);
+    }
+
+    /**
+     * Shuts down the active SSL/TLS connection using the SSL session
+     * and provided read timeout value in milliseconds.
      * This function will try to send a "close notify" alert to the peer.
      * <p>
      * The calling application can choose to wait for the peer to send its
@@ -676,15 +771,25 @@ public class WolfSSLSession {
      *         <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
      *         getError()</code> for a more specific error code.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if read timeout occurs.
      * @see    #freeSSL(long)
      * @see    WolfSSLContext#free()
      */
-    public int shutdownSSL() throws IllegalStateException {
+    public int shutdownSSL(int timeout)
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return shutdownSSL(getSessionPtr());
+        ret = shutdownSSL(getSessionPtr(), timeout);
+
+        if (ret == WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException("Socket read timeout");
+        }
+
+        return ret;
     }
 
     /**

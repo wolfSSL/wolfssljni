@@ -449,11 +449,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getFd
 
 /* enum values used in socketSelect() */
 enum {
-    WOLFJNI_SELECT_FAIL,
-    WOLFJNI_TIMEOUT,
-    WOLFJNI_RECV_READY,
-    WOLFJNI_SEND_READY,
-    WOLFJNI_ERROR_READY
+    WOLFJNI_SELECT_FAIL = -10,
+    WOLFJNI_TIMEOUT     = -11,
+    WOLFJNI_RECV_READY  = -12,
+    WOLFJNI_SEND_READY  = -13,
+    WOLFJNI_ERROR_READY = -14
 };
 
 /* perform a select() call on underlying socket to wait for socket to be ready
@@ -461,14 +461,15 @@ enum {
  * socket descriptor to non-blocking so we can select() on it.
  *
  * The Java socket timeout value representing no timeout is NULL, not 0 like
- * C. We adjust for this when handling timeout_sec here. */
-static int socketSelect(int sockfd, int timeout_sec, int rx)
+ * C. We adjust for this when handling timeout_ms here. timeout_ms is in
+ * milliseconds. */
+static int socketSelect(int sockfd, int timeout_ms, int rx)
 {
     fd_set fds, errfds;
     fd_set* recvfds = NULL;
     fd_set* sendfds = NULL;
     int nfds = sockfd + 1;
-    struct timeval timeout = {(timeout_sec > 0) ? timeout_sec : 0, 0};
+    struct timeval timeout = {(timeout_ms > 0) ? timeout_ms / 1000 : 0, 0};
     int result;
 
     FD_ZERO(&fds);
@@ -482,7 +483,7 @@ static int socketSelect(int sockfd, int timeout_sec, int rx)
         sendfds = &fds;
     }
 
-    if (timeout_sec == 0) {
+    if (timeout_ms == 0) {
         result = select(nfds, recvfds, sendfds, &errfds, NULL);
     } else {
         result = select(nfds, recvfds, sendfds, &errfds, &timeout);
@@ -658,7 +659,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
-    jobject jcl, jlong sslPtr, jbyteArray raw, jint length)
+    jobject jcl, jlong sslPtr, jbyteArray raw, jint length, int timeout)
 {
     byte* data;
     int size = 0, ret, err, sockfd;
@@ -712,12 +713,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
                     break;
                 }
 
-                ret = socketSelect(sockfd, 0, 1);
+                ret = socketSelect(sockfd, timeout, 1);
                 if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                     /* loop around and try wolfSSL_read() again */
                     continue;
                 } else {
                     /* error or timeout occurred during select */
+                    size = ret;
                     break;
                 }
             }
@@ -860,7 +862,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
-  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err, sockfd;
     WOLFSSL* ssl = NULL;
@@ -911,7 +913,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
                 break;
             }
 
-            ret = socketSelect(sockfd, 0, 1);
+            ret = socketSelect(sockfd, timeout, 1);
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
                 continue;
