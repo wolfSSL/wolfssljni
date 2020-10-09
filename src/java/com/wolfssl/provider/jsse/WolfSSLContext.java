@@ -155,6 +155,19 @@ public class WolfSSLContext extends SSLContextSpi {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Using X509TrustManager: " + tm.toString());
 
+        /* We only need to load trusted CA certificates into our native
+         * WOLFSSL_CTX if we are doing internal verification with wolfSSL
+         * native verify logic. Otherwise, the registered Java TrustManager
+         * being used will handle verification (including CA lookup) when
+         * we call checkClientTrusted()/checkServerTrusted().
+         *
+         * If tm is not an instance of WolfSSLTrustX509, simply return
+         * here since we do not need to interface with native verification */
+        if (!(tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509)) {
+            return;
+        }
+
+        /* Get trusted/accepted root certificates from the X509TrustManager */
         X509Certificate[] caList =  tm.getAcceptedIssuers();
         if (caList == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -162,6 +175,8 @@ public class WolfSSLContext extends SSLContextSpi {
             return;
         }
 
+        /* Load accepted issuer certificates into native WOLFSSL_CTX to be
+         * used in native wolfSSL verify logic */
         for (int i = 0; i < caList.length; i++) {
 
             try {
