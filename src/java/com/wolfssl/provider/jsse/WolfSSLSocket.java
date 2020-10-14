@@ -932,6 +932,17 @@ public class WolfSSLSocket extends SSLSocket {
             "entered close()");
 
         try {
+
+            /* Check if underlying Socket is still open before closing,
+             * in case application calls SSLSocket.close() multiple times */
+            synchronized (handshakeLock) {
+                if (this.connectionClosed == true || super.isClosed()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Socket already closed, skipping TLS shutdown");
+                    return;
+                }
+            }
+
             if (ssl != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "shutting down SSL/TLS connection");
