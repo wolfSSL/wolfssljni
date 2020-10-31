@@ -61,7 +61,6 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore authStore, WolfSSLParameters params) {
-        super();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLSocketFactory");
