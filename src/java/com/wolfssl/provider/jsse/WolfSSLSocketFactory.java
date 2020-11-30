@@ -45,6 +45,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     private com.wolfssl.provider.jsse.WolfSSLContext jsseCtx = null;
     private WolfSSLParameters params;
 
+    /* Defer creation and initialization of DEFAULT Context until used,
+     * to remove creation logic from constructor */
+    private int isDefault = 0;
+    private int isDefaultInitialized = 0;
+
     /* This constructor is used when the JSSE call
      * SSLSocketFactory.getDefault() */
     public WolfSSLSocketFactory() {
@@ -53,10 +58,14 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new default WolfSSLSocketFactory");
 
-        this.jsseCtx = new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
-        this.ctx = jsseCtx.getInternalWolfSSLContext();
-        this.authStore = jsseCtx.getInternalAuthStore();
-        this.params = jsseCtx.getInternalSSLParams();
+        this.isDefault = 1;
+        this.isDefaultInitialized = 0;
+
+        /* initialize later on first use */
+        this.jsseCtx = null;
+        this.ctx = null;
+        this.authStore = null;
+        this.params = null;
     }
 
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
@@ -69,6 +78,27 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         this.ctx = ctx;
         this.authStore = authStore;
         this.params = params;
+    }
+
+    /**
+     * Private internal function to create and initialize default context
+     * and set ctx, authStore, and params from it.
+     */
+    private void initDefaultContext() {
+        if (this.isDefault == 1 && this.isDefaultInitialized == 0) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating and initializing DEFAULT_Context");
+
+            this.jsseCtx =
+                new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
+            this.ctx = jsseCtx.getInternalWolfSSLContext();
+            this.authStore = jsseCtx.getInternalAuthStore();
+            this.params = jsseCtx.getInternalSSLParams();
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "DEFAULT_Context created and initialized");
+        }
     }
 
     /**
@@ -111,6 +141,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket()");
 
+        initDefaultContext();
+
         return new WolfSSLSocket(ctx, authStore, params, true);
     }
 
@@ -130,6 +162,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(InetAddress host, int port)");
+
+        initDefaultContext();
 
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
@@ -155,6 +189,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(InetAddress host, port: " + port + ", " +
             "InetAddress localAddress, localPort: " + localPort + ")");
 
+        initDefaultContext();
+
         return new WolfSSLSocket(ctx, authStore, params,
             true, address, port, localAddress, localPort);
     }
@@ -175,6 +211,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(host: " + host + ", port: " + port + ")");
+
+        initDefaultContext();
 
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
@@ -199,6 +237,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(host: " + host + ", port: " + port +
             ", InetAddress localHost, localPort: " + localPort + ")");
+
+        initDefaultContext();
 
         return new WolfSSLSocket(ctx, authStore, params,
             true, host, port, localHost, localPort);
@@ -225,6 +265,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(Socket s, host: " + host + ", port: " +
             port + ", autoClose: " + String.valueOf(autoClose) + ")");
 
+        initDefaultContext();
+
         return new WolfSSLSocket(ctx, authStore, params,
             true, s, host, port, autoClose);
     }
@@ -250,6 +292,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(Socket s, InputStream consumed, autoClose: "
             + String.valueOf(autoClose) + ")");
+
+        initDefaultContext();
 
         return new WolfSSLSocket(ctx, authStore, params, s,
             consumed, autoClose);
