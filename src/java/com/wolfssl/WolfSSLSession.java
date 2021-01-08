@@ -623,6 +623,7 @@ public class WolfSSLSession {
      * @param data  buffer where the data read from the SSL connection
      *              will be placed.
      * @param sz    number of bytes to read into <b><code>data</code></b>
+     * @param timeout read timeout, milliseconds.
      * @return      the number of bytes read upon success. <code>SSL_FAILURE
      *              </code> will be returned upon failure which may be caused
      *              by either a clean (close notify alert) shutdown or just
@@ -766,6 +767,8 @@ public class WolfSSLSession {
      * to <code>getError()</code> will yield either <b>SSL_ERROR_WANT_READ</b>
      * or <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat
      * the call to <code>shutdownSSL()</code> when the underlying I/O is ready.
+     *
+     * @param timeout read timeout, milliseconds.
      *
      * @return <code>SSL_SUCCESS</code> on success,
      *         <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
