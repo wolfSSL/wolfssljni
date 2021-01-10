@@ -31,6 +31,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLException;
 
 
 /**
@@ -81,8 +82,9 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     /**
      * Private internal function to create and initialize default context
      * and set ctx, authStore, and params from it.
+     * @throws WolfSSLException if default CTX is null
      */
-    private void initDefaultContext() {
+    private void initDefaultContext() throws WolfSSLException {
         if (this.isDefault == 1 && this.isDefaultInitialized == 0) {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -91,6 +93,10 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             this.jsseCtx =
                 new com.wolfssl.provider.jsse.WolfSSLContext.DEFAULT_Context();
             this.ctx = jsseCtx.getInternalWolfSSLContext();
+            if (this.ctx == null) {
+                throw new WolfSSLException("Issue with null internal TLS CTX");
+            }
+
             this.authStore = jsseCtx.getInternalAuthStore();
             this.params = jsseCtx.getInternalSSLParams();
 
@@ -139,7 +145,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket()");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params, true);
     }
@@ -161,7 +171,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(InetAddress host, int port)");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
@@ -187,7 +201,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(InetAddress host, port: " + port + ", " +
             "InetAddress localAddress, localPort: " + localPort + ")");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params,
             true, address, port, localAddress, localPort);
@@ -210,7 +228,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered createSocket(host: " + host + ", port: " + port + ")");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params, true, host, port);
     }
@@ -236,7 +258,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(host: " + host + ", port: " + port +
             ", InetAddress localHost, localPort: " + localPort + ")");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params,
             true, host, port, localHost, localPort);
@@ -263,7 +289,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(Socket s, host: " + host + ", port: " +
             port + ", autoClose: " + String.valueOf(autoClose) + ")");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params,
             true, s, host, port, autoClose);
@@ -291,7 +321,11 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
             "entered createSocket(Socket s, InputStream consumed, autoClose: "
             + String.valueOf(autoClose) + ")");
 
-        initDefaultContext();
+        try {
+            initDefaultContext();
+        } catch (WolfSSLException e) {
+            throw new IOException(e);
+        }
 
         return new WolfSSLSocket(ctx, authStore, params, s,
             consumed, autoClose);

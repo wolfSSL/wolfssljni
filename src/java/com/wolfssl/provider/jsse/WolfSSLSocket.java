@@ -671,12 +671,14 @@ public class WolfSSLSocket extends SSLSocket {
                 "completed SSL/TLS handshake, listeners notified");
 
         /* print debug info about connection, if enabled */
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "SSL/TLS protocol version: " +
+        if (EngineHelper.getSession() != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSL/TLS protocol version: " +
                 EngineHelper.getSession().getProtocol());
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "SSL/TLS cipher suite: " +
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSL/TLS cipher suite: " +
                 EngineHelper.getSession().getCipherSuite());
+        }
     }
 
     /**

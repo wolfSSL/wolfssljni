@@ -72,7 +72,12 @@ final class WolfSSLParameters {
 
     void setCipherSuites(String[] cipherSuites) {
         /* cipherSuites array is sanitized by wolfJSSE caller */
-        this.cipherSuites = cipherSuites.clone();
+        if (cipherSuites == null) {
+            this.cipherSuites = null;
+        }
+        else {
+            this.cipherSuites = cipherSuites.clone();
+        }
     }
 
     String[] getProtocols() {
