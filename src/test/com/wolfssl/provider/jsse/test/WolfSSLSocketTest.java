@@ -1390,6 +1390,68 @@ public class WolfSSLSocketTest {
         System.out.println("\t... passed");
     }
 
+    @Test
+    public void testDoubleSocketClose() throws Exception {
+
+        String protocol = null;
+
+        System.out.print("\tTesting duplicate close");
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+        cs.close();
+
+        System.out.println("\t\t... passed");
+    }
+
     protected class TestServer extends Thread
     {
         private SSLContext ctx;

@@ -32,6 +32,7 @@ import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.x500.X500Principal;
 
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
@@ -86,16 +87,69 @@ public class WolfSSLTrustX509 implements X509TrustManager {
                 "Failed to load trusted certs into WolfSSLCertManager");
         }
 
-        /* verify chain */
-        for (int i = 0; i < certs.length; i++) {
+        /* Here we assume certs chain starts with peer certificate (certs[0])
+         * and is followed incrementally by intermedaite certificates in the
+         * correct order. If the chain is out of order, this verification
+         * will fail and reorder logic will need to be implemented
+         *
+         * Walk backwards down list of intermediate CA certs, verify each one
+         * based on trusted certs we already have loaeded in the CertManager,
+         * then once verified load the intermediate into the CertManager
+         * as a root that can be used to verify our peer cert. */
+
+        for (int i = certs.length-1; i > 0; i--) {
+
+            /* Verify chain cert */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Verifying intermediate chain cert: " +
+                certs[i].getSubjectX500Principal().getName());
+
             byte[] encoded = certs[i].getEncoded();
+            ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
+                    WolfSSL.SSL_FILETYPE_ASN1);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                cm.free();
+                throw new CertificateException("Failed to verify " +
+                    "intermediate chain cert");
+            }
+
+            /* Load chain cert as trusted CA */
             ret = cm.CertManagerLoadCABuffer(encoded, encoded.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 cm.free();
-                throw new CertificateException();
+                throw new CertificateException("Failed to load intermediate " +
+                    "CA certificate as trusted root");
             }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Loaded intermediate CA: " +
+                certs[i].getSubjectX500Principal().getName());
         }
+
+        /* Verify peer certificate */
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "Verifying peer certificate: " +
+            certs[0].getSubjectX500Principal().getName());
+
+        byte[] peer = certs[0].getEncoded();
+        if (peer == null) {
+            cm.free();
+            throw new CertificateException("Failed to get encoded peer cert");
+        }
+
+        ret = cm.CertManagerVerifyBuffer(peer, peer.length,
+                WolfSSL.SSL_FILETYPE_ASN1);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Failed to verify peer certificate");
+            cm.free();
+            throw new CertificateException("Failed to verify peer certificate");
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "Verified peer certificate: " +
+            certs[0].getSubjectX500Principal().getName());
 
         cm.free();
     }

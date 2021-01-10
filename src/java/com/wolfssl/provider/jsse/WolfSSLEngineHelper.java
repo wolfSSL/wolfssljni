@@ -255,7 +255,7 @@ public class WolfSSLEngineHelper {
             String list;
             StringBuilder sb = new StringBuilder();
 
-            if (suites == null) {
+            if (suites == null || suites.length == 0) {
                 /* use default cipher suites */
                 return;
             }
@@ -265,12 +265,14 @@ public class WolfSSLEngineHelper {
                 sb.append(":");
             }
 
-            /* remove last : */
-            sb.deleteCharAt(sb.length() - 1);
-            list = sb.toString();
-            if (this.ssl.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "error setting cipher list " + list);
+            if (sb.length() > 0) {
+                /* remove last : */
+                sb.deleteCharAt(sb.length() - 1);
+                list = sb.toString();
+                if (this.ssl.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "error setting cipher list " + list);
+                }
             }
 
         } catch (IllegalStateException e) {

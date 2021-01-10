@@ -98,10 +98,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    read
- * Signature: (J[BI)I
+ * Signature: (J[BII)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
-  (JNIEnv *, jobject, jlong, jbyteArray, jint);
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
@@ -122,10 +122,10 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    shutdownSSL
- * Signature: (J)I
+ * Signature: (JI)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jobject, jlong, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

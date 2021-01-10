@@ -707,10 +707,13 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
   (JNIEnv* jenv, jclass jcl, jlong x509, jstring oidIn)
 {
-    int nid = 0, idx = 0;
+    int nid = 0;
     jbyteArray ret = NULL;
     const char* oid = NULL;
+#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
+    int idx = 0;
     WOLFSSL_X509_EXTENSION* ext = NULL;
+#endif
     WOLFSSL_ASN1_OBJECT* obj = NULL;
 #if LIBWOLFSSL_VERSION_HEX < 0x04002000
     void* sk = NULL;
