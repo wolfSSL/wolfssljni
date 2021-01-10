@@ -208,14 +208,14 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
+    synchronized public SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
         return wrap(new ByteBuffer[] { in }, 0, 1, out);
     }
 
 
     @Override
-    public synchronized SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
+    synchronized public SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
         int i, max = 0, ret = 0, idx = 0, pro = 0;
         ByteBuffer tmp;
@@ -298,13 +298,13 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
+    synchronized public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
         return unwrap(in, new ByteBuffer[] { out }, 0, 1);
     }
 
     @Override
-    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
+    synchronized public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
         int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
         byte[] tmp;
@@ -405,7 +405,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public void closeInbound() throws SSLException {
+    synchronized public void closeInbound() throws SSLException {
         if (!inBoundOpen)
             return;
 
@@ -420,17 +420,17 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public boolean isInboundDone() {
+    synchronized public boolean isInboundDone() {
         return !inBoundOpen;
     }
 
     @Override
-    public void closeOutbound() {
+    synchronized public void closeOutbound() {
         outBoundOpen = false;
     }
 
     @Override
-    public boolean isOutboundDone() {
+    synchronized public boolean isOutboundDone() {
         return !outBoundOpen;
     }
 
@@ -465,18 +465,18 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public SSLSession getSession() {
+    synchronized public SSLSession getSession() {
         return EngineHelper.getSession();
     }
 
     @Override
-    public void beginHandshake() throws SSLException {
+    synchronized public void beginHandshake() throws SSLException {
         EngineHelper.initHandshake();
         EngineHelper.doHandshake(1);
     }
 
     @Override
-    public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
+    synchronized public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
         return hs;
     }
 
@@ -533,7 +533,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* encrypted packet ready to be sent out. Copies buffer to end of to send
      * queue */
-    protected int setOut(byte[] in, int sz) {
+    synchronized protected int setOut(byte[] in, int sz) {
         int totalSz = sz, idx = 0;
         byte[] tmp;
 
@@ -552,7 +552,7 @@ public class WolfSSLEngine extends SSLEngine {
 
 
     /* reads from buffer toRead */
-    protected int setIn(byte[] toRead, int sz) {
+    synchronized protected int setIn(byte[] toRead, int sz) {
         int max = (sz < toReadSz)? sz : toReadSz;
 
         if (this.toRead == null || this.toReadSz == 0) {
@@ -586,7 +586,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /* adds buffer to the internal buffer to be unwrapped */
-    private void addToRead(byte[] in) {
+    synchronized private void addToRead(byte[] in) {
         byte[] combined;
 
         combined = new byte[in.length + toReadSz];
