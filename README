@@ -19,7 +19,27 @@ Build options are :
 - ant clean   (cleans all)
 
 
-wolfSSL JNI Release 1.6.0 (08/26/2020)
+wolfSSL JNI Release 1.7.0 (XX/XX/2021)
+
+Release 1.7.0 has bug fixes and new features including:
+
+- Fixes for Infer analysis warnings
+- Throw exception in DEFAULT_Context creation if engineInit() fails
+- Defer creating DEFAULT WolfSSLContext until first use
+- Check if Socket is open before doing TLS shutdown in WolfSSLSocket.close()
+- Only load X509TrustStore issuers when needed by native wolfSSL verification
+- Fix compiler warnings when used with older versions of native wolfSSL
+- Verify and load intermediate CA certs in WolfSSLTrustX509.certManagerVerify()
+- Add support for setSoTimeout() in WolfSSLSocket
+- Fix suites length check in WolfSSLEngineHelper.setLocalCiphers()
+- Check for connection closed before completing handshake in SSLSocket.read/write
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
+
+************ wolfSSL JNI Release 1.6.0 (08/26/2020)
 
 Release 1.6.0 has bug fixes and new features including:
 
