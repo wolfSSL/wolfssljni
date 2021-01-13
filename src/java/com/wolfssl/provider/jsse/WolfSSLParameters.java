@@ -51,7 +51,7 @@ final class WolfSSLParameters {
     private byte[] alpnProtocols = null;
 
     /* create duplicate copy of these parameters */
-    synchronized protected WolfSSLParameters copy() {
+    protected synchronized WolfSSLParameters copy() {
         WolfSSLParameters cp = new WolfSSLParameters();
         cp.setCipherSuites(this.cipherSuites);
         cp.setProtocols(this.protocols);

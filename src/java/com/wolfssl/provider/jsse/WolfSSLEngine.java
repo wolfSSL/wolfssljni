@@ -208,14 +208,14 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    synchronized public SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
+    public synchronized SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
         return wrap(new ByteBuffer[] { in }, 0, 1, out);
     }
 
 
     @Override
-    synchronized public SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
+    public synchronized SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
         int i, max = 0, ret = 0, idx = 0, pro = 0;
         ByteBuffer tmp;
@@ -298,13 +298,13 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    synchronized public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
+    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
         return unwrap(in, new ByteBuffer[] { out }, 0, 1);
     }
 
     @Override
-    synchronized public SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
+    public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
         int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
         byte[] tmp;
@@ -405,7 +405,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    synchronized public void closeInbound() throws SSLException {
+    public synchronized void closeInbound() throws SSLException {
         if (!inBoundOpen)
             return;
 
@@ -420,17 +420,17 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    synchronized public boolean isInboundDone() {
+    public synchronized boolean isInboundDone() {
         return !inBoundOpen;
     }
 
     @Override
-    synchronized public void closeOutbound() {
+    public synchronized void closeOutbound() {
         outBoundOpen = false;
     }
 
     @Override
-    synchronized public boolean isOutboundDone() {
+    public synchronized boolean isOutboundDone() {
         return !outBoundOpen;
     }
 
@@ -465,18 +465,18 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    synchronized public SSLSession getSession() {
+    public synchronized SSLSession getSession() {
         return EngineHelper.getSession();
     }
 
     @Override
-    synchronized public void beginHandshake() throws SSLException {
+    public synchronized void beginHandshake() throws SSLException {
         EngineHelper.initHandshake();
         EngineHelper.doHandshake(1);
     }
 
     @Override
-    synchronized public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
+    public synchronized SSLEngineResult.HandshakeStatus getHandshakeStatus() {
         return hs;
     }
 
@@ -525,7 +525,7 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * @param params SSLParameters to set for this SSLSocket object
      */
-    synchronized public void setSSLParameters(SSLParameters params) {
+    public synchronized void setSSLParameters(SSLParameters params) {
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
@@ -533,7 +533,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* encrypted packet ready to be sent out. Copies buffer to end of to send
      * queue */
-    synchronized protected int setOut(byte[] in, int sz) {
+    protected synchronized int setOut(byte[] in, int sz) {
         int totalSz = sz, idx = 0;
         byte[] tmp;
 
@@ -552,7 +552,7 @@ public class WolfSSLEngine extends SSLEngine {
 
 
     /* reads from buffer toRead */
-    synchronized protected int setIn(byte[] toRead, int sz) {
+    protected synchronized int setIn(byte[] toRead, int sz) {
         int max = (sz < toReadSz)? sz : toReadSz;
 
         if (this.toRead == null || this.toReadSz == 0) {
@@ -586,7 +586,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /* adds buffer to the internal buffer to be unwrapped */
-    synchronized private void addToRead(byte[] in) {
+    private synchronized void addToRead(byte[] in) {
         byte[] combined;
 
         combined = new byte[in.length + toReadSz];
