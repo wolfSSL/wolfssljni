@@ -567,6 +567,10 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+
+    /**
+     * @throws IllegalStateException when engine init fails
+     */
     public static final class DEFAULT_Context extends WolfSSLContext {
         public DEFAULT_Context() {
             super(TLS_VERSION.SSLv23);
@@ -577,7 +581,7 @@ public class WolfSSLContext extends SSLContextSpi {
             try {
                 this.engineInit(null, null, null);
             } catch (Exception e) {
-                /* TODO: log this */
+                throw new IllegalStateException("wolfSSL engine init failed");
             }
         }
     }

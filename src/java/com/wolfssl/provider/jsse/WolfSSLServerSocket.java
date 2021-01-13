@@ -163,7 +163,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     }
 
     @Override
-    public String[] getSupportedProtocols() {
+    synchronized public String[] getSupportedProtocols() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");

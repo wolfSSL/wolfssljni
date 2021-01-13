@@ -51,7 +51,7 @@ final class WolfSSLParameters {
     private byte[] alpnProtocols = null;
 
     /* create duplicate copy of these parameters */
-    protected WolfSSLParameters copy() {
+    protected synchronized WolfSSLParameters copy() {
         WolfSSLParameters cp = new WolfSSLParameters();
         cp.setCipherSuites(this.cipherSuites);
         cp.setProtocols(this.protocols);
@@ -72,14 +72,19 @@ final class WolfSSLParameters {
 
     void setCipherSuites(String[] cipherSuites) {
         /* cipherSuites array is sanitized by wolfJSSE caller */
-        this.cipherSuites = cipherSuites.clone();
+        if (cipherSuites == null) {
+            this.cipherSuites = null;
+        }
+        else {
+            this.cipherSuites = cipherSuites.clone();
+        }
     }
 
-    String[] getProtocols() {
+    synchronized String[] getProtocols() {
         return this.protocols.clone();
     }
 
-    void setProtocols(String[] protocols) {
+    synchronized void setProtocols(String[] protocols) {
         /* protocols array is sanitized by wolfJSSE caller */
         this.protocols = protocols.clone();
     }

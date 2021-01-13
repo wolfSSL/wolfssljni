@@ -92,12 +92,13 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             "set: " + type);
                         certs = KeyStore.getInstance(type);
                     } else {
-                        if (vmVendor.equals("The Android Project")) {
+                        if (vmVendor != null &&
+                                vmVendor.equals("The Android Project")) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "Detected Android VM, using BKS KeyStore type");
                             certs = KeyStore.getInstance("BKS");
                         } else {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "javax.net.ssl.trustStoreType system property " +
                             "not set, using type: JKS");
                             certs = KeyStore.getInstance("JKS");
