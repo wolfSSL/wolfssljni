@@ -568,10 +568,10 @@ public class WolfSSLContext extends SSLContextSpi {
     }
 
 
-    /**
-     * @throws IllegalStateException when engine init fails
-     */
     public static final class DEFAULT_Context extends WolfSSLContext {
+        /**
+         * @throws IllegalStateException when engine init fails
+         */
         public DEFAULT_Context() {
             super(TLS_VERSION.SSLv23);
 
