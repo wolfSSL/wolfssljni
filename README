@@ -1,10 +1,10 @@
 
-wolfSSL JNI Wrapper and JSSE Provider
+wolfSSL JSSE Provider and JNI Wrapper
 
-This package provides both a Java, JNI-based interface to the native wolfSSL
-(wolfSSL) API and a wolfSSL JSSE provider (wolfJSSE). These provide Java
-applications with SSL/TLS support up to the current TLS 1.3 and DTLS 1.2
-standards.
+This package provides both a wolfSSL Java JSSE provider (wolfJSSE), and a thin
+JNI-based interface to the native wolfSSL embedded SSL/TLS library. These
+provide Java applications with SSL/TLS support up to the current TLS 1.3
+protocol standard.
 
 Note 1)
 The java.sh script uses a common location for the Java install location.
@@ -13,13 +13,22 @@ when running java.sh. In this case, you should modify java.sh to match
 your environment.
 
 Build options are :
-- ant build (only builds the jar necessary for an app to use)
-- ant test  (builds the jar and tests then runs the tests, requires JUNIT setup)
-- ant examples (builds the jar and example cases)
-- ant clean   (cleans all)
+- ant build     (only builds the jar necessary for an app to use)
+- ant test      (builds the jar and tests then runs the tests, requires JUNIT setup)
+- ant examples  (builds the jar and example cases)
+- ant clean     (cleans all Java artifacts)
+- ant cleanjni  (cleans native artifacts)
 
 
-wolfSSL JNI Release 1.7.0 (XX/XX/2021)
+Why use wolfSSL JSSE?
+
+This interface gives Java applications access to all the benefits of using
+wolfSSL, including current SSL/TLS standards up to TLS 1.3, FIPS 140-2 support,
+performance optimizations, hardware cryptography support, commercial support,
+and more!
+
+
+wolfSSL JNI Release 1.7.0 (01/15/2021)
 
 Release 1.7.0 has bug fixes and new features including:
 

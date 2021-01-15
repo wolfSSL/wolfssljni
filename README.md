@@ -13,9 +13,13 @@ Build targets for ant are :
 * ant clean     (cleans all Java artifacts)
 * ant cleanjni  (cleans native artifacts)
 
+# Why use wolfSSL JSSE?
+
+This interface gives Java applications access to all the benefits of using wolfSSL, including current SSL/TLS standards up to [TLS 1.3](https://www.wolfssl.com/tls13), [FIPS 140-2 and 140-3](https://www.wolfssl.com/license/fips/) support, performance optimizations, hardware cryptography support, [commercial support](https://www.wolfssl.com/products/support-and-maintenance/), and more!
+
 # Release Notes
 
-## wolfSSL JNI Release 1.7.0 (XX/XX/2021)
+## wolfSSL JNI Release 1.7.0 (01/15/2021)
 
 Release 1.7.0 has bug fixes and new features including:
 
