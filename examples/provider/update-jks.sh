@@ -73,6 +73,11 @@ add_cert_key "ecc.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc"
 add_cert_key "ecc.jks" "/server-ecc.pem" "/ecc-key.pem" "server-ecc" "wolfSSL test"
 printf "done\n"
 
+printf "\tCreating cacerts.jks ..."
+rm cacerts.jks &> /dev/null
+add_cert_key "cacerts.jks" "/ca-cert.pem" "/ca-key.pem" "cacert" "wolfSSL test"
+printf "done\n"
+
 printf "\tCreating all_mixed.jks ..."
 rm all_mixed.jks &> /dev/null
 add_cert_key "all_mixed.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc" "wolfSSL test"

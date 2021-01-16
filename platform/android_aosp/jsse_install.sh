@@ -14,7 +14,7 @@
 #     1) README.android_asop (located in this same directory)
 #     2) "Installing a JSSE Provider in Android AOSP" document, by wolfSSL
 #
-# Copyright (C) 2020, wolfSSL Inc.
+# Copyright (C) 2021, wolfSSL Inc.
 
 if [ "$#" -lt 3 ]; then
     echo "-------------------------------------------" >&2
