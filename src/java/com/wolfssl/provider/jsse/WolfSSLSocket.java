@@ -1362,7 +1362,11 @@ public class WolfSSLSocket extends SSLSocket {
             }
 
             if (this.autoClose) {
-                super.close();
+                if (this.socket != null) {
+                    this.socket.close();
+                } else {
+                    super.close();
+                }
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "socket closed");
             } else {
