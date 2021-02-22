@@ -97,6 +97,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -125,6 +126,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -155,6 +157,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -184,6 +187,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -214,6 +218,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
