@@ -97,7 +97,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
-        this.autoClose = false;
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -126,7 +126,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
-        this.autoClose = false;
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -157,7 +157,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
-        this.autoClose = false;
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -187,7 +187,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
-        this.autoClose = false;
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -218,7 +218,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
-        this.autoClose = false;
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -1369,14 +1369,21 @@ public class WolfSSLSocket extends SSLSocket {
             if (this.autoClose) {
                 if (this.socket != null) {
                     this.socket.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (external) closed: " + this.socket);
                 } else {
                     super.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (super) closed: " + super.toString());
                 }
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "socket closed");
             } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "socket not closed, autoClose set to false");
+                if (this.socket != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (external) not closed, autoClose set to false");
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (super) not closed, autoClose set to false");
+                }
             }
 
         } catch (IllegalStateException e) {
