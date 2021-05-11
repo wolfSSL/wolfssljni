@@ -589,6 +589,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    setFIPSCb
+ * Signature: (Lcom/wolfssl/WolfSSLFIPSErrorCallback;)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getWolfCryptFIPSCoreHash
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getWolfCryptFIPSCoreHash
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    memsaveSessionCache
  * Signature: ([BI)I
  */

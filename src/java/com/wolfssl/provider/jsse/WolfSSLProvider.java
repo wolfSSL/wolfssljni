@@ -24,6 +24,7 @@ package com.wolfssl.provider.jsse;
 import java.security.Provider;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLFIPSErrorCallback;
 
 /**
  * wolfSSL JSSE Provider implementation
@@ -33,12 +34,33 @@ import com.wolfssl.WolfSSLException;
  */
 public final class WolfSSLProvider extends Provider {
 
+    public class JSSEFIPSErrorCallback implements WolfSSLFIPSErrorCallback {
+        public void errorCallback(int ok, int err, String hash) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "In FIPS error callback, ok = " + ok + " err = " + err);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "hash = " + hash);
+
+            if (err == -203) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                 "In core integrity hash check failure, copy above hash");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                 "into verifyCore[] in fips_test.c and rebuild native wolfSSL");
+            }
+        }
+    }
+
     public WolfSSLProvider() {
         super("wolfJSSE", 1, "wolfSSL JSSE Provider");
         //super("wolfJSSE", "1.0", "wolfSSL JSSE Provider");
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();
+
+        /* Register wolfCrypt FIPS error callback.
+         * Used for FIPS builds to output correct verifyCore hash to
+         * logging mechanism. NOOP for non-FIPS wolfCrypt installs */
+        WolfSSL.setFIPSCb(new JSSEFIPSErrorCallback());
 
         try {
             /* initialize native wolfSSL */
