@@ -86,7 +86,12 @@ final class WolfSSLParameters {
 
     synchronized void setProtocols(String[] protocols) {
         /* protocols array is sanitized by wolfJSSE caller */
-        this.protocols = protocols.clone();
+        if (protocols == null) {
+            this.protocols = null;
+        }
+        else {
+            this.protocols = protocols.clone();
+        }
     }
 
     boolean getWantClientAuth() {
@@ -181,7 +186,12 @@ final class WolfSSLParameters {
     }
 
     void setApplicationProtocols(String[] protocols) {
-        this.applicationProtocols = protocols.clone();
+        if (protocols == null) {
+            this.applicationProtocols = new String[0];
+        }
+        else {
+            this.applicationProtocols = protocols.clone();
+        }
     }
 }
 
