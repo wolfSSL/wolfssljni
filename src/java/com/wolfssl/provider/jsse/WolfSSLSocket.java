@@ -32,6 +32,7 @@ import java.net.SocketException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.nio.channels.SocketChannel;
 
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
@@ -96,6 +97,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -124,6 +126,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -154,6 +157,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -183,6 +187,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -213,6 +218,7 @@ public class WolfSSLSocket extends SSLSocket {
         this.ctx = context;
         this.authStore = authStore;
         this.params = params.copy();
+        this.autoClose = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
@@ -276,6 +282,390 @@ public class WolfSSLSocket extends SSLSocket {
         } catch (WolfSSLException e) {
             throw new IOException(e);
         }
+    }
+
+    /**
+     * Returns unique SocketChannel object assiciated with this socket.
+     */
+    @Override
+    public final SocketChannel getChannel() {
+        if (this.socket != null) {
+            return this.socket.getChannel();
+        } else {
+            return super.getChannel();
+        }
+    }
+
+    /**
+     * Get the address of the remote peer.
+     */
+    @Override
+    public final InetAddress getInetAddress() {
+        if (this.socket != null) {
+            return this.socket.getInetAddress();
+        } else {
+            return super.getInetAddress();
+        }
+    }
+
+    /**
+     * Get the local address the socket is bound to.
+     */
+    @Override
+    public final InetAddress getLocalAddress() {
+        if (this.socket != null) {
+            return this.socket.getLocalAddress();
+        } else {
+            return super.getLocalAddress();
+        }
+    }
+
+    /**
+     * Get remote port number used by this socket.
+     */
+    @Override
+    public final int getPort() {
+        if (this.socket != null) {
+            return this.socket.getPort();
+        } else {
+            return super.getPort();
+        }
+    }
+
+    /**
+     * Get local port number used by this socket.
+     */
+    @Override
+    public final int getLocalPort() {
+        if (this.socket != null) {
+            return this.socket.getLocalPort();
+        } else {
+            return super.getLocalPort();
+        }
+    }
+
+    /**
+     * Tests if SO_KEEPALIVE is enabled on this socket.
+     */
+    @Override
+    public final boolean getKeepAlive() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getKeepAlive();
+        } else {
+            return super.getKeepAlive();
+        }
+    }
+
+    /**
+     * Tests if SO_REUSEADDR is enabled on this socket.
+     */
+    @Override
+    public final boolean getReuseAddress() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getReuseAddress();
+        } else {
+            return super.getReuseAddress();
+        }
+    }
+
+    /**
+     * Return address of the endpoint that this socket is bound to,
+     * or null if not bound yet.
+     */
+    @Override
+    public final SocketAddress getLocalSocketAddress() {
+        if (this.socket != null) {
+            return this.socket.getLocalSocketAddress();
+        } else {
+            return super.getLocalSocketAddress();
+        }
+    }
+
+    /**
+     * Tests if OOBINLINE is enabled.
+     */
+    @Override
+    public final boolean getOOBInline() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getOOBInline();
+        } else {
+            return super.getOOBInline();
+        }
+    }
+
+    /**
+     * Gets the value of the SO_RCVBUF option for this socket.
+     */
+    @Override
+    public final int getReceiveBufferSize() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getReceiveBufferSize();
+        } else {
+            return super.getReceiveBufferSize();
+        }
+    }
+
+    /**
+     * Returns the address of the remote endpoint, or null if not connected.
+     */
+    @Override
+    public final SocketAddress getRemoteSocketAddress() {
+        if (this.socket != null) {
+            return this.socket.getRemoteSocketAddress();
+        } else {
+            return super.getRemoteSocketAddress();
+        }
+    }
+
+    /**
+     * Gets the value of the SO_SNDBUF option for this socket.
+     */
+    @Override
+    public final int getSendBufferSize() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getSendBufferSize();
+        } else {
+            return super.getSendBufferSize();
+        }
+    }
+
+    /**
+     * Gets the value of the SO_SNDBUF option for this socket. This setting
+     * only affects socket close.
+     * @return -1 if option is disabled, otherwise int value
+     */
+    @Override
+    public final int getSoLinger() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getSoLinger();
+        } else {
+            return super.getSoLinger();
+        }
+    }
+
+    /**
+     * Tests if TCP_NODELAY is enabled.
+     */
+    @Override
+    public final boolean getTcpNoDelay() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getTcpNoDelay();
+        } else {
+            return super.getTcpNoDelay();
+        }
+    }
+
+    /**
+     * Gets traffic class or type of service in IP header.
+     */
+    @Override
+    public final int getTrafficClass() throws SocketException {
+        if (this.socket != null) {
+            return this.socket.getTrafficClass();
+        } else {
+            return super.getTrafficClass();
+        }
+    }
+
+    /**
+     * Returns the binding state for this socket.
+     */
+    @Override
+    public final boolean isBound() {
+        if (this.socket != null) {
+            return this.socket.isBound();
+        } else {
+            return super.isBound();
+        }
+    }
+
+    /**
+     * Returns the closed state of the socket.
+     */
+    @Override
+    public final boolean isClosed() {
+        if (this.socket != null) {
+            return this.socket.isClosed();
+        } else {
+            return super.isClosed();
+        }
+    }
+
+    /**
+     * Returns the connection state of this socket.
+     */
+    @Override
+    public final boolean isConnected() {
+        if (this.socket != null) {
+            return this.socket.isConnected();
+        } else {
+            return super.isConnected();
+        }
+    }
+
+    /**
+     * Returns whether the read-half of the socket connection is closed.
+     */
+    @Override
+    public final boolean isInputShutdown() {
+        if (this.socket != null) {
+            return this.socket.isInputShutdown();
+        } else {
+            return super.isInputShutdown();
+        }
+    }
+
+    /**
+     * Returns whether the write-half of the socket connection is closed.
+     */
+    @Override
+    public final boolean isOutputShutdown() {
+        if (this.socket != null) {
+            return this.socket.isOutputShutdown();
+        } else {
+            return super.isOutputShutdown();
+        }
+    }
+
+    /**
+     * Send one byte of urgent data on the socket.
+     * Not supported by SSLSockets at this point.
+     */
+    @Override
+    public final void sendUrgentData(int data) throws IOException {
+        throw new SocketException("sendUrgentData() not supported by "
+                + "WolfSSLSocket");
+    }
+
+    /**
+     * Enable/disable SO_KEEPALIVE.
+     */
+    @Override
+    public final void setKeepAlive(boolean on) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setKeepAlive(on);
+        } else {
+            super.setKeepAlive(on);
+        }
+    }
+
+    /**
+     * Enable/disable SO_KEEPALIVE.
+     * Enable/disable OOBINLINE (receipt of TCP urgent data). This option
+     * is disabled by default. Setting OOBInline does not have any effect
+     * on WolfSSLSocket since SSLSocket does not support sending urgent data.
+     */
+    @Override
+    public final void setOOBInline(boolean on) throws SocketException {
+        throw new SocketException("setOOBInline is ineffective, as sending " +
+                "urgent data is not supported with SSLSocket");
+    }
+
+    /**
+     * Set performance preferences for this socket.
+     */
+    @Override
+    public final void setPerformancePreferences(int connectionTime,
+            int latency, int bandwidth) {
+        if (this.socket != null) {
+            this.socket.setPerformancePreferences(connectionTime,
+                    latency, bandwidth);
+        } else {
+            super.setPerformancePreferences(connectionTime, latency,
+                    bandwidth);
+        }
+    }
+
+    /**
+     * Sets the SO_RCVBUF option to the specified value for this Socket.
+     */
+    @Override
+    public final void setReceiveBufferSize(int size) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setReceiveBufferSize(size);
+        } else {
+            super.setReceiveBufferSize(size);
+        }
+    }
+
+    /**
+     * Enable/disable the SO_REUSEADDR socket option.
+     */
+    @Override
+    public final void setReuseAddress(boolean on) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setReuseAddress(on);
+        } else {
+            super.setReuseAddress(on);
+        }
+    }
+
+    /**
+     * Sets the SO_SNDBUF option to the specified value for this Socket.
+     */
+    @Override
+    public final void setSendBufferSize(int size) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setSendBufferSize(size);
+        } else {
+            super.setSendBufferSize(size);
+        }
+    }
+
+    /**
+     * Enable/disable SO_LINGER with specified linger time in seconds.
+     */
+    @Override
+    public final void setSoLinger(boolean on, int linger)
+        throws SocketException {
+        if (this.socket != null) {
+            this.socket.setSoLinger(on, linger);
+        } else {
+            super.setSoLinger(on, linger);
+        }
+    }
+
+    /**
+     * Enable/disable TCP_NODELAY on this Socket.
+     */
+    @Override
+    public final void setTcpNoDelay(boolean on) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setTcpNoDelay(on);
+        } else {
+            super.setTcpNoDelay(on);
+        }
+    }
+
+    /**
+     * Sets traffic class or type-of-service octet in the IP header for packets
+     * sent from this Socket.
+     */
+    @Override
+    public final void setTrafficClass(int tc) throws SocketException {
+        if (this.socket != null) {
+            this.socket.setTrafficClass(tc);
+        } else {
+            super.setTrafficClass(tc);
+        }
+    }
+
+    /**
+     * shutdownInput() not supported with SSLSocket, matches OpenJDK behavior.
+     */
+    @Override
+    public final void shutdownInput() throws IOException {
+        throw new UnsupportedOperationException("shutdownInput() not " +
+                "supported by wolfSSLSocket");
+    }
+
+    /**
+     * shutdownOutput() not supported with SSLSocket, matches OpenJDK behavior.
+     */
+    @Override
+    public final void shutdownOutput() throws IOException {
+        throw new UnsupportedOperationException("shutdownOutput() not " +
+                "supported by wolfSSLSocket");
     }
 
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
@@ -888,7 +1278,11 @@ public class WolfSSLSocket extends SSLSocket {
      */
     @Override
     public void setSoTimeout(int timeout) throws SocketException {
-        super.setSoTimeout(timeout);
+        if (this.socket != null) {
+            this.socket.setSoTimeout(timeout);
+        } else {
+            super.setSoTimeout(timeout);
+        }
         this.readTimeout = timeout;
     }
 
@@ -938,7 +1332,9 @@ public class WolfSSLSocket extends SSLSocket {
             /* Check if underlying Socket is still open before closing,
              * in case application calls SSLSocket.close() multiple times */
             synchronized (handshakeLock) {
-                if (this.connectionClosed == true || super.isClosed()) {
+                if (this.connectionClosed == true ||
+                    (this.socket != null && this.socket.isClosed()) ||
+                    (this.socket == null && super.isClosed())) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "Socket already closed, skipping TLS shutdown");
                     return;
@@ -971,16 +1367,39 @@ public class WolfSSLSocket extends SSLSocket {
             }
 
             if (this.autoClose) {
-                super.close();
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "socket closed");
+                if (this.socket != null) {
+                    this.socket.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (external) closed: " + this.socket);
+                } else {
+                    super.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (super) closed: " + super.toString());
+                }
             } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "socket not closed, autoClose set to false");
+                if (this.socket != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (external) not closed, autoClose set to false");
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (super) not closed, autoClose set to false");
+                }
             }
 
         } catch (IllegalStateException e) {
             throw new IOException(e);
+        }
+    }
+
+    /**
+     * Bind socket to local address.
+     */
+    @Override
+    public void bind(SocketAddress bindpoint) throws IOException {
+        if (this.socket != null) {
+            this.socket.bind(bindpoint);
+        } else {
+            super.bind(bindpoint);
         }
     }
 
