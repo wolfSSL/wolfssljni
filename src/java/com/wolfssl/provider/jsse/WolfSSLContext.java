@@ -437,33 +437,21 @@ public class WolfSSLContext extends SSLContextSpi {
     /**
      * Returns the SSLServerSessionContext associated with this SSLContext.
      *
-     * Not currently supported by wolfJSSE.
-     *
      * @throws UnsupportedOperationException operation not yet supported
      */
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineGetServerSessionContext()");
-
-        throw new UnsupportedOperationException("Not supported by wolfJSSE");
+        return authStore.getServerContext();
     }
 
     /**
      * Returns the SSLClientSessionContext associated with this SSLContext.
-     *
-     * Not currently supported by wolfJSSE.
-     *
+     * 
      * @throws UnsupportedOperationException operation not yet supported
      */
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineGetClientSessionContext()");
-
-        throw new UnsupportedOperationException("Not supported by wolfJSSE");
+        return authStore.getClientContext();
     }
 
     /**

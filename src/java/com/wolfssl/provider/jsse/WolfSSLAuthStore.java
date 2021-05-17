@@ -37,7 +37,12 @@ import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -61,6 +66,8 @@ public class WolfSSLAuthStore {
     private SecureRandom sr = null;
     private String alias = null;
     private SessionStore<Integer, WolfSSLImplementSSLSession> store;
+    private WolfSSLSessionContext serverCtx = null;
+    private WolfSSLSessionContext clientCtx = null;
 
     /**
      * @param keyman key manager to use
@@ -73,6 +80,7 @@ public class WolfSSLAuthStore {
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
+            int defaultCacheSize = 10;
 
         if (version == TLS_VERSION.INVALID) {
             throw new IllegalArgumentException("Invalid SSL/TLS version");
@@ -86,8 +94,10 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
-        store = new SessionStore<Integer, WolfSSLImplementSSLSession>(10);
-        //@TODO set max size correctly
+        store = new SessionStore<Integer,
+                                 WolfSSLImplementSSLSession>(defaultCacheSize);
+        this.serverCtx = new WolfSSLSessionContext(this, defaultCacheSize);
+        this.clientCtx = new WolfSSLSessionContext(this, defaultCacheSize);
     }
 
     /**
@@ -227,6 +237,37 @@ public class WolfSSLAuthStore {
         return this.alias;
     }
 
+
+    /**
+     * Getter function for WolfSSLSessionContext associated with store
+     * @return pointer to the context set
+     */
+    protected WolfSSLSessionContext getServerContext() {
+        return this.serverCtx;
+    }
+
+
+    /**
+     * Getter function for WolfSSLSessionContext associated with store
+     * @return pointer to the context set
+     */
+    protected WolfSSLSessionContext getClientContext() {
+        return this.clientCtx;
+    }
+
+
+    /**
+     * Reset the size of the array to cache sessions
+     * @param sz new array size
+     */
+    protected void resizeCache(int sz) {
+            SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
+                    new SessionStore<Integer, WolfSSLImplementSSLSession>(sz);
+
+        store.putAll(newStore);
+        store = newStore;
+    }
+
     /** Returns either an existing session to use or creates a new session. Can
      * return null on error case or the case where session could not be created.
      * @param ssl WOLFSSL class to set in session
@@ -261,6 +302,13 @@ public class WolfSSLAuthStore {
                     "session not found in cache table, creating new");
             /* not found in stored sessions create a new one */
             ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+            ses.setValid(true); /* new sessions marked as valid */
+            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+                ses.setSessionContext(serverCtx);
+            }
+            else {
+                ses.setSessionContext(clientCtx);
+            }
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -277,7 +325,17 @@ public class WolfSSLAuthStore {
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
-        return new WolfSSLImplementSSLSession(ssl, this);
+        WolfSSLImplementSSLSession ses = new WolfSSLImplementSSLSession(ssl, this);
+        if (ses != null) {
+            ses.setValid(true);
+            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+                ses.setSessionContext(serverCtx);
+            }
+            else {
+                ses.setSessionContext(clientCtx);
+            }
+        }
+        return ses;
     }
 
     /**
@@ -304,6 +362,69 @@ public class WolfSSLAuthStore {
 
         return WolfSSL.SSL_SUCCESS;
     }
+
+
+    /**
+     * @returns enumerated session IDs
+     */
+    protected Enumeration<byte[]> getAllIDs() {
+        List<byte[]> ret = new ArrayList<byte[]>();
+
+        for (Object obj : store.values()) {
+            WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
+            ret.add(current.getId());
+        }
+        return Collections.enumeration(ret);
+    }
+
+
+    /**
+     * Getter function for session with session id 'ID'
+     * @return session from the store that has session id 'ID'
+     */
+    protected WolfSSLImplementSSLSession getSession(byte[] ID) {
+        WolfSSLImplementSSLSession ret = null;
+
+        for (Object obj : store.values()) {
+            WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
+            if (java.util.Arrays.equals(ID, current.getId())) {
+                ret = current;
+                break;
+            }
+        }
+        return ret;
+    }
+
+
+    /**
+     * Goes through the list of sessions and checks for timeouts. If timed out
+     * then the session is invalidated.
+     * @params in the updated timeout value to check against
+     */
+    protected void updateTimeouts(int in) {
+        Date currentDate = new Date();
+        long now = currentDate.getTime();
+
+        for (Object obj : store.values()) {
+            long diff;
+            WolfSSLImplementSSLSession current =
+                (WolfSSLImplementSSLSession)obj;
+
+            /* difference in seconds */
+            diff = (now - current.creation.getTime()) / 1000;
+
+            if (diff < 0) {
+                /* session is from the future ... */ //@TODO
+
+            }
+
+            if (in > 0 && diff > in) {
+                current.invalidate();
+            }
+            current.setNativeTimeout(in);
+        }
+    }
+
 
     private class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**

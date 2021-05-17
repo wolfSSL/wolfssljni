@@ -87,136 +87,6 @@ public class WolfSSLEngineTest {
     }
 
 
-    private int CloseConnection(SSLEngine server, SSLEngine client, boolean earlyClose) throws SSLException {
-        ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
-        ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
-        ByteBuffer empty = ByteBuffer.allocate(server.getSession().getPacketBufferSize());
-        SSLEngineResult result;
-        HandshakeStatus s;
-        boolean passed;
-        Runnable run;
-
-        client.closeOutbound();
-
-        result = client.wrap(empty, cliToSer);
-        if (extraDebug) {
-            System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-        }
-        while ((run = client.getDelegatedTask()) != null) {
-            run.run();
-        }
-        s = client.getHandshakeStatus();
-        if (extraDebug) {
-            System.out.println("client status = " + s.toString());
-        }
-        if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
-            throw new SSLException("Client wrap consumed/produced error");
-        }
-        if (!s.toString().equals("NEED_UNWRAP") ||
-                !result.getStatus().name().equals("CLOSED") ) {
-            throw new SSLException("Bad status");
-        }
-        cliToSer.flip();
-
-        /* check that early close inbounds fail */
-        if (earlyClose) {
-            try {
-                passed = false;
-                server.closeInbound();
-            }
-            catch (SSLException e) {
-                passed = true;
-            }
-            if (!passed) {
-                throw new SSLException("Expected to fail on early close inbound");
-            }
-
-            try {
-                passed = false;
-                client.closeInbound();
-            }
-            catch (SSLException e) {
-                passed = true;
-            }
-            if (!passed) {
-                throw new SSLException("Expected to fail on early close inbound");
-            }
-            return 0;
-        }
-
-        result = server.unwrap(cliToSer, empty);
-        if (extraDebug) {
-            System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-        }
-        if (result.getStatus().name().equals("CLOSED")) {
-            /* odd case where server tries to send "empty" if not set close */
-            server.closeOutbound();
-        }
-        while ((run = server.getDelegatedTask()) != null) {
-            run.run();
-        }
-        s = server.getHandshakeStatus();
-        if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
-            throw new SSLException("Server unwrap consumed/produced error");
-        }
-        if (!s.toString().equals("NEED_WRAP") ||
-                !result.getStatus().name().equals("CLOSED") ) {
-            throw new SSLException("Bad status");
-        }
-
-        result = server.wrap(empty, serToCli);
-        if (extraDebug) {
-            System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-        }
-        while ((run = server.getDelegatedTask()) != null) {
-            run.run();
-        }
-        s = server.getHandshakeStatus();
-        if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
-            throw new SSLException("Server wrap consumed/produced error");
-        }
-        if (extraDebug) {
-            System.out.println("server status = " + s.toString());
-        }
-        if (!s.toString().equals("NOT_HANDSHAKING") ||
-                !result.getStatus().name().equals("CLOSED")) {
-            throw new SSLException("Bad status");
-        }
-
-        serToCli.flip();
-        result = client.unwrap(serToCli, empty);
-        if (extraDebug) {
-            System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-        }
-        while ((run = client.getDelegatedTask()) != null) {
-            run.run();
-        }
-        s = client.getHandshakeStatus();
-        if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
-            throw new SSLException("Client unwrap consumed/produced error");
-        }
-        if (!s.toString().equals("NOT_HANDSHAKING") ||
-                !result.getStatus().name().equals("CLOSED")) {
-            throw new SSLException("Bad status");
-        }
-        if (extraDebug) {
-            System.out.println("client status = " + s.toString());
-        }
-
-        server.closeInbound();
-        client.closeInbound();
-        return 0;
-    }
-
-
     @Test
     public void testSSLEngine()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -375,7 +245,7 @@ public class WolfSSLEngineTest {
         System.out.print("\tTesting close connection");
         try {
             /* test close connection */
-            CloseConnection(server, client, false);
+            tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
             fail("failed to create engine");
@@ -570,7 +440,7 @@ public class WolfSSLEngineTest {
 
         try {
             /* test close connection */
-            CloseConnection(server, client, false);
+            tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
             fail("failed to create engine");
@@ -601,7 +471,7 @@ public class WolfSSLEngineTest {
         }
         try {
             /* test close connection */
-            CloseConnection(server, client, false);
+            tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
             error("\t... failed");
             fail("failed to create engine");

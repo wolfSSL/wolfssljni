@@ -101,7 +101,6 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
-
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(port: " + port +
             ", hostname: " + hostname + ")");
@@ -507,6 +506,8 @@ public class WolfSSLEngineHelper {
      * isSSLEngine param specifies if this is being called by an SSLEngine
      * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
     protected int doHandshake(int isSSLEngine) throws SSLException {
+        int ret, err;
+
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
@@ -535,8 +536,6 @@ public class WolfSSLEngineHelper {
             }
             this.session = this.authStore.getSession(ssl);
         }
-
-        int ret, err;
 
         do {
             /* call connect() or accept() to do handshake, looping on
