@@ -57,10 +57,21 @@ public final class WolfSSLProvider extends Provider {
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();
 
-        /* Register wolfCrypt FIPS error callback.
-         * Used for FIPS builds to output correct verifyCore hash to
-         * logging mechanism. NOOP for non-FIPS wolfCrypt installs */
-        WolfSSL.setFIPSCb(new JSSEFIPSErrorCallback());
+        /* Register wolfCrypt FIPS error callback. Used for FIPS builds to
+         * output correct verifyCore hash to logging mechanism. */
+        int rc = WolfSSL.setFIPSCb(new JSSEFIPSErrorCallback());
+        if (rc != WolfSSL.SSL_SUCCESS) {
+            if (rc == WolfSSL.NOT_COMPILED_IN) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "FIPS callback not set, not using wolfCrypt FIPS");
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Error setting wolfCrypt FIPS Callback, ret = " + rc);
+            }
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Registered wolfCrypt FIPS error callback");
+        }
 
         try {
             /* initialize native wolfSSL */

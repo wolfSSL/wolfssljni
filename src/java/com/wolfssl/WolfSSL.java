@@ -731,8 +731,9 @@ public class WolfSSL {
      * library.
      *
      * @param cb    Callback to be used for wolfCrypt FIPS verifyCore errors
-     * @return      <b><code>SSL_SUCCESS</code></b> on success, negative
-     *              on error.
+     * @return      <b><code>SSL_SUCCESS</code></b> on success,
+     *              <b><code>NOT_COMPILED_IN</code></b> if not using wolfCrypt
+     *              FIPS library distribution, or negative on error.
      */
     public final static native int setFIPSCb(WolfSSLFIPSErrorCallback cb);
 

@@ -721,7 +721,7 @@ void NativeFIPSErrorCallback(const int ok, const int err,
 
     /* check if our stored object reference is valid */
     refcheck = (*jenv)->GetObjectRefType(jenv, g_fipsCbIfaceObj);
-    if (refcheck == 2) {
+    if (refcheck == JNIGlobalRefType) {
 
         /* lookup WolfSSLLoggingCallback class from global object ref */
         jclass fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
@@ -755,6 +755,9 @@ void NativeFIPSErrorCallback(const int ok, const int err,
         (*jenv)->CallVoidMethod(jenv, g_fipsCbIfaceObj, errorMethod,
                 ok, err, hashString);
 
+        /* release local reference to jstring, since returning to native */
+        (*jenv)->DeleteLocalRef(jenv, hashString);
+
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -779,7 +782,7 @@ void NativeFIPSErrorCallback(const int ok, const int err,
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
   (JNIEnv* jenv, jclass jcl, jobject callback)
 {
-    int ret = SSL_SUCCESS;
+    int ret = NOT_COMPILED_IN;
     (void)jcl;
 
 #ifdef HAVE_FIPS
@@ -790,7 +793,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
     /* store Java FIPS callback Interface object */
     g_fipsCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
     if (!g_fipsCbIfaceObj) {
-        printf("error storing global wolfCrypt FIP callback interface\n");
+        printf("error storing global wolfCrypt FIPS callback interface\n");
         return SSL_FAILURE;
     }
 
@@ -802,7 +805,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
 #else
     (void)jenv;
     (void)callback;
-    /* simply return SSL_SUCCESS if not compiled in / not FIPS lib */
+    printf("Unable to set FIPS callback without wolfCrypt FIPS code\n");
 #endif
 
     return ret;
