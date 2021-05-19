@@ -26,6 +26,9 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#ifdef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/fips_test.h>
+#endif
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
@@ -35,6 +38,11 @@ JavaVM*  g_vm;
 
 /* global object refs for logging callbacks */
 static jobject g_loggingCbIfaceObj;
+
+#ifdef HAVE_FIPS
+/* global object ref for FIPS error callback */
+static jobject g_fipsCbIfaceObj;
+#endif
 
 /* custom native fn prototypes */
 void NativeLoggingCallback(const int logLevel, const char *const logMessage);
@@ -676,6 +684,141 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeLoggingCallback");
     }
+}
+
+void NativeFIPSErrorCallback(const int ok, const int err,
+                             const char* const hash)
+{
+#ifdef HAVE_FIPS
+    JNIEnv*   jenv;
+    jint      vmret  = 0;
+    jclass    excClass;
+    jmethodID errorMethod;
+    jobjectRefType refcheck;
+
+    /* get JNIEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            printf("Failed to attach JNIEnv to thread\n");
+        }
+    } else if (vmret != JNI_OK) {
+        printf("Unable to get JNIEnv from JavaVM\n");
+    }
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+    /* check if our stored object reference is valid */
+    refcheck = (*jenv)->GetObjectRefType(jenv, g_fipsCbIfaceObj);
+    if (refcheck == JNIGlobalRefType) {
+
+        /* lookup WolfSSLLoggingCallback class from global object ref */
+        jclass fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
+        if (!fipsCbClass) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLFIPSErrorCallback class reference");
+            return;
+        }
+
+        errorMethod = (*jenv)->GetMethodID(jenv, fipsCbClass,
+                                            "errorCallback",
+                                            "(IILjava/lang/String;)V");
+        if (errorMethod == 0) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting errorCallback method from JNI");
+            return;
+        }
+
+        /* create jstring from char* */
+        jstring hashString = (*jenv)->NewStringUTF(jenv, hash);
+
+        (*jenv)->CallVoidMethod(jenv, g_fipsCbIfaceObj, errorMethod,
+                ok, err, hashString);
+
+        /* release local reference to jstring, since returning to native */
+        (*jenv)->DeleteLocalRef(jenv, hashString);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "Error calling FIPS error callback from JNI");
+            return;
+        }
+
+    } else {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Object reference invalid in NativeFIPSErrorCallback");
+    }
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
+  (JNIEnv* jenv, jclass jcl, jobject callback)
+{
+    int ret = NOT_COMPILED_IN;
+    (void)jcl;
+
+#ifdef HAVE_FIPS
+    if (jenv == NULL || callback == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* store Java FIPS callback Interface object */
+    g_fipsCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
+    if (!g_fipsCbIfaceObj) {
+        printf("error storing global wolfCrypt FIPS callback interface\n");
+        return SSL_FAILURE;
+    }
+
+    /* register NativeFIPSErrorCallback, wraps Java callback */
+    ret = wolfCrypt_SetCb_fips(NativeFIPSErrorCallback);
+    if (ret == 0) {
+        ret = SSL_SUCCESS;
+    }
+#else
+    (void)jenv;
+    (void)callback;
+    printf("Unable to set FIPS callback without wolfCrypt FIPS code\n");
+#endif
+
+    return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getWolfCryptFIPSCoreHash
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifdef HAVE_FIPS
+    return (*jenv)->NewStringUTF(jenv, wolfCrypt_GetCoreHash_fips());
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache

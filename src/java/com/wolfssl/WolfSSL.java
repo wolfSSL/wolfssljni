@@ -726,6 +726,31 @@ public class WolfSSL {
     public final static native int setLoggingCb(WolfSSLLoggingCallback cb);
 
     /**
+     * Registers the callback to be used for wolfCrypt FIPS verifyCore error.
+     * This method is a NOOP if called when not using a wolfCrypt FIPS
+     * library.
+     *
+     * @param cb    Callback to be used for wolfCrypt FIPS verifyCore errors
+     * @return      <b><code>SSL_SUCCESS</code></b> on success,
+     *              <b><code>NOT_COMPILED_IN</code></b> if not using wolfCrypt
+     *              FIPS library distribution, or negative on error.
+     */
+    public final static native int setFIPSCb(WolfSSLFIPSErrorCallback cb);
+
+
+    /**
+     * Returns the current verifyCore hash from wolfCrypt FIPS, from
+     * native wolfcrypt/src/fips_test.c, verifyCore[] array.
+     *
+     * NOTE: this method returns NULL if not used with a wolfCrypt FIPS
+     * library.
+     *
+     * @return current verifyCore hash from wolfCrypt FIPS, or NULL
+     *         if called when not using a wolfCrypt FIPS library.
+     */
+    public final static native String getWolfCryptFIPSCoreHash();
+
+    /**
      * Persists session cache to memory buffer.
      * This method can be used to persist the current session cache to a
      * memory buffer for storage. The cache can be loaded back into wolfSSL
