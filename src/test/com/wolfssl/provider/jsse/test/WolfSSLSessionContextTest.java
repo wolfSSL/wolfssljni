@@ -33,13 +33,11 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import java.security.Security;
 import java.security.Provider;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
-import java.security.KeyManagementException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -136,7 +134,7 @@ public class WolfSSLSessionContextTest {
         } catch (SSLException e1) {
             // TODO Auto-generated catch block
             e1.printStackTrace();
-            error("\t... failed");
+            error("\t\t... failed");
             fail("session close failed");
         }
 
@@ -213,7 +211,8 @@ public class WolfSSLSessionContextTest {
             fail("client session timout should still be default value");
         }
 
-        /* reading the API description I think this should be invalid but it is not with SunJSSE
+        /* reading the API description I think this should be invalid but it is
+         * not with SunJSSE
          * @TODO */
 //        if (ses.isValid() != false) {
 //            error("\t... failed");
@@ -252,18 +251,20 @@ public class WolfSSLSessionContextTest {
         pass("\t\t... passed");
     }
 
-
     @Test
-    public void testSessionIDs()
+    public void testSessionIDsTLS13()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
         SSLEngine client;
         int ret;
         SSLSession ses;
-        String proto[] = {"TLSv1.2"};
+        String proto[] = {"TLSv1.3"};
+        boolean found;
+        byte id[];
+        Enumeration<byte[]> allIds;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting SessionIDs");
+        System.out.print("\tTesting SessionIDs with TLSv1.3");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
@@ -273,11 +274,10 @@ public class WolfSSLSessionContextTest {
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
 
-        //@TODO TLS 1.3 has issues with the get session ID
         try {
             String s[] = server.getEnabledProtocols();
-            if (Arrays.asList(s).contains("TLSv1.2") == false) {
-                pass("\t\t... skipped");
+            if (Arrays.asList(s).contains("TLSv1.3") == false) {
+                pass("\t... skipped");
                 return;
             }
 
@@ -285,37 +285,37 @@ public class WolfSSLSessionContextTest {
             client.setEnabledProtocols(proto);
         } catch (Exception e) {
             e.printStackTrace();
-            error("\t\t... failed");
+            error("\t... failed");
         }
 
         try {
             server.beginHandshake();
             client.beginHandshake();
         } catch (SSLException e) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("failed to begin handshake");
         }
 
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret != 0) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("failed to create engine");
         }
 
         ses = server.getSession(); /* get a new copy of session */
         if (ses == null) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("unable to get session after handshake");
         }
 
-        byte id[] = ses.getId();
+        id = ses.getId();
         if (id == null) {
-            error("\t\t... failed");
-            fail("session had not id....");
+            error("\t... failed");
+            fail("session had no id....");
         }
-        boolean found = false;
+        found = false;
 
-        Enumeration<byte[]> allIds = ctx.getServerSessionContext().getIds();
+        allIds = ctx.getServerSessionContext().getIds();
         while (allIds.hasMoreElements()) {
             byte[] current = allIds.nextElement();
             if (Arrays.equals(current, id) == true) {
@@ -325,15 +325,166 @@ public class WolfSSLSessionContextTest {
         }
 
         if (!found) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("did not find session id in global context list");
         }
 
         if (ses.isValid() == false) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("session not valid");
         }
-        pass("\t\t... passed");
+
+        /* now test finding client session by ID */
+        ses = client.getSession(); /* get a new copy of session */
+        if (ses == null) {
+            error("\t... failed");
+            fail("unable to get session after handshake");
+        }
+
+        id = ses.getId();
+        if (id == null) {
+            error("\t... failed");
+            fail("client session had no id....");
+        }
+        found = false;
+
+        allIds = ctx.getClientSessionContext().getIds();
+        while (allIds.hasMoreElements()) {
+            byte[] current = allIds.nextElement();
+            if (Arrays.equals(current, id) == true) {
+                /* found matching session ID */
+                found = true;
+            }
+        }
+
+        if (!found) {
+            error("\t... failed");
+            fail("did not find client session id in global context list");
+        }
+
+        try {
+            tf.CloseConnection(server, client, false);
+        } catch (SSLException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+            error("\t... failed");
+            fail("session close failed");
+        }
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSessionIDs()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        SSLEngine server;
+        SSLEngine client;
+        int ret;
+        SSLSession ses;
+        String proto[] = {"TLSv1.2"};
+        boolean found;
+        byte id[];
+        Enumeration<byte[]> allIds;
+
+        /* create new SSLEngine */
+        System.out.print("\tTesting SessionIDs with TLSv1.2");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        try {
+            String s[] = server.getEnabledProtocols();
+            if (Arrays.asList(s).contains("TLSv1.2") == false) {
+                pass("\t... skipped");
+                return;
+            }
+
+            server.setEnabledProtocols(proto);
+            client.setEnabledProtocols(proto);
+        } catch (Exception e) {
+            e.printStackTrace();
+            error("\t... failed");
+        }
+
+        try {
+            server.beginHandshake();
+            client.beginHandshake();
+        } catch (SSLException e) {
+            error("\t... failed");
+            fail("failed to begin handshake");
+        }
+
+        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
+        if (ret != 0) {
+            error("\t... failed");
+            fail("failed to create engine");
+        }
+
+        ses = server.getSession(); /* get a new copy of session */
+        if (ses == null) {
+            error("\t... failed");
+            fail("unable to get session after handshake");
+        }
+
+        id = ses.getId();
+        if (id == null) {
+            error("\t... failed");
+            fail("session had no id....");
+        }
+        found = false;
+
+        allIds = ctx.getServerSessionContext().getIds();
+        while (allIds.hasMoreElements()) {
+            byte[] current = allIds.nextElement();
+            if (Arrays.equals(current, id) == true) {
+                /* found matching session ID */
+                found = true;
+            }
+        }
+
+        if (!found) {
+            error("\t... failed");
+            fail("did not find session id in global context list");
+        }
+
+        if (ses.isValid() == false) {
+            error("\t... failed");
+            fail("session not valid");
+        }
+
+        /* now test finding client session by ID */
+        ses = client.getSession(); /* get a new copy of session */
+        if (ses == null) {
+            error("\t... failed");
+            fail("unable to get session after handshake");
+        }
+
+        id = ses.getId();
+        if (id == null) {
+            error("\t... failed");
+            fail("client session had no id....");
+        }
+        found = false;
+
+        allIds = ctx.getClientSessionContext().getIds();
+        while (allIds.hasMoreElements()) {
+            byte[] current = allIds.nextElement();
+            if (Arrays.equals(current, id) == true) {
+                /* found matching session ID */
+                found = true;
+            }
+        }
+
+        if (!found) {
+            error("\t... failed");
+            fail("did not find client session id in global context list");
+        }
+
+        pass("\t... passed");
 
         /* additional tests on the engines and sessions while open */
         testSetCacheSize(ses);
@@ -349,13 +500,8 @@ public class WolfSSLSessionContextTest {
         }
     }
 
-
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
-    }
-
-    private void fail(String msg) {
-        System.out.println(msg);
     }
 
     private void error(String msg) {

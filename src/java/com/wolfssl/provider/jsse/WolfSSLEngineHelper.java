@@ -478,6 +478,15 @@ public class WolfSSLEngineHelper {
         this.session = this.authStore.getSession(ssl, this.port, this.hostname,
             this.clientMode);
 
+        if (this.session != null && this.clientMode) {
+            this.session.setSessionContext(authStore.getClientContext());
+            this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
+        }
+        else {
+            this.session.setSessionContext(authStore.getServerContext());
+            this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+        }
+
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
@@ -491,8 +500,7 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
-        if (this.session != null && this.clientMode == true &&
-                this.sessionCreation) {
+        if (this.session != null && this.sessionCreation) {
             /* can only add new sessions to the resumption table if session
              * creation is allowed */
             this.authStore.addSession(this.session);
@@ -564,7 +572,7 @@ public class WolfSSLEngineHelper {
      * Saves session on connection close for resumption
      */
     protected void saveSession() {
-        if (this.session.isValid()) {
+        if (this.session != null && this.session.isValid()) {
             this.session.setResume();
         }
     }

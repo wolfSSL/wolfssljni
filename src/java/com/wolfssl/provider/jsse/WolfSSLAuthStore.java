@@ -38,6 +38,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -96,8 +97,8 @@ public class WolfSSLAuthStore {
         this.currentVersion = version;
         store = new SessionStore<Integer,
                                  WolfSSLImplementSSLSession>(defaultCacheSize);
-        this.serverCtx = new WolfSSLSessionContext(this, defaultCacheSize);
-        this.clientCtx = new WolfSSLSessionContext(this, defaultCacheSize);
+        this.serverCtx = new WolfSSLSessionContext(this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
+        this.clientCtx = new WolfSSLSessionContext(this, defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
     }
 
     /**
@@ -259,11 +260,13 @@ public class WolfSSLAuthStore {
     /**
      * Reset the size of the array to cache sessions
      * @param sz new array size
+     * @param side server/client side for cache resize
      */
-    protected void resizeCache(int sz) {
+    protected void resizeCache(int sz, int side) {
             SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
                     new SessionStore<Integer, WolfSSLImplementSSLSession>(sz);
 
+        //@TODO check for side server/client, currently a resize is for all
         store.putAll(newStore);
         store = newStore;
     }
@@ -303,12 +306,7 @@ public class WolfSSLAuthStore {
             /* not found in stored sessions create a new one */
             ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
             ses.setValid(true); /* new sessions marked as valid */
-            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
-                ses.setSessionContext(serverCtx);
-            }
-            else {
-                ses.setSessionContext(clientCtx);
-            }
+            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -328,12 +326,7 @@ public class WolfSSLAuthStore {
         WolfSSLImplementSSLSession ses = new WolfSSLImplementSSLSession(ssl, this);
         if (ses != null) {
             ses.setValid(true);
-            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
-                ses.setSessionContext(serverCtx);
-            }
-            else {
-                ses.setSessionContext(clientCtx);
-            }
+            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
         }
         return ses;
     }
@@ -345,34 +338,46 @@ public class WolfSSLAuthStore {
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
         String toHash;
+        int    hashCode = 0;
 
         if (session.getPeerHost() != null) {
             /* register into session table for resumption */
             session.fromTable = true;
             toHash = session.getPeerHost().concat(Integer.toString(
                      session.getPeerPort()));
-            store.put(toHash.hashCode(), session);
+            hashCode = toHash.hashCode();
+        }
+        else {
+                /* if no peer host is available then create hash key from
+                 * session id */
+                hashCode = Arrays.toString(session.getId()).hashCode();
+        }
 
-
+        if (hashCode != 0 && store.containsKey(hashCode) != true) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "stored session in cache table (host: " +
                     session.getPeerHost() + ", port: " +
-                    session.getPeerPort() + ")");
+                    session.getPeerPort() + ") " +
+                    "hashCode = " + hashCode + " side = " + session.getSide());
+                store.put(hashCode, session);
         }
-
         return WolfSSL.SSL_SUCCESS;
     }
 
 
     /**
-     * @returns enumerated session IDs
+     * Internal function to return a list of all session ID's
+     * @param side server or client side to get list of ID's from
+     * @return enumerated session IDs
      */
-    protected Enumeration<byte[]> getAllIDs() {
+    protected Enumeration<byte[]> getAllIDs(int side) {
         List<byte[]> ret = new ArrayList<byte[]>();
 
         for (Object obj : store.values()) {
             WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
-            ret.add(current.getId());
+            if (current.getSide() == side) {
+                ret.add(current.getId());
+            }
         }
         return Collections.enumeration(ret);
     }
@@ -380,14 +385,17 @@ public class WolfSSLAuthStore {
 
     /**
      * Getter function for session with session id 'ID'
+     * @param ID the session id to search for
+     * @param side if the session is expected on the server or client side
      * @return session from the store that has session id 'ID'
      */
-    protected WolfSSLImplementSSLSession getSession(byte[] ID) {
+    protected WolfSSLImplementSSLSession getSession(byte[] ID, int side) {
         WolfSSLImplementSSLSession ret = null;
 
         for (Object obj : store.values()) {
             WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
-            if (java.util.Arrays.equals(ID, current.getId())) {
+            if (current.getSide() == side &&
+                    java.util.Arrays.equals(ID, current.getId())) {
                 ret = current;
                 break;
             }
@@ -399,9 +407,10 @@ public class WolfSSLAuthStore {
     /**
      * Goes through the list of sessions and checks for timeouts. If timed out
      * then the session is invalidated.
-     * @params in the updated timeout value to check against
+     * @param in the updated timeout value to check against
+     * @param side server or client side getting the timeout update
      */
-    protected void updateTimeouts(int in) {
+    protected void updateTimeouts(int in, int side) {
         Date currentDate = new Date();
         long now = currentDate.getTime();
 
@@ -410,18 +419,20 @@ public class WolfSSLAuthStore {
             WolfSSLImplementSSLSession current =
                 (WolfSSLImplementSSLSession)obj;
 
-            /* difference in seconds */
-            diff = (now - current.creation.getTime()) / 1000;
+            if (current.getSide() == side) {
+                /* difference in seconds */
+                diff = (now - current.creation.getTime()) / 1000;
 
-            if (diff < 0) {
+                if (diff < 0) {
                 /* session is from the future ... */ //@TODO
 
-            }
+                }
 
-            if (in > 0 && diff > in) {
-                current.invalidate();
+                if (in > 0 && diff > in) {
+                    current.invalidate();
+                }
+                current.setNativeTimeout(in);
             }
-            current.setNativeTimeout(in);
         }
     }
 
