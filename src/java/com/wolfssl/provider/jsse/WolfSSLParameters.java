@@ -67,6 +67,9 @@ final class WolfSSLParameters {
     }
 
     String[] getCipherSuites() {
+        if (this.cipherSuites == null) {
+            return null;
+        }
         return this.cipherSuites.clone();
     }
 
@@ -81,6 +84,9 @@ final class WolfSSLParameters {
     }
 
     synchronized String[] getProtocols() {
+        if (this.protocols == null) {
+            return null;
+        }
         return this.protocols.clone();
     }
 
@@ -182,6 +188,9 @@ final class WolfSSLParameters {
     }
 
     String[] getApplicationProtocols() {
+        if (this.applicationProtocols == null) {
+            return null;
+        }
         return this.applicationProtocols.clone();
     }
 
