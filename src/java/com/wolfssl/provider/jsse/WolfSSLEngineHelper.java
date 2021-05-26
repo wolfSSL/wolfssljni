@@ -101,7 +101,6 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
-
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(port: " + port +
             ", hostname: " + hostname + ")");
@@ -479,6 +478,15 @@ public class WolfSSLEngineHelper {
         this.session = this.authStore.getSession(ssl, this.port, this.hostname,
             this.clientMode);
 
+        if (this.session != null && this.clientMode) {
+            this.session.setSessionContext(authStore.getClientContext());
+            this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
+        }
+        else {
+            this.session.setSessionContext(authStore.getServerContext());
+            this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+        }
+
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
             /* new handshakes can not be made in this case. */
@@ -492,8 +500,7 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
-        if (this.session != null && this.clientMode == true &&
-                this.sessionCreation) {
+        if (this.session != null && this.sessionCreation) {
             /* can only add new sessions to the resumption table if session
              * creation is allowed */
             this.authStore.addSession(this.session);
@@ -507,6 +514,8 @@ public class WolfSSLEngineHelper {
      * isSSLEngine param specifies if this is being called by an SSLEngine
      * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
     protected int doHandshake(int isSSLEngine) throws SSLException {
+        int ret, err;
+
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
@@ -536,8 +545,6 @@ public class WolfSSLEngineHelper {
             this.session = this.authStore.getSession(ssl);
         }
 
-        int ret, err;
-
         do {
             /* call connect() or accept() to do handshake, looping on
              * WANT_READ/WANT_WRITE errors in case underlying Socket is
@@ -565,7 +572,7 @@ public class WolfSSLEngineHelper {
      * Saves session on connection close for resumption
      */
     protected void saveSession() {
-        if (this.session.isValid()) {
+        if (this.session != null && this.session.isValid()) {
             this.session.setResume();
         }
     }

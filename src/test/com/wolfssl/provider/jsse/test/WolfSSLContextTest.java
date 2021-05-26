@@ -251,24 +251,20 @@ public class WolfSSLContextTest {
                 return;
             }
 
-            /* test for UnsupportedOperationException */
+            /* test for getting session context @TODO additional tests */
             try {
                 SSLSessionContext sess = ctx.getServerSessionContext();
-                System.out.println("\t\t... failed");
-                fail("Failed to return UnsupportedOperationException");
-
             } catch (UnsupportedOperationException e) {
-                /* expected */
+                System.out.println("\t\t... failed");
+                fail("Failed to get SSLSessionContext");
             }
 
-            /* test for UnsupportedOperationException */
+            /* test for getting client session context @TODO additional tests */
             try {
                 SSLSessionContext sess = ctx.getClientSessionContext();
-                System.out.println("\t\t... failed");
-                fail("Failed to return UnsupportedOperationException");
-
             } catch (UnsupportedOperationException e) {
-                /* expected */
+                System.out.println("\t\t... failed");
+                fail("Failed to return client SSLSessionContext");
             }
         }
         System.out.println("\t\t... passed");

@@ -393,13 +393,9 @@ public class WolfSSLSessionTest {
 
         /* @TODO difference in cache size for SunJSSE vs wolfJSSE  0 vs 33 */
         context.getSessionCacheSize();
-        try {
-            context.setSessionCacheSize(2);
-            error("\t\t... failed");
-            fail("unexpected set cache size passed, create test case");
-        } catch (Exception e) {
-            /* currently not available for wolfSSL, is set at build time */
-        }
+
+        /* @TODO additional tests around setting session cache size */
+        context.setSessionCacheSize(2);
         pass("\t\t... passed");
     }
 
