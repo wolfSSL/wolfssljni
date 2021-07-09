@@ -280,12 +280,26 @@ public class WolfSSLSocketFactoryTest {
 
                 /* Socket, String, int, boolean */
                 s = new Socket(addr, port);
+
+                /* Set timeout, to test that createSocket returns it */
+                int tmpTimeout = 15000;
+                s.setSoTimeout(tmpTimeout);
+
                 ss = (SSLSocket)sf.createSocket(s, addrStr, port, true);
                 if (ss == null) {
                     System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
                     return;
                 }
+
+                /* verify getSoTimeout matches set value */
+                if (ss.getSoTimeout() != tmpTimeout) {
+                    System.out.println("\t\t\t... failed");
+                    fail("SSLSocketFactory.createSocket(SkSib) failed " +
+                         "setSoTimeout check");
+                    return;
+                }
+
                 ss.close();
                 s.close();
 
