@@ -69,7 +69,6 @@ public class WolfSSLSocket extends SSLSocket {
     private Socket socket = null;
     private boolean autoClose;
     private InetSocketAddress address = null;
-    private int readTimeout = 0;
 
     private WolfSSLInputStream inStream;
     private WolfSSLOutputStream outStream;
@@ -1283,7 +1282,6 @@ public class WolfSSLSocket extends SSLSocket {
         } else {
             super.setSoTimeout(timeout);
         }
-        this.readTimeout = timeout;
     }
 
     /**
@@ -1295,7 +1293,11 @@ public class WolfSSLSocket extends SSLSocket {
      */
     @Override
     public int getSoTimeout() throws SocketException {
-        return this.readTimeout;
+        if (this.socket != null) {
+            return this.socket.getSoTimeout();
+        } else {
+            return super.getSoTimeout();
+        }
     }
 
     /**
@@ -1323,6 +1325,8 @@ public class WolfSSLSocket extends SSLSocket {
      */
     @Override
     synchronized public void close() throws IOException {
+
+        int ret;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered close()");
@@ -1353,7 +1357,11 @@ public class WolfSSLSocket extends SSLSocket {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                      "thread got ioLock (shutdown)");
 
-                    int ret = ssl.shutdownSSL(this.readTimeout);
+                    if (this.socket != null) {
+                        ret = ssl.shutdownSSL(this.socket.getSoTimeout());
+                    } else {
+                        ret = ssl.shutdownSSL(super.getSoTimeout());
+                    }
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.shutdownSSL() ret = " + ret);
 
@@ -1655,9 +1663,9 @@ public class WolfSSLSocket extends SSLSocket {
                     int err;
 
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "ssl.read() socket timeout = " + socket.readTimeout);
+                        "ssl.read() socket timeout = " + socket.getSoTimeout());
 
-                    ret = ssl.read(data, len, socket.readTimeout);
+                    ret = ssl.read(data, len, socket.getSoTimeout());
                     err = ssl.getError(ret);
 
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
