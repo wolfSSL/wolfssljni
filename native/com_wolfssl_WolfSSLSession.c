@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/time.h>
 
 #include <arpa/inet.h>
 #include <wolfssl/options.h>
@@ -469,8 +470,11 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
     fd_set* recvfds = NULL;
     fd_set* sendfds = NULL;
     int nfds = sockfd + 1;
-    struct timeval timeout = {(timeout_ms > 0) ? timeout_ms / 1000 : 0, 0};
     int result;
+    struct timeval timeout;
+
+    timeout.tv_sec = timeout_ms / 1000;
+    timeout.tv_usec = (timeout_ms % 1000) * 1000;
 
     FD_ZERO(&fds);
     FD_SET(sockfd, &fds);
