@@ -558,14 +558,14 @@ public class WolfSSLX509Test {
 
         /* populate known alt name list for example.com cert, for comparison */
         List<String> expected = new ArrayList<>();
-        expected.add("www.example.net");
-        expected.add("www.example.edu");
-        expected.add("www.example.com");
-        expected.add("example.org");
-        expected.add("example.net");
-        expected.add("example.edu");
-        expected.add("example.com");
         expected.add("www.example.org");
+        expected.add("example.com");
+        expected.add("example.edu");
+        expected.add("example.net");
+        expected.add("example.org");
+        expected.add("www.example.com");
+        expected.add("www.example.edu");
+        expected.add("www.example.net");
 
         /* list to hold found altNames */
         List<String> found = new ArrayList<>();
