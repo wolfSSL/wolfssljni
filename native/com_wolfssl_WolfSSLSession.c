@@ -34,11 +34,20 @@
 /* custom I/O native fn prototypes */
 int  NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 int  NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-static jobject g_verifySSLCbIfaceObj;
 #ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
 #endif
+
+/* Data used per-WOLFSSL session that needs to be stored across native
+ * function calls. Stored inside WOLFSSL app data, set with
+ * wolfSSL_set_app_data(), retrieved with wolfSSL_get_app_data().
+ * Global callback objects are created with NewGlobalRef(), then freed
+ * inside freeSSL() with DeleteGlobalRef(). */
+typedef struct SSLAppData {
+    wolfSSL_Mutex* jniSessLock;      /* WOLFSSL session lock */
+    jobject* g_verifySSLCbIfaceObj;  /* Java verify callback [global ref] */
+} SSLAppData;
 
 /* custom native fn prototypes */
 void NativeMissingCRLCallback(const char* url);
@@ -52,6 +61,8 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     jclass    excClass;
     jmethodID verifyMethod;
     jobjectRefType refcheck;
+    SSLAppData* appData;            /* WOLFSSL app data, stored verify cb obj */
+    jobject* g_verifySSLCbIfaceObj;  /* Global jobject, stored in app data */
 
     if (!g_vm) {
         /* we can't throw an exception yet, so just return 0 (failure) */
@@ -81,12 +92,28 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
         return -103;
     }
 
+    /* get app data to retrieve stored Java jobject callback object */
+    appData = (SSLAppData*)wolfSSL_get_app_data(
+                wolfSSL_X509_STORE_CTX_get_ex_data(store, 0));
+    if (appData == NULL) {
+        printf("Error getting app data from WOLFSSL\n");
+        return -105;
+    }
+
+    /* get global Java verify callback object */
+    g_verifySSLCbIfaceObj = appData->g_verifySSLCbIfaceObj;
+    if (g_verifySSLCbIfaceObj == NULL || *g_verifySSLCbIfaceObj == NULL) {
+        printf("Error getting g_verifySSLCbIfaceObj from appData\n");
+        return -106;
+    }
+
     /* check if our stored object reference is valid */
-    refcheck = (*jenv)->GetObjectRefType(jenv, g_verifySSLCbIfaceObj);
+    refcheck = (*jenv)->GetObjectRefType(jenv, *g_verifySSLCbIfaceObj);
     if (refcheck == 2) {
 
         /* lookup WolfSSLVerifyCallback class from global object ref */
-        jclass verifyClass = (*jenv)->GetObjectClass(jenv, g_verifySSLCbIfaceObj);
+        jclass verifyClass = (*jenv)->GetObjectClass(jenv,
+                                                     *g_verifySSLCbIfaceObj);
         if (!verifyClass) {
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
@@ -95,7 +122,7 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLVerifyCallback class reference");
-            return -104;
+            return -107;
         }
 
         verifyMethod = (*jenv)->GetMethodID(jenv, verifyClass,
@@ -108,17 +135,17 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting verifyCallback method from JNI");
-            return -105;
+            return -108;
         }
 
-        retval = (*jenv)->CallIntMethod(jenv, g_verifySSLCbIfaceObj,
+        retval = (*jenv)->CallIntMethod(jenv, *g_verifySSLCbIfaceObj,
                 verifyMethod, preverify_ok, (jlong)(uintptr_t)store);
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             /* exception occurred on the Java side during method call */
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            return -106;
+            return -109;
         }
 
     } else {
@@ -145,6 +172,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
     jlong sslPtr;
     jobject* g_cachedObj;
     wolfSSL_Mutex* jniSessLock;
+    SSLAppData* appData;
 
     if (!jenv)
         return SSL_FAILURE;
@@ -175,21 +203,34 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             return SSL_FAILURE;
         }
 
+        appData = (SSLAppData*)XMALLOC(sizeof(SSLAppData), NULL,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (appData == NULL) {
+            printf("error allocating memory in newSSL for SSLAppData\n");
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
+        XMEMSET(appData, 0, sizeof(SSLAppData));
+
         /* store mutex lock in SSL app data, used for I/O and session lock.
          * This is freed in freeSSL. */
         jniSessLock = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), NULL,
                                               DYNAMIC_TYPE_TMP_BUFFER);
         if (!jniSessLock) {
             printf("error mallocing memory in newSSL for jniSessLock\n");
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
 
         wc_InitMutex(jniSessLock);
+        appData->jniSessLock = jniSessLock;
+
         if (wolfSSL_set_app_data(
-                (WOLFSSL*)(uintptr_t)sslPtr, jniSessLock) != SSL_SUCCESS) {
+                (WOLFSSL*)(uintptr_t)sslPtr, appData) != SSL_SUCCESS) {
             printf("error setting WOLFSSL app data in newSSL\n");
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -516,6 +557,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     int ret = 0, err = 0, sockfd = 0;
     WOLFSSL* ssl = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
 
     (void)jcl;
 
@@ -532,9 +574,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     }
 
     /* get session mutex from SSL app data */
-    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    jniSessLock = appData->jniSessLock;
     if (jniSessLock == NULL) {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     do {
@@ -592,6 +639,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
     int ret = SSL_FAILURE, err, sockfd;
     WOLFSSL* ssl = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
 
     (void)jcl;
 
@@ -609,7 +657,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
         }
 
         /* get session mutex from SSL app data */
-        jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+        appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+        if (appData == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        jniSessLock = appData->jniSessLock;
         if (jniSessLock == NULL) {
             (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data,
                     JNI_ABORT);
@@ -671,6 +724,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
     int size = 0, ret, err, sockfd;
     WOLFSSL* ssl = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
 
     (void)jcl;
 
@@ -688,7 +742,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
         }
 
         /* get session mutex from SSL app data */
-        jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+        appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+        if (appData == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        jniSessLock = appData->jniSessLock;
         if (jniSessLock == NULL) {
             (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data,
                     JNI_ABORT);
@@ -748,6 +807,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
     int ret = 0, err, sockfd;
     WOLFSSL* ssl = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
 
     (void)jcl;
 
@@ -764,7 +824,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
     }
 
     /* get session mutex from SSL app data */
-    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    jniSessLock = appData->jniSessLock;
     if (jniSessLock == NULL) {
         return SSL_FAILURE;
     }
@@ -821,8 +886,9 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {
     jobject* g_cachedSSLObj;
+    jobject* g_cachedVerifyCb;
     jclass excClass;
-    wolfSSL_Mutex* jniSessLock;
+    SSLAppData* appData;
     (void)jcl;
 
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -839,11 +905,22 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     }
 
     /* free session mutex lock */
-    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data((WOLFSSL*)(uintptr_t)ssl);
-    if (jniSessLock != NULL) {
-        wc_FreeMutex(jniSessLock);
-        XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        jniSessLock = NULL;
+    appData = (SSLAppData*)wolfSSL_get_app_data((WOLFSSL*)(uintptr_t)ssl);
+    if (appData != NULL) {
+        if (appData->jniSessLock != NULL) {
+            wc_FreeMutex(appData->jniSessLock);
+            XFREE(appData->jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            appData->jniSessLock = NULL;
+        }
+        g_cachedVerifyCb = appData->g_verifySSLCbIfaceObj;
+        if (g_cachedVerifyCb != NULL) {
+            (*jenv)->DeleteGlobalRef(jenv, (jobject)(*g_cachedVerifyCb));
+            XFREE(g_cachedVerifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            g_cachedVerifyCb = NULL;
+        }
+        /* free appData */
+        XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        appData = NULL;
     }
 
     /* delete global WolfSSLSession object reference */
@@ -877,6 +954,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
     int ret = 0, err, sockfd;
     WOLFSSL* ssl = NULL;
     wolfSSL_Mutex* jniSessLock;
+    SSLAppData* appData = NULL;
     (void)jcl;
 
     if (jenv == NULL) {
@@ -892,9 +970,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
     }
 
     /* get session mutex from SSL app data */
-    jniSessLock = (wolfSSL_Mutex*)wolfSSL_get_app_data(ssl);
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    jniSessLock = appData->jniSessLock;
     if (jniSessLock == NULL) {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     do {
@@ -3273,23 +3356,44 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
   (JNIEnv* jenv, jobject jcl, jlong ssl, jint mode, jobject callbackIface)
 {
     (void)jcl;
+    jobject* verifyCb;
+    SSLAppData* appData;
 
     if (!jenv || !ssl)
         return;
 
     if (!callbackIface) {
         wolfSSL_set_verify((WOLFSSL*)(uintptr_t)ssl, mode, NULL);
-    } else {
-
-        /* store Java verify Interface object */
-        g_verifySSLCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callbackIface);
-        if (!g_verifySSLCbIfaceObj) {
-            printf("error storing global callback interface\n");
+    }
+    else {
+        /* get app data to store verify callback jobject */
+        appData = (SSLAppData*)wolfSSL_get_app_data((WOLFSSL*)(uintptr_t)ssl);
+        if (appData == NULL) {
+            printf("Error getting app data from WOLFSSL\n");
         }
 
-        /* set verify mode, register Java callback with wolfSSL */
-        wolfSSL_set_verify((WOLFSSL*)(uintptr_t)ssl, mode,
-                           NativeSSLVerifyCallback);
+        if (appData) {
+            verifyCb = (jobject*)XMALLOC(sizeof(jobject), NULL,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
+            if (verifyCb == NULL) {
+                printf("Error allocating memory for verifyCb\n");
+            }
+        }
+
+        if (appData && verifyCb) {
+            /* store Java verify Interface object */
+            *verifyCb = (*jenv)->NewGlobalRef(jenv, callbackIface);
+            if (*verifyCb == NULL) {
+                printf("error storing global callback interface\n");
+            }
+            else {
+                appData->g_verifySSLCbIfaceObj = verifyCb;
+
+                /* set verify mode, register Java callback with wolfSSL */
+                wolfSSL_set_verify((WOLFSSL*)(uintptr_t)ssl, mode,
+                                   NativeSSLVerifyCallback);
+            }
+        }
     }
 }
 
