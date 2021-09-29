@@ -228,6 +228,9 @@ public class WolfSSL {
     public final static int ECDSAk   = 518;
     public final static int ED25519k = 256;
 
+    /* is this object active, or has it been cleaned up? */
+    private boolean active = false;
+
     /* ------------------------ constructors ---------------------------- */
 
     /**
@@ -256,6 +259,8 @@ public class WolfSSL {
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
         wolfssl_hc128       = getBulkCipherAlgorithmEnumHC128();
         wolfssl_rabbit      = getBulkCipherAlgorithmEnumRABBIT();
+
+        this.active = true;
     }
 
     /* ------------------- private/protected methods -------------------- */
@@ -941,6 +946,18 @@ public class WolfSSL {
      * @return an array of Strings for supported protocols
      */
     public static native String[] getProtocolsMask(long mask);
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable
+    {
+        if (this.active == true) {
+            /* free resources, set state */
+            this.cleanup();
+            this.active = false;
+        }
+        super.finalize();
+    }
 
 } /* end WolfSSL */
 
