@@ -80,8 +80,13 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             } else if (sigType.contains("ED25519")) {
                 authType = "ED25519";
             }
-        }
 
+            /* Free native WolfSSLCertificate memory. At this
+             * point x509certs[] is all Java managed memory now. */
+            for (int i = 0; i < certs.length; i++) {
+                certs[i].free();
+            }
+        }
 
         try {
             /* poll TrustManager for cert verification, should throw

@@ -24,8 +24,6 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
-import com.wolfssl.WolfSSLCertificate;
-import com.wolfssl.WolfSSLX509StoreCtx;
 import java.util.Arrays;
 import java.util.List;
 import java.security.cert.X509Certificate;

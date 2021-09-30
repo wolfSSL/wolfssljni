@@ -96,6 +96,13 @@ public class WolfSSLKeyX509 implements X509KeyManager{
 
             if (type != null && cert != null &&
                 !cert.getPublicKey().getAlgorithm().equals(type)) {
+
+                /* free native memory early if X509Certificate is WolfSSLX509 */
+                if (cert instanceof WolfSSLX509) {
+                    ((WolfSSLX509)cert).free();
+                }
+                cert = null;
+
                 /* different public key type, skip */
                 continue;
             }
@@ -196,32 +203,28 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         try {
             Certificate[] certs = this.store.getCertificateChain(alias);
             if (certs != null) {
-                int i;
+                int x509Cnt = 0;
 
-                /* @TODO this conversion from Certificate to WolfX509X
-                 * adds overhead */
-                ret = new X509Certificate[certs.length];
-                for (i = 0; i < certs.length; i++) {
-                    ret[i] = new WolfSSLX509(certs[i].getEncoded());
+                /* count up X509Certificate type in certs[] */
+                for (int i = 0; i < certs.length; i++) {
+                    if (certs[i] instanceof X509Certificate) {
+                        x509Cnt++;
+                    }
+                }
+
+                /* store into X509Certificate array */
+                ret = new X509Certificate[x509Cnt];
+                for (int i = 0; i < certs.length; i++) {
+                    if (certs[i] instanceof X509Certificate) {
+                        ret[i] = (X509Certificate)certs[i];
+                    }
                 }
             }
-        } catch (KeyStoreException | CertificateEncodingException |
-                WolfSSLException ex) {
+
+        } catch (KeyStoreException ex) {
             return null;
         }
 
-        if (ret == null) {
-            try {
-                Certificate cert = this.store.getCertificate(alias);
-                if (cert != null) {
-                    ret    = new X509Certificate[1];
-                    ret[0] = new WolfSSLX509(cert.getEncoded());
-                }
-            } catch (KeyStoreException | CertificateEncodingException |
-                    WolfSSLException ex) {
-                return null;
-            }
-        }
         return ret;
     }
 
