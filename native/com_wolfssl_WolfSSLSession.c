@@ -957,6 +957,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
         return;
     }
 
+#ifdef HAVE_CRL
+    /* release global CRL callback ref if registered */
+    if (g_crlCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCbIfaceObj);
+        g_crlCbIfaceObj = NULL;
+    }
+#endif
+
     /* native cleanup */
     wolfSSL_free((WOLFSSL*)(uintptr_t)ssl);
     ssl = 0;
@@ -2037,7 +2045,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
 
     (void)jcl;
 
-    if (!jenv || !cb) {
+    if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -2049,21 +2057,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
         return SSL_FAILURE;
     }
 
-    if (!ssl) {
+    if (ssl == 0) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Input WolfSSLSession object was null in "
             "setCRLCb");
         return SSL_FAILURE;
     }
 
-    /* store Java CRL callback Interface object */
-    g_crlCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
-    if (!g_crlCbIfaceObj) {
-        (*jenv)->ThrowNew(jenv, excClass,
-               "Error storing global missingCRLCallback interface");
+    /* release global CRL callback ref if already registered */
+    if (g_crlCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCbIfaceObj);
+        g_crlCbIfaceObj = NULL;
     }
 
-    ret = wolfSSL_SetCRL_Cb((WOLFSSL*)(uintptr_t)ssl, NativeMissingCRLCallback);
+    if (cb != NULL) {
+        /* store Java CRL callback Interface object */
+        g_crlCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
+        if (g_crlCbIfaceObj == NULL) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                   "Error storing global missingCRLCallback interface");
+        }
+
+        ret = wolfSSL_SetCRL_Cb((WOLFSSL*)(uintptr_t)ssl,
+                                NativeMissingCRLCallback);
+    }
 
     return ret;
 #else
