@@ -169,36 +169,31 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {
     int ret;
-    jlong sslPtr;
-    jobject* g_cachedObj;
-    wolfSSL_Mutex* jniSessLock;
-    SSLAppData* appData;
+    jlong sslPtr = 0;
+    jobject* g_cachedSSLObj = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
 
-    if (!jenv)
+    if (jenv == NULL) {
         return SSL_FAILURE;
+    }
 
     /* wolfSSL java caller checks for null pointer */
     sslPtr = (jlong)(uintptr_t)wolfSSL_new((WOLFSSL_CTX*)(uintptr_t)ctx);
 
     if (sslPtr != 0) {
         /* create global reference to WolfSSLSession jobject */
-        g_cachedObj = (jobject*)XMALLOC(sizeof(jobject), NULL,
+        g_cachedSSLObj = (jobject*)XMALLOC(sizeof(jobject), NULL,
                                         DYNAMIC_TYPE_TMP_BUFFER);
-        if (!g_cachedObj) {
+        if (g_cachedSSLObj == NULL) {
             printf("error mallocing memory in newSSL\n");
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
-        *g_cachedObj = (*jenv)->NewGlobalRef(jenv, jcl);
-        if (!*g_cachedObj) {
+        *g_cachedSSLObj = (*jenv)->NewGlobalRef(jenv, jcl);
+        if (*g_cachedSSLObj == NULL) {
             printf("error storing global WolfSSLSession object\n");
-            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
-            return SSL_FAILURE;
-        }
-        /* cache associated WolfSSLSession jobject in native WOLFSSL */
-        ret = wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, g_cachedObj);
-        if (ret != SSL_SUCCESS) {
-            printf("error storing jobject in wolfSSL native session\n");
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -207,6 +202,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (appData == NULL) {
             printf("error allocating memory in newSSL for SSLAppData\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -218,7 +215,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
                                               DYNAMIC_TYPE_TMP_BUFFER);
         if (!jniSessLock) {
             printf("error mallocing memory in newSSL for jniSessLock\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -226,11 +225,26 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
         wc_InitMutex(jniSessLock);
         appData->jniSessLock = jniSessLock;
 
+        /* cache associated WolfSSLSession jobject in native WOLFSSL */
+        ret = wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, g_cachedSSLObj);
+        if (ret != SSL_SUCCESS) {
+            printf("error storing jobject in wolfSSL native session\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
+
+        /* cache SSLAppData into native WOLFSSL */
         if (wolfSSL_set_app_data(
                 (WOLFSSL*)(uintptr_t)sslPtr, appData) != SSL_SUCCESS) {
             printf("error setting WOLFSSL app data in newSSL\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, NULL);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
