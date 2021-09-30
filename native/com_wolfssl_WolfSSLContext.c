@@ -324,6 +324,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_freeContext
     (void)jenv;
     (void)jcl;
 
+    /* release verify callback object if set */
+    if (g_verifyCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_verifyCbIfaceObj);
+        g_verifyCbIfaceObj = NULL;
+    }
+
     /* wolfSSL checks for null pointer */
     wolfSSL_CTX_free((WOLFSSL_CTX*)(uintptr_t)ctx);
 }
@@ -333,13 +339,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setVerify(JNIEnv* jenv,
 {
     (void)jcl;
 
+    if (jenv == NULL) {
+        return;
+    }
+
+    /* release verify callback object if set before */
+    if (g_verifyCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_verifyCbIfaceObj);
+        g_verifyCbIfaceObj = NULL;
+    }
+
     if (!callbackIface) {
         wolfSSL_CTX_set_verify((WOLFSSL_CTX*)(uintptr_t)ctx, mode, NULL);
-    } else {
-
+    }
+    else {
         /* store Java verify Interface object */
         g_verifyCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callbackIface);
-        if (!g_verifyCbIfaceObj) {
+        if (g_verifyCbIfaceObj == NULL) {
             printf("error storing global callback interface\n");
         }
 
