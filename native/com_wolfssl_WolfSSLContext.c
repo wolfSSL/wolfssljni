@@ -330,6 +330,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_freeContext
         g_verifyCbIfaceObj = NULL;
     }
 
+    /* release global CRL callback object if set */
+    if (g_crlCtxCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCtxCbIfaceObj);
+        g_crlCtxCbIfaceObj = NULL;
+    }
+
     /* wolfSSL checks for null pointer */
     wolfSSL_CTX_free((WOLFSSL_CTX*)(uintptr_t)ctx);
 }
@@ -1528,25 +1534,34 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
     (void)jcl;
 
-    if (!jenv || !ctx || !cb) {
+    if (jenv == NULL || ctx == 0) {
         return BAD_FUNC_ARG;
     }
 
-    /* store Java CRL callback Interface object */
-    g_crlCtxCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
-
-    if (!g_crlCtxCbIfaceObj) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-                "error storing global missing CTX CRL callback interface");
+    /* release global CRL callback object if set */
+    if (g_crlCtxCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCtxCbIfaceObj);
+        g_crlCtxCbIfaceObj = NULL;
     }
 
-    ret = wolfSSL_CTX_SetCRL_Cb((WOLFSSL_CTX*)(uintptr_t)ctx,
-                                NativeCtxMissingCRLCallback);
+    if (cb != NULL) {
+        /* store Java CRL callback Interface object */
+        g_crlCtxCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
+
+        if (!g_crlCtxCbIfaceObj) {
+            excClass = (*jenv)->FindClass(jenv,
+                                    "com/wolfssl/WolfSSLJNIException");
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "error storing global missing CTX CRL callback interface");
+        }
+
+        ret = wolfSSL_CTX_SetCRL_Cb((WOLFSSL_CTX*)(uintptr_t)ctx,
+                                    NativeCtxMissingCRLCallback);
+    }
 
     return ret;
 #else
