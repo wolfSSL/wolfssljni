@@ -555,6 +555,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
     (void)jenv;
     (void)jcl;
 
+    /* release global logging callback object if registered */
+    if (g_loggingCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_loggingCbIfaceObj);
+        g_loggingCbIfaceObj = NULL;
+    }
+
     return wolfSSL_Cleanup();
 }
 
@@ -583,18 +589,26 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
 
     (void)jcl;
 
-    if (!jenv || !callback) {
+    if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* store Java logging callback Interface object */
-    g_loggingCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
-    if (!g_loggingCbIfaceObj) {
-        printf("error storing global logging callback interface\n");
-        return SSL_FAILURE;
+    /* release existing logging callback object if registered */
+    if (g_loggingCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_loggingCbIfaceObj);
+        g_loggingCbIfaceObj = NULL;
     }
 
-    ret = wolfSSL_SetLoggingCb(NativeLoggingCallback);
+    if (callback != NULL) {
+        /* store Java logging callback Interface object */
+        g_loggingCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
+        if (g_loggingCbIfaceObj == NULL) {
+            printf("error storing global logging callback interface\n");
+            return SSL_FAILURE;
+        }
+
+        ret = wolfSSL_SetLoggingCb(NativeLoggingCallback);
+    }
 
     return ret;
 }
