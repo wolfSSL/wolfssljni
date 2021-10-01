@@ -798,6 +798,10 @@ void NativeFIPSErrorCallback(const int ok, const int err,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeFIPSErrorCallback");
     }
+#else
+    (void)ok;
+    (void)err;
+    (void)hash;
 #endif
 }
 
@@ -847,6 +851,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getWolfCryptFIPSCoreHash
 #ifdef HAVE_FIPS
     return (*jenv)->NewStringUTF(jenv, wolfCrypt_GetCoreHash_fips());
 #else
+    (void)jenv;
+    (void)jcl;
     return NULL;
 #endif
 }
