@@ -730,7 +730,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
 
         } while (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ);
 
-        (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, JNI_COMMIT);
+        /* JNI_COMMIT commits the data but does not free the local array
+         * 0 is used here to both commit and free */
+        (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, 0);
     }
 
     return size;
