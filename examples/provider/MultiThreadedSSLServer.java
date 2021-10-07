@@ -24,14 +24,15 @@
  *
  * This server waits in an infinite loop for client connections, and when
  * connected creates a new thread for each connection. This example is compiled
- * when 'ant' is run in the package root.
+ * when 'ant examples' is run in the package root.
  *
- * $ ant
+ * $ ant examples
  * $ ./examples/provider/MultiThreadedSSLServer.sh
  *
- * This can be tested against the normal wolfSSL example client. But, wolfSSL
- * will need to be compiled with WOLFSSL_ALT_TEST_STRINGS defined so that
- * the client strings are null terminated.
+ * For multi threaded client testing, test against MultiThreadedSSLClient.sh.
+ * For example, to connect 10 client threads:
+ *
+ * ./examples/provider/MultiThreadedSSLClient.sh -n 10
  *
  */
 import java.util.*;
@@ -44,7 +45,8 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 public class MultiThreadedSSLServer
 {
     private char[] psw = "wolfSSL test".toCharArray();
-    private String serverJKS = "./examples/provider/server.jks";
+    private String serverKS = "./examples/provider/rsa.jks";
+    private String serverTS = "./examples/provider/client.jks";
     int serverPort = 11118;
 
     public MultiThreadedSSLServer() {
@@ -52,16 +54,20 @@ public class MultiThreadedSSLServer
 
             Security.addProvider(new WolfSSLProvider());
 
-            KeyStore pKey = KeyStore.getInstance("JKS");
-            pKey.load(new FileInputStream(serverJKS), psw);
-            KeyStore cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(serverJKS), psw);
+            /* Set up KeyStore */
+            KeyStore serverKeyStore = KeyStore.getInstance("JKS");
+            serverKeyStore.load(new FileInputStream(serverKS), psw);
+
+            KeyManagerFactory km = KeyManagerFactory.getInstance("SunX509");
+            km.init(serverKeyStore, psw);
+
+            /* Set up CA TrustManagerFactory */
+            KeyStore caKeyStore = KeyStore.getInstance("JKS");
+            caKeyStore.load(new FileInputStream(serverTS), psw);
             
             TrustManagerFactory tm = TrustManagerFactory.getInstance("SunX509");
-            tm.init(cert);
-            
-            KeyManagerFactory km = KeyManagerFactory.getInstance("SunX509");
-            km.init(pKey, psw);
+            tm.init(caKeyStore);
+
 
             SSLContext ctx = SSLContext.getInstance("TLS", "wolfJSSE");
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
@@ -91,26 +97,17 @@ public class MultiThreadedSSLServer
 
         public void run() {
 
+            byte[] response = new byte[80];
+            String msg = "I hear you fa shizzle, from Java!";
+
             try {
 
-                OutputStream rawOut = sock.getOutputStream();
+                sock.startHandshake();
 
-                PrintWriter out = new PrintWriter(
-                    new BufferedWriter(
-                        new OutputStreamWriter(rawOut)));
+                sock.getInputStream().read(response);
+                System.out.println("Client message : " + new String(response));
+                sock.getOutputStream().write(msg.getBytes());
 
-                BufferedReader in = new BufferedReader(
-                    new InputStreamReader(sock.getInputStream()));
-
-                String line = in.readLine();
-                System.out.println("client: " + line);
-
-                out.print("I hear you C client!");
-                out.flush();
-                out.close();
-                in.close();
-
-                in.close();
                 sock.close();
 
             } catch (Exception e) {
