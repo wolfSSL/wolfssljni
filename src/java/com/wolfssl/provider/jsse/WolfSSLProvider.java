@@ -34,6 +34,10 @@ import com.wolfssl.WolfSSLFIPSErrorCallback;
  */
 public final class WolfSSLProvider extends Provider {
 
+    /* Keep one static reference to native wolfSSL library across
+     * all WolfSSLProvider objects. */
+    private static WolfSSL sslLib = null;
+
     public class JSSEFIPSErrorCallback implements WolfSSLFIPSErrorCallback {
         public void errorCallback(int ok, int err, String hash) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -75,7 +79,7 @@ public final class WolfSSLProvider extends Provider {
 
         try {
             /* initialize native wolfSSL */
-            WolfSSL sslLib = new WolfSSL();
+            sslLib = new WolfSSL();
         } catch (WolfSSLException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Failed to initialize native wolfSSL library");
