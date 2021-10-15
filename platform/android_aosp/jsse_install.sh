@@ -94,6 +94,15 @@ else
 
     cp $wolfssl_dir/README $aosp_wolfssl
     cp $wolfssl_dir/COPYING $aosp_wolfssl
+
+    # Touch missing files if needed. If wolfSSL has been cloned from
+    # GitHub, they don't exist. Only in stable releases.
+    if [ ! -f "$aosp_wolfssl/wolfcrypt/src/selftest.c" ]; then
+        touch "$aosp_wolfssl/wolfcrypt/src/selftest.c"
+    fi
+
+    # Create blank options.h, wolfssljni includes it
+    cp "$aosp_wolfssl/wolfssl/options.h.in" "$aosp_wolfssl/wolfssl/options.h"
 fi
 
 # Copy wolfSSL JNI sources over to AOSP code tree
