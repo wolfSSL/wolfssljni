@@ -214,6 +214,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             throws SSLPeerUnverifiedException {
         long x509;
         WolfSSLX509 cert;
+        CertificateFactory cf;
+        ByteArrayInputStream der;
+        X509Certificate exportCert;
 
         if (ssl == null) {
             throw new SSLPeerUnverifiedException("handshake not complete");
@@ -241,9 +244,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
         /* convert WolfSSLX509 into X509Certificate so we can release
          * our native memory */
-        CertificateFactory cf;
-        ByteArrayInputStream der;
-        X509Certificate exportCert;
         try {
             cf = CertificateFactory.getInstance("X.509");
         } catch (CertificateException ex) {
