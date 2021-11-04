@@ -324,6 +324,18 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_freeContext
     (void)jenv;
     (void)jcl;
 
+    /* release verify callback object if set */
+    if (g_verifyCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_verifyCbIfaceObj);
+        g_verifyCbIfaceObj = NULL;
+    }
+
+    /* release global CRL callback object if set */
+    if (g_crlCtxCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCtxCbIfaceObj);
+        g_crlCtxCbIfaceObj = NULL;
+    }
+
     /* wolfSSL checks for null pointer */
     wolfSSL_CTX_free((WOLFSSL_CTX*)(uintptr_t)ctx);
 }
@@ -333,13 +345,23 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setVerify(JNIEnv* jenv,
 {
     (void)jcl;
 
+    if (jenv == NULL) {
+        return;
+    }
+
+    /* release verify callback object if set before */
+    if (g_verifyCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_verifyCbIfaceObj);
+        g_verifyCbIfaceObj = NULL;
+    }
+
     if (!callbackIface) {
         wolfSSL_CTX_set_verify((WOLFSSL_CTX*)(uintptr_t)ctx, mode, NULL);
-    } else {
-
+    }
+    else {
         /* store Java verify Interface object */
         g_verifyCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callbackIface);
-        if (!g_verifyCbIfaceObj) {
+        if (g_verifyCbIfaceObj == NULL) {
             printf("error storing global callback interface\n");
         }
 
@@ -1512,25 +1534,34 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
     (void)jcl;
 
-    if (!jenv || !ctx || !cb) {
+    if (jenv == NULL || ctx == 0) {
         return BAD_FUNC_ARG;
     }
 
-    /* store Java CRL callback Interface object */
-    g_crlCtxCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
-
-    if (!g_crlCtxCbIfaceObj) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-                "error storing global missing CTX CRL callback interface");
+    /* release global CRL callback object if set */
+    if (g_crlCtxCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_crlCtxCbIfaceObj);
+        g_crlCtxCbIfaceObj = NULL;
     }
 
-    ret = wolfSSL_CTX_SetCRL_Cb((WOLFSSL_CTX*)(uintptr_t)ctx,
-                                NativeCtxMissingCRLCallback);
+    if (cb != NULL) {
+        /* store Java CRL callback Interface object */
+        g_crlCtxCbIfaceObj = (*jenv)->NewGlobalRef(jenv, cb);
+
+        if (!g_crlCtxCbIfaceObj) {
+            excClass = (*jenv)->FindClass(jenv,
+                                    "com/wolfssl/WolfSSLJNIException");
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "error storing global missing CTX CRL callback interface");
+        }
+
+        ret = wolfSSL_CTX_SetCRL_Cb((WOLFSSL_CTX*)(uintptr_t)ctx,
+                                    NativeCtxMissingCRLCallback);
+    }
 
     return ret;
 #else

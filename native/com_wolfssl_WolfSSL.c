@@ -555,6 +555,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
     (void)jenv;
     (void)jcl;
 
+    /* release global logging callback object if registered */
+    if (g_loggingCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_loggingCbIfaceObj);
+        g_loggingCbIfaceObj = NULL;
+    }
+
+#ifdef HAVE_FIPS
+    /* release existing FIPS callback object if set */
+    if (g_fipsCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_fipsCbIfaceObj);
+        g_fipsCbIfaceObj = NULL;
+    }
+#endif
+
     return wolfSSL_Cleanup();
 }
 
@@ -583,18 +597,26 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
 
     (void)jcl;
 
-    if (!jenv || !callback) {
+    if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* store Java logging callback Interface object */
-    g_loggingCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
-    if (!g_loggingCbIfaceObj) {
-        printf("error storing global logging callback interface\n");
-        return SSL_FAILURE;
+    /* release existing logging callback object if registered */
+    if (g_loggingCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_loggingCbIfaceObj);
+        g_loggingCbIfaceObj = NULL;
     }
 
-    ret = wolfSSL_SetLoggingCb(NativeLoggingCallback);
+    if (callback != NULL) {
+        /* store Java logging callback Interface object */
+        g_loggingCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
+        if (g_loggingCbIfaceObj == NULL) {
+            printf("error storing global logging callback interface\n");
+            return SSL_FAILURE;
+        }
+
+        ret = wolfSSL_SetLoggingCb(NativeLoggingCallback);
+    }
 
     return ret;
 }
@@ -776,6 +798,10 @@ void NativeFIPSErrorCallback(const int ok, const int err,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeFIPSErrorCallback");
     }
+#else
+    (void)ok;
+    (void)err;
+    (void)hash;
 #endif
 }
 
@@ -786,21 +812,29 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
     (void)jcl;
 
 #ifdef HAVE_FIPS
-    if (jenv == NULL || callback == NULL) {
+    if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* store Java FIPS callback Interface object */
-    g_fipsCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
-    if (!g_fipsCbIfaceObj) {
-        printf("error storing global wolfCrypt FIPS callback interface\n");
-        return SSL_FAILURE;
+    /* release existing FIPS callback object if set */
+    if (g_fipsCbIfaceObj != NULL) {
+        (*jenv)->DeleteGlobalRef(jenv, g_fipsCbIfaceObj);
+        g_fipsCbIfaceObj = NULL;
     }
 
-    /* register NativeFIPSErrorCallback, wraps Java callback */
-    ret = wolfCrypt_SetCb_fips(NativeFIPSErrorCallback);
-    if (ret == 0) {
-        ret = SSL_SUCCESS;
+    if (callback != NULL) {
+        /* store Java FIPS callback Interface object */
+        g_fipsCbIfaceObj = (*jenv)->NewGlobalRef(jenv, callback);
+        if (g_fipsCbIfaceObj == NULL) {
+            printf("error storing global wolfCrypt FIPS callback interface\n");
+            return SSL_FAILURE;
+        }
+
+        /* register NativeFIPSErrorCallback, wraps Java callback */
+        ret = wolfCrypt_SetCb_fips(NativeFIPSErrorCallback);
+        if (ret == 0) {
+            ret = SSL_SUCCESS;
+        }
     }
 #else
     (void)jenv;
@@ -817,6 +851,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getWolfCryptFIPSCoreHash
 #ifdef HAVE_FIPS
     return (*jenv)->NewStringUTF(jenv, wolfCrypt_GetCoreHash_fips());
 #else
+    (void)jenv;
+    (void)jcl;
     return NULL;
 #endif
 }

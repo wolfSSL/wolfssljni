@@ -486,7 +486,9 @@ public class WolfSSLX509Test {
                fail("failed to get cert string");
            }
 
-           /* check encoding can be parsed (throws exception if not) */
+           /* check encoding can be parsed (throws exception if not).
+            * Use WolfSSLX509 for tests below to ensure we are using our
+            * implementation of X509Certificate. */
            WolfSSLX509 tmp;
            tmp = new WolfSSLX509(peer.getEncoded());
            tmp = new WolfSSLX509(x509.getEncoded());
@@ -499,7 +501,7 @@ public class WolfSSLX509Test {
            }
 
            try {
-               x509.getIssuerUniqueID();
+               tmp.getIssuerUniqueID();
                error("\t\t... failed: A test case for getIssuerUniqueID is needed");
                fail("getIssuerUniqueID implemented without test case");
            } catch (Exception ex) {
@@ -507,7 +509,7 @@ public class WolfSSLX509Test {
            }
 
            try {
-               x509.getSubjectUniqueID();
+               tmp.getSubjectUniqueID();
                error("\t\t... failed: A test case for getSubjectUniqueID is needed");
                fail("getSubjectUniqueID implemented without test case");
            } catch (Exception ex) {
@@ -515,7 +517,7 @@ public class WolfSSLX509Test {
            }
 
            try {
-               x509.getSigAlgParams();
+               tmp.getSigAlgParams();
                error("\t\t... failed: A test case for getSigAlgParams is needed");
                fail("getSigAlgParams implemented without test case");
            } catch (Exception ex) {
