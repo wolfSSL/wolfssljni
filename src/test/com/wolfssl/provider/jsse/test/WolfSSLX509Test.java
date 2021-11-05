@@ -417,10 +417,11 @@ public class WolfSSLX509Test {
         }
 
         try {
-            X509Certificate x509;
-            javax.security.cert.X509Certificate peer;
-            X509Certificate local[];
+            java.security.cert.X509Certificate x509 = null;
+            javax.security.cert.X509Certificate peer = null;
+            java.security.cert.Certificate local[];
 
+            /* getPeerCertificateChain() returns array of javax.security.cert.X509Certificate */
             certs = client.getSession().getPeerCertificateChain();
             if (certs == null) {
                 error("\t\t... failed");
@@ -430,6 +431,7 @@ public class WolfSSLX509Test {
             peer = certs[0];
 
 
+            /* getLocalCertificates() returns array of java.security.cert.Certificate */
             local = (X509Certificate[]) server.getSession().getLocalCertificates();
             if (local == null) {
                 error("\t\t... failed");
@@ -437,7 +439,14 @@ public class WolfSSLX509Test {
                 return;
             }
             /* @TODO local.length != 2 test */
-            x509 = local[0];
+
+            /* check that getLocalCertificates() returned type X509Certificate */
+            if (local[0].getType().equals("X.509")) {
+                x509 = (X509Certificate)local[0];
+            } else {
+                error("\t\t... failed");
+                fail("getLocalCertificates() did not return X509Certificate type");
+            }
 
             if (x509.getVersion() != 3 || peer.getVersion() != 2) {
                 error("\t\t... failed");
@@ -469,16 +478,19 @@ public class WolfSSLX509Test {
                fail("failed date not after");
            }
 
-           if (!x509.getSubjectDN().getName().equals(
-                   peer.getSubjectDN().getName())) {
-               error("\t\t... failed");
-               fail("subject DN does not match");
-           }
+           /* Android KeyStore formats x509 getName() differently than peer getName() */
+           if (!tf.isAndroid()) {
+               if (!x509.getSubjectDN().getName().equals(
+                       peer.getSubjectDN().getName())) {
+                   error("\t\t... failed");
+                   fail("subject DN does not match");
+               }
 
-           if (!x509.getIssuerDN().getName().equals(
-                   peer.getIssuerDN().getName())) {
-               error("\t\t... failed");
-               fail("issuer DN does not match");
+               if (!x509.getIssuerDN().getName().equals(
+                       peer.getIssuerDN().getName())) {
+                   error("\t\t... failed");
+                   fail("issuer DN does not match");
+               }
            }
 
            if (peer.toString() == null || x509.toString() == null) {
