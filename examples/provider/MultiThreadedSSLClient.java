@@ -39,12 +39,12 @@
  * Example usage:
  *
  * $ ant examples
- * $ ./examples/provider/MultiThreadedSSLClient.java
+ * $ ./examples/provider/MultiThreadedSSLClient.sh
  *
  * This example is designed to connect against the MultiThreadedSSLServer
  * example:
  *
- * $ ./examples/provider/MultiThreadedSSLServer.java
+ * $ ./examples/provider/MultiThreadedSSLServer.sh
  *
  * This example also prints out average SSL/TLS handshake time, which is
  * measured in milliseconds on the "startHandshake()" API call.

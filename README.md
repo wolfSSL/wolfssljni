@@ -1,25 +1,154 @@
 
 # wolfSSL JSSE Provider and JNI Wrapper
 
-This package provides both a wolfSSL Java JSSE provider (**wolfJSSE**), and a thin JNI-based interface to the native [wolfSSL embedded SSL/TLS library](https://www.wolfssl.com/products/wolfssl/). These provide Java applications with SSL/TLS support up to the current [TLS 1.3](https://www.wolfssl.com/tls13) protocol standard.
+This package provides both a wolfSSL Java JSSE provider (**wolfJSSE**), and a
+thin JNI-based interface to the native
+[wolfSSL embedded SSL/TLS library](https://www.wolfssl.com/products/wolfssl/).
+These provide Java applications with SSL/TLS support up to the current
+[TLS 1.3](https://www.wolfssl.com/tls13) protocol standard.
+
+## Why use wolfJSSE?
+
+This interface gives Java applications access to all the benefits of using
+wolfSSL, including current SSL/TLS standards up to
+[TLS 1.3](https://www.wolfssl.com/tls13),
+[FIPS 140-2 and 140-3](https://www.wolfssl.com/license/fips/) support,
+performance optimizations, hardware cryptography support,
+[commercial support](https://www.wolfssl.com/products/support-and-maintenance/),
+and more!
+
+## User Manual
+
+The wolfSSL JNI/JSSE Manual is available on wolfssl.com:
+[wolfSSL JNI Manual](https://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf).
+
+For additional build instructions and more detailed comments, please check
+the manual.
+
+## Building
 
 ***Note 1)***
-The java.sh script uses a common location for the Java install location. If your Java install location is different, this could lead to an error when running java.sh. In this case, you should modify java.sh to match your environment.
+The java.sh script uses a common location for the Java install location. If
+your Java install location is different, this could lead to an error when
+running java.sh. In this case, you should modify java.sh to match your
+environment.
 
 Build targets for ant are :
-* ant build     (only builds the jar necessary for an app to use)
-* ant test      (builds the jar and tests then runs the tests, requires JUNIT setup)
-* ant examples  (builds the jar and example cases)
-* ant clean     (cleans all Java artifacts)
-* ant cleanjni  (cleans native artifacts)
+* **ant build**     (only builds the jar necessary for an app to use)
+* **ant test**      (builds the jar and tests then runs the tests, requires JUNIT setup)
+* **ant examples**  (builds the jar and example cases)
+* **ant clean**     (cleans all Java artifacts)
+* **ant cleanjni**  (cleans native artifacts)
 
-# Why use wolfSSL JSSE?
+wolfJSSE currently supports compilation on Linux/Unix and Android.
 
-This interface gives Java applications access to all the benefits of using wolfSSL, including current SSL/TLS standards up to [TLS 1.3](https://www.wolfssl.com/tls13), [FIPS 140-2 and 140-3](https://www.wolfssl.com/license/fips/) support, performance optimizations, hardware cryptography support, [commercial support](https://www.wolfssl.com/products/support-and-maintenance/), and more!
+To build wolfJSSE on Linux, first download, compile, and install wolfSSL.
+wolfSSL can be downloaded from the wolfSSL download page or cloned from
+GitHub.
 
-# Release Notes
+```
+$ unzip wolfssl-X.X.X.zip
+$ cd wolfssl-X.X.X
+$ ./configure --enable-jni
+$ make check
+$ sudo make install
+```
 
-## wolfSSL JNI Release 1.7.0 (01/15/2021)
+Then, to build wolfJSSE:
+
+```
+$ cd wolfssljni
+$ ./java.sh
+$ ant
+$ ant test
+```
+
+To compile and run the examples, use the `ant examples` target:
+
+```
+$ ant examples
+```
+
+Then, run the examples from the root directory using the provided wrapper
+scripts:
+
+```
+$ ./examples/provider/ServerJSSE.sh
+$ ./examples/provider/ClientJSSE.sh
+```
+
+## Examples
+
+Examples of using wolfssljni can be found in the `./examples` subdirectory.
+See [examples/README.md](./examples/README.md) for more details.
+
+Examples of using wolfJSSE can be found in the `./examples/provider`
+subdirectory. See [examples/provider/README.md](./examples/provider/README.md)
+for more details.
+
+## Debugging
+
+wolfJSSE debug logging can be enabled by using `-Dwolfjsse.debug=true` at
+runtime.
+
+wolfSSL native debug logging can be enabled by using `-Dwolfssl.debug=true` at
+runtime, if native wolfSSL has been compiled with `--enable-debug`.
+
+JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
+
+## Building for Android
+
+wolfSSL JNI and JSSE can be built and used on the Android platform, either
+at the application-level or installed inside a modified version of the
+Android AOSP at the system-level.
+
+### Android Application Level Usage
+
+An example Android Studio application is included in this package, to show
+users how they could include the wolfSSL native and wolfSSL JNI/JSSE sources
+in an Androi Studio application. For more details, see the Android Studio
+project and README.md located in the [./IDE/Android](./IDE/Android) directory.
+
+Using wolfJSSE at the application level will allow developers to register
+wolfJSSE as a Security provider at the application scope. The application can
+they use the Java Security API for SSL/TLS operations which will then use the
+underlying wolfJSSE provider (and subsequently native wolfSSL).
+
+Applications can add the wolfJSSE provider using:
+
+```
+import com.wolfssl.provider.jsse.WolfSSLProvider;
+...
+Security.addProvider(new WolfSSLProvider());
+```
+
+To instead insert the WolfSSLProvider as the top priority provider:
+
+```
+import com.wolfssl.provider.jsse.WolfSSLProvider;
+...
+Security.insertProviderAt(new WolfSSLProvider(), 1);
+```
+
+There are also additional Android examples using wolfSSL JNI in the
+[wolfssl-examples](https://github.com/wolfssl/wolfssl-examples/tree/master/android) repository.
+
+### Android AOSP System Level Installation
+
+wolfJSSE can be installed inside an Android AOSP build and registered at the
+OS/system level. This will allow wolfJSSE to be registered as the highest
+priority JSSE provider on Android, thus allowing any application using the
+Java Security API to automatically use wolfJSSE and wolfSSL.
+
+For details on how to install wolfJSSE in Android AOSP, see the README located
+in the [./platform/android_aosp](./platform/android_aosp) directory.
+
+Additional instructions can be found on the wolfSSL.com website:
+[Installing a JSSE Provider in Android OSP](https://www.wolfssl.com/docs/installing-a-jsse-provider-in-android-osp/).
+
+## Release Notes
+
+### wolfSSL JNI Release 1.7.0 (01/15/2021)
 
 Release 1.7.0 has bug fixes and new features including:
 
@@ -39,7 +168,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.6.0 (08/26/2020)
+### wolfSSL JNI Release 1.6.0 (08/26/2020)
 
 Release 1.6.0 has bug fixes and new features including:
 
@@ -76,7 +205,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.5.0 (01/17/2020)
+### wolfSSL JNI Release 1.5.0 (01/17/2020)
 
 Release 1.5.0 has bug fixes and new features including:
 
@@ -96,7 +225,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.4.0 (11/16/2018)
+### wolfSSL JNI Release 1.4.0 (11/16/2018)
 
 Release 1.4.0 has bug fixes and new features including:
 
@@ -116,7 +245,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.3.0 (12/04/2015)
+### wolfSSL JNI Release 1.3.0 (12/04/2015)
 
 Release 1.3.0 has bug fixes and new features including:
 
@@ -135,7 +264,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.2.0 (06/02/2015)
+### wolfSSL JNI Release 1.2.0 (06/02/2015)
 
 Release 1.2.0 has bug fixes and new features including:
 
@@ -149,7 +278,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.1.0 (10/25/2013)
+### wolfSSL JNI Release 1.1.0 (10/25/2013)
 
 Release 1.1.0 has bug fixes and new features including:
 
@@ -165,7 +294,7 @@ http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
 
 
-## wolfSSL JNI Release 1.0.0 (10/25/2013)
+### wolfSSL JNI Release 1.0.0 (10/25/2013)
 
 Release 1.0.0 is the first public release of wolfSSL JNI, the Java wrapper for
 the CyaSSL embedded SSL library.
@@ -173,4 +302,8 @@ the CyaSSL embedded SSL library.
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
 instructions and more detailed comments, please check the manual.
+
+## Support
+
+For support inquiries and feedback please contact support@wolfssl.com.
 
