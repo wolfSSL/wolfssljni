@@ -52,7 +52,7 @@ public class WolfSSLTest {
         test_WolfSSL_new(lib);
         test_WolfSSL_protocol();
         test_WolfSSL_Method_Allocators(lib);
-
+        testGetCiphersAvailableIana();
     }
 
     public void test_WolfSSL_new(WolfSSL lib) {
@@ -110,6 +110,23 @@ public class WolfSSLTest {
             WolfSSL.nativeFree(method);
         }
         System.out.println("\t\t... passed");
+    }
+
+    public void testGetCiphersAvailableIana() {
+        System.out.print("\tgetCiphersAvailableIana()");
+
+        String[] ciphers = WolfSSL.getCiphersAvailableIana(
+                WolfSSL.TLS_VERSION.SSLv23);
+        if (ciphers == null) {
+            System.out.println("\t... failed");
+            fail("available ciphers array was null");
+        }
+        if (ciphers.length == 0) {
+            System.out.println("\t... failed");
+            fail("available ciphers array length was zero");
+        }
+
+        System.out.println("\t... passed");
     }
 }
 

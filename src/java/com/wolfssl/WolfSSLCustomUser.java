@@ -1,4 +1,3 @@
-
 /* WolfSSLCustomUser.java
  *
  * Copyright (C) 2006-2021 wolfSSL Inc.
@@ -22,7 +21,7 @@
 
 package com.wolfssl.provider.jsse;
 import  com.wolfssl.WolfSSL;
-import  com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
+import  com.wolfssl.WolfSSL.TLS_VERSION;
 
 /**
  * Base class is intended to give some customizing points.

@@ -1048,6 +1048,155 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
     return retString;
 }
 
+/* Returns list of available cipher suites in IANA format. Uses
+ * wolfSSL_get_ciphers_compat() in order to get a prioritized list. Normal
+ * wolfSSL_get_ciphers() returns list of compiled-in cipher suites, but not
+ * in same priority order that would be set during a normal connection.
+ *
+ * @param protocolVersion protocol version that matches the Enum in
+ *        src/java/com/wolfssl/WolfSSL.java:
+ *
+ *        public static enum TLS_VERSION {
+ *            INVALID, (0)
+ *            TLSv1,   (1)
+ *            TLSv1_1, (2)
+ *            TLSv1_2, (3)
+ *            TLSv1_3, (4)
+ *            SSLv23   (5)
+ *        }
+ * @returns colon-separated cipher suite string.
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
+  (JNIEnv* jenv, jclass jcl, jint protocolVersion)
+{
+    char cipherList[4096];
+    int i = 0;
+    int numCiphers = 0;
+#if defined(WOLFSSL_CIPHER_INTERNALNAME) || defined(NO_ERROR_STRINGS) || \
+    defined(WOLFSSL_QT)
+    int ret = 0;
+    int flags;
+    byte cipherSuite0;
+    byte cipherSuite;
+#endif
+    const char* cipherName = NULL;
+    const char* ianaName = NULL;
+    WOLFSSL_METHOD* method = NULL;
+
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    const SSL_CIPHER* cipher = NULL;
+
+    jstring retString;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return NULL;
+    }
+
+    if (protocolVersion < 0 || protocolVersion > 5) {
+        printf("Input protocol version invalid: %d\n", protocolVersion);
+        return NULL;
+    }
+
+    XMEMSET(cipherList, 0, sizeof(cipherList));
+
+    switch (protocolVersion) {
+#ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        case 1:
+            method = wolfTLSv1_client_method();
+            break;
+    #endif
+        case 2:
+            method = wolfTLSv1_1_client_method();
+            break;
+#endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
+        case 3:
+            method = wolfTLSv1_2_client_method();
+            break;
+#endif
+#ifdef WOLFSSL_TLS13
+        case 4:
+            method = wolfTLSv1_3_client_method();
+            break;
+#endif
+        case 5:
+            method = wolfSSLv23_client_method();
+            break;
+        default:
+            printf("Input protocol version invalid: %d\n", protocolVersion);
+            return NULL;
+    }
+
+    /* create temporary WOLFSSL_CTX and WOLFSSL structs to get expected
+     * available cipher list */
+    ctx = wolfSSL_CTX_new(method);
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    supportedCiphers = wolfSSL_get_ciphers_compat(ssl);
+    if (supportedCiphers == NULL) {
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    numCiphers = sk_num(supportedCiphers);
+
+    for (i = 0; i < numCiphers; i++) {
+        cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i);
+        if (cipher != NULL) {
+            cipherName =  wolfSSL_CIPHER_get_name(cipher);
+
+        #if defined(WOLFSSL_CIPHER_INTERNALNAME) || \
+            defined(NO_ERROR_STRINGS) || defined(WOLFSSL_QT)
+            /* CIPHER_get_name() returns internal cipher format in this case,
+             * need to convert to IANA format next */
+            ret = wolfSSL_get_cipher_suite_from_name(cipherName,
+                        &cipherSuite0, &cipherSuite, &flags);
+            if (ret == 0) {
+                ianaName = wolfSSL_get_cipher_name_iana_from_suite(
+                                cipherSuite0, cipherSuite);
+            }
+        #else
+            /* cipherName already in IANA format */
+            ianaName = cipherName;
+        #endif
+            if (ianaName != NULL) {
+                /* colon separated list */
+                if (i != 0 && (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
+                    XSTRNCAT(cipherList, ":", 1);
+                }
+                if ((XSTRLEN(ianaName) + XSTRLEN(cipherList) + 1) <
+                        sizeof(cipherList)) {
+                    XSTRNCAT(cipherList, ianaName, XSTRLEN(ianaName));
+                }
+            }
+        }
+        /* reset ianaName to NULL for next loop */
+        ianaName = NULL;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    /* build and return Java String from cipherList array */
+    retString = (*jenv)->NewStringUTF(jenv, cipherList);
+
+    return retString;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
   (JNIEnv* jenv, jclass jcl)
 {
