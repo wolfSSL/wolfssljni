@@ -26,6 +26,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/random.h>
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
@@ -63,6 +64,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
     (void)jenv;
     (void)jcl;
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
     return (jint)wolfSSL_Init();
 }
 
