@@ -874,9 +874,7 @@ public class WolfSSL {
         if (cipherSuites == null)
             return null;
 
-        String[] suiteArray = cipherSuites.split(":");
-
-        return suiteArray;
+        return cipherSuites.split(":");
     }
 
     /**
@@ -890,9 +888,7 @@ public class WolfSSL {
         if (cipherSuites == null)
             return null;
 
-        String[] suiteArray = cipherSuites.split(":");
-
-        return suiteArray;
+        return cipherSuites.split(":");
     }
 
     /**
@@ -908,9 +904,7 @@ public class WolfSSL {
         if (cipherSuites == null)
             return null;
 
-        String[] suiteArray = cipherSuites.split(":");
-
-        return suiteArray;
+        return cipherSuites.split(":");
     }
 
     /* ------------------------- isEnabled methods -------------------------- */
