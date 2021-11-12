@@ -64,10 +64,110 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
     (void)jenv;
     (void)jcl;
 
+    int ret = 0;
+
 #ifdef WC_RNG_SEED_CB
-    wc_SetSeed_Cb(wc_GenerateSeed);
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret != 0) {
+        printf("wc_SetSeed_Cb() failed");
+    }
 #endif
-    return (jint)wolfSSL_Init();
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+    /* run FIPS 140-3 conditional algorithm self tests early to prevent
+     * multi threaded issues later on */
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_AES_CBC);
+        if (ret != 0) {
+            printf("AES-CBC CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_AES_GCM);
+        if (ret != 0) {
+            printf("AES-GCM CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA1);
+        if (ret != 0) {
+            printf("HMAC-SHA1 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_256);
+        if (ret != 0) {
+            printf("HMAC-SHA2-256 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_512);
+        if (ret != 0) {
+            printf("HMAC-SHA2-512 CAST failed");
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA3_256);
+        if (ret != 0) {
+            printf("HMAC-SHA3-256 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_DRBG);
+        if (ret != 0) {
+            printf("Hash_DRBG CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_RSA_SIGN_PKCS1v15);
+        if (ret != 0) {
+            printf("RSA sign CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z);
+        if (ret != 0) {
+            printf("ECC Primitive Z CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_DH_PRIMITIVE_Z);
+        if (ret != 0) {
+            printf("DH Primitive Z CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_ECDSA);
+        if (ret != 0) {
+            printf("ECDSA CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_TLS12);
+        if (ret != 0) {
+            printf("KDF TLSv1.2 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_TLS13);
+        if (ret != 0) {
+            printf("KDF TLSv1.3 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_SSH);
+        if (ret != 0) {
+            printf("KDF SSHv2.0 CAST failed");
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        return (jint)wolfSSL_Init();
+    } else {
+        return (jint)WOLFSSL_FAILURE;
+    }
 }
 
 /* used in unit tests */
