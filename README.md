@@ -152,6 +152,7 @@ Additional instructions can be found on the wolfSSL.com website:
 
 Release 1.8.0 has bug fixes and new features including:
 
+* wolfCrypt FIPS 140-3 and FIPS Ready compatibility
 * Add Socket method wrappers, fixes behavior when inner Socket used with JSSE
 * Add wrappers to get FIPS verifyCore hash (FIPS error cb or directly)
 * Fix potential NullPointerException with several clone() methods
