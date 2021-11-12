@@ -34,6 +34,18 @@ import java.net.Socket;
  */
 public class WolfSSL {
 
+    /* If this enum is changed, also change switch statement cases in
+     * ./native/com_wolfssl_WolfSSL.c,
+     * Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana() */
+    public static enum TLS_VERSION {
+        INVALID,
+        TLSv1,
+        TLSv1_1,
+        TLSv1_2,
+        TLSv1_3,
+        SSLv23
+    }
+
     /* ------------------ wolfSSL JNI error codes ----------------------- */
     public final static int JNI_SESSION_UNAVAILABLE = -10001;
 
@@ -286,6 +298,7 @@ public class WolfSSL {
 
     static native String getEnabledCipherSuites();
     static native String getEnabledCipherSuitesIana();
+    static native String getAvailableCipherSuitesIana(int version);
 
     /* ------------------------- Java methods --------------------------- */
 
@@ -861,13 +874,13 @@ public class WolfSSL {
         if (cipherSuites == null)
             return null;
 
-        String[] suiteArray = cipherSuites.split(":");
-
-        return suiteArray;
+        return cipherSuites.split(":");
     }
 
     /**
-     * Gets a list of all cipher suites supported and uses the format TLS_*
+     * Gets a list of all cipher suites supported by native wolfSSL and
+     * uses the format TLS_*. This list may not be in priority order. If
+     * priority order is desired, see getCiphersAvailableIana().
      * @return list of all cipher suites supported
      */
     public static String[] getCiphersIana() {
@@ -875,9 +888,23 @@ public class WolfSSL {
         if (cipherSuites == null)
             return null;
 
-        String[] suiteArray = cipherSuites.split(":");
+        return cipherSuites.split(":");
+    }
 
-        return suiteArray;
+    /**
+     * Gets a list of all cipher suites available for current native wolfSSL
+     * configuration and selected protocol level. In the format TLS_*.
+     *
+     * @param version protocol version for which to get cipher suites.
+     * @return list of cipher suites.
+     */
+    public static String[] getCiphersAvailableIana(TLS_VERSION version) {
+        /* passing Enum as ordinal to JNI layer, see com_wolfssl_WolfSSL.c */
+        String cipherSuites = getAvailableCipherSuitesIana(version.ordinal());
+        if (cipherSuites == null)
+            return null;
+
+        return cipherSuites.split(":");
     }
 
     /* ------------------------- isEnabled methods -------------------------- */

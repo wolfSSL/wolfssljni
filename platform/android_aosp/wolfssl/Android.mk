@@ -52,6 +52,7 @@ LOCAL_SRC_FILES+= \
 	./wolfcrypt/src/hmac.c \
 	./wolfcrypt/src/idea.c \
 	./wolfcrypt/src/integer.c \
+	./wolfcrypt/src/kdf.c \
 	./wolfcrypt/src/logging.c \
 	./wolfcrypt/src/md2.c \
 	./wolfcrypt/src/md4.c \

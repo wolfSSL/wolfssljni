@@ -29,6 +29,8 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContextSpi;
@@ -42,10 +44,10 @@ import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSL.TLS_VERSION;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.provider.jsse.WolfSSLAuthStore;
-import com.wolfssl.provider.jsse.WolfSSLAuthStore.TLS_VERSION;
 
 /**
  * wolfSSL implementation of SSLContextSpi
@@ -64,9 +66,13 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void createCtx() throws WolfSSLException {
         long method;
+        String[] ciphersIana = null;
+
+        /* Get available wolfSSL cipher suites in IANA format */
+        ciphersIana = WolfSSL.getCiphersAvailableIana(this.currentVersion);
 
         WolfSSLCustomUser ctxAttr = WolfSSLCustomUser.GetCtxAttributes
-                          (this.currentVersion, WolfSSL.getCiphersIana());
+                          (this.currentVersion, ciphersIana);
 
         if(ctxAttr.version == TLS_VERSION.TLSv1   ||
            ctxAttr.version == TLS_VERSION.TLSv1_1 ||
@@ -128,7 +134,7 @@ public class WolfSSLContext extends SSLContextSpi {
         }
 
         /* auto-populate enabled ciphersuites with supported ones */
-        if(ctxAttr.list != null) {
+        if(ctxAttr.list != null && ctxAttr.list.length > 0) {
             params.setCipherSuites(ctxAttr.list);
         } else {
             params.setCipherSuites(WolfSSL.getCiphersIana());

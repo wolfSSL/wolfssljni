@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSL.TLS_VERSION;
 import com.wolfssl.WolfSSLSession;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -50,15 +51,6 @@ import java.util.Map;
  * Helper class used to store common settings, objects, etc.
  */
 public class WolfSSLAuthStore {
-
-    static enum TLS_VERSION {
-        INVALID,
-        TLSv1,
-        TLSv1_1,
-        TLSv1_2,
-        TLSv1_3,
-        SSLv23
-    }
 
     private TLS_VERSION currentVersion = TLS_VERSION.INVALID;
 

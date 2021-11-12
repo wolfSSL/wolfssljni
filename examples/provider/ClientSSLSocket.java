@@ -36,13 +36,12 @@
  * The wrapper script enables javax.net logging, by defining:
  * -Djavax.net.debug=all
  *
- * Example usag for connecting to the wolfSSL example server is:
+ * Example usage for connecting to the wolfSSL example server is:
  *
  * $ ./examples/provider/ClientSSLSocket.sh 127.0.0.1 11111 \
- *   ./examples/provider/client.jks ./examples/provider/cacerts.jks
+ *   ./examples/provider/client.jks ./examples/provider/client.jks
  * 
- * The password for both client.jks and cacerts.jks is:
- * "wolfSSL test"
+ * The password for client.jks is: "wolfSSL test"
  */
 
 import java.io.*;

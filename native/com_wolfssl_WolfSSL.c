@@ -26,6 +26,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/random.h>
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
@@ -63,7 +64,110 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
     (void)jenv;
     (void)jcl;
 
-    return (jint)wolfSSL_Init();
+    int ret = 0;
+
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret != 0) {
+        printf("wc_SetSeed_Cb() failed");
+    }
+#endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+    /* run FIPS 140-3 conditional algorithm self tests early to prevent
+     * multi threaded issues later on */
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_AES_CBC);
+        if (ret != 0) {
+            printf("AES-CBC CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_AES_GCM);
+        if (ret != 0) {
+            printf("AES-GCM CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA1);
+        if (ret != 0) {
+            printf("HMAC-SHA1 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_256);
+        if (ret != 0) {
+            printf("HMAC-SHA2-256 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_512);
+        if (ret != 0) {
+            printf("HMAC-SHA2-512 CAST failed");
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_HMAC_SHA3_256);
+        if (ret != 0) {
+            printf("HMAC-SHA3-256 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_DRBG);
+        if (ret != 0) {
+            printf("Hash_DRBG CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_RSA_SIGN_PKCS1v15);
+        if (ret != 0) {
+            printf("RSA sign CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z);
+        if (ret != 0) {
+            printf("ECC Primitive Z CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_DH_PRIMITIVE_Z);
+        if (ret != 0) {
+            printf("DH Primitive Z CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_ECDSA);
+        if (ret != 0) {
+            printf("ECDSA CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_TLS12);
+        if (ret != 0) {
+            printf("KDF TLSv1.2 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_TLS13);
+        if (ret != 0) {
+            printf("KDF TLSv1.3 CAST failed");
+        }
+    }
+    if (ret == 0) {
+        ret = wc_RunCast_fips(FIPS_CAST_KDF_SSH);
+        if (ret != 0) {
+            printf("KDF SSHv2.0 CAST failed");
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        return (jint)wolfSSL_Init();
+    } else {
+        return (jint)WOLFSSL_FAILURE;
+    }
 }
 
 /* used in unit tests */
@@ -1044,6 +1148,155 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
     }
 
     retString = (*jenv)->NewStringUTF(jenv, ciphers);
+
+    return retString;
+}
+
+/* Returns list of available cipher suites in IANA format. Uses
+ * wolfSSL_get_ciphers_compat() in order to get a prioritized list. Normal
+ * wolfSSL_get_ciphers() returns list of compiled-in cipher suites, but not
+ * in same priority order that would be set during a normal connection.
+ *
+ * @param protocolVersion protocol version that matches the Enum in
+ *        src/java/com/wolfssl/WolfSSL.java:
+ *
+ *        public static enum TLS_VERSION {
+ *            INVALID, (0)
+ *            TLSv1,   (1)
+ *            TLSv1_1, (2)
+ *            TLSv1_2, (3)
+ *            TLSv1_3, (4)
+ *            SSLv23   (5)
+ *        }
+ * @returns colon-separated cipher suite string.
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
+  (JNIEnv* jenv, jclass jcl, jint protocolVersion)
+{
+    char cipherList[4096];
+    int i = 0;
+    int numCiphers = 0;
+#if defined(WOLFSSL_CIPHER_INTERNALNAME) || defined(NO_ERROR_STRINGS) || \
+    defined(WOLFSSL_QT)
+    int ret = 0;
+    int flags;
+    byte cipherSuite0;
+    byte cipherSuite;
+#endif
+    const char* cipherName = NULL;
+    const char* ianaName = NULL;
+    WOLFSSL_METHOD* method = NULL;
+
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    const SSL_CIPHER* cipher = NULL;
+
+    jstring retString;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return NULL;
+    }
+
+    if (protocolVersion < 0 || protocolVersion > 5) {
+        printf("Input protocol version invalid: %d\n", protocolVersion);
+        return NULL;
+    }
+
+    XMEMSET(cipherList, 0, sizeof(cipherList));
+
+    switch (protocolVersion) {
+#ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        case 1:
+            method = wolfTLSv1_client_method();
+            break;
+    #endif
+        case 2:
+            method = wolfTLSv1_1_client_method();
+            break;
+#endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
+        case 3:
+            method = wolfTLSv1_2_client_method();
+            break;
+#endif
+#ifdef WOLFSSL_TLS13
+        case 4:
+            method = wolfTLSv1_3_client_method();
+            break;
+#endif
+        case 5:
+            method = wolfSSLv23_client_method();
+            break;
+        default:
+            printf("Input protocol version invalid: %d\n", protocolVersion);
+            return NULL;
+    }
+
+    /* create temporary WOLFSSL_CTX and WOLFSSL structs to get expected
+     * available cipher list */
+    ctx = wolfSSL_CTX_new(method);
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    supportedCiphers = wolfSSL_get_ciphers_compat(ssl);
+    if (supportedCiphers == NULL) {
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    numCiphers = sk_num(supportedCiphers);
+
+    for (i = 0; i < numCiphers; i++) {
+        cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i);
+        if (cipher != NULL) {
+            cipherName =  wolfSSL_CIPHER_get_name(cipher);
+
+        #if defined(WOLFSSL_CIPHER_INTERNALNAME) || \
+            defined(NO_ERROR_STRINGS) || defined(WOLFSSL_QT)
+            /* CIPHER_get_name() returns internal cipher format in this case,
+             * need to convert to IANA format next */
+            ret = wolfSSL_get_cipher_suite_from_name(cipherName,
+                        &cipherSuite0, &cipherSuite, &flags);
+            if (ret == 0) {
+                ianaName = wolfSSL_get_cipher_name_iana_from_suite(
+                                cipherSuite0, cipherSuite);
+            }
+        #else
+            /* cipherName already in IANA format */
+            ianaName = cipherName;
+        #endif
+            if (ianaName != NULL) {
+                /* colon separated list */
+                if (i != 0 && (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
+                    XSTRNCAT(cipherList, ":", 1);
+                }
+                if ((XSTRLEN(ianaName) + XSTRLEN(cipherList) + 1) <
+                        sizeof(cipherList)) {
+                    XSTRNCAT(cipherList, ianaName, XSTRLEN(ianaName));
+                }
+            }
+        }
+        /* reset ianaName to NULL for next loop */
+        ianaName = NULL;
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    /* build and return Java String from cipherList array */
+    retString = (*jenv)->NewStringUTF(jenv, cipherList);
 
     return retString;
 }
