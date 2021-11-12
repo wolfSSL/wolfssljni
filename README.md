@@ -148,6 +148,41 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Release Notes
 
+### wolfSSL JNI Release 1.8.0 (11/12/2021)
+
+Release 1.8.0 has bug fixes and new features including:
+
+* Add Socket method wrappers, fixes behavior when inner Socket used with JSSE
+* Add wrappers to get FIPS verifyCore hash (FIPS error cb or directly)
+* Fix potential NullPointerException with several clone() methods
+* Refactor of SSLSessionContext implementation
+* Fix behavior of WolfSSLSocket.getSoTimeout() when external Socket is wrapped
+* Fix timeout used in socketSelect to correctly handle fractional sec timeouts
+* Fix memory leak when custom X509TrustManager is used with wolfJSSE
+* Add support for multiple X509TrustManager objects across multiple sessions
+* Call WolfSSL.cleanup() in finalizer to release library resources earlier
+* Release native WOLFSSL memory sooner, when WolfSSLSocket is closed
+* Better management and freeing of native WolfSSLCertificate memory
+* Release native logging callback when library is freed
+* Release native wolfCrypt FIPS callback when library is freed
+* Release CTX-level Java verify callback when CTX is freed
+* Release CTX-level Java CRL callback when CTX is freed
+* Better global reference cleanup in error conditions
+* Fix unused variable warnings in non-FIPS builds
+* Use one static WolfSSL object across all WolfSSLProvider objects
+* Release local JNI array inside WolfSSLSession.read() on function exit
+* Add multi-threaded JSSE provider client and server examples
+* Update Android AOSP install script to create missing blank files if needed
+* Update Android AOSP build fies to define `SIZEOF_LONG` and `SIZEOF_LONG_LONG`
+* Update IDE/Android example Android Studio project
+* Fix default cipher suite list order used in JSSE WolfSSLContext objects
+* Fix FIPS Ready compatibility with `WC_RNG_SEED_CB`
+* Update Android AOSP Android.mk to compile wolfCrypt kdf.c
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.7.0 (01/15/2021)
 
 Release 1.7.0 has bug fixes and new features including:
