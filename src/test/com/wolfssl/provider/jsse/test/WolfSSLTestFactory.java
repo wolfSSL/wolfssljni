@@ -75,7 +75,8 @@ class WolfSSLTestFactory {
     protected String googleCACert;
     protected String exampleComCert;
 
-    protected final static char[] jksPass = "wolfSSL test".toCharArray();
+    protected final static String jksPassStr = "wolfSSL test";
+    protected final static char[] jksPass = jksPassStr.toCharArray();
     protected String keyStoreType = "JKS";
     private boolean extraDebug = false;
 

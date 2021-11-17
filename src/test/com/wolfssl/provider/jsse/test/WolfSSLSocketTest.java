@@ -175,12 +175,12 @@ public class WolfSSLSocketTest {
         try {
             /* set up KeyStore */
             InputStream stream = new FileInputStream(tf.clientJKS);
-            pKey = KeyStore.getInstance("JKS");
+            pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
 
             stream = new FileInputStream(tf.clientJKS);
-            cert = KeyStore.getInstance("JKS");
+            cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
             stream.close();
 
@@ -1539,6 +1539,212 @@ public class WolfSSLSocketTest {
             e.printStackTrace();
             fail();
         }
+
+        System.out.println("\t... passed");
+    }
+
+
+    @Test
+    public void testClientServerUsingSystemProperties() throws Exception {
+
+        System.out.print("\tSystem Property Store Support");
+
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        /* not specifying TrustStore and KeyStore, expect to load from
+         * system properties set above */
+        ctx.init(null, null, null);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        /* ------------------------------------------------ */
+        /* Test with bad trustStorePassword, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", "badpass");
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* ------------------------------------------------ */
+        /* Test with bad trustStore path, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", "badstorepath");
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* ------------------------------------------------ */
+        /* Test with bad trustStore type, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", "badtype");
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* ------------------------------------------------ */
+        /* Test with bad keyStorePassword, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", "badpass");
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* ------------------------------------------------ */
+        /* Test with bad keyStore path, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", "badpath");
+        System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* ------------------------------------------------ */
+        /* Test with bad keyStore type, expect to fail */
+        /* ------------------------------------------------ */
+        System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
+        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+
+        System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
+        System.setProperty("javax.net.ssl.keyStoreType", "badtype");
+        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+
+        ctx = SSLContext.getInstance("TLS", ctxProvider);
+
+        try {
+            /* not specifying TrustStore and KeyStore, expect to load from
+             * system properties set above */
+            ctx.init(null, null, null);
+            System.out.println("\t... failed");
+            fail();
+        } catch (KeyManagementException e) {
+            /* expected: java.io.IOException: keystore password was incorrect */
+        }
+
+        /* reset properties back to empty */
+        System.clearProperty("javax.net.ssl.trustStore");
+        System.clearProperty("javax.net.ssl.trustStoreType");
+        System.clearProperty("javax.net.ssl.trustStorePassword");
+        System.clearProperty("javax.net.ssl.keyStore");
+        System.clearProperty("javax.net.ssl.keyStoreType");
+        System.clearProperty("javax.net.ssl.keyStorePassword");
 
         System.out.println("\t... passed");
     }

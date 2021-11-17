@@ -90,8 +90,10 @@ public class WolfSSLAuthStore {
         this.currentVersion = version;
         store = new SessionStore<Integer,
                                  WolfSSLImplementSSLSession>(defaultCacheSize);
-        this.serverCtx = new WolfSSLSessionContext(this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
-        this.clientCtx = new WolfSSLSessionContext(this, defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
+        this.serverCtx = new WolfSSLSessionContext(
+                this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
+        this.clientCtx = new WolfSSLSessionContext(
+                this, defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
     }
 
     /**
@@ -106,7 +108,8 @@ public class WolfSSLAuthStore {
         if (managers == null || managers.length == 0) {
             try {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "searching installed providers for X509KeyManager");
+                    "searching installed providers for X509KeyManager (type: "
+                    + KeyManagerFactory.getDefaultAlgorithm() +")");
 
                 /* use key managers from installed security providers */
                 KeyManagerFactory kmFactory = KeyManagerFactory.getInstance(
@@ -126,9 +129,9 @@ public class WolfSSLAuthStore {
         if (managers != null) {
             for (int i = 0; i < managers.length; i++) {
                 if (managers[i] instanceof X509KeyManager) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "located X509KeyManager instance");
                     km = (X509KeyManager)managers[i];
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "located X509KeyManager instance: " + km);
                     break;
                 }
             }
@@ -166,9 +169,9 @@ public class WolfSSLAuthStore {
         if (managers != null) {
             for (int i = 0; i < managers.length; i++) {
                 if (managers[i] instanceof X509TrustManager) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "located X509TrustManager instance");
                     tm = (X509TrustManager)managers[i];
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "located X509TrustManager instance: " + tm);
                     break;
                 }
             }

@@ -111,6 +111,8 @@ public final class WolfSSLProvider extends Provider {
         }
 
         /* Key Factory */
+        put("KeyManagerFactory.PKIX",
+                "com.wolfssl.provider.jsse.WolfSSLKeyManager");
         put("KeyManagerFactory.X509",
                 "com.wolfssl.provider.jsse.WolfSSLKeyManager");
         put("KeyManagerFactory.SunX509",

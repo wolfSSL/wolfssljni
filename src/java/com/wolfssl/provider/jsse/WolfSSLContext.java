@@ -341,7 +341,7 @@ public class WolfSSLContext extends SSLContextSpi {
         SecureRandom sr) throws KeyManagementException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineInit()");
+            "entered engineInit(" + km + ", " + tm + ", " + sr +")");
 
         try {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);

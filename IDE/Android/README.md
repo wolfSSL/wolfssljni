@@ -15,42 +15,7 @@ Tool and version information used when testing this project:
 The following sections outline steps required to run this example on an
 Android device or emulator.
 
-## Converting JKS to BKS for Android Use
-
-On the Android device BKS format key stores are expected. To convert the
-JKS example bundles to BKS use the following commands. Note: you will need
-to download a version of the bcprov JAR from the Bouncy Castle website:
-
-```
-cd examples/provider
-./convert-to-bks.sh <path/to/provider>
-```
-
-For exmaple, when using bcprov-ext-jdk15on-169.jar:
-
-```
-cd examples/provider
-./convert-to-bks.sh ~/Downloads/bcprov-ext-jdk15on-169.jar
-```
-
-## Push BKS to Android Device or Emulator
-
-Push BKS bundles up to the device along with certificates. To do this start
-up the emulator/device and use `adb push`. An example of this would be the
-following commands from root wolfssljni directory:
-
-```
-adb shell
-cd sdcard
-mkdir examples
-mkdir examples/provider
-mkdir examples/certs
-exit
-adb push ./examples/provider/*.bks /sdcard/examples/provider/
-adb push ./examples/certs/ /sdcard/examples/
-```
-
-## Add Native wolfSSL Library Source Code to Project
+## 1. Add Native wolfSSL Library Source Code to Project
 
 This example project is already set up to compile and build the native
 wolfSSL library source files, but the wolfSSL files themselves have not been
@@ -85,16 +50,54 @@ $ cd /IDE/Android/app/src/main/cpp/
 $ ln -s /path/to/local/wolfssl ./wolfssl
 ```
 
-## Importing and Building the Example Project with Android Studio
+## 2. Convert Example JKS files to BKS for Android Use
 
-4) Open the Android Studio project by double clicking on the `Android` folder
-in wolfssljni/IDE/
+On an Android device BKS format key stores are expected. To convert the
+JKS example bundles to BKS use the following commands. Note: you will need
+to download a version of the bcprov JAR from the Bouncy Castle website:
 
-5) Build the project and run MainActivity from app -> java/com/example.wolfssl.
+```
+cd examples/provider
+./convert-to-bks.sh <path/to/provider>
+```
+
+For exmaple, when using bcprov-ext-jdk15on-169.jar:
+
+```
+cd examples/provider
+./convert-to-bks.sh ~/Downloads/bcprov-ext-jdk15on-169.jar
+```
+
+## 3. Push BKS files to Android Device or Emulator
+
+Push BKS bundles up to the device along with certificates. To do this start
+up the emulator/device and use `adb push`. An example of this would be the
+following commands from root wolfssljni directory. This step may be done
+after the starting Android Studio and compiling the project, but must be done
+before running the app or test cases.
+
+```
+adb shell
+cd sdcard
+mkdir examples
+mkdir examples/provider
+mkdir examples/certs
+exit
+adb push ./examples/provider/*.bks /sdcard/examples/provider/
+adb push ./examples/certs/ /sdcard/examples/
+```
+
+## 4. Import and Build the Example Project with Android Studio
+
+1) Open the Android Studio project by double clicking on the `Android` folder
+in wolfssljni/IDE/. Or, from inside Android Studio, open the `Android` project
+located in the wolfssljni/IDE directory.
+
+2) Build the project and run MainActivity from app -> java/com/example.wolfssl.
 This will ask for permissions to access the certificates in the /sdcard/
 directory and then print out the server certificate information on success.
 
-6) OPTIONAL: The androidTests can be run after permissions has been given.
+3) OPTIONAL: The androidTests can be run after permissions has been given.
 app->java->com.wolfssl->provider.jsse.test->WolfSSLJSSETestSuite and
 app->java->com.wolfssl->test->WolfSSLTestSuite
 

@@ -34,8 +34,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
@@ -136,7 +134,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 } catch (Exception e) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                         "Error initializing KeyStore with load(null, null)");
-                    throw e;
+                    throw new KeyStoreException(e);
                 }
 
                 if (file == null) {
@@ -262,7 +260,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                                     "Permission error when trying to read " +
                                     "system CA certificates");
-                                throw e;
+                                throw new KeyStoreException(e);
                             }
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "Found " + cafiles.length + " CA files to load " +
@@ -306,7 +304,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                                         "Error generating certificate from " +
                                         "ByteArrayInputStream");
                                     bis.close();
-                                    throw ce;
+                                    throw new KeyStoreException(ce);
                                 }
 
                                 String aliasString = "alias" + aliasCnt;
@@ -341,21 +339,13 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     stream.close();
                 }
             } catch (FileNotFoundException ex) {
-                Logger.getLogger(
-                        WolfSSLTrustManager.class.getName()).log(
-                            Level.SEVERE, null, ex);
+                throw new KeyStoreException(ex);
             } catch (IOException ex) {
-                Logger.getLogger(
-                        WolfSSLTrustManager.class.getName()).log(
-                            Level.SEVERE, null, ex);
+                throw new KeyStoreException(ex);
             } catch (NoSuchAlgorithmException ex) {
-                Logger.getLogger(
-                        WolfSSLTrustManager.class.getName()).log(
-                            Level.SEVERE, null, ex);
+                throw new KeyStoreException(ex);
             } catch (CertificateException ex) {
-                Logger.getLogger(
-                        WolfSSLTrustManager.class.getName()).log(
-                            Level.SEVERE, null, ex);
+                throw new KeyStoreException(ex);
             }
         }
         this.store = certs;
