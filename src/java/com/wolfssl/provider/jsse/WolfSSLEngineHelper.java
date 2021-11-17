@@ -647,6 +647,20 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalSecureRenegotiation() {
+        /* Enable secure renegotiation if native wolfSSL has been compiled
+         * with HAVE_SECURE_RENEGOTIATION. Some JSSE consuming apps
+         * expect that secure renegotiation will be supported. */
+        int ret = this.ssl.useSecureRenegotiation();
+        if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "error enabling secure renegotiation, ret = " + ret);
+        } else if (ret == 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "enabled secure renegotiation support for session");
+        }
+    }
+
     private void setLocalParams() {
         this.setLocalCiphers(this.params.getCipherSuites());
         this.setLocalProtocol(this.params.getProtocols());
@@ -654,6 +668,7 @@ public class WolfSSLEngineHelper {
         this.setLocalServerNames();
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
+        this.setLocalSecureRenegotiation();
     }
 
     /**

@@ -727,6 +727,22 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
   (JNIEnv *, jobject, jlong, jstring, jint);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    useSecureRenegotiation
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    rehandshake
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_rehandshake
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

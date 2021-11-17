@@ -5271,3 +5271,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    (void)jenv;
+    (void)jcl;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    return (jint)wolfSSL_CTX_UseSecureRenegotiation(
+                    (WOLFSSL_CTX*)(uintptr_t)ctx);
+#else
+    (void)ctx;
+    return NOT_COMPILED_IN;
+#endif
+}
+

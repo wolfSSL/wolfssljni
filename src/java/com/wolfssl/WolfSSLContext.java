@@ -361,6 +361,7 @@ public class WolfSSLContext {
     private native void setPskClientCb(long ctx);
     private native void setPskServerCb(long ctx);
     private native int usePskIdentityHint(long ssl, String hint);
+    private native int useSecureRenegotiation(long ctx);
 
     /* ------------------- context-specific methods --------------------- */
 
@@ -1728,6 +1729,25 @@ public class WolfSSLContext {
             throw new IllegalStateException("Object has been freed");
 
         return usePskIdentityHint(getContextPtr(), hint);
+    }
+
+    /**
+     * Enable use of secure renegotiation on this session. Calling this
+     * API does not initiate secure renegotiation, but enables it. If enabled,
+     * and peer requests secure renegotiation, this session will renegotiate.
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise negative.
+     *         Will return <code>WolfSSL.NOT_COMPILED_IN</code> if native
+     *         wolfSSL has not been compiled with
+     *         <code>HAVE_SECURE_RENEGOTIATION</code>.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int useSecureRenegotiation() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return useSecureRenegotiation(getContextPtr());
     }
 
     @SuppressWarnings("deprecation")

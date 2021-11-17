@@ -83,6 +83,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_freeSSL();
         test_WolfSSLSession_UseAfterFree();
         test_WolfSSLSession_getSessionID();
+        test_WolfSSLSession_useSecureRenegotiation();
     }
 
     public void test_WolfSSLSession_new() {
@@ -610,6 +611,46 @@ public class WolfSSLSessionTest {
         }
 
         System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLSession_useSecureRenegotiation() {
+
+        int ret, err;
+        WolfSSL sslLib = null;
+        WolfSSLContext sslCtx = null;
+        WolfSSLSession ssl = null;
+        Socket sock = null;
+        byte[] sessionID = null;
+
+        System.out.print("\tTesting useSecureRenegotiation()");
+
+        try {
+
+            /* setup library, context, session, socket */
+            sslLib = new WolfSSL();
+            sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
+            sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+            ssl = new WolfSSLSession(sslCtx);
+
+            /* test if enable call succeeds */
+            ret = ssl.useSecureRenegotiation();
+            if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("... failed");
+                ssl.freeSSL();
+                sslCtx.free();
+                return;
+            }
+
+            ssl.freeSSL();
+            sslCtx.free();
+
+        } catch (Exception e) {
+            System.out.println("... failed");
+            e.printStackTrace();
+            return;
+        }
+
+        System.out.println("... passed");
     }
 }
 

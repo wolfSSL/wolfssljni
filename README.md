@@ -155,7 +155,33 @@ in the [./platform/android_aosp](./platform/android_aosp) directory.
 Additional instructions can be found on the wolfSSL.com website:
 [Installing a JSSE Provider in Android OSP](https://www.wolfssl.com/docs/installing-a-jsse-provider-in-android-osp/).
 
+## Behavior and Functionality Notes
+
+### Secure Renegotiation Support
+
+wolfSSL JNI and JSSE provider wrap native wolfSSL APIs to enable and conduct
+secure renegotiation. For secure renegotiation functionality to be available
+in wolfSSL JNI, and enabled for use in wolfJSSE, native wolfSSL must be
+compiled with secure renegotiation support:
+
+```
+$ ./configure --enable-secure-renegotiation
+```
+
+Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
+
 ## Release Notes
+
+### wolfSSL JNI Release X.X.X (TBD)
+
+Future release X.X.X has bug fixes and new features including:
+
+**JNI and JSSE Changes:**
+* Add support for secure renegotiation if available in native wolfSSL (PR 75)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
 
 ### wolfSSL JNI Release 1.10.0 (8/11/2022)
 

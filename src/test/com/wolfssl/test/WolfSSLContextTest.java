@@ -61,6 +61,7 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_setPskClientCb();
         test_WolfSSLContext_setPskServerCb();
         test_WolfSSLContext_usePskIdentityHint();
+        test_WolfSSLContext_useSecureRenegotiation();
         test_WolfSSLContext_free();
 
     }
@@ -326,6 +327,22 @@ public class WolfSSLContextTest {
             e.printStackTrace();
         }
         System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLContext_useSecureRenegotiation() {
+        System.out.print("\tuseSecureRenegotiation()");
+        try {
+            int ret = ctx.useSecureRenegotiation();
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... failed");
+                fail("useSecureRenegotiation failed");
+            }
+        } catch (IllegalStateException e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+        }
+        System.out.println("\t... passed");
     }
 
     public void test_WolfSSLContext_free() {
