@@ -935,6 +935,17 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSession()");
 
+        try {
+            /* try to do handshake if not completed yet, handles synchronization */
+            if (this.handshakeComplete == false) {
+                this.startHandshake();
+            }
+        } catch (Exception e) {
+            /* Log error, but continue. Session returned will be empty */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Handshake attempt failed in SSLSocket.getSession()");
+        }
+
         return EngineHelper.getSession();
     }
 
