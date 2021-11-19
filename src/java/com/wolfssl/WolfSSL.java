@@ -243,6 +243,11 @@ public class WolfSSL {
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
 
+    /* ---------------------------- locks ------------------------------- */
+
+    /* lock for cleanup */
+    final private Object cleanupLock = new Object();
+
     /* ------------------------ constructors ---------------------------- */
 
     /**
@@ -978,10 +983,12 @@ public class WolfSSL {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            /* free resources, set state */
-            this.cleanup();
-            this.active = false;
+        synchronized(cleanupLock) {
+            if (this.active == true) {
+                /* free resources, set state */
+                this.cleanup();
+                this.active = false;
+            }
         }
         super.finalize();
     }
