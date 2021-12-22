@@ -71,6 +71,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -936,6 +937,67 @@ public class WolfSSLSocketTest {
             /* get SSLSession */
             SSLSession cliSess = cs.getSession();
             assertNotNull(cliSess);
+
+            cs.close();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t\t\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        ss.close();
+
+        /* ------------------------------------------------------------*/
+        /* Test that getSession() can do handshake if not completed yet
+        /* ------------------------------------------------------------*/
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+        cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server2 = (SSLSocket)ss.accept();
+
+        es = Executors.newSingleThreadExecutor();
+        serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server2.startHandshake();
+
+                    /* get SSLSession */
+                    SSLSession srvSess = server2.getSession();
+                    assertNotNull(srvSess);
+
+                    server2.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t\t\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            /* get SSLSession, without calling startHandshake() first */
+            SSLSession cliSess = cs.getSession();
+            assertNotNull(cliSess);
+
+            /* double check by seeing if we have peer certificates */
+            Certificate[] certs = cliSess.getPeerCertificates();
+            assertNotNull(certs);
+            if (certs.length == 0) {
+                System.out.println("\t\t\t... failed");
+                fail();
+            }
 
             cs.close();
 
