@@ -453,7 +453,7 @@ public class WolfSSLCertificate {
      *
      * @throws IllegalStateException WolfSSLCertificate has been freed
      */
-    public void free() throws IllegalStateException {
+    public synchronized void free() throws IllegalStateException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");

@@ -697,7 +697,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#newContext(long)
      * @see    WolfSSLContext#free()
      */
-    public void freeSSL()
+    public synchronized void freeSSL()
         throws IllegalStateException, WolfSSLJNIException {
 
         if (this.active == false)

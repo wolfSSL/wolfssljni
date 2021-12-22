@@ -600,7 +600,7 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      * @see         WolfSSLSession#freeSSL()
      */
-    public void free() throws IllegalStateException {
+    public synchronized void free() throws IllegalStateException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
