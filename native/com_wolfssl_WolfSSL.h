@@ -87,6 +87,14 @@ extern "C" {
 #define com_wolfssl_WolfSSL_WOLFSSL_OCSP_URL_OVERRIDE 1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_OCSP_NO_NONCE
 #define com_wolfssl_WolfSSL_WOLFSSL_OCSP_NO_NONCE 2L
+#undef com_wolfssl_WolfSSL_WOLFSSL_ALPN_NO_MATCH
+#define com_wolfssl_WolfSSL_WOLFSSL_ALPN_NO_MATCH 0L
+#undef com_wolfssl_WolfSSL_WOLFSSL_ALPN_MATCH
+#define com_wolfssl_WolfSSL_WOLFSSL_ALPN_MATCH 1L
+#undef com_wolfssl_WolfSSL_WOLFSSL_ALPN_CONTINUE_ON_MISMATCH
+#define com_wolfssl_WolfSSL_WOLFSSL_ALPN_CONTINUE_ON_MISMATCH 2L
+#undef com_wolfssl_WolfSSL_WOLFSSL_ALPN_FAILED_ON_MISMATCH
+#define com_wolfssl_WolfSSL_WOLFSSL_ALPN_FAILED_ON_MISMATCH 4L
 #undef com_wolfssl_WolfSSL_WOLFSSL_CBIO_ERR_GENERAL
 #define com_wolfssl_WolfSSL_WOLFSSL_CBIO_ERR_GENERAL -1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_CBIO_ERR_WANT_READ

@@ -719,6 +719,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    useALPN
+ * Signature: (JLjava/lang/String;I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
+  (JNIEnv *, jobject, jlong, jstring, jint);
+
 #ifdef __cplusplus
 }
 #endif

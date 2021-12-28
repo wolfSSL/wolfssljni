@@ -109,5 +109,49 @@ public class WolfSSLJDK8Helper
             out.setServerNames(wsni);
         }
     }
+
+    /* Call SSLParameters.setApplicationProtocols() to set ALPN protocols from
+     * WolfSSLParameters into SSLParameters */
+    protected static void setApplicationProtocols(final SSLParameters out,
+                                         final Method m, WolfSSLParameters in) {
+
+        if (out == null || m == null || in == null) {
+            throw new NullPointerException("input arguments to " +
+                "WolfSSLJDK8Helper.setApplicationProtocols() cannot be null");
+        }
+
+        final String[] appProtos = in.getApplicationProtocols();
+        if (appProtos != null) {
+            /* call SSLParameters.setApplicationProtocols() */
+            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                public Object run() {
+                    try {
+                        m.invoke(out, appProtos);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return null;
+                }
+            });
+        }
+    }
+
+    /* Call SSLParameters.getApplicationProtocols() to get ALPN protocols from
+     * SSLParameters into WolfSSLParameters */
+    protected static void getApplicationProtocols(final SSLParameters in,
+                                         WolfSSLParameters out) {
+
+        if (out == null || in == null) {
+            throw new NullPointerException("input arguments to " +
+                "WolfSSLJDK8Helper.getApplicationProtocols() cannot be null");
+        }
+
+        String[] appProtos = in.getApplicationProtocols();
+        if (appProtos != null) {
+            /* call WolfSSLParameters.setApplicationProtocols() */
+            out.setApplicationProtocols(appProtos);
+        }
+    }
 }
 

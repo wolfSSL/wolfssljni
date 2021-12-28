@@ -3676,7 +3676,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray alpnProtos)
 {
     int ret = SSL_FAILURE;
-#ifdef HAVE_ALPN
+    (void)jcl;
+#if defined(HAVE_ALPN) && (LIBWOLFSSL_VERSION_HEX >= 0x04002000)
+    /* wolfSSL_set_alpn_protos() added as of wolfSSL 4.2.0 */
     byte* buff = NULL;
     word32 buffSz = 0;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -3751,6 +3753,35 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
     (void)sslPtr;
     return NULL;
 #endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
+  (JNIEnv* jenv, jobject jcl, jlong ssl, jstring protocols, jint options)
+{
+    int ret = SSL_FAILURE;
+    (void)jcl;
+#ifdef HAVE_ALPN
+    const char* protoList;
+
+    if (jenv == NULL || ssl == 0 || protocols == NULL || options < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    protoList = (*jenv)->GetStringUTFChars(jenv, protocols, 0);
+
+    ret = (jint) wolfSSL_UseALPN((WOLFSSL*)(uintptr_t)ssl, (char*)protoList,
+            XSTRLEN(protoList), (int)options);
+
+    (*jenv)->ReleaseStringUTFChars(jenv, protocols, protoList);
+#else
+    (void)jenv;
+    (void)ssl;
+    (void)protocols;
+    (void)options;
+    ret = NOT_COMPILED_IN;
+#endif
+
+    return ret;
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv

@@ -79,6 +79,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_timeout();
         test_WolfSSLSession_status();
         test_WolfSSLSession_useSNI();
+        test_WolfSSLSession_useALPN();
         test_WolfSSLSession_freeSSL();
         test_WolfSSLSession_UseAfterFree();
         test_WolfSSLSession_getSessionID();
@@ -378,6 +379,71 @@ public class WolfSSLSessionTest {
 
         System.out.print("\tuseSNI()");
         ret = ssl.useSNI((byte)0, sniHostName.getBytes());
+        if (ret == WolfSSL.NOT_COMPILED_IN) {
+            System.out.println("\t\t\t... skipped");
+        } else if (ret != WolfSSL.SSL_SUCCESS) {
+            System.out.println("\t\t\t... failed");
+        } else {
+            System.out.println("\t\t\t... passed");
+        }
+    }
+
+    public void test_WolfSSLSession_useALPN() {
+
+        int ret;
+        String[] alpnProtos = new String[] {
+            "h2", "http/1.1"
+        };
+        byte[] alpnProtoBytes = "http/1.1".getBytes();
+
+        System.out.print("\tuseALPN()");
+
+        /* Testing useALPN(String[], int) */
+        ret = ssl.useALPN(alpnProtos,
+                          WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(alpnProtos,
+                              WolfSSL.WOLFSSL_ALPN_FAILED_ON_MISMATCH);
+        }
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(null, WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+            if (ret < 0) {
+                /* error expected, null input */
+                ret = WolfSSL.SSL_SUCCESS;
+            }
+        }
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(alpnProtos, 0);
+            if (ret < 0) {
+                /* error expected, no options */
+                ret = WolfSSL.SSL_SUCCESS;
+            }
+        }
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(alpnProtos, -123);
+            if (ret < 0) {
+                /* error expected, invalid options */
+                ret = WolfSSL.SSL_SUCCESS;
+            }
+        }
+
+        /* Testing useALPN(byte[]) */
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(alpnProtoBytes);
+        }
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ret = ssl.useALPN(null);
+            if (ret < 0) {
+                /* error expected, null input */
+                ret = WolfSSL.SSL_SUCCESS;
+            }
+        }
+
         if (ret == WolfSSL.NOT_COMPILED_IN) {
             System.out.println("\t\t\t... skipped");
         } else if (ret != WolfSSL.SSL_SUCCESS) {
