@@ -2840,10 +2840,18 @@ public class WolfSSLSession {
      */
     public String getAlpnSelectedString() throws IllegalStateException {
 
+        byte[] alpnSelectedBytes = null;
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return new String(getAlpnSelected(), StandardCharsets.UTF_8);
+        alpnSelectedBytes = getAlpnSelected();
+
+        if (alpnSelectedBytes != null) {
+            return new String(alpnSelectedBytes, StandardCharsets.UTF_8);
+        } else {
+            return null;
+        }
     }
 
     /**
