@@ -565,7 +565,7 @@ class WolfSSLTestFactory {
         if (extraDebug) {
             System.out.println("client status = " + s.toString());
         }
-        if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
+        if (result.bytesProduced() <= 0 || result.bytesConsumed() == 0) {
             throw new SSLException("Client wrap consumed/produced error");
         }
         if (!s.toString().equals("NEED_UNWRAP") ||

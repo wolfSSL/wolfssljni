@@ -183,10 +183,23 @@ public class WolfSSLEngine extends SSLEngine {
             EngineHelper.saveSession();
         }
 
+        ret = ssl.getShutdown();
+        if (ret == (WolfSSL.SSL_RECEIVED_SHUTDOWN |
+                    WolfSSL.SSL_SENT_SHUTDOWN)) {
+            /* sent and received close_notify alert, all finished */
+            closed = true;
+            this.inBoundOpen = false;
+            this.outBoundOpen = false;
+            hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+            return WolfSSL.SSL_SUCCESS;
+        }
+
         ret = ssl.shutdownSSL();
         if (ret == WolfSSL.SSL_SUCCESS) {
             /* if shutdown is successfull then is closed */
             closed = true;
+            this.inBoundOpen = false;
+            this.outBoundOpen = false;
             hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
         }
         else if (ret == WolfSSL.SSL_SHUTDOWN_NOT_DONE) {
@@ -230,7 +243,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* for sslengineresults return */
         Status status = SSLEngineResult.Status.OK;
-        if (ofst + len > in.length || out == null) {
+        if (in == null || ofst + len > in.length || out == null) {
             throw new SSLException("bad arguments");
         }
 
@@ -242,7 +255,10 @@ public class WolfSSLEngine extends SSLEngine {
         if (pro >=0 && !outBoundOpen) {
             status = SSLEngineResult.Status.CLOSED;
             ClosingConnection();
-            pro += CopyOutPacket(out, status);
+            ret = CopyOutPacket(out, status);
+            if (ret > 0) {
+                pro += ret;
+            }
         }
         else if (pro == 0) {
                 /* get buffer size */
