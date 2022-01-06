@@ -42,6 +42,7 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Arrays;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.net.ssl.KeyManagerFactory;
@@ -81,8 +82,12 @@ public class ClientJSSE {
         boolean verifyPeer = true;            /* verify peer by default */
         boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
         boolean listSuites = false;           /* list all supported cipher suites */
-        boolean listEnabledProtocols = false;  /* show enabled protocols */
-        boolean putEnabledProtocols  = false;  /* set enabled protocols */
+        boolean listEnabledProtocols = false; /* show enabled protocols */
+        boolean putEnabledProtocols  = false; /* set enabled protocols */
+
+        boolean resumeSession = false;        /* try one session resumption */
+        byte[] firstSessionId = null;         /* sess ID of first session */
+        byte[] resumeSessionId = null;        /* sess ID of resumed session */
 
         /* cert info */
         String clientJKS  = "../provider/client.jks";
@@ -172,6 +177,9 @@ public class ClientJSSE {
                 protocols = args[++i].split(" ");
                 sslVersion = -1;
 
+            } else if (arg.equals("-r")) {
+                resumeSession = true;
+
             } else {
                 printUsage();
             }
@@ -245,17 +253,66 @@ public class ClientJSSE {
         }
 
         sock.startHandshake();
+        firstSessionId = sock.getSession().getId();
         showPeer(sock);
         sock.getOutputStream().write(msg.getBytes());
         sock.getInputStream().read(back);
         System.out.println("Server message : " + new String(back));
         sock.close();
+
+        if (resumeSession) {
+            System.out.println("\nTrying session resumption...");
+            sock = (SSLSocket)sf.createSocket(host, port);
+            if (putEnabledProtocols) {
+                if(protocols != null)
+                    sock.setEnabledProtocols(protocols);
+            }
+
+            System.out.printf("Using SSLContext provider %s\n", ctx.getProvider().
+                    getName());
+
+            if (!verifyPeer) {
+                sock.setNeedClientAuth(false);
+            }
+
+            if (cipherList != null) {
+                sock.setEnabledCipherSuites(cipherList.split(":"));
+            }
+
+            sock.startHandshake();
+            resumeSessionId = sock.getSession().getId();
+            showPeer(sock);
+
+            if (Arrays.equals(firstSessionId, resumeSessionId)) {
+                System.out.println("Session resumed");
+            } else {
+                System.out.println("Session NOT resumed");
+            }
+            sock.getOutputStream().write(msg.getBytes());
+            sock.getInputStream().read(back);
+            System.out.println("Server message : " + new String(back));
+            sock.close();
+        }
     }
 
     private void showPeer(SSLSocket sock) {
+        int i = 0;
+        byte[] sessionId = null;
         SSLSession session = sock.getSession();
         System.out.println("SSL version is " + session.getProtocol());
         System.out.println("SSL cipher suite is " + session.getCipherSuite());
+
+        sessionId = session.getId();
+        if (sessionId != null) {
+            System.out.format("Session ID (%d bytes): ", sessionId.length);
+            for (i = 0; i < sessionId.length; i++) {
+                System.out.format("%02x", sessionId[i]);
+            }
+            System.out.println("");
+        }
+        System.out.println("Session created: " + session.getCreationTime());
+        System.out.println("Session accessed: " + session.getLastAccessedTime());
+
         if (WolfSSLDebug.DEBUG) {
             try {
                 Certificate[] certs = session.getPeerCertificates();
@@ -297,6 +354,7 @@ public class ClientJSSE {
                 "../provider/rsa.jks:wolfSSL test");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
                 "../provider/cacerts.jks:wolfSSL test");
+        System.out.println("-r Resume session");
         System.exit(1);
     }
 }
