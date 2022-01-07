@@ -1338,56 +1338,68 @@ public class WolfSSLSocket extends SSLSocket {
     synchronized public void close() throws IOException {
 
         int ret;
+        boolean beforeObjectInit = false;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered close()");
 
+        /* Test if this is called before WolfSSLSocket object has initialized,
+         * meaning this is called directly from super(). If so, we skip
+         * TLS-specific shutdown since not relevant. */
+        try {
+            synchronized (handshakeLock) { }
+        } catch (NullPointerException e) {
+            beforeObjectInit = true;
+        }
+
         try {
 
-            /* Check if underlying Socket is still open before closing,
-             * in case application calls SSLSocket.close() multiple times */
-            synchronized (handshakeLock) {
-                if (this.connectionClosed == true ||
-                    (this.socket != null && this.socket.isClosed()) ||
-                    (this.socket == null && super.isClosed())) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Socket already closed, skipping TLS shutdown");
-                    return;
-                }
-            }
-
-            if (ssl != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "shutting down SSL/TLS connection");
-
-                if (this.getUseClientMode() == true ) {
-                    EngineHelper.saveSession();
-                }
-
-                synchronized (ioLock) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                     "thread got ioLock (shutdown)");
-
-                    if (this.socket != null) {
-                        ret = ssl.shutdownSSL(this.socket.getSoTimeout());
-                    } else {
-                        ret = ssl.shutdownSSL(super.getSoTimeout());
-                    }
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "ssl.shutdownSSL() ret = " + ret);
-
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                     "thread exiting ioLock (shutdown)");
-                }
-
+            if (beforeObjectInit == false) {
+                /* Check if underlying Socket is still open before closing,
+                 * in case application calls SSLSocket.close() multiple times */
                 synchronized (handshakeLock) {
-                    this.connectionClosed = true;
+                    if (this.connectionClosed == true ||
+                        (this.socket != null && this.socket.isClosed()) ||
+                        (this.socket == null && super.isClosed())) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Socket already closed, skipping TLS shutdown");
+                        return;
+                    }
+                }
 
-                    /* Connection is closed, free native WOLFSSL session
-                     * to release native memory earlier than garbage collector
-                     * might with finalize(). */
-                    this.ssl.freeSSL();
-                    this.ssl = null;
+                if (ssl != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "shutting down SSL/TLS connection");
+
+                    if (this.getUseClientMode() == true ) {
+                        EngineHelper.saveSession();
+                    }
+
+                    synchronized (ioLock) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                         "thread got ioLock (shutdown)");
+
+                        if (this.socket != null) {
+                            ret = ssl.shutdownSSL(this.socket.getSoTimeout());
+                        } else {
+                            ret = ssl.shutdownSSL(super.getSoTimeout());
+                        }
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "ssl.shutdownSSL() ret = " + ret);
+
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                         "thread exiting ioLock (shutdown)");
+                    }
+
+                    synchronized (handshakeLock) {
+                        this.connectionClosed = true;
+
+                        /* Connection is closed, free native WOLFSSL session
+                         * to release native memory earlier than garbage
+                         * collector might with finalize(). */
+                        this.ssl.freeSSL();
+                        this.ssl = null;
+                    }
                 }
             }
 
