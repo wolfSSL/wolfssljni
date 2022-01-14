@@ -144,7 +144,7 @@ public class ThreadedSSLSocketClientServer
 
         Security.addProvider(new WolfSSLProvider());
 
-        String serverKS = "./examples/provider/server.jks";
+        String serverKS = "./examples/provider/rsa.jks";
         String serverTS = "./examples/provider/client.jks";
         String clientKS = "./examples/provider/client.jks";
         String clientTS = "./examples/provider/client.jks";
