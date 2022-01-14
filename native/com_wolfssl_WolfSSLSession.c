@@ -264,19 +264,50 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 
     (void)jcl;
 
-    if (!jenv || !ssl || !jsock)
+    if (jenv == NULL || ssl == 0 || jsock == NULL) {
+        printf("Error: bad function args, native setFd() wrapper\n");
         return SSL_FAILURE;
+    }
 
-    /* get SocketImpl or DatagramSocketImpl from Java Socket */
+    /* get SocketImpl (type 1) or DatagramSocketImpl (2) from Java Socket */
     jcls = (*jenv)->GetObjectClass(jenv, jsock);
     if (type == 1) {
+        /* Get SocketImpl field 'impl' from Socket class */
         fid = (*jenv)->GetFieldID(jenv, jcls, "impl", "Ljava/net/SocketImpl;");
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            printf("Error: Failed to get SocketImpl impl FieldID\n");
             return SSL_FAILURE;
         }
+        /* Get SocketImpl 'impl' object */
         impl = (*jenv)->GetObjectField(jenv, jsock, fid);
+
+        /* SocketImpl object may hold a delegate object inside on
+         * some Java versions. Delegate SocketImpl is held inside 'impl'
+         * object in field 'delegate'. Here we try to get the 'delegate'
+         * field ID. If NULL, there is no 'delegate' member and we fall back
+         * to using 'impl' directly. */
+        jcls = (*jenv)->GetObjectClass(jenv, impl);
+        fid = (*jenv)->GetFieldID(jenv, jcls, "delegate", "Ljava/net/SocketImpl;");
+        if (fid != NULL) {
+            /* delegate field exists, try to get object */
+            impl = (*jenv)->GetObjectField(jenv, impl, fid);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                /* Exception while getting delegate field, but does exist */
+                printf("Error: Exception while getting SocketImpl delegate\n");
+                return SSL_FAILURE;
+            }
+        } else {
+            /* if delegate field does not exist, can cause NoSuchFieldError
+             * exception. Clear out before continuing, but don't
+             * print exception description (we expect it to happen). */
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionClear(jenv);
+            }
+        }
 
     } else if (type == 2) {
         fid = (*jenv)->GetFieldID(jenv, jcls, "impl",
@@ -284,15 +315,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            printf("Error: Exception while getting DatagramSocketImpl "
+                   "impl FieldID\n");
             return SSL_FAILURE;
         }
         impl = (*jenv)->GetObjectField(jenv, jsock, fid);
     } else {
+        printf("Invalid Socket class type, not supported\n");
         return SSL_FAILURE; /* invalid class type */
     }
 
-    if (!jcls || !fid || !impl)
+    if (impl == NULL) {
+        printf("Error: SocketImpl impl is NULL! Not valid\n");
         return SSL_FAILURE;
+    }
 
     /* get FileDescriptor from SocketImpl */
     jcls = (*jenv)->GetObjectClass(jenv, impl);
@@ -300,12 +336,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        printf("Error: Exception while getting FileDescriptor fd FieldID\n");
         return SSL_FAILURE;
     }
-    fdesc = (*jenv)->GetObjectField(jenv, impl, fid);
 
-    if (!jcls || !fid || !fdesc)
+    fdesc = (*jenv)->GetObjectField(jenv, impl, fid);
+    if (fdesc == NULL) {
+        printf("Error: FileDescriptor fd object is NULL!\n");
         return SSL_FAILURE;
+    }
 
     /* get fd from FileDescriptor */
     jcls = (*jenv)->GetObjectClass(jenv, fdesc);
@@ -317,11 +356,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        printf("Error: Exception while getting fd/descriptor FieldID\n");
         return SSL_FAILURE;
     }
 
-    if (!jcls || !fid )
+    if (jcls == NULL || fid == NULL) {
+        printf("Error: jcls or fid NULL while getting fd/descriptor\n");
         return SSL_FAILURE;
+    }
 
     fd = (*jenv)->GetIntField(jenv, fdesc, fid);
 
