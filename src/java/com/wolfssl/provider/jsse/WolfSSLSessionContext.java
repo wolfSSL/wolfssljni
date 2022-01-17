@@ -25,12 +25,25 @@ import java.util.Enumeration;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 
+/**
+ * WolfSSLSessionContext class
+ *
+ * @author wolfSSL Inc.
+ */
 public class WolfSSLSessionContext implements SSLSessionContext {
     private WolfSSLAuthStore store;
     private int sesTimout;
     private int sesCache;
     private int side;
 
+    /**
+     * Create new WolfSSLSessionContext
+     *
+     * @param in WolfSSLAuthStore object to use with this context
+     * @param defaultCacheSize default session cache size
+     * @param side client or server side. Either WolfSSL.WOLFSSL_CLIENT_END or
+     *        WolfSSL.WOLFSSL_SERVER_END
+     */
     public WolfSSLSessionContext(WolfSSLAuthStore in, int defaultCacheSize,
             int side) {
         this.store     = in;

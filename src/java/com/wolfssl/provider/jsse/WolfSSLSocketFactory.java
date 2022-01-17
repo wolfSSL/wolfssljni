@@ -51,8 +51,12 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     private int isDefault = 0;
     private int isDefaultInitialized = 0;
 
-    /* This constructor is used when the JSSE call
-     * SSLSocketFactory.getDefault() */
+    /**
+     * Create new WolfSSLSocketFactory object with default settings
+     *
+     * This constructor is used when the JSSE calls
+     * SSLSocketFactory.getDefault()
+     */
     public WolfSSLSocketFactory() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -68,6 +72,13 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         this.params = null;
     }
 
+    /**
+     * Create new WolfSSLSocketFactory object
+     *
+     * @param ctx WolfSSLContext object to use with this factory
+     * @param authStore WolfSSLAuthStore object to use with this factory
+     * @param params WolfSSLParameters to use with this factory
+     */
     public WolfSSLSocketFactory(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore authStore, WolfSSLParameters params) {
 

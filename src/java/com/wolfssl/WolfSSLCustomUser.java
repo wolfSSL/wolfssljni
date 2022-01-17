@@ -31,8 +31,11 @@ import  com.wolfssl.WolfSSL.TLS_VERSION;
  * @version 1.0, August 2013
  */
 public class WolfSSLCustomUser {
+    /** SSL/TLS version */
     public TLS_VERSION version;
+    /** String array of allowed cipher suites */
     public String[] list;
+    /** Mask of options to set for the associated WOLFSSL_CTX */
     public long noOptions;
 
     /**

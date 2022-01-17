@@ -485,17 +485,32 @@ public class WolfSSLContext extends SSLContextSpi {
         return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
-    /* used internally by SSLSocketFactory() */
+    /**
+     * Get WolfSSLAuthStore for this WolfSSLContext.
+     * Used internally by SSLSocketFactory()
+     *
+     * @return WolfSSLAuthStore for this WolfSSLContext object
+     */
     protected WolfSSLAuthStore getInternalAuthStore() {
         return this.authStore;
     }
 
-    /* used internally by SSLSocketFactory() */
+    /**
+     * Get internal SSLParameters.
+     * Used internally by SSLSocketFactory()
+     *
+     * @return WolfSSLParameters for this WolfSSLContext object
+     */
     protected WolfSSLParameters getInternalSSLParams() {
         return this.params;
     }
 
-    /* used internally by SSLSocketFactory() */
+    /**
+     * Get internal com.wolfssl.WolfSSLContext for this object.
+     * Used internally by SSLSocketFactory()
+     *
+     * @return com.wolfssl.WolfSSLContext for this object
+     */
     protected com.wolfssl.WolfSSLContext getInternalWolfSSLContext() {
         return this.ctx;
     }
@@ -509,6 +524,16 @@ public class WolfSSLContext extends SSLContextSpi {
         super.finalize();
     }
 
+    /**
+     * Sets the WolfSSLContext options using specified protocol mask.
+     * Also translates the protocol mask provided to an array of Strings
+     * for the enabled SSL/TLS protocols.
+     *
+     * @param noOpt protocol mask set into native WOLFSSL_CTX
+     *
+     * @return String array of enabled SSL/TLS protocols for this
+     *         WolfSSLContext object
+     */
     public String[] getProtocolsMask(long noOpt) {
         if (ctx != null) {
             ctx.setOptions(noOpt);
@@ -516,7 +541,13 @@ public class WolfSSLContext extends SSLContextSpi {
         return WolfSSL.getProtocolsMask(noOpt);
     }
 
+    /**
+     * SSLContext implementation supporting TLS 1.0
+     */
     public static final class TLSV1_Context extends WolfSSLContext {
+        /**
+         * Create new TLSv1_Context, calls parent WolfSSLContext constructor
+         */
         public TLSV1_Context() {
             super(TLS_VERSION.TLSv1);
 
@@ -525,7 +556,13 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * SSLContext implementation supporting TLS 1.1
+     */
     public static final class TLSV11_Context extends WolfSSLContext {
+        /**
+         * Create new TLSv11_Context, calls parent WolfSSLContext constructor
+         */
         public TLSV11_Context() {
             super(TLS_VERSION.TLSv1_1);
 
@@ -534,7 +571,13 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * SSLContext implementation supporting TLS 1.2
+     */
     public static final class TLSV12_Context extends WolfSSLContext {
+        /**
+         * Create new TLSv12_Context, calls parent WolfSSLContext constructor
+         */
         public TLSV12_Context() {
             super(TLS_VERSION.TLSv1_2);
 
@@ -543,7 +586,13 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * SSLContext implementation supporting TLS 1.3
+     */
     public static final class TLSV13_Context extends WolfSSLContext {
+        /**
+         * Create new TLSv13_Context, calls parent WolfSSLContext constructor
+         */
         public TLSV13_Context() {
             super(TLS_VERSION.TLSv1_3);
 
@@ -552,7 +601,15 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * TLSv23 SSLContext class.
+     * Created using SSLv23 method, supporting highest protocol enabled
+     * in native wolfSSL. Downgrades to native minimum downgrade level.
+     */
     public static final class TLSV23_Context extends WolfSSLContext {
+        /**
+         * Create new TLSv23_Context, calls parent WolfSSLContext constructor
+         */
         public TLSV23_Context() {
             super(TLS_VERSION.SSLv23);
 
@@ -562,8 +619,16 @@ public class WolfSSLContext extends SSLContextSpi {
     }
 
 
+    /**
+     * DEFAULT SSLContext class.
+     * Created using SSLv23 method, supporting highest protocol enabled
+     * in native wolfSSL. Downgrades to native minimum downgrade level.
+     */
     public static final class DEFAULT_Context extends WolfSSLContext {
         /**
+         * Create new DEFAULT_Context, calls parent WolfSSLContext constructor
+         * with TLS_VERSION.SSLv23
+         *
          * @throws IllegalStateException when engine init fails
          */
         public DEFAULT_Context() {

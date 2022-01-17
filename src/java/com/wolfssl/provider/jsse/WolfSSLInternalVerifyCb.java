@@ -37,21 +37,41 @@ import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 
-/* Internal verify callback. This is used when a user registers a
- * TrustManager which is NOT com.wolfssl.provider.jsse.WolfSSLTrustManager
- * and is used to call TrustManager checkClientTrusted() or
- * checkServerTrusted(). If wolfJSSE TrustManager is used, native wolfSSL
- * does certificate verification internally. Used by WolfSSLEngineHelper. */
+/**
+ * Internal verify callback.
+ * This is used when a user registers a TrustManager which is NOT
+ * com.wolfssl.provider.jsse.WolfSSLTrustManager. It is used to call
+ * TrustManager checkClientTrusted() or checkServerTrusted().
+ * If wolfJSSE TrustManager is used, native wolfSSL does certificate
+ * verification internally. Used by WolfSSLEngineHelper.
+ */
 public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
     private X509TrustManager tm = null;
     private boolean clientMode;
 
+    /**
+     * Create new WolfSSLInternalVerifyCb
+     *
+     * @param xtm X509TrustManager to use with this object
+     * @param client boolean representing if this is client side
+     */
     public WolfSSLInternalVerifyCb(X509TrustManager xtm, boolean client) {
         this.tm = xtm;
         this.clientMode = client;
     }
 
+    /**
+     * Native wolfSSL verify callback.
+     *
+     * @param preverify_ok Will be 1 if native wolfSSL verification
+     *        procedured have passed, otherwise 0.
+     * @param x509StorePtr Native pointer to WOLFSSL_X509_STORE structure
+     *
+     * @return 1 if verification should be considered successful and
+     *         SSL/TLS handshake should continue. Otherwise return 0
+     *         to mark verification failure and stop/abort handshake.
+     */
     public int verifyCallback(int preverify_ok, long x509StorePtr) {
 
         WolfSSLCertificate[] certs = null;
@@ -63,7 +83,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                     "Native wolfSSL peer verification passed");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "WARNING: Native wolfSSL peer verification failed!");
+                    "NOTE: Native wolfSSL peer verification failed");
         }
 
         try {

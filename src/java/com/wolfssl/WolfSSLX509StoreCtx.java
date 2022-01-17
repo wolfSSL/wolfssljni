@@ -22,6 +22,11 @@ package com.wolfssl;
 
 import com.wolfssl.WolfSSLCertificate;
 
+/**
+ * WolfSSLX509StoreCtx class
+ *
+ * @author wolfSSL Inc.
+ */
 public class WolfSSLX509StoreCtx {
 
     private boolean active = false;
@@ -29,6 +34,13 @@ public class WolfSSLX509StoreCtx {
 
     static native byte[][] X509_STORE_CTX_getDerCerts(long ctxPtr);
 
+    /**
+     * Create new WolfSSLX509StoreCtx object
+     *
+     * @param ctxPtr native pointer to WOLFSSL_X509_STORE structure
+     *
+     * @throws WolfSSLException if ctxPtr is 0
+     */
     public WolfSSLX509StoreCtx(long ctxPtr) throws WolfSSLException {
         if (ctxPtr == 0) {
             throw new WolfSSLException("Failed to create " +

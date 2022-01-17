@@ -49,6 +49,11 @@ public class WolfSSLCertManager {
     static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz,
                                               int format);
 
+    /**
+     * Create new WolfSSLCertManager object
+     *
+     * @throws WolfSSLException if unable to create new manager
+     */
     public WolfSSLCertManager() throws WolfSSLException {
         cmPtr = CertManagerNew();
         if (cmPtr == 0) {
@@ -57,6 +62,14 @@ public class WolfSSLCertManager {
         this.active = true;
     }
 
+    /**
+     * Load CA into CertManager
+     *
+     * @param f X.509 certificate file to load
+     * @param d directory of X.509 certs to load, or null
+     *
+     * @return WolfSSL.SSL_SUCESS on success, negative on error
+     */
     public int CertManagerLoadCA(String f, String d) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -64,6 +77,17 @@ public class WolfSSLCertManager {
         return CertManagerLoadCA(this.cmPtr, f, d);
     }
 
+    /**
+     * Load CA into CertManager from byte array
+     *
+     * @param in byte array holding X.509 certificate to load
+     * @param sz size of input byte array, bytes
+     * @param format format of input certificate, either
+     *               WolfSSL.SSL_FILETYPE_PEM (PEM formatted) or
+     *               WolfSSL.SSL_FILETYPE_ASN1 (ASN.1/DER).
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     */
     public int CertManagerLoadCABuffer(byte[] in, long sz, int format) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -127,6 +151,18 @@ public class WolfSSLCertManager {
         }
     }
 
+    /**
+     * Verify X.509 certificate held in byte array
+     *
+     * @param in input X.509 certificate as byte array
+     * @param sz size of input certificate array, bytes
+     * @param format format of input certificate, either
+     *               WolfSSL.SSL_FILETYPE_PEM (PEM formatted) or
+     *               WolfSSL.SSL_FILETYPE_ASN1 (ASN.1/DER).
+     *
+     * @return WolfSSL.SSL_SUCCESS on successful verification, otherwise
+     *         negative on error.
+     */
     public int CertManagerVerifyBuffer(byte[] in, long sz, int format) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");

@@ -76,8 +76,11 @@ public class WolfSSLSocket extends SSLSocket {
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
     private WolfSSLDebug debug;
 
+    /** TLS handshake initialization called */
     protected volatile boolean handshakeInitCalled = false;
+    /** TLS handshake has completed */
     protected volatile boolean handshakeComplete = false;
+    /** Connection to peer has closed */
     protected volatile boolean connectionClosed = false;
 
     /* lock for handshakInitCalled and handshakeComplete */
@@ -87,6 +90,16 @@ public class WolfSSLSocket extends SSLSocket {
      * entering library */
     final private Object ioLock = new Object();
 
+    /**
+     * Create new WolfSSLSocket object
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
            WolfSSLAuthStore authStore, WolfSSLParameters params,
            boolean clientMode)
@@ -116,6 +129,18 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Create new WolfSSLSocket object
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param host InetAddress of peer hostname
+     * @param port port of peer
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, InetAddress host, int port)
@@ -146,6 +171,20 @@ public class WolfSSLSocket extends SSLSocket {
         }
    }
 
+    /**
+     * Create new WolfSSLSocket object
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param address InetAddress of peer hostname
+     * @param port port of peer
+     * @param localAddress local InetAddress to use for SSLSocket
+     * @param localPort local port to use for SSLSocket
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, InetAddress address, int port,
@@ -177,6 +216,18 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Create new WolfSSLSocket object
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param host String of peer hostname
+     * @param port port of peer
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, String host, int port)
@@ -207,6 +258,20 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * Create new WolfSSLSocket object
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param host InetAddress of peer hostname
+     * @param port port of peer
+     * @param localHost local InetAddress to use for SSLSocket
+     * @param localPort local port to use for SSLSocket
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, String host, int port, InetAddress localHost,
@@ -238,9 +303,24 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    /* creates an SSLSocket layered over an existing socket connected to the
-       named host, at the given port. host/port refer to logical peer, but
-       Socket could be connected to a proxy */
+    /**
+     * Create new WolfSSLSocket object layered over an existing Socket
+     * connected to the named host, at the given port.
+     *
+     * host/port refer to logical peer, but Socket could be connected to
+     * a proxy.
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param s existing connected Socket
+     * @param host String with peer hostname
+     * @param port port of peer
+     * @param autoClose automatically close wrapped Socket when finished
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, Socket s, String host, int port,
@@ -667,6 +747,18 @@ public class WolfSSLSocket extends SSLSocket {
                 "supported by wolfSSLSocket");
     }
 
+    /**
+     * Create new WolfSSLSocket object layered over an existing Socket.
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param clientMode true if this is a client socket, otherwise false
+     * @param s existing connected Socket
+     * @param autoClose automatically close wrapped Socket when finished
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params,
             boolean clientMode, Socket s, boolean autoClose)
@@ -703,7 +795,20 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    /* only creates a server mode Socket */
+    /**
+     * Create new WolfSSLSocket object layered over an existing Socket,
+     * only a server mode Socket. Use pre-consumed InputStream data
+     * if provided.
+     *
+     * @param context WolfSSLContext to use with this SSLSocket
+     * @param authStore WolfSSLAuthStore to use with this SSLSocket
+     * @param params WolfSSLParameters to use with this SSLSocket
+     * @param s existing connected Socket
+     * @param consumed pre-consumed Socket data to use for this SSLSocket
+     * @param autoClose automatically close wrapped Socket when finished
+     *
+     * @throws IOException if initialization fails
+     */
     public WolfSSLSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params, Socket s,
             InputStream consumed, boolean autoClose) throws IOException {

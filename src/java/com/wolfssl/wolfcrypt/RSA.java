@@ -34,17 +34,66 @@ import java.nio.ByteBuffer;
  */
 public class RSA {
 
+    /**
+     * RSA sign, wraps native wolfCrypt operation.
+     *
+     * @param in input buffer to be signed
+     * @param inSz size of input buffer, bytes
+     * @param out output for generated signature
+     * @param outSz [IN/OUT] size of output buffer on input, size of
+     *              generated signature on output
+     * @param key DER formatted RSA key to be used for signing
+     * @param keySz size of key, bytes
+     *
+     * @return 0 on success, negative on error.
+     */
     public native int doSign(ByteBuffer in, long inSz, ByteBuffer out,
             int[] outSz, ByteBuffer key, long keySz);
 
+    /**
+     * RSA verify, wraps native wolfCrypt operation.
+     *
+     * @param sig input signature to verify
+     * @param sigSz size of input signature, bytes
+     * @param out output buffer to place signed data
+     * @param outSz size of output buffer, bytes
+     * @param keyDer public key used for verify, DER formatted
+     * @param keySz size of public key, bytes
+     *
+     * @return size of returned data on success, negative on error.
+     */
     public native int doVerify(ByteBuffer sig, long sigSz, ByteBuffer out,
            long outSz, ByteBuffer keyDer, long keySz);
 
+    /**
+     * RSA encrypt, wraps native wolfCrypt operation.
+     *
+     * @param in input data to be encrypted
+     * @param inSz size of input data, bytes
+     * @param out output buffer to place encrypted result
+     * @param outSz [IN/OUT] size of output buffer on input, size of
+     *              encrypted data on return
+     * @param keyDer RSA key used for encrypt, DER formatted
+     * @param keySz size of RSA key, bytes
+     *
+     * @return 0 on success, negative on error
+     */
     public native int doEnc(ByteBuffer in, long inSz, ByteBuffer out,
             int[] outSz, ByteBuffer keyDer, long keySz);
 
+    /**
+     * RSA decrypt, wraps native wolfCrypt operation.
+     *
+     * @param in input buffer to decrypt
+     * @param inSz size of input buffer, bytes
+     * @param out output buffer for decrypted data
+     * @param outSz size of output buffer, bytes
+     * @param keyDer RSA key used for decryption, DER formatted
+     * @param keySz size of RSA key, bytes
+     *
+     * @return size of decrypted data on success, negative on error.
+     */
     public native int doDec(ByteBuffer in, long inSz, ByteBuffer out,
             long outSz, ByteBuffer keyDer, long keySz);
-
 }
 

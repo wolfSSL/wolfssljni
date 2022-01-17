@@ -40,8 +40,14 @@ import javax.net.ssl.SNIHostName;
  */
 public class WolfSSLJDK8Helper
 {
-    /* Call SSLParameters.setServerNames() to set SNI server names from
-     * WolfSSLParameters into SSLParameters */
+    /**
+     * Call SSLParameters.setServerNames() to set SNI server names from
+     * WolfSSLParameters into SSLParameters.
+     *
+     * @param out SSLParameters object to set SNI names into
+     * @param m Java method to call to set SNI server names
+     * @param in WolfSSLParameters to set SNI names from
+     */
     protected static void setServerNames(final SSLParameters out,
                                          final Method m, WolfSSLParameters in) {
 
@@ -73,8 +79,13 @@ public class WolfSSLJDK8Helper
         }
     }
 
-    /* Call SSLParameters.getServerNames() to set SNI server names from
-     * SSLParameters into WolfSSLParameters */
+    /**
+     * Call SSLParameters.getServerNames() to set SNI server names from
+     * SSLParameters into WolfSSLParameters.
+     *
+     * @param in input SSLParameters to read SNI names from
+     * @param out WolfSSLParameters to store SNI names into
+     */
     protected static void getServerNames(final SSLParameters in,
                                          WolfSSLParameters out) {
 

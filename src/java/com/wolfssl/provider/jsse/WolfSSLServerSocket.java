@@ -49,6 +49,15 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     private WolfSSLSocket socket = null;
     private WolfSSLDebug debug;
 
+    /**
+     * Create new WolfSSLServerSocket
+     *
+     * @param context WolfSSLContext object to use with this socket
+     * @param authStore WolfSSLAuthStore object to use with this socket
+     * @param params WolfSSLParameters object to use with this socket
+     *
+     * @throws IOException if parent SSLServerSocket constructor call fails
+     */
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             WolfSSLParameters params) throws IOException {
@@ -64,6 +73,16 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = params.copy();
     }
 
+    /**
+     * Create new WolfSSLServerSocket
+     *
+     * @param context WolfSSLContext object to use with this socket
+     * @param authStore WolfSSLAuthStore object to use with this socket
+     * @param params WolfSSLParameters object to use with this socket
+     * @param port port for this SSLServerSocket
+     *
+     * @throws IOException if parent SSLServerSocket constructor call fails
+     */
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore, WolfSSLParameters params, int port)
         throws IOException {
@@ -79,6 +98,17 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = params.copy();
     }
 
+    /**
+     * Create new WolfSSLServerSocket
+     *
+     * @param context WolfSSLContext object to use with this socket
+     * @param authStore WolfSSLAuthStore object to use with this socket
+     * @param params WolfSSLParameters object to use with this socket
+     * @param port port for this SSLServerSocket
+     * @param backlog requested max length of queue for incoming connections
+     *
+     * @throws IOException if parent SSLServerSocket constructor call fails
+     */
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             WolfSSLParameters params, int port, int backlog)
@@ -96,6 +126,19 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         this.params = params.copy();
     }
 
+    /**
+     * Create new WolfSSLServerSocket
+     *
+     * @param context WolfSSLContext object to use with this socket
+     * @param authStore WolfSSLAuthStore object to use with this socket
+     * @param params WolfSSLParameters object to use with this socket
+     * @param port port for this SSLServerSocket
+     * @param backlog requested max length of queue for incoming connections
+     * @param address address of network interface from where to accept
+     *        connections
+     *
+     * @throws IOException if parent SSLServerSocket constructor call fails
+     */
     public WolfSSLServerSocket(com.wolfssl.WolfSSLContext context,
             WolfSSLAuthStore authStore,
             WolfSSLParameters params, int port, int backlog,

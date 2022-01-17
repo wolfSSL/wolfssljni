@@ -31,7 +31,9 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactorySpi;
 import javax.net.ssl.ManagerFactoryParameters;
 
-
+/**
+ * WolfSSL KeyManagerFactory implementation
+ */
 public class WolfSSLKeyManager extends KeyManagerFactorySpi {
     private char[] pswd;
     private KeyStore store;

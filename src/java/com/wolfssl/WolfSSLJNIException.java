@@ -21,16 +21,35 @@
 
 package com.wolfssl;
 
+/**
+ * WolfSSL JNI Exception class
+ */
 public class WolfSSLJNIException extends Exception {
 
+    /**
+     * Create WolfSSLJNIException with reason String
+     *
+     * @param reason reason String
+     */
     public WolfSSLJNIException(String reason) {
         super(reason);
     }
 
+    /**
+     * Create WolfSSLJNIException with reason and cause
+     *
+     * @param reason reason String
+     * @param cause cause of Exception
+     */
     public WolfSSLJNIException(String reason, Throwable cause) {
         super(reason, cause);
     }
 
+    /**
+     * Create WolfSSLJNIException with cause
+     *
+     * @param cause of Exception
+     */
     public WolfSSLJNIException(Throwable cause) {
         super(cause);
     }

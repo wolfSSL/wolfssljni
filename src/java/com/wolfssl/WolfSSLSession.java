@@ -2575,6 +2575,18 @@ public class WolfSSLSession {
         setSSLIOSend(getSessionPtr());
     }
 
+    /**
+     * Use SNI name with this session.
+     *
+     * @param type SNI type. Currently supported type is
+     *        WolfSSL.WOLFSSL_SNI_HOST_NAME.
+     * @param data encoded data for SNI extension value
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     *
+     * @throws IllegalStateException if called when WolfSSLSession is not
+     *         active
+     */
     public int useSNI(byte type, byte[] data) throws IllegalStateException {
 
         int ret;

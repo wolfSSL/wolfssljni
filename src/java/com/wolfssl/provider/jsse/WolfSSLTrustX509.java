@@ -49,6 +49,11 @@ import java.util.Set;
 public class WolfSSLTrustX509 implements X509TrustManager {
     private KeyStore store = null;
 
+    /**
+     * Create new WolfSSLTrustX509 object
+     *
+     * @param in KeyStore to use with this X509TrustManager
+     */
     public WolfSSLTrustX509(KeyStore in) {
         this.store = in;
 

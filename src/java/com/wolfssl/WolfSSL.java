@@ -37,35 +37,57 @@ public class WolfSSL {
     /* If this enum is changed, also change switch statement cases in
      * ./native/com_wolfssl_WolfSSL.c,
      * Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana() */
+    /** TLS protocol versions */
     public static enum TLS_VERSION {
+        /** invalid TLS version */
         INVALID,
+        /** TLS 1.0 */
         TLSv1,
+        /** TLS 1.1 */
         TLSv1_1,
+        /** TLS 1.2 */
         TLSv1_2,
+        /** TLS 1.3 */
         TLSv1_3,
+        /** Downgrade starting from highest supported SSL/TLS version */
         SSLv23
     }
 
     /* ------------------ wolfSSL JNI error codes ----------------------- */
+    /** Session unavailable */
     public final static int JNI_SESSION_UNAVAILABLE = -10001;
 
     /* ----------------------- wolfSSL codes ---------------------------- */
 
+    /** Error code: no error */
     public final static int SSL_ERROR_NONE      =  0;
+    /** Error code: failure */
     public final static int SSL_FAILURE         =  0;
+    /** Error code: success */
     public final static int SSL_SUCCESS         =  1;
+    /** Error code: TLS shutdown not done */
     public final static int SSL_SHUTDOWN_NOT_DONE = 2;
 
+    /** Error code: bad certificate */
     public final static int SSL_BAD_CERTTYPE    = -8;
+    /** Error code: bad file stat */
     public final static int SSL_BAD_STAT        = -7;
+    /** Error code: bad path */
     public final static int SSL_BAD_PATH        = -6;
+    /** Error code: bad file type */
     public final static int SSL_BAD_FILETYPE    = -5;
+    /** Error code: bad file */
     public final static int SSL_BAD_FILE        = -4;
+    /** Error code: not implemented */
     public final static int SSL_NOT_IMPLEMENTED = -3;
+    /** Error code: unknown */
     public final static int SSL_UNKNOWN         = -2;
+    /** Error code: fatal error */
     public final static int SSL_FATAL_ERROR     = -1;
 
+    /** wolfSSL file type: ASN.1/DER */
     public final static int SSL_FILETYPE_ASN1    = 2;
+    /** wolfSSL file type: PEM */
     public final static int SSL_FILETYPE_PEM     = 1;
     /** ASN1 */
     public final static int SSL_FILETYPE_DEFAULT = 2;
@@ -111,78 +133,143 @@ public class WolfSSL {
      * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
      */
     public final static int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2;
+
+    /**
+     * Verification mode for peer certificates.
+     * Currently not supported by native wolfSSL.
+     *
+     * @see WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+     */
     public final static int SSL_VERIFY_CLIENT_ONCE          = 4;
 
+    /** Disable session cache */
     public final static int SSL_SESS_CACHE_OFF                = 30;
+    /** currently unused */
     public final static int SSL_SESS_CACHE_CLIENT             = 31;
+    /** Native session cache mode: server */
     public final static int SSL_SESS_CACHE_SERVER             = 32;
+    /** currently unused */
     public final static int SSL_SESS_CACHE_BOTH               = 33;
+    /** Native session cache mode: auto flush */
     public final static int SSL_SESS_CACHE_NO_AUTO_CLEAR      = 34;
+    /** currently unused */
     public final static int SSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 35;
 
+    /** I/O read would block, wolfSSL needs more data */
     public final static int SSL_ERROR_WANT_READ        =  2;
+    /** I/O send would block, wolfSSL needs to write data */
     public final static int SSL_ERROR_WANT_WRITE       =  3;
+    /** currently unused */
     public final static int SSL_ERROR_WANT_CONNECT     =  7;
+    /** currently unused */
     public final static int SSL_ERROR_WANT_ACCEPT      =  8;
+    /** Error with underlying I/O */
     public final static int SSL_ERROR_SYSCALL          =  5;
+    /** I/O operation should be called again when client cert is available */
     public final static int SSL_ERROR_WANT_X509_LOOKUP = 83;
+    /** I/O error, zero return, no more data */
     public final static int SSL_ERROR_ZERO_RETURN      =  6;
+    /** Generatl SSL error */
     public final static int SSL_ERROR_SSL              = 85;
+    /** Peer closed socket */
     public final static int SSL_ERROR_SOCKET_PEER_CLOSED = -397;
 
     /* extra definitions from ssl.h */
+    /** CertManager: check all cert CRLs */
     public final static int WOLFSSL_CRL_CHECKALL      = 1;
+    /** CertManager: use override URL instead of URL in certificates */
     public final static int WOLFSSL_OCSP_URL_OVERRIDE = 1;
+    /** CertManager: disable sending OCSP nonce */
     public final static int WOLFSSL_OCSP_NO_NONCE     = 2;
 
     /* I/O callback default errors, pulled from wolfssl/ssl.h IOerrors */
+    /** I/O callback error: general error */
     public final static int WOLFSSL_CBIO_ERR_GENERAL    = -1;
+    /** I/O callback error: want read */
     public final static int WOLFSSL_CBIO_ERR_WANT_READ  = -2;
+    /** I/O callback error: want write */
     public final static int WOLFSSL_CBIO_ERR_WANT_WRITE = -2;
+    /** I/O callback error: connection reset */
     public final static int WOLFSSL_CBIO_ERR_CONN_RST   = -3;
+    /** I/O callback error: socket interrupted */
     public final static int WOLFSSL_CBIO_ERR_ISR        = -4;
+    /** I/O callback error: connection closed */
     public final static int WOLFSSL_CBIO_ERR_CONN_CLOSE = -5;
+    /** I/O callback error: timeout */
     public final static int WOLFSSL_CBIO_ERR_TIMEOUT    = -6;
 
     /* Atomic User Needs, from ssl.h */
+    /** Represents server side */
     public final static int WOLFSSL_SERVER_END  = 0;
+    /** Represents Client side */
     public final static int WOLFSSL_CLIENT_END  = 1;
+    /** wolfSSL block algorithm type */
     public final static int WOLFSSL_BLOCK_TYPE  = 2;
+    /** wolfSSL stream algorithm type */
     public final static int WOLFSSL_STREAM_TYPE = 3;
+    /** wolfSSL AEAD algorithm type */
     public final static int WOLFSSL_AEAD_TYPE   = 4;
+    /** wolfSSL TLS HMAC inner size */
     public final static int WOLFSSL_TLS_HMAC_INNER_SZ = 13;
 
     /* GetBulkCipher enum, pulled in from ssl.h for Atomic Record layer */
+    /** Bulk cipher algorithm enum: NULL */
     public static int wolfssl_cipher_null;
+    /** Bulk cipher algorithm enum: RC4 */
     public static int wolfssl_rc4;
+    /** Bulk cipher algorithm enum: RC2 */
     public static int wolfssl_rc2;
+    /** Bulk cipher algorithm enum: DES */
     public static int wolfssl_des;
+    /** Bulk cipher algorithm enum: 3DES */
     public static int wolfssl_triple_des;
+    /** Bulk cipher algorithm enum: DES40 */
     public static int wolfssl_des40;
+    /** Bulk cipher algorithm enum: IDEA */
     public static int wolfssl_idea;
+    /** Bulk cipher algorithm enum: AES */
     public static int wolfssl_aes;
+    /** Bulk cipher algorithm enum: AES-GCM */
     public static int wolfssl_aes_gcm;
+    /** Bulk cipher algorithm enum: AES-CCM */
     public static int wolfssl_aes_ccm;
+    /** Bulk cipher algorithm enum: HC-128 */
     public static int wolfssl_hc128;
+    /** Bulk cipher algorithm enum: RABBIT */
     public static int wolfssl_rabbit;
 
     /* wolfSSL error codes, pulled in from wolfssl/error.h wolfSSL_ErrorCodes */
+    /** Generate Cookie Error */
     public final static int GEN_COOKIE_E    =   -277;
 
+    /** Close notify alert sent */
     public final static int SSL_SENT_SHUTDOWN                   = 1;
+    /** Close notify alert received */
     public final static int SSL_RECEIVED_SHUTDOWN               = 2;
+    /** Make it possible to return SSL write with changed buffer location */
     public final static int SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4;
+    /** Disable SSL 2.0. wolfSSL does not support SSL 2.0. */
     public final static int SSL_OP_NO_SSLv2                     = 8;
+    /** Disable SSL 3.0 */
     public final static int SSL_OP_NO_SSLv3                     = 0x00001000;
+    /** Disable TLS 1.0 */
     public final static int SSL_OP_NO_TLSv1                     = 0x00002000;
+    /** Disable TLS 1.1 */
     public final static int SSL_OP_NO_TLSv1_1                   = 0x04000000;
+    /** Disable TLS 1.2 */
     public final static int SSL_OP_NO_TLSv1_2                   = 0x08000000;
+    /** Disable TLS compression. Off by default */
     public final static int SSL_OP_NO_COMPRESSION               = 0x10000000;
+    /** Disable TLS 1.3 */
     public final static int SSL_OP_NO_TLSv1_3                   = 0x20000000;
 
+    /** SSL/TLS handshake failure */
     public final static int SSL_HANDSHAKE_FAILURE                 = 101;
+    /** Alert: Unknown CA */
     public final static int SSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102;
+    /** Alert: Certificate Unknown */
     public final static int SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103;
+    /** Alert: Bad certificate */
     public final static int SSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104;
 
     /** Monitor this CRL directory flag */
@@ -206,6 +293,10 @@ public class WolfSSL {
     /** Cache header match error */
     public final static int CACHE_MATCH_ERROR    = -280;
 
+    /* ------------------ TLS extension specific  ------------------------ */
+    /** SNI Host name type, for UseSNI() */
+    public final static int WOLFSSL_SNI_HOST_NAME = 0;
+
     /* ---------------------- wolfCrypt codes ---------------------------- */
 
     /** Out of memory error */
@@ -227,17 +318,27 @@ public class WolfSSL {
     public final static int NO_PASSWORD     = -176;
 
     /* hmac codes, from wolfssl/wolfcrypt/hmac.h */
+    /** Md5 HMAC type */
     public final static int MD5   = 0;
+    /** SHA-1 HMAC type */
     public final static int SHA   = 1;
+    /** SHA2-256 HMAC type */
     public final static int SHA256 = 2;
+    /** SHA2-512 HMAC type */
     public final static int SHA512 = 4;
+    /** SHA2-384 HMAC type */
     public final static int SHA384 = 5;
 
     /* key types */
+    /** DSA key type */
     public final static int DSAk     = 515;
+    /** RSA key type */
     public final static int RSAk     = 645;
+    /** NTRU key type */
     public final static int NTRUk    = 274;
+    /** ECDSA key type */
     public final static int ECDSAk   = 518;
+    /** Ed25519 key type */
     public final static int ED25519k = 256;
 
     /* is this object active, or has it been cleaned up? */
@@ -284,6 +385,10 @@ public class WolfSSL {
 
     private native int init();
 
+    /**
+     * Free native memory allocated at pointer provided.
+     * @param ptr native pointer
+     */
     public static native void nativeFree(long ptr);
 
     static native int getBulkCipherAlgorithmEnumNULL();
@@ -873,6 +978,11 @@ public class WolfSSL {
      */
     public static native int getHmacMaxSize();
 
+    /**
+     * Returns the enabled cipher suites for native wolfSSL.
+     *
+     * @return array of cipher suite Strings
+     */
     public static String[] getCiphers() {
 
         String cipherSuites = getEnabledCipherSuites();

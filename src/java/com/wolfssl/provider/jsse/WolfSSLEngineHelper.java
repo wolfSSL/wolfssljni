@@ -116,30 +116,65 @@ public class WolfSSLEngineHelper {
             ", hostname: " + hostname + ")");
     }
 
-    /* used internally by SSLSocket.connect(SocketAddress) */
+    /**
+     * Set hostname and port
+     * Used internally by SSLSocket.connect(SocketAddress)
+     *
+     * @param hostname peer hostname String
+     * @param port peer port number
+     */
     protected void setHostAndPort(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
     }
 
+    /**
+     * Get the com.wolfssl.WolfSSLSession for this object
+     *
+     * @return com.wolfssl.WolfSSLSession for this object
+     */
     protected WolfSSLSession getWolfSSLSession() {
         return ssl;
     }
 
+    /**
+     * Get WolfSSLImplementSession for this object
+     *
+     * @return WolfSSLImplementSession for this object
+     */
     protected WolfSSLImplementSSLSession getSession() {
         return session;
     }
 
-    /* gets all supported cipher suites */
+    /**
+     * Get all supported cipher suites in native wolfSSL library
+     *
+     * @return String array of all supported cipher suites
+     */
     protected String[] getAllCiphers() {
         return WolfSSL.getCiphersIana();
     }
 
-    /* gets all enabled cipher suites */
+    /**
+     * Get all enabled cipher suites
+     *
+     * @return String array of all enabled cipher suites
+     */
     protected String[] getCiphers() {
         return this.params.getCipherSuites();
     }
 
+    /**
+     * Set cipher suites enabled in WolfSSLParameters
+     *
+     * Sanitizes input array for invalid suites
+     *
+     * @param suites String array of cipher suites to be enabled
+     *
+     * @throws IllegalArgumentException if input array contains invalid
+     *         cipher suites, input array is null, or input array has length
+     *         zero
+     */
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
 
         if (suites == null) {
@@ -162,6 +197,16 @@ public class WolfSSLEngineHelper {
         this.params.setCipherSuites(suites);
     }
 
+    /**
+     * Set protocols enabled in WolfSSLParameters
+     *
+     * Sanitizes protocol array for invalid protocols
+     *
+     * @param p String array of SSL/TLS protocols to be enabled
+     *
+     * @throws IllegalArgumentException if input array is null,
+     *         has length zero, or contains invalid/unsupported protocols
+     */
     protected void setProtocols(String[] p) throws IllegalArgumentException {
 
         if (p == null) {
@@ -184,16 +229,32 @@ public class WolfSSLEngineHelper {
         this.params.setProtocols(p);
     }
 
-    /* gets enabled protocols */
+    /**
+     * Get enabled SSL/TLS protocols from WolfSSLParameters
+     *
+     * @return String array of enabled SSL/TLS protocols
+     */
     protected String[] getProtocols() {
         return this.params.getProtocols();
     }
 
-    /* gets all supported protocols */
+    /**
+     * Get all supported SSL/TLS protocols in native wolfSSL library
+     *
+     * @return String array of supported protocols
+     */
     protected String[] getAllProtocols() {
         return WolfSSL.getProtocols();
     }
 
+    /**
+     * Set client mode for associated WOLFSSL session
+     *
+     * @param mode client mode (true/false)
+     *
+     * @throws IllegalArgumentException if called after SSL/TLS handshake
+     *         has been completed. Only allowed before.
+     */
     protected void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
@@ -212,42 +273,93 @@ public class WolfSSLEngineHelper {
         this.modeSet = true;
     }
 
+    /**
+     * Get clientMode for associated session
+     *
+     * @return boolean value of clientMode set for this session
+     */
     protected boolean getUseClientMode() {
         return this.clientMode;
     }
 
+    /**
+     * Set if session needs client authentication
+     *
+     * @param need boolean if session needs client authentication
+     */
     protected void setNeedClientAuth(boolean need) {
         this.params.setNeedClientAuth(need);
     }
 
+    /**
+     * Get value of needClientAuth for this session
+     *
+     * @return boolean value for needClientAuth
+     */
     protected boolean getNeedClientAuth() {
         return this.params.getNeedClientAuth();
     }
 
+    /**
+     * Set value of wantClientAuth for this session
+     *
+     * @param want boolean value of wantClientAuth for this session
+     */
     protected void setWantClientAuth(boolean want) {
         this.params.setWantClientAuth(want);
     }
 
+    /**
+     * Get value of wantClientAuth for this session
+     *
+     * @return boolean value for wantClientAuth
+     */
     protected boolean getWantClientAuth() {
         return this.params.getWantClientAuth();
     }
 
+    /**
+     * Set ability to create sessions
+     *
+     * @param flag boolean to set enable session creation
+     */
     protected void setEnableSessionCreation(boolean flag) {
         this.sessionCreation = flag;
     }
 
+    /**
+     * Get boolean if session creation is allowed
+     *
+     * @return boolean value for enableSessionCreation
+     */
     protected boolean getEnableSessionCreation() {
         return this.sessionCreation;
     }
 
+    /**
+     * Enable use of session tickets
+     *
+     * @param flag boolean to enable/disable session tickets
+     */
     protected void setUseSessionTickets(boolean flag) {
         this.params.setUseSessionTickets(flag);
     }
 
+    /**
+     * Set ALPN protocols
+     *
+     * @param alpnProtos encoded byte array of ALPN protocols
+     */
     protected void setAlpnProtocols(byte[] alpnProtos) {
         this.params.setAlpnProtocols(alpnProtos);
     }
 
+    /**
+     * Get selected ALPN protocol
+     *
+     * @return encoded byte array for selected ALPN protocol or null if
+     *         handshake has not finished
+     */
     protected byte[] getAlpnSelectedProtocol() {
         if (ssl.handshakeDone()) {
             return ssl.getAlpnSelected();
@@ -477,9 +589,16 @@ public class WolfSSLEngineHelper {
         this.setLocalAlpnProtocols();
     }
 
-    /* sets all parameters from WolfSSLParameters into WOLFSSL object and
-     * creates session.
-     * Should be called before doHandshake */
+    /**
+     * Sets all parameters from WolfSSLParameters into native WOLFSSL object
+     * and creates session.
+     *
+     * This should be called before doHandshake()
+     *
+     * @throws SSLException if setUseClientMode() has not been called
+     * @throws SSLHandshakeException session creation is not allowed
+     *
+     */
     protected void initHandshake() throws SSLException {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -520,10 +639,19 @@ public class WolfSSLEngineHelper {
         this.setLocalParams();
     }
 
-    /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
-     * WolfSSL.SSL_FAILURE.
-     * isSSLEngine param specifies if this is being called by an SSLEngine
-     * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
+    /**
+     * Start or continue handshake
+     *
+     * Callers should not loop on WANT_READ/WRITE when used with SSLEngine.
+     *
+     * @param isSSLEngine specifies if this is being called by an SSLEngine
+     *                    or not.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success or either WolfSSL.SSL_FAILURE
+     *         or WolfSSL.SSL_HANDSHAKE_FAILURE on error
+     *
+     * @throws SSLException if setUseClientMode() has not been called.
+     */
     protected int doHandshake(int isSSLEngine) throws SSLException {
         int ret, err;
 
