@@ -24,7 +24,7 @@
     <property name="reports.dir" value="build/reports"/>
 
     <!-- These paths should be relative to JUNIT_HOME -->
-    <property name="junit4" value="junit-4.13.jar" />
+    <property name="junit4" value="junit-4.13.2.jar" />
     <property name="hamcrest-core" value="hamcrest-all-1.3.jar" />
     <property name="ant-junit4" value="ant/ant-junit4.jar" />
 
