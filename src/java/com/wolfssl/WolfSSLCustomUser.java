@@ -60,8 +60,8 @@ public class WolfSSLCustomUser {
 
         /***
          custom code
-         
-         Example: 
+
+         Example:
             ctxAttr.NoOptions = WolfSSL.SSL_OP_NO_TLSv1 | WolfSSL.SSL_OP_NO_TLSv1_3;
 
         ***/

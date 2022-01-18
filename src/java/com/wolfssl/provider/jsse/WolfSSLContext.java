@@ -452,7 +452,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
     /**
      * Returns the SSLClientSessionContext associated with this SSLContext.
-     * 
+     *
      * @throws UnsupportedOperationException operation not yet supported
      */
     @Override

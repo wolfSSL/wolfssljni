@@ -21,7 +21,7 @@
 
 /**
  * Example SSL/TLS client using SSLSocket class.
- * 
+ *
  * This example is compiled when "ant" is run from the main wolfssljni
  * root directory.
  *
@@ -40,7 +40,7 @@
  *
  * $ ./examples/provider/ClientSSLSocket.sh 127.0.0.1 11111 \
  *   ./examples/provider/client.jks ./examples/provider/client.jks
- * 
+ *
  * The password for client.jks is: "wolfSSL test"
  */
 

@@ -69,10 +69,10 @@ public class ThreadedSSLSocketClientServer
                 pKey.load(new FileInputStream(keyStorePath), ksPass);
                 KeyStore cert = KeyStore.getInstance("JKS");
                 cert.load(new FileInputStream(trustStorePath), tsPass);
-                
+
                 TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
                 tm.init(cert);
-                
+
                 KeyManagerFactory km = KeyManagerFactory.getInstance(kmfImpl);
                 km.init(pKey, ksPass);
 
@@ -115,10 +115,10 @@ public class ThreadedSSLSocketClientServer
                 pKey.load(new FileInputStream(keyStorePath), ksPass);
                 KeyStore cert = KeyStore.getInstance("JKS");
                 cert.load(new FileInputStream(trustStorePath), tsPass);
-                
+
                 TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
                 tm.init(cert);
-                
+
                 KeyManagerFactory km = KeyManagerFactory.getInstance(kmfImpl);
                 km.init(pKey, ksPass);
 

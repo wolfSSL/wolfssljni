@@ -1813,7 +1813,7 @@ public class WolfSSLSocket extends SSLSocket {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.read() got SSL_ERROR_ZERO_RETURN, " + err +
                             ", end of stream");
-                            
+
                         /* End of stream */
                         return -1;
                     }

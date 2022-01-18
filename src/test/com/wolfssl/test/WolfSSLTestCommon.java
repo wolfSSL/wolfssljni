@@ -26,17 +26,17 @@ import java.io.File;
 import com.wolfssl.WolfSSLException;
 
 public class WolfSSLTestCommon {
-	
+
 	/**
 	 * Returns a string with the right path to use
 	 * @param in relative path from root wolfSSL JNI directory
 	 * @return Adjusted path
-	 * @throws WolfSSLException 
+	 * @throws WolfSSLException
 	 */
 	public static String getPath(String in) throws WolfSSLException {
 		String esc = "../../../"; /* if running from IDE directory */
 		String scd = "/sdcard/"; /* if running on Android */
-		
+
 	    /* test if running from IDE directory */
         File f = new File(in);
         if (!f.exists()) {

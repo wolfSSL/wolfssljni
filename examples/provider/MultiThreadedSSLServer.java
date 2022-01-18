@@ -64,7 +64,7 @@ public class MultiThreadedSSLServer
             /* Set up CA TrustManagerFactory */
             KeyStore caKeyStore = KeyStore.getInstance("JKS");
             caKeyStore.load(new FileInputStream(serverTS), psw);
-            
+
             TrustManagerFactory tm = TrustManagerFactory.getInstance("SunX509");
             tm.init(caKeyStore);
 
