@@ -43,6 +43,8 @@ import java.io.ByteArrayInputStream;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
+import java.net.ConnectException;
+import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
@@ -99,6 +101,8 @@ import com.wolfssl.WolfSSLException;
     public void testProtocolTLSv13();
     public void testSessionResumption();
     public void testSessionResumptionWithTicketEnabled();
+    public void testDoubleSocketClose();
+    public void testSocketConnectException();
  */
 public class WolfSSLSocketTest {
 
@@ -1512,6 +1516,30 @@ public class WolfSSLSocketTest {
         cs.close();
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testSocketConnectException() throws Exception {
+
+        System.out.print("\tTesting for ConnectException");
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+        SocketFactory sf = this.ctx.getSocketFactory();
+
+        try {
+            /* connect to invalid host/port, expect java.net.ConnectException.
+             * we do not expecdt anything to be running at localhost:12345 */
+            SSLSocket cs = (SSLSocket)sf.createSocket("localhost", 12345);
+        } catch (ConnectException ce) {
+            /* expected */
+        } catch (Exception e) {
+            /* other Exceptions (ie NullPointerException) are unexpected */
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+        }
+
+        System.out.println("\t... passed");
     }
 
     protected class TestServer extends Thread
