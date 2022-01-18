@@ -1,6 +1,6 @@
 /* WolfSSLFIPSErrorCallback.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,7 +33,6 @@ package com.wolfssl;
  * library.
  *
  * @author  wolfSSL
- * @version 1.0, May 2021
  */
 public interface WolfSSLFIPSErrorCallback {
 

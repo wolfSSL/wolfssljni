@@ -1,6 +1,6 @@
 /* EccKey.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,7 +27,6 @@ import com.wolfssl.WolfSSLException;
  * Wraps a native ecc_key structure pointer.
  *
  * @author  wolfSSL
- * @version 1.0, December 2017
  */
 public class EccKey {
 
