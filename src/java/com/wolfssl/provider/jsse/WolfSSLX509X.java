@@ -43,6 +43,13 @@ import com.wolfssl.WolfSSLException;
 public class WolfSSLX509X extends X509Certificate {
     WolfSSLX509 cert;
 
+    /**
+     * Create new WolfSSLX509X object
+     *
+     * @param der ASN.1/DER encoded X.509 certificate
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509X(byte[] der) throws WolfSSLException{
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -51,6 +58,13 @@ public class WolfSSLX509X extends X509Certificate {
         this.cert = new WolfSSLX509(der);
     }
 
+    /**
+     * Create new WolfSSLX509X object
+     *
+     * @param derName ASN.1/DER X.509 certificate file name to load
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509X(String derName) throws WolfSSLException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -59,6 +73,13 @@ public class WolfSSLX509X extends X509Certificate {
         this.cert = new WolfSSLX509(derName);
     }
 
+    /**
+     * Create new WolfSSLX509X object
+     *
+     * @param x509 initialized pointer to native WOLFSSL_X509 struct
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509X(long x509) throws WolfSSLException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,

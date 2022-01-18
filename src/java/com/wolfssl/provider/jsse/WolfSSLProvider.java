@@ -30,7 +30,7 @@ import com.wolfssl.WolfSSLFIPSErrorCallback;
  * wolfSSL JSSE Provider implementation
  *
  * @author wolfSSL
- * @version 1.0
+ * @version 1.8
  */
 public final class WolfSSLProvider extends Provider {
 
@@ -38,7 +38,18 @@ public final class WolfSSLProvider extends Provider {
      * all WolfSSLProvider objects. */
     private static WolfSSL sslLib = null;
 
+    /**
+     * Inner callback class for wolfCrypt FIPS 140-2/3 errors
+     */
     public class JSSEFIPSErrorCallback implements WolfSSLFIPSErrorCallback {
+        /**
+         * wolfCrypt FIPS 140-2/3 error callback.
+         * Called when FIPS integrity test fails
+         *
+         * @param ok 0 if FIPS error not OK, otherwise 1
+         * @param err wolfCrypt FIPS error code
+         * @param hash expected wolfCrypt FIPS verifyCore hash value
+         */
         public void errorCallback(int ok, int err, String hash) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "In FIPS error callback, ok = " + ok + " err = " + err);
@@ -54,9 +65,12 @@ public final class WolfSSLProvider extends Provider {
         }
     }
 
+    /**
+     * wolfSSL JSSE Provider class
+     */
     public WolfSSLProvider() {
-        super("wolfJSSE", 1, "wolfSSL JSSE Provider");
-        //super("wolfJSSE", "1.0", "wolfSSL JSSE Provider");
+        super("wolfJSSE", 1.8, "wolfSSL JSSE Provider");
+        //super("wolfJSSE", "1.8", "wolfSSL JSSE Provider");
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();

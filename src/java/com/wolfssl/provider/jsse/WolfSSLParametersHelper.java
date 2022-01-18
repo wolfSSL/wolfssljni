@@ -25,6 +25,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.ssl.SSLParameters;
 
+/**
+ * WolfSSLParametersHelper class
+ * @author wolfSSL Inc.
+ */
 public class WolfSSLParametersHelper
 {
     private static Method getServerNames = null;

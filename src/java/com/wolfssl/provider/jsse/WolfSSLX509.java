@@ -52,7 +52,10 @@ import com.wolfssl.WolfSSLException;
  * @author wolfSSL
  */
 public class WolfSSLX509 extends X509Certificate {
+
+    /** Inner WolfSSLCertificate object */
     private WolfSSLCertificate cert = null;
+    /** Certificate extension OID values */
     private String[] extensionOid = {
         "2.5.29.15", /* key usage */
         "2.5.29.19", /* basic constraint */
@@ -62,6 +65,13 @@ public class WolfSSLX509 extends X509Certificate {
         "2.5.29.31"  /* CRL dist */
     };
 
+    /**
+     * Create new WolfSSLX509 object
+     *
+     * @param der ASN.1/DER encoded X.509 certificate
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509(byte[] der) throws WolfSSLException{
         super();
         this.cert = new WolfSSLCertificate(der);
@@ -70,6 +80,13 @@ public class WolfSSLX509 extends X509Certificate {
             "created new WolfSSLX509(byte[] der)");
     }
 
+    /**
+     * Create new WolfSSLX509 object
+     *
+     * @param derName ASN.1/DER X.509 certificate file name to load
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509(String derName) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(derName);
@@ -78,6 +95,13 @@ public class WolfSSLX509 extends X509Certificate {
             "created new WolfSSLX509(String derName)");
     }
 
+    /**
+     * Create new WolfSSLX509 object
+     *
+     * @param x509 initialized pointer to native WOLFSSL_X509 struct
+     *
+     * @throws WolfSSLException if certificate parsing fails
+     */
     public WolfSSLX509(long x509) throws WolfSSLException {
         super();
         this.cert = new WolfSSLCertificate(x509);
@@ -438,6 +462,9 @@ public class WolfSSLX509 extends X509Certificate {
         return this.cert.toString();
     }
 
+    /**
+     * Free native resources used by this object.
+     */
     public void free() {
         try {
             if (this.cert != null) {

@@ -34,9 +34,39 @@ import java.nio.ByteBuffer;
  */
 public class ECC {
 
+    /**
+     * ECC verify. Wraps native wc_ecc_verify_hash() to verify ECDSA
+     * signature against known hash value.
+     *
+     * @param sig input ByteBuffer to be verified
+     * @param sigSz size of input buffer, bytes
+     * @param hash input hash to compare signature against
+     * @param hashLen size of input hash, bytes
+     * @param keyDer public key to use for verify, DER format
+     * @param keySz size of keyDer, bytes
+     * @param result first array element set to 0 on successful verify
+     *
+     * @return 0 on success, negative on error.
+     */
     public native int doVerify(ByteBuffer sig, long sigSz, ByteBuffer hash,
             long hashLen, ByteBuffer keyDer, long keySz, int[] result);
 
+    /**
+     * ECC sign. Wraps native wolfCrypt wc_ecc_sign_hash() to
+     * sign input hash with ECDSA.
+     *
+     * Currently only used with public key callbacks.
+     *
+     * @param in input ByteBuffer to be signed
+     * @param inSz size of input, bytes
+     * @param out ByteBuffer to place output signature
+     * @param outSz [IN/OUT] size of output buffer on input, size of
+     *              generated signature on return.
+     * @param key ByteBuffer holding DER encoded ECC key
+     * @param keySz size of input key, bytes
+     *
+     * @return 0 on success, negative on error.
+     */
     public native int doSign(ByteBuffer in, long inSz, ByteBuffer out,
             long[] outSz, ByteBuffer key, long keySz);
 

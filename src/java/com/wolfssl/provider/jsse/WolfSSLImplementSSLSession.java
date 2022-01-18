@@ -62,15 +62,21 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     byte pseudoSessionID[] = null; /* used with TLS 1.3*/
     private int side = 0;
 
-    /**
-     * has this session been registered
-     */
+    /** Has this session been registered */
     protected boolean fromTable = false;
+
     private long sesPtr = 0;
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
 
-
+    /**
+     * Create new WolfSSLImplementSSLSession
+     *
+     * @param in WolfSSLSession to be used with this object
+     * @param port peer port for this session
+     * @param host peer hostname String for this session
+     * @param params WolfSSLAuthStore for this session
+     */
     public WolfSSLImplementSSLSession (WolfSSLSession in, int port, String host,
             WolfSSLAuthStore params) {
         this.ssl = in;
@@ -84,6 +90,12 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
 
+    /**
+     * Create new WolfSSLImplementSSLSession
+     *
+     * @param in WolfSSLSession to be used with this object
+     * @param params WolfSSLAuthStore for this session
+     */
     public WolfSSLImplementSSLSession (WolfSSLSession in,
                                        WolfSSLAuthStore params) {
         this.ssl = in;
@@ -97,6 +109,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
 
+    /**
+     * Create new WolfSSLImplementSSLSession
+     *
+     * @param params WolfSSLAuthStore for this session
+     */
     public WolfSSLImplementSSLSession (WolfSSLAuthStore params) {
         this.port = -1;
         this.host = null;
@@ -108,6 +125,13 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         accessed = new Date();
     }
 
+    /**
+     * Get session ID for this session
+     *
+     * @return session ID as byte array, empty byte array if wrapped
+     *         com.wolfssl.WolfSSLSession is null, or null if inner
+     *         IllegalStateException or WolfSSLJNIException are thrown
+     */
     public synchronized byte[] getId() {
         if (ssl == null) {
             return new byte[0];
@@ -125,30 +149,54 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         }
     }
 
+    /**
+     * Get SSLSessionContext for this session
+     *
+     * @return SSLSessionContext
+     */
     public synchronized SSLSessionContext getSessionContext() {
         return ctx;
     }
 
     /**
      * Setter function for the SSLSessionContext used with session creation
+     *
      * @param ctx value to set the session context as
      */
     protected void setSessionContext(WolfSSLSessionContext ctx) {
         this.ctx = ctx;
     }
 
+    /**
+     * Get session creation time
+     *
+     * @return session creation time
+     */
     public long getCreationTime() {
         return creation.getTime();
     }
 
+    /**
+     * Get session last accessed time
+     *
+     * @return session last accessed time
+     */
     public long getLastAccessedTime() {
         return accessed.getTime();
     }
 
+    /**
+     * Invalidate this session
+     */
     public void invalidate() {
         this.valid = false;
     }
 
+    /**
+     * Check if this session is valid
+     *
+     * @return boolean if this session is valid
+     */
     public boolean isValid() {
         return this.valid;
     }
@@ -162,6 +210,14 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.valid = in;
     }
 
+    /**
+     * Put value into this session
+     *
+     * @param name String name of value
+     * @param obj Object to store associated with name
+     *
+     * @throws IllegalArgumentException if input name is null
+     */
     public void putValue(String name, Object obj) {
         Object old;
 
@@ -184,10 +240,24 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         }
     }
 
+    /**
+     * Get stored value associated with name
+     *
+     * @param name String name to retrieve associated Object value
+     *
+     * @return Object value associated with name
+     */
     public Object getValue(String name) {
         return binding.get(name);
     }
 
+    /**
+     * Remove stored String:Object from session
+     *
+     * @param name String name to remove from session
+     *
+     * @throws IllegalArgumentException if input name is null
+     */
     public void removeValue(String name) {
         Object obj;
 
@@ -206,10 +276,23 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         }
     }
 
+    /**
+     * Get stored value names in this session
+     *
+     * @return String array of value names stored in session
+     */
     public String[] getValueNames() {
         return binding.keySet().toArray(new String[binding.keySet().size()]);
     }
 
+    /**
+     * Get peer certificates for this session
+     *
+     * @return Certificate array of peer certs for session
+     *
+     * @throws SSLPeerUnverifiedException if handshake is not complete,
+     *         or error getting certificates
+     */
     public synchronized Certificate[] getPeerCertificates()
             throws SSLPeerUnverifiedException {
         long x509;

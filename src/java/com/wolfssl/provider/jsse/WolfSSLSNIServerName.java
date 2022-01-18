@@ -34,6 +34,12 @@ public abstract class WolfSSLSNIServerName
     private int type;
     private byte[] encoded = null;
 
+    /**
+     * Create new WolfSSLSNIServerName object
+     *
+     * @param type type of the server name
+     * @param encoded encoded byte array value of server name
+     */
     protected WolfSSLSNIServerName(int type, byte[] encoded) {
 
         if (type < 0 || type > 255) {
@@ -50,10 +56,20 @@ public abstract class WolfSSLSNIServerName
         this.encoded = encoded.clone();
     }
 
+    /**
+     * Get server name type
+     *
+     * @return the name type of this server name
+     */
     public final int getType() {
         return this.type;
     }
 
+    /**
+     * Get encoded byte array of server name
+     *
+     * @return a copy of this encoded server name value, or null
+     */
     public final byte[] getEncoded() {
         if (this.encoded == null) {
             return null;
@@ -61,6 +77,13 @@ public abstract class WolfSSLSNIServerName
         return encoded.clone();
     }
 
+    /**
+     * Test if equal to provided Object
+     *
+     * @param other Object to test for equality to this WolfSSLSNIServerName
+     *
+     * @return true if equal, otherwise false
+     */
     public boolean equals(Object other) {
         if (other == null) {
             return false;
@@ -82,10 +105,20 @@ public abstract class WolfSSLSNIServerName
         return true;
     }
 
+    /**
+     * Get hashCode of this object
+     *
+     * @return hash code value specific to this type and encoded name
+     */
     public int hashCode() {
         return Objects.hash(this.type, this.encoded);
     }
 
+    /**
+     * Return String representation of this object
+     *
+     * @return String representing this object
+     */
     public String toString() {
         StringBuilder s = new StringBuilder();
         s.append("type=(" + this.type + "), ");

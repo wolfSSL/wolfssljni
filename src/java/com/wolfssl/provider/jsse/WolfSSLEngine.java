@@ -547,8 +547,15 @@ public class WolfSSLEngine extends SSLEngine {
         }
     }
 
-    /* encrypted packet ready to be sent out. Copies buffer to end of to send
-     * queue */
+    /**
+     * Copies buffer to end of to send queue. Encrypted packet is ready to be
+     * sent out.
+     *
+     * @param in byte array with encrypted data to be sent
+     * @param sz size of data in input array to be sent
+     *
+     * @return number of bytes placed into send queue
+     */
     protected synchronized int setOut(byte[] in, int sz) {
         int totalSz = sz, idx = 0;
         byte[] tmp;
@@ -567,7 +574,15 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
 
-    /* reads from buffer toRead */
+    /**
+     * Reads from buffer toRead
+     *
+     * @param toRead byte array to read data from
+     * @param sz size of toRead array, bytes
+     *
+     * @return number of bytes read into toRead array or negative
+     *         value on error
+     */
     protected synchronized int setIn(byte[] toRead, int sz) {
         int max = (sz < toReadSz)? sz : toReadSz;
 

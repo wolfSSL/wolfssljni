@@ -32,7 +32,7 @@ import com.wolfssl.WolfSSLContext;
 /**
  * wolfSSL implementation of SSLServerSocketFactory
  *
- * @author wolfSSL
+ * @author wolfSSL Inc.
  */
 public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
 
@@ -40,6 +40,13 @@ public class WolfSSLServerSocketFactory extends SSLServerSocketFactory {
     private WolfSSLContext ctx = null;
     private WolfSSLParameters params;
 
+    /**
+     * Create new WolfSSLServerSocketFactory
+     *
+     * @param ctx WolfSSLContext object to use with this factory
+     * @param authStore WolfSSLAuthStore object to use for this factory
+     * @param params WolfSSLParameters object to use with this factory
+     */
     public WolfSSLServerSocketFactory(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore authStore, WolfSSLParameters params) {
         super();

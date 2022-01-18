@@ -41,6 +41,9 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 
+/**
+ * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
+ */
 public class WolfSSLCertificate {
 
     private boolean active = false;
@@ -74,6 +77,14 @@ public class WolfSSLCertificate {
     static native long X509_load_certificate_buffer(byte[] buf, int format);
     static native long X509_load_certificate_file(String path, int format);
 
+    /**
+     * Create new WolfSSLCertificate from DER-encoded byte array.
+     *
+     * @param der ASN.1/DER encoded X.509 certificate
+     *
+     * @throws WolfSSLException if input is null, input array length is 0,
+     *                          or native API call fails.
+     */
     public WolfSSLCertificate(byte[] der) throws WolfSSLException {
 
         if (der == null || der.length == 0) {
@@ -89,6 +100,17 @@ public class WolfSSLCertificate {
         this.active = true;
     }
 
+    /**
+     * Create WolfSSLCertificate from byte array in specified format.
+     *
+     * @param in X.509 certificate byte array in format specified
+     * @param format format of certificate, either WolfSSL.SSL_FILETYPE_ASN1
+     *               or WolfSSL.SSL_FILETYPE_PEM
+     *
+     * @throws WolfSSLException if in array is null, input array length is 0,
+     *                          format does not match valid options, or
+     *                          native API call fails.
+     */
     public WolfSSLCertificate(byte[] in, int format) throws WolfSSLException {
 
         if (in == null || in.length == 0) {
@@ -111,6 +133,14 @@ public class WolfSSLCertificate {
         this.active = true;
     }
 
+    /**
+     * Create WolfSSLCertificate from specified ASN.1/DER X.509 file.
+     *
+     * @param fileName path to X.509 certificate file in ASN.1/DER format
+     *
+     * @throws WolfSSLException if fileName is null or native API
+     *                          call fails with error.
+     */
     public WolfSSLCertificate(String fileName) throws WolfSSLException {
 
         if (fileName == null) {
@@ -126,6 +156,18 @@ public class WolfSSLCertificate {
         this.active = true;
     }
 
+    /**
+     * Create WolfSSLCertificate from specified X.509 file in specified
+     * format.
+     *
+     * @param fileName path to X.509 certificate file
+     * @param format format of certificate file, either
+     *               WolfSSL.SSL_FILETYPE_ASN1 or
+     *               WolfSSL.SSL_FILETYPE_PEM
+     *
+     * @throws WolfSSLException if input fileName is null, format is not
+     *                          valid, or native API call fails.
+     */
     public WolfSSLCertificate(String fileName, int format)
             throws WolfSSLException {
 
@@ -148,6 +190,13 @@ public class WolfSSLCertificate {
         this.active = true;
     }
 
+    /**
+     * Create WolfSSLCertificate from pre existing native pointer.
+     *
+     * @param x509 pre existing native pointer to WOLFSSL_X509 structure.
+     *
+     * @throws WolfSSLException if input pointer is invalid
+     */
     public WolfSSLCertificate(long x509) throws WolfSSLException {
 
         if (x509 <= 0) {
@@ -157,7 +206,11 @@ public class WolfSSLCertificate {
         this.active = true;
     }
 
-    /* return DER encoding of certificate */
+    /**
+     * Get ASN.1/DER encoding of this X.509 certificate
+     *
+     * @return DER encoded array of certificate or null if not available.
+     */
     public byte[] getDer() {
 
         if (this.active == true) {
@@ -167,7 +220,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
-    /* return the buffer that is To Be Signed */
+    /**
+     * Get buffer that is To Be Signed (Tbs)
+     *
+     * @return byte array to be signed
+     */
     public byte[] getTbs() {
 
         if (this.active == true) {
@@ -177,6 +234,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get X.509 serial number as BigInteger
+     *
+     * @return serial number as BigInteger, or null if not available
+     */
     public BigInteger getSerial() {
         byte[] out = new byte[32];
         int sz;
@@ -195,6 +257,11 @@ public class WolfSSLCertificate {
         }
     }
 
+    /**
+     * Get X.509 validity notBefore date
+     *
+     * @return notBefore date as Date object, or null if not available
+     */
     public Date notBefore() {
         String nb;
 
@@ -215,6 +282,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get X.509 validity notAfter date
+     *
+     * @return notAfter date as Date object, or null if not available
+     */
     public Date notAfter() {
         String nb;
 
@@ -235,6 +307,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get X.509 version
+     *
+     * @return version of X.509 certificate
+     */
     public int getVersion() {
 
         if (this.active == true) {
@@ -244,6 +321,11 @@ public class WolfSSLCertificate {
         return 0;
     }
 
+    /**
+     * Get signature from X.509 certificate
+     *
+     * @return byte array with signature from X.509 certificate, or null
+     */
     public byte[] getSignature() {
 
         if (this.active == true) {
@@ -253,6 +335,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get signature type from X.509 certificate
+     *
+     * @return signature type String, or null
+     */
     public String getSignatureType() {
 
         if (this.active == true) {
@@ -262,6 +349,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get X.509 signature algorithm OID
+     *
+     * @return algorithm OID of signature, or null
+     */
     public String getSignatureOID() {
 
         if (this.active == true) {
@@ -271,6 +363,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get public key from X.509 certificate
+     *
+     * @return certificate public key, byte array. Or null.
+     */
     public byte[] getPubkey() {
 
         if (this.active == true) {
@@ -280,6 +377,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get public key type of certificate
+     *
+     * @return public key type String, or null
+     */
     public String getPubkeyType() {
 
         if (this.active == true) {
@@ -289,6 +391,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get certificate isCA value
+     *
+     * @return X.509 isCA value
+     */
     public int isCA() {
 
         if (this.active == true) {
@@ -298,7 +405,11 @@ public class WolfSSLCertificate {
         return 0;
     }
 
-    /* if not set -1 is returned */
+    /**
+     * Get certificate path length
+     *
+     * @return path length, or -1 if not set
+     */
     public int getPathLen() {
 
         if (this.active == true) {
@@ -308,6 +419,11 @@ public class WolfSSLCertificate {
         return 0;
     }
 
+    /**
+     * Get certificate Subject
+     *
+     * @return X.509 Subject String, or null
+     */
     public String getSubject() {
 
         if (this.active == true) {
@@ -317,6 +433,11 @@ public class WolfSSLCertificate {
         return null;
     }
 
+    /**
+     * Get certificate Issuer
+     *
+     * @return X.509 Issuer String, or null
+     */
     public String getIssuer() {
 
         if (this.active == true) {
@@ -326,7 +447,14 @@ public class WolfSSLCertificate {
         return null;
     }
 
-    /* returns WOLFSSL_SUCCESS on successful verification */
+    /**
+     * Verify signature in certificate with provided public key
+     *
+     * @param pubKey public key, ASN.1/DER formatted
+     * @param pubKeySz size of public key array, bytes
+     *
+     * @return true if verified, otherwise false
+     */
     public boolean verify(byte[] pubKey, int pubKeySz) {
         int ret;
 
@@ -341,6 +469,22 @@ public class WolfSSLCertificate {
         return false;
     }
 
+    /**
+     * Get array of key usage values set in certificate
+     *
+     * Array returned will represent the following key usages (true/false):
+     *    [0] = KEYUSE_DIGITAL_SIG
+     *    [1] = KEYUSE_CONTENT_COMMIT
+     *    [2] = KEYUSE_KEY_ENCIPHER
+     *    [3] = KEYUSE_DATA_ENCIPHER
+     *    [4] = KEYUSE_KEY_AGREE
+     *    [5] = KEYUSE_KEY_CERT_SIGN
+     *    [6] = KEYUSE_CRL_SIGN
+     *    [7] = KEYUSE_ENCIPHER_ONLY
+     *    [8] = KEYUSE_DECIPHER_ONLY
+     *
+     * @return arrray of key usages set for certificate, or null
+     */
     public boolean[] getKeyUsage() {
 
         if (this.active == true) {
@@ -350,7 +494,13 @@ public class WolfSSLCertificate {
         return null;
     }
 
-    /* gets the DER encoded extension value from an OID passed in */
+    /**
+     * Get DER encoded extension value from a specified OID
+     *
+     * @param oid OID value of extension to retreive value for
+     *
+     * @return DER encoded extension value, or null
+     */
     public byte[] getExtension(String oid) {
         if (oid == null || this.active == false) {
             return null;
@@ -358,10 +508,15 @@ public class WolfSSLCertificate {
         return X509_get_extension(this.x509Ptr, oid);
     }
 
-    /* returns 1 if extension OID is set but not critical
-     * returns 2 if extension OID is set and is critical
-     * return  0 if not set
-     * return negative value on error
+    /**
+     * Poll if certificate extension is set for this certificate
+     *
+     * @param oid OID value of extension to poll for
+     *
+     * @return 1 if extension OID is set but not critical,
+     *         2 if extension OID is set and is critical,
+     *         0 if not set,
+     *         otherwise negative value on error
      */
     public int getExtensionSet(String oid) {
         if (this.active == false) {

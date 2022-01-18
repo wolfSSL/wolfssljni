@@ -155,6 +155,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_THREAD_CREATE_E -264L
 #undef com_wolfssl_WolfSSL_CACHE_MATCH_ERROR
 #define com_wolfssl_WolfSSL_CACHE_MATCH_ERROR -280L
+#undef com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME
+#define com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME 0L
 #undef com_wolfssl_WolfSSL_MEMORY_E
 #define com_wolfssl_WolfSSL_MEMORY_E -125L
 #undef com_wolfssl_WolfSSL_BUFFER_E
