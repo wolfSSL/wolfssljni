@@ -51,6 +51,20 @@ import com.wolfssl.WolfSSLException;
 public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     private KeyStore store;
 
+    /* Initialize TrustManager. Attempts to load CA certifciates as trusted
+     * roots into wolfSSL from user-provided KeyStore. If KeyStore is null,
+     * we attempt to load default system CA certificates in the following
+     * priority order:
+     *   1. javax.net.ssl.trustStore location, if set. Using password
+     *      in javax.net.ssl.trustStorePassword.
+     *   2. $JAVA_HOME/lib/security/jssecacerts     (JDK 9+)
+     *   3. $JAVA_HOME/jre/lib/security/jssecacerts (JDK <= 8)
+     *   4. $JAVA_HOME/lib/security/cacerts         (JDK 9+)
+     *   5. $JAVA_HOME/jre/lib/security/cacerts     (JDK <= 8)
+     *   6. /etc/ssl/certs/java/cacerts
+     *   7. Android: AndroidCAStore system KeyStore
+     *   8. Android: $ANDROID_ROOT/etc/security/cacerts
+     */
     @Override
     protected void engineInit(KeyStore in) throws KeyStoreException {
         KeyStore certs = in;
@@ -135,39 +149,50 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                             javaHome = javaHome.concat("/");
                         }
 
+                        /* Java 9+ have cacerts under:
+                         *     $JAVA_HOME/lib/security/cacerts
+                         * Java 8 and earlier use:
+                         *     $JAVA_HOME/jre/lib/security/cacerts
+                         */
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "$JAVA_HOME = " + javaHome);
 
                         /* trying: "lib/security/jssecacerts" */
                         File f = new File(javaHome.concat(
-                                            "jre/lib/security/jssecacerts"));
+                                          "lib/security/jssecacerts"));
+                        if (!f.exists()) {
+                            f = new File(javaHome.concat(
+                                         "jre/lib/security/jssecacerts"));
+                        }
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                   "Loading certs from " +
-                                   javaHome.concat("lib/security/jssecacerts"));
+                                   "Loading certs from " + f.getAbsolutePath());
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                             stream.close();
                             systemCertsFound = true;
                         } else {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "$JAVA_HOME/jre/lib/security/jssecacerts: " +
+                                "$JAVA_HOME/(jre/)lib/security/jssecacerts: " +
                                 "not found");
                         }
 
                         /* trying: "lib/security/cacerts" */
-                        f = new File(javaHome.concat("jre/lib/security/cacerts"));
+                        f = new File(javaHome.concat("lib/security/cacerts"));
+                        if (!f.exists()) {
+                            f = new File(javaHome.concat(
+                                         "jre/lib/security/cacerts"));
+                        }
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "Loading certs from " +
-                                    javaHome.concat("lib/security/cacerts"));
+                                    "Loading certs from " + f.getAbsolutePath());
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                             stream.close();
                             systemCertsFound = true;
                         } else {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "$JAVA_HOME/jre/lib/security/cacerts: " +
+                                "$JAVA_HOME/(jre/)lib/security/cacerts: " +
                                 "not found");
                         }
                     } else {
@@ -185,8 +210,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         File f = new File("/etc/ssl/certs/java/cacerts");
                         if (f.exists()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                   "Loading certs from " +
-                                   "/etc/ssl/certs/java/cacerts");
+                                   "Loading certs from " + f.getAbsolutePath());
                             stream = new FileInputStream(f);
                             certs.load(stream, passAr);
                             stream.close();
