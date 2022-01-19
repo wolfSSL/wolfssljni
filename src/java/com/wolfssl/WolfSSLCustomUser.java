@@ -1,6 +1,6 @@
 /* WolfSSLCustomUser.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,7 +28,6 @@ import  com.wolfssl.WolfSSL.TLS_VERSION;
  * Currently it is limited to be invoked from WolfSSLContext.Create
  *
  * @author  wolfSSL
- * @version 1.0, August 2013
  */
 public class WolfSSLCustomUser {
     /** SSL/TLS version */
@@ -60,8 +59,8 @@ public class WolfSSLCustomUser {
 
         /***
          custom code
-         
-         Example: 
+
+         Example:
             ctxAttr.NoOptions = WolfSSL.SSL_OP_NO_TLSv1 | WolfSSL.SSL_OP_NO_TLSv1_3;
 
         ***/

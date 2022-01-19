@@ -1,6 +1,6 @@
 /* MultiThreadedSSLServer.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -64,7 +64,7 @@ public class MultiThreadedSSLServer
             /* Set up CA TrustManagerFactory */
             KeyStore caKeyStore = KeyStore.getInstance("JKS");
             caKeyStore.load(new FileInputStream(serverTS), psw);
-            
+
             TrustManagerFactory tm = TrustManagerFactory.getInstance("SunX509");
             tm.init(caKeyStore);
 

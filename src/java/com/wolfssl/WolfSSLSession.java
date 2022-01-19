@@ -1,6 +1,6 @@
 /* WolfSSLSession.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,7 +34,6 @@ import com.wolfssl.WolfSSLJNIException;
  * to the SSL/TLS session.
  *
  * @author  wolfSSL
- * @version 1.0, August 2013
  */
 public class WolfSSLSession {
 

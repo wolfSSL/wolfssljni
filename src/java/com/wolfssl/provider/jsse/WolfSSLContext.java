@@ -1,6 +1,6 @@
 /* WolfSSLContext.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -452,7 +452,7 @@ public class WolfSSLContext extends SSLContextSpi {
 
     /**
      * Returns the SSLClientSessionContext associated with this SSLContext.
-     * 
+     *
      * @throws UnsupportedOperationException operation not yet supported
      */
     @Override

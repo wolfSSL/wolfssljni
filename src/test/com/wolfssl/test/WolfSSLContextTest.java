@@ -1,6 +1,6 @@
 /* WolfSSLContextTest.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -49,11 +49,11 @@ public class WolfSSLContextTest {
     public void testWolfSSLContext() throws WolfSSLException {
 
         System.out.println("WolfSSLContext Class");
-        
+
         cliCert = WolfSSLTestCommon.getPath(cliCert);
         cliKey = WolfSSLTestCommon.getPath(cliKey);
         caCert = WolfSSLTestCommon.getPath(caCert);
-        
+
         test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
         test_WolfSSLContext_useCertificateFile();
         test_WolfSSLContext_usePrivateKeyFile();

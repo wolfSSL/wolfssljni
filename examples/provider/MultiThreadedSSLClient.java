@@ -1,6 +1,6 @@
 /* MultiThreadedSSLClient.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -188,7 +188,7 @@ public class MultiThreadedSSLClient
             /* set up CA TrustManagerFactory */
             KeyStore caKeyStore = KeyStore.getInstance("JKS");
             caKeyStore.load(new FileInputStream(clientTS), passArr);
-            
+
             TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
             tm.init(caKeyStore);
 
@@ -216,7 +216,7 @@ public class MultiThreadedSSLClient
         System.out.println("All Client Connections Finished");
         System.out.println("Successful = " + successClientConnections);
         System.out.println("Failed = " + failedClientConnections);
-        System.out.println("Avg handshake time = " + 
+        System.out.println("Avg handshake time = " +
                 totalConnectionTimeMs / successClientConnections + " ms");
         System.out.println("================================================");
     }

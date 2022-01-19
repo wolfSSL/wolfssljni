@@ -1,6 +1,6 @@
 /* WolfSSLSocket.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1813,7 +1813,7 @@ public class WolfSSLSocket extends SSLSocket {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.read() got SSL_ERROR_ZERO_RETURN, " + err +
                             ", end of stream");
-                            
+
                         /* End of stream */
                         return -1;
                     }

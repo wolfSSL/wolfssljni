@@ -1,6 +1,6 @@
 /* WolfSSLCertManager.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,7 +35,6 @@ import com.wolfssl.WolfSSLException;
  * methods, as well as error codes and general wolfSSL codes.
  *
  * @author  wolfSSL
- * @version 1.1, February 2019
  */
 public class WolfSSLCertManager {
     private boolean active = false;

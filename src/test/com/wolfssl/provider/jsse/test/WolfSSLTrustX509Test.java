@@ -1,6 +1,6 @@
 /* WolfSSLTrustX509Test.java
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -276,7 +276,7 @@ public class WolfSSLTrustX509Test {
                         tm = tf.createTrustManager("SunX509", null, provider);
                         if (tm == null) {
                             error("\t... failed");
-                            fail("failed to create trustmanager with default"); 
+                            fail("failed to create trustmanager with default");
                         }
                         pass("\t... passed");
                         return;
@@ -288,17 +288,17 @@ public class WolfSSLTrustX509Test {
             tm = tf.createTrustManager("SunX509", null, provider);
             if (tm == null) {
                 error("\t... failed");
-                fail("failed to create trustmanager with default"); 
+                fail("failed to create trustmanager with default");
             }
             pass("\t... passed");
             return;
         }
-        
+
         /* case of no default found */
         pass("\t... skipped");
     }
-    
-    
+
+
     @Test
     public void testVerify()
         throws NoSuchProviderException, NoSuchAlgorithmException, KeyStoreException,
@@ -308,9 +308,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         InputStream stream;
         KeyStore ks;
-        
+
         System.out.print("\tTesting verify");
-        
+
         /* success case */
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
@@ -325,7 +325,7 @@ public class WolfSSLTrustX509Test {
             fail("no CAs where found");
             return;
         }
-        
+
         ks = KeyStore.getInstance(tf.keyStoreType);
         stream = new FileInputStream(tf.serverJKS);
         ks.load(stream, "wolfSSL test".toCharArray());
@@ -336,10 +336,10 @@ public class WolfSSLTrustX509Test {
         }
         catch (Exception e) {
             error("\t\t\t... failed");
-            fail("failed to verify"); 
+            fail("failed to verify");
         }
-        
-        
+
+
         /* fail case */
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
@@ -353,7 +353,7 @@ public class WolfSSLTrustX509Test {
             error("\t\t\t... failed");
             fail("no CAs where found");
         }
-        
+
         ks = KeyStore.getInstance(tf.keyStoreType);
         stream = new FileInputStream(tf.clientJKS);
         ks.load(stream, "wolfSSL test".toCharArray());
@@ -362,19 +362,19 @@ public class WolfSSLTrustX509Test {
             x509tm.checkServerTrusted(new X509Certificate[] {
             (X509Certificate)ks.getCertificate("ca-ecc-cert") }, "ECC");
             error("\t\t\t... failed");
-            fail("able to verify when should not have"); 
+            fail("able to verify when should not have");
         }
         catch (Exception e) {
             /* expected to error out */
         }
         pass("\t\t\t... passed");
     }
-    
-    
+
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
-    
+
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }
