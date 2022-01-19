@@ -218,7 +218,7 @@ public class WolfSSLContext extends SSLContextSpi {
                     X500Principal.RFC1779));
         }
 
-        if (loadedCACount == 0) {
+        if (caList.length > 0 && loadedCACount == 0) {
             throw new IllegalArgumentException("wolfSSL failed to load " +
                 "any trusted CA certificates from TrustManager");
         }
