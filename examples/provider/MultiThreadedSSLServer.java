@@ -47,6 +47,7 @@ public class MultiThreadedSSLServer
     private char[] psw = "wolfSSL test".toCharArray();
     private String serverKS = "./examples/provider/rsa.jks";
     private String serverTS = "./examples/provider/client.jks";
+    private String jsseProv = "wolfJSSE";
     int serverPort = 11118;
 
     public MultiThreadedSSLServer() {
@@ -58,18 +59,19 @@ public class MultiThreadedSSLServer
             KeyStore serverKeyStore = KeyStore.getInstance("JKS");
             serverKeyStore.load(new FileInputStream(serverKS), psw);
 
-            KeyManagerFactory km = KeyManagerFactory.getInstance("SunX509");
+            KeyManagerFactory km = KeyManagerFactory
+                .getInstance("SunX509", jsseProv);
             km.init(serverKeyStore, psw);
 
             /* Set up CA TrustManagerFactory */
             KeyStore caKeyStore = KeyStore.getInstance("JKS");
             caKeyStore.load(new FileInputStream(serverTS), psw);
-
-            TrustManagerFactory tm = TrustManagerFactory.getInstance("SunX509");
+            
+            TrustManagerFactory tm = TrustManagerFactory
+                .getInstance("SunX509", jsseProv);
             tm.init(caKeyStore);
 
-
-            SSLContext ctx = SSLContext.getInstance("TLS", "wolfJSSE");
+            SSLContext ctx = SSLContext.getInstance("TLS", jsseProv);
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
             SSLServerSocket ss = (SSLServerSocket)ctx

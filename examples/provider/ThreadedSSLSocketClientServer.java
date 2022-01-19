@@ -40,9 +40,11 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class ThreadedSSLSocketClientServer
 {
-    String tmfImpl = "SunX509";     /* TrustManagerFactory provider */
-    String kmfImpl = "SunX509";     /* KeyManagerFactory provider */
-    String ctxImpl = "wolfJSSE";    /* SSLContext provider */
+    String tmfType = "SunX509";     /* TrustManagerFactory type */
+    String tmfProv = "wolfJSSE";    /* TrustManagerFactory provider */
+    String kmfType = "SunX509";     /* KeyManagerFactory type */
+    String kmfProv = "wolfJSSE";    /* KeyManagerFactory provider */
+    String ctxProv = "wolfJSSE";    /* SSLContext provider */
     int srvPort = 11118;            /* server port */
 
     class ServerThread extends Thread
@@ -70,13 +72,15 @@ public class ThreadedSSLSocketClientServer
                 KeyStore cert = KeyStore.getInstance("JKS");
                 cert.load(new FileInputStream(trustStorePath), tsPass);
 
-                TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
+                TrustManagerFactory tm = TrustManagerFactory
+                    .getInstance(tmfType, tmfProv);
                 tm.init(cert);
-
-                KeyManagerFactory km = KeyManagerFactory.getInstance(kmfImpl);
+                
+                KeyManagerFactory km = KeyManagerFactory
+                    .getInstance(kmfType, kmfProv);
                 km.init(pKey, ksPass);
 
-                SSLContext ctx = SSLContext.getInstance("TLS", ctxImpl);
+                SSLContext ctx = SSLContext.getInstance("TLS", ctxProv);
                 ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
                 SSLServerSocket ss = (SSLServerSocket)ctx
@@ -115,14 +119,16 @@ public class ThreadedSSLSocketClientServer
                 pKey.load(new FileInputStream(keyStorePath), ksPass);
                 KeyStore cert = KeyStore.getInstance("JKS");
                 cert.load(new FileInputStream(trustStorePath), tsPass);
-
-                TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
+                
+                TrustManagerFactory tm = TrustManagerFactory
+                    .getInstance(tmfType, tmfProv);
                 tm.init(cert);
-
-                KeyManagerFactory km = KeyManagerFactory.getInstance(kmfImpl);
+                
+                KeyManagerFactory km = KeyManagerFactory
+                    .getInstance(kmfType, kmfProv);
                 km.init(pKey, ksPass);
 
-                SSLContext ctx = SSLContext.getInstance("TLS", ctxImpl);
+                SSLContext ctx = SSLContext.getInstance("TLS", ctxProv);
                 ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
                 SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
@@ -144,7 +150,7 @@ public class ThreadedSSLSocketClientServer
 
         Security.addProvider(new WolfSSLProvider());
 
-        String serverKS = "./examples/provider/rsa.jks";
+        String serverKS = "./examples/provider/server.jks";
         String serverTS = "./examples/provider/client.jks";
         String clientKS = "./examples/provider/client.jks";
         String clientTS = "./examples/provider/client.jks";

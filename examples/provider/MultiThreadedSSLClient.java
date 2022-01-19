@@ -64,9 +64,11 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class MultiThreadedSSLClient
 {
-    String tmfImpl = "SunX509";      /* TrustManagerFactory provider */
-    String kmfImpl = "SunX509";      /* KeyManagerFactory provider */
-    String ctxImpl = "wolfJSSE";     /* SSLContext provider */
+    String tmfType = "SunX509";      /* TrustManagerFactory type */
+    String tmfProv = "wolfJSSE";     /* TrustManagerFactory provider */
+    String kmfType = "SunX509";      /* KeyManagerFactory type */
+    String kmfProv = "wolfJSSE";     /* KeyManagerFactory provider */
+    String ctxProv = "wolfJSSE";     /* SSLContext provider */
 
     String srvHost = "127.0.0.1";    /* server host */
     int srvPort = 11118;             /* server port */
@@ -109,7 +111,7 @@ public class MultiThreadedSSLClient
                 ThreadLocalRandom.current().nextInt(0, maxSleep +1);
 
             try {
-                SSLContext ctx = SSLContext.getInstance("TLS", ctxImpl);
+                SSLContext ctx = SSLContext.getInstance("TLS", ctxProv);
                 ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
                 SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
@@ -182,14 +184,15 @@ public class MultiThreadedSSLClient
             clientKeyStore.load(new FileInputStream(clientKS), passArr);
 
             KeyManagerFactory clientKMF =
-                KeyManagerFactory.getInstance(kmfImpl);
+                KeyManagerFactory.getInstance(kmfType, kmfProv);
             clientKMF.init(clientKeyStore, passArr);
 
             /* set up CA TrustManagerFactory */
             KeyStore caKeyStore = KeyStore.getInstance("JKS");
             caKeyStore.load(new FileInputStream(clientTS), passArr);
-
-            TrustManagerFactory tm = TrustManagerFactory.getInstance(tmfImpl);
+            
+            TrustManagerFactory tm = TrustManagerFactory
+                .getInstance(tmfType, tmfProv);
             tm.init(caKeyStore);
 
             for (int i = 0; i < numClientConnections; i++) {
