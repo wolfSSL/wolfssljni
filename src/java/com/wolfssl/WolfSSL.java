@@ -232,8 +232,6 @@ public class WolfSSL {
     public static int wolfssl_aes_gcm;
     /** Bulk cipher algorithm enum: AES-CCM */
     public static int wolfssl_aes_ccm;
-    /** Bulk cipher algorithm enum: HC-128 */
-    public static int wolfssl_hc128;
     /** Bulk cipher algorithm enum: RABBIT */
     public static int wolfssl_rabbit;
 
@@ -374,7 +372,6 @@ public class WolfSSL {
         wolfssl_idea        = getBulkCipherAlgorithmEnumIDEA();
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
-        wolfssl_hc128       = getBulkCipherAlgorithmEnumHC128();
         wolfssl_rabbit      = getBulkCipherAlgorithmEnumRABBIT();
 
         this.active = true;
@@ -402,7 +399,6 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumAESCCM();
     static native int getBulkCipherAlgorithmEnumCHACHA();
     static native int getBulkCipherAlgorithmEnumCAMELLIA();
-    static native int getBulkCipherAlgorithmEnumHC128();
     static native int getBulkCipherAlgorithmEnumRABBIT();
 
     static native String getEnabledCipherSuites();

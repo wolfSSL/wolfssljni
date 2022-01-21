@@ -148,6 +148,17 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Release Notes
 
+### wolfSSL JNI Release X.X.X (TBD)
+
+Release X.X.X has bug fixes and new features including:
+
+* Removal of HC-128 stream cipher support. Native wolfSSL removed HC-128
+support in [PR #4767](https://github.com/wolfSSL/wolfssl/pull/4767)
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.8.0 (11/12/2021)
 
 Release 1.8.0 has bug fixes and new features including:
