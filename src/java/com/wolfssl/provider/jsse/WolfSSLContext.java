@@ -27,6 +27,7 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import javax.security.auth.x500.X500Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -181,6 +182,9 @@ public class WolfSSLContext extends SSLContextSpi {
             return;
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Number of certs in X509TrustManager: " + caList.length);
+
         /* Load accepted issuer certificates into native WOLFSSL_CTX to be
          * used in native wolfSSL verify logic */
         for (int i = 0; i < caList.length; i++) {
@@ -208,12 +212,15 @@ public class WolfSSLContext extends SSLContextSpi {
                         "skipped loading CA, JNI exception");
             }
 
-            if (loadedCACount == 0) {
-                throw new IllegalArgumentException("wolfSSL failed to load " +
-                    "any trusted CA certificates from TrustManager");
-            }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded trusted root certs from TrustManager");
+                    "loaded trusted root cert (" + caList[i].getSigAlgName()
+                    + "): " + caList[i].getSubjectX500Principal().getName(
+                    X500Principal.RFC1779));
+        }
+
+        if (caList.length > 0 && loadedCACount == 0) {
+            throw new IllegalArgumentException("wolfSSL failed to load " +
+                "any trusted CA certificates from TrustManager");
         }
     }
 

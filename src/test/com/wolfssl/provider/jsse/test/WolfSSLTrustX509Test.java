@@ -80,9 +80,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 9;
-        String OU[] = { "OU=Programming-2048", "OU=Programming-1024",
-            "OU=Support", "OU=Support_1024", "OU=Fast", "OU=Consulting",
-            "OU=ECC", "OU=Consulting_1024" };
+        String OU[] = { "OU=ECC", "OU=Programming-2048", "OU=Support",
+            "OU=Support_1024", "OU=Consulting", "OU=Development", "OU=Fast",
+            "OU=Consulting_1024", "OU=Programming-1024" };
 
         System.out.print("\tTesting parse all.jks");
 
@@ -141,8 +141,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0;
         int expected = 6;
-        String OU[] = { "OU=Support", "OU=Support_1024", "OU=Fast",
-            "OU=Programming-2048", "OU=Programming-1024" };
+        String OU[] = { "OU=Programming-2048", "OU=Fast", "OU=Support",
+                        "OU=ECC", "OU=Programming-1024", "OU=Support_1024" };
 
         System.out.print("\tTesting parsing server.jks");
 
@@ -178,6 +178,10 @@ public class WolfSSLTrustX509Test {
         }
 
         for (String x : OU) {
+            if (this.provider != null &&
+                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                continue;
+            }
 
             if (!cas[i].getSubjectDN().getName().contains(x)) {
                 error("\t... failed");
@@ -198,9 +202,10 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
         int i = 0, j;
         int expected = 8;
-        String OU[] = { "OU=Fast", "OU=Consulting", "OU=Programming-1024",
-            "OU=Programming-2048", "OU=ECC", "OU=Support", "OU=Support_1024",
-            "OU=Consulting_1024" };
+        String OU[] = { "OU=Consulting", "Programming-2048", "OU=Fast",
+            "OU=Support", "OU=ECC", "OU=Programming-1024", "OU=Consulting_1024",
+            "OU=Support_1024",
+            };
 
         System.out.print("\tTesting parse all_mixed.jks");
 
