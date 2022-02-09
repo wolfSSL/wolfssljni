@@ -30,6 +30,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.nio.channels.SocketChannel;
@@ -1144,7 +1145,11 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper.initHandshake();
             handshakeInitCalled = true;
 
-            ret = EngineHelper.doHandshake(0);
+            try {
+                ret = EngineHelper.doHandshake(0, this.getSoTimeout());
+            } catch (SocketTimeoutException e) {
+                throw new IOException(e);
+            }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                              "thread exiting ioLock (handshake)");
@@ -1913,7 +1918,11 @@ public class WolfSSLSocket extends SSLSocket {
                 try {
                     int err;
 
-                    ret = ssl.write(data, len);
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.write() socket timeout = " +
+                        socket.getSoTimeout());
+
+                    ret = ssl.write(data, len, socket.getSoTimeout());
                     err = ssl.getError(ret);
 
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,

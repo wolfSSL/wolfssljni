@@ -608,7 +608,7 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
-  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err = 0, sockfd = 0;
     WOLFSSL* ssl = NULL;
@@ -666,7 +666,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
                 break;
             }
 
-            ret = socketSelect(sockfd, 0, 1);
+            ret = socketSelect(sockfd, (int)timeout, 1);
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
                 continue;
@@ -688,8 +688,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     return ret;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
-    jobject jcl, jlong sslPtr, jbyteArray raw, jint length)
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray raw, jint length,
+   jint timeout)
 {
     byte* data;
     int ret = SSL_FAILURE, err, sockfd;
@@ -751,7 +752,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write(JNIEnv* jenv,
                     break;
                 }
 
-                ret = socketSelect(sockfd, 0, 0);
+                ret = socketSelect(sockfd, (int)timeout, 0);
                 if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                     /* loop around and try wolfSSL_write() again */
                     continue;

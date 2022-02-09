@@ -189,8 +189,8 @@ public class WolfSSLSession {
     private native void setUsingNonblock(long ssl, int nonblock);
     private native int getUsingNonblock(long ssl);
     private native int getFd(long ssl);
-    private native int connect(long ssl);
-    private native int write(long ssl, byte[] data, int length);
+    private native int connect(long ssl, int timeout);
+    private native int write(long ssl, byte[] data, int length, int timeout);
     private native int read(long ssl, byte[] data, int sz, int timeout);
     private native int accept(long ssl);
     private native void freeSSL(long ssl);
@@ -517,7 +517,62 @@ public class WolfSSLSession {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return connect(getSessionPtr());
+        return connect(getSessionPtr(), 0);
+    }
+
+    /**
+     * Initializes an SSL/TLS handshake with a server, using socket timeout
+     * value in milliseconds.
+     * This function is called on the client side. When called, the underlying
+     * communication channel should already be set up.
+     * <p>
+     * <code>connect()</code> works with both blocking and non-blocking I/O.
+     * When the underlying I/O is non-blocking, <code>connect()</code> will
+     * return when the underlying I/O could not satisfy the needs of
+     * <code>connect()</code> to continue the handshake. In this case, a call
+     * to <code>getError</code> will yield either <b>SSL_ERROR_WANT_READ</b> or
+     * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
+     * call to <code>connect()</code> when the underlying I/O is ready and
+     * wolfSSL will pick up where it left off.
+     * <p>
+     * If the underlying I/O is blocking, <code>connect()</code> will only
+     * return once the handshake has been finished or an error occurred.
+     * <p>
+     * wolfSSL takes a different approach to certificate verification than
+     * OpenSSL does. The default policy for clients is to verify the server,
+     * meaning that if the application doesn't load CA certificates to verify
+     * the server, it will get a connect error, "unable to verify" (-155). If
+     * the application wants to mimic OpenSSL behavior of having
+     * <code>connect()</code> succeed even if verifying the server fails (and
+     * reducing security), the application can do this by calling:
+     * <p>
+     * <code>WolfSSLContext#setVerify(ctx, SSL_VERIFY_NONE, 0);</code>
+     * <p>
+     * before calling <code>newSSL()</code>, though it's not recommended.
+     *
+     * @param timeout read timeout, milliseconds.
+     *
+     * @return <code>SSL_SUCCESS</code> if successful, otherwise
+     *         <code>SSL_FATAL_ERROR</code> if an error occurred. To get
+     *         a more detailed error code, call <code>getError()</code>.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     */
+    public int connect(int timeout)
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        ret = connect(getSessionPtr(), timeout);
+
+        if (ret == WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException("Socket connect timeout");
+        }
+
+        return ret;
     }
 
     /**
@@ -556,7 +611,58 @@ public class WolfSSLSession {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return write(getSessionPtr(), data, length);
+        return write(getSessionPtr(), data, length, 0);
+    }
+
+    /**
+     * Write bytes from a byte array to the SSL connection, using socket
+     * timeout value in milliseconds.
+     * If necessary, <code>write()</code> will negotiate an SSL/TLS session
+     * if the handshake has not already been performed yet by <code>connect
+     * </code> or <code>accept</code>.
+     * <p>
+     * <code>write()</code> works with both blocking and non-blocking I/O.
+     * When the underlying I/O is non-blocking, <code>write()</code> will
+     * return when the underlying I/O could not satisfy the needs of <code>
+     * write()</code> to continue. In this case, a call to <code>getError
+     * </code> will yield either <b>SSL_ERROR_WANT_READ</b> or
+     * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
+     * call to <code>write()</code> when the underlying I/O is ready.
+     * <p>
+     * If the underlying I/O is blocking, <code>write()</code> will only
+     * return once the buffer <b>data</b> of size <b>length</b> has been
+     * completely written or an error occurred.
+     *
+     * @param data   data buffer which will be sent to peer
+     * @param length size, in bytes, of data to send to the peer
+     * @param timeout read timeout, milliseconds.
+     * @return       the number of bytes written upon success. <code>0
+     *               </code>will be returned upon failure. <code>
+     *               SSL_FATAL_ERROR</code>upon failure when either an
+     *               error occurred or, when using non-blocking sockets,
+     *               the <b>SSL_ERROR_WANT_READ</b> or
+     *               <b>SSL_ERROR_WANT_WRITE</b> error was received and the
+     *               application needs to call <code>write()</code> again.
+     *               <code>BAD_FUNC_ARC</code> when bad arguments are used.
+     *               Use <code>getError</code> to get a specific error code.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     */
+    public int write(byte[] data, int length, int timeout)
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        ret = write(getSessionPtr(), data, length, timeout);
+
+        if (ret == WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException("Socket write timeout");
+        }
+
+        return ret;
     }
 
     /**
