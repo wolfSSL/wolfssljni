@@ -238,19 +238,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES40
     return wolfssl_des40;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
-  (JNIEnv* jenv, jclass jcl)
-{
-    (void)jenv;
-    (void)jcl;
-
-#ifdef HAVE_IDEA
-    return wolfssl_idea;
-#else
-    return NOT_COMPILED_IN;
-#endif
-}
-
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumAES
   (JNIEnv* jenv, jclass jcl)
 {

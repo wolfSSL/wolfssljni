@@ -255,14 +255,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumDES40
 
 /*
  * Class:     com_wolfssl_WolfSSL
- * Method:    getBulkCipherAlgorithmEnumIDEA
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumIDEA
-  (JNIEnv *, jclass);
-
-/*
- * Class:     com_wolfssl_WolfSSL
  * Method:    getBulkCipherAlgorithmEnumAES
  * Signature: ()I
  */
