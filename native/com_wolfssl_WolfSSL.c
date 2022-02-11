@@ -173,13 +173,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
 
 /* used in unit tests */
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
-  (JNIEnv* jenv, jobject jcl, jlong ptr)
+  (JNIEnv* jenv, jobject jcl, jlong jptr)
 {
+    void* ptr = (void*)(uintptr_t)jptr;
     (void)jenv;
     (void)jcl;
 
-    if((void*)(uintptr_t)ptr) {
-        XFREE((void*)(uintptr_t)ptr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(ptr != NULL) {
+        XFREE(ptr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 }
 
@@ -1063,19 +1064,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
-  (JNIEnv* jenv, jclass jcl, jlong x509)
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
     int* outSz = NULL;
     const unsigned char* derCert;
     jbyteArray out = NULL;
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
 
     (void)jcl;
 
-    if (!jenv || !x509)
+    if (jenv == NULL || x509 == NULL) {
         return NULL;
+    }
 
-    derCert = wolfSSL_X509_get_der((WOLFSSL_X509*)(uintptr_t)x509, outSz);
+    derCert = wolfSSL_X509_get_der(x509, outSz);
 
     if (*outSz >= 0) {
 
@@ -1093,7 +1096,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
 #else
     (void)jenv;
     (void)jcl;
-    (void)x509;
+    (void)x509Ptr;
     return NULL;
 #endif
 }
