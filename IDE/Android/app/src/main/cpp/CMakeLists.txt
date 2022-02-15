@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.4.1)
 add_definitions(-DHAVE_FFDHE_2048 -DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES
         -DTFM_TIMING_RESISTANT -DECC_TIMING_RESISTANT -DWC_RSA_BLINDING -DHAVE_AESGCM
         -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DHAVE_HKDF -DNO_DSA -DHAVE_ECC -DTFM_ECC256
-        -DECC_SHAMIR -DWC_RSA_PSS -DWOLFSSL_BASE64_ENCODE -DNO_RC4 -DNO_RABBIT
+        -DECC_SHAMIR -DWC_RSA_PSS -DWOLFSSL_BASE64_ENCODE -DNO_RC4
         -DWOLFSSL_SHA224 -DWOLFSSL_SHA3 -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH -DHAVE_CHACHA
         -DHAVE_HASHDRBG -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES -DHAVE_EXTENDED_MASTER
         -DHAVE_SNI -DHAVE_ALPN -DWOLFSSL_JNI -DWOLFSSL_DTLS -DOPENSSL_EXTRA -DOPENSSL_ALL
@@ -77,7 +77,6 @@ add_library(wolfssl SHARED
         ${wolfssl_DIR}/wolfcrypt/src/pkcs7.c
         ${wolfssl_DIR}/wolfcrypt/src/poly1305.c
         ${wolfssl_DIR}/wolfcrypt/src/pwdbased.c
-        ${wolfssl_DIR}/wolfcrypt/src/rabbit.c
         ${wolfssl_DIR}/wolfcrypt/src/random.c
         ${wolfssl_DIR}/wolfcrypt/src/rc2.c
         ${wolfssl_DIR}/wolfcrypt/src/ripemd.c
