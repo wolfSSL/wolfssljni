@@ -38,7 +38,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
     int derSz = 0, skNum = 0, i = 0;
     (void)jcl;
 
-    if (!jenv || !ctx) {
+    if (jenv == NULL || store == NULL) {
         return NULL;
     }
 

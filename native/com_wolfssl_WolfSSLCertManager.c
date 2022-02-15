@@ -48,22 +48,22 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerFree
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
-  (JNIEnv* jenv, jclass jcl, jlong cm, jstring f, jstring d)
+  (JNIEnv* jenv, jclass jcl, jlong cmPtr, jstring f, jstring d)
 {
     int ret;
     const char* certFile = NULL;
     const char* certPath = NULL;
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)(uintptr_t)cmPtr;
     (void)jcl;
 
-    if (jenv == NULL || cm == 0) {
+    if (jenv == NULL || cm == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
     certFile = (*jenv)->GetStringUTFChars(jenv, f, 0);
     certPath = (*jenv)->GetStringUTFChars(jenv, d, 0);
 
-    ret = wolfSSL_CertManagerLoadCA((WOLFSSL_CERT_MANAGER*)(uintptr_t)cm,
-                                    certFile, certPath);
+    ret = wolfSSL_CertManagerLoadCA(cm, certFile, certPath);
 
     (*jenv)->ReleaseStringUTFChars(jenv, f, certFile);
     (*jenv)->ReleaseStringUTFChars(jenv, d, certPath);
@@ -72,11 +72,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuffer
-  (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
+  (JNIEnv* jenv, jclass jcl, jlong cmPtr, jbyteArray in, jlong sz, jint format)
 {
     int ret = 0;
     word32 buffSz = 0;
     byte* buff = NULL;
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)(uintptr_t)cmPtr;
     (void)jcl;
 
     if (jenv == NULL || in == NULL || (sz < 0)) {
@@ -86,8 +87,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
     buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
     buffSz = (*jenv)->GetArrayLength(jenv, in);
 
-    ret = wolfSSL_CertManagerLoadCABuffer((WOLFSSL_CERT_MANAGER*)(uintptr_t)cm,
-                                          buff, buffSz, format);
+    ret = wolfSSL_CertManagerLoadCABuffer(cm, buff, buffSz, format);
 
     (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
 
@@ -95,11 +95,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuffer
-  (JNIEnv* jenv, jclass jcl, jlong cm, jbyteArray in, jlong sz, jint format)
+  (JNIEnv* jenv, jclass jcl, jlong cmPtr, jbyteArray in, jlong sz, jint format)
 {
     int ret = 0;
     word32 buffSz = 0;
     byte* buff = NULL;
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)(uintptr_t)cmPtr;
     (void)jcl;
 
     if (jenv == NULL || in == NULL || (sz < 0))
@@ -108,8 +109,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
     buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
     buffSz = (*jenv)->GetArrayLength(jenv, in);
 
-    ret = wolfSSL_CertManagerVerifyBuffer((WOLFSSL_CERT_MANAGER*)(uintptr_t)cm,
-                                          buff, buffSz, format);
+    ret = wolfSSL_CertManagerVerifyBuffer(cm, buff, buffSz, format);
 
     (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
 
