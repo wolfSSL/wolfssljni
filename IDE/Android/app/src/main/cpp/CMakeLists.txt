@@ -65,7 +65,6 @@ add_library(wolfssl SHARED
         ${wolfssl_DIR}/wolfcrypt/src/ge_operations.c
         ${wolfssl_DIR}/wolfcrypt/src/hash.c
         ${wolfssl_DIR}/wolfcrypt/src/hmac.c
-        ${wolfssl_DIR}/wolfcrypt/src/idea.c
         ${wolfssl_DIR}/wolfcrypt/src/integer.c
         ${wolfssl_DIR}/wolfcrypt/src/kdf.c
         ${wolfssl_DIR}/wolfcrypt/src/logging.c

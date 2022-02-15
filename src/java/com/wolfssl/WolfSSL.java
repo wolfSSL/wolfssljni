@@ -224,8 +224,6 @@ public class WolfSSL {
     public static int wolfssl_triple_des;
     /** Bulk cipher algorithm enum: DES40 */
     public static int wolfssl_des40;
-    /** Bulk cipher algorithm enum: IDEA */
-    public static int wolfssl_idea;
     /** Bulk cipher algorithm enum: AES */
     public static int wolfssl_aes;
     /** Bulk cipher algorithm enum: AES-GCM */
@@ -367,7 +365,6 @@ public class WolfSSL {
         wolfssl_des         = getBulkCipherAlgorithmEnumDES();
         wolfssl_triple_des  = getBulkCipherAlgorithmEnumDES();
         wolfssl_des40       = getBulkCipherAlgorithmEnumDES40();
-        wolfssl_idea        = getBulkCipherAlgorithmEnumIDEA();
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
 
@@ -390,7 +387,6 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumDES();
     static native int getBulkCipherAlgorithmEnum3DES();
     static native int getBulkCipherAlgorithmEnumDES40();
-    static native int getBulkCipherAlgorithmEnumIDEA();
     static native int getBulkCipherAlgorithmEnumAES();
     static native int getBulkCipherAlgorithmEnumAESGCM();
     static native int getBulkCipherAlgorithmEnumAESCCM();
