@@ -93,7 +93,7 @@ public class WolfSSLCertificate {
         }
 
         x509Ptr = X509_load_certificate_buffer(der, WolfSSL.SSL_FILETYPE_ASN1);
-        if (x509Ptr <= 0) {
+        if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
@@ -126,7 +126,7 @@ public class WolfSSLCertificate {
         }
 
         x509Ptr = X509_load_certificate_buffer(in, format);
-        if (x509Ptr <= 0) {
+        if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
@@ -149,7 +149,7 @@ public class WolfSSLCertificate {
 
         x509Ptr = X509_load_certificate_file(fileName,
                                              WolfSSL.SSL_FILETYPE_ASN1);
-        if (x509Ptr <= 0) {
+        if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
@@ -183,7 +183,7 @@ public class WolfSSLCertificate {
         }
 
         x509Ptr = X509_load_certificate_file(fileName, format);
-        if (x509Ptr <= 0) {
+        if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
@@ -199,8 +199,8 @@ public class WolfSSLCertificate {
      */
     public WolfSSLCertificate(long x509) throws WolfSSLException {
 
-        if (x509 <= 0) {
-            throw new WolfSSLException("Input pointer may not be <= 0");
+        if (x509 == 0) {
+            throw new WolfSSLException("Input pointer may not be 0/NULL");
         }
         x509Ptr = x509;
         this.active = true;

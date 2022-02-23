@@ -3637,7 +3637,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_gotCloseNotify
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
 
-    if (jenv == NULL || ssl <= 0) {
+    if (jenv == NULL || ssl == NULL) {
         return gotCloseNotify;
     }
 
