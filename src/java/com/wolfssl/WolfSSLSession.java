@@ -508,16 +508,26 @@ public class WolfSSLSession {
      * before calling <code>newSSL()</code>, though it's not recommended.
      *
      * @return <code>SSL_SUCCESS</code> if successful, otherwise
-     *         <code>SSL_FATAL_ERROR</code> if an error occurred. To get
+     *         <code>SSL_FAILURE</code> if an error occurred. To get
      *         a more detailed error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if underlying socket timed out
      */
-    public int connect() throws IllegalStateException {
+    public int connect() throws IllegalStateException, SocketTimeoutException {
+
+        int ret = 0;
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return connect(getSessionPtr(), 0);
+        ret = connect(getSessionPtr(), 0);
+
+        if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException(
+                    "Native socket timed out during SSL_connect()");
+        }
+
+        return ret;
     }
 
     /**
