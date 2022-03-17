@@ -1130,20 +1130,22 @@ public class WolfSSLSocket extends SSLSocket {
             "entered startHandshake()");
 
         synchronized (handshakeLock) {
-            if (handshakeInitCalled == true || handshakeComplete == true) {
-                /* handshake already started or finished */
+            if (handshakeComplete == true) {
+                /* handshake already finished */
                 return;
+            }
+
+            if (handshakeInitCalled == false) {
+                /* will throw SSLHandshakeException if session creation is
+                   not allowed */
+                EngineHelper.initHandshake();
+                handshakeInitCalled = true;
             }
         }
 
         synchronized (ioLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                              "thread got ioLock (handshake)");
-
-            /* will throw SSLHandshakeException if session creation is
-               not allowed */
-            EngineHelper.initHandshake();
-            handshakeInitCalled = true;
 
             try {
                 ret = EngineHelper.doHandshake(0, this.getSoTimeout());
