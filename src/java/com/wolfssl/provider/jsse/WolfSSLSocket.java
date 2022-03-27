@@ -1150,7 +1150,9 @@ public class WolfSSLSocket extends SSLSocket {
             try {
                 ret = EngineHelper.doHandshake(0, this.getSoTimeout());
             } catch (SocketTimeoutException e) {
-                throw new IOException(e);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "got socket timeout in doHandshake()");
+                throw e;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1783,8 +1785,15 @@ public class WolfSSLSocket extends SSLSocket {
                 }
 
                 /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
+                try {
+                    /* do handshake if not completed yet, handles synchronization */
+                    if (socket.handshakeComplete == false) {
+                        socket.startHandshake();
+                    }
+                } catch (SocketTimeoutException e) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "got socket timeout in read()");
+                    throw e;
                 }
 
                 if (b.length == 0 || len == 0) {
@@ -1901,9 +1910,15 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
+                try {
+                    /* do handshake if not completed yet, handles synchronization */
+                    if (socket.handshakeComplete == false) {
+                        socket.startHandshake();
+                    }
+                } catch (SocketTimeoutException e) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "got socket timeout in write()");
+                    throw e;
                 }
 
                 if (off < 0 || len < 0 || (off + len) > b.length) {
