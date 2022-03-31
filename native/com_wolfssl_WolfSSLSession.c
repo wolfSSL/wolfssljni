@@ -749,6 +749,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
                 break;
             }
 
+            if (ret >= 0) /* return if it is success */
+                break;
+
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
 
                 sockfd = wolfSSL_get_fd(ssl);
