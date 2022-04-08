@@ -65,6 +65,9 @@ public class WolfSSLSession {
     private WolfSSLIORecvCallback internRecvSSLCb;
     private WolfSSLIOSendCallback internSendSSLCb;
 
+    /* have session tickets been enabled for this session? */
+    private boolean sessionTicketsEnabled = true;
+
     /* is this context active, or has it been freed? */
     private boolean active = false;
 
@@ -2720,10 +2723,33 @@ public class WolfSSLSession {
      */
     public int useSessionTicket() throws IllegalStateException {
 
+        int ret;
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return useSessionTicket(getSessionPtr());
+        ret = useSessionTicket(getSessionPtr());
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            this.sessionTicketsEnabled = true;
+        }
+
+        return ret;
+    }
+
+    /**
+     * Determine if session tickets have been enabled for this session.
+     * Session tickets can be enabled for this session by calling
+     * WolfSSLSession.useSessionTicket().
+     *
+     * @return true if enabled, otherwise false.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public boolean sessionTicketsEnabled() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return this.sessionTicketsEnabled;
     }
 
     /**
