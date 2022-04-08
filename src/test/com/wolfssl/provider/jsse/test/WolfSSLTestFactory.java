@@ -466,8 +466,8 @@ class WolfSSLTestFactory {
                         printHex(serToCli);
                     }
 
-                    System.out.println("cliToSer remaning = " + cliToSer.remaining());
-                    System.out.println("serToCli remaning = " + serToCli.remaining());
+                    System.out.println("cliToSer remaining = " + cliToSer.remaining());
+                    System.out.println("serToCli remaining = " + serToCli.remaining());
                 }
                 result = client.unwrap(serToCli, cliPlain);
                 if (extraDebug) {
