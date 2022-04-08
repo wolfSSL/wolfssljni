@@ -525,8 +525,10 @@ public class WolfSSLServerSocketTest {
             fail();
 
         } catch (SSLHandshakeException e) {
-            /* expected */
-            if (!e.toString().contains("ASN no signer")) {
+            /* Expected. Different versions of wolfSSL can display
+             * varying error strings. Check for either here. */
+            if (!e.toString().contains("ASN no signer") &&
+                !e.toString().contains("certificate verify failed")) {
                 System.out.println("\t\t... failed");
                 fail();
             }
