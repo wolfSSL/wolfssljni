@@ -30,6 +30,9 @@ package com.wolfssl.provider.jsse;
  */
 public class WolfSSLDebug {
 
+    /** Default WolfSSLDebug constructor */
+    public WolfSSLDebug() { }
+
     /**
      * boolean to check if debug mode is on
      */

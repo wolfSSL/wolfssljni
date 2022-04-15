@@ -37,6 +37,9 @@ public class WolfSSLCustomUser {
     /** Mask of options to set for the associated WOLFSSL_CTX */
     public long noOptions;
 
+    /** Default WolfSSLCustomUser constructor */
+    public WolfSSLCustomUser() { }
+
     /**
      * callback for getting Context attributes before creating context,
      *                                     TLS protocol and Cipher list

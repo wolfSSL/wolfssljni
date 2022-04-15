@@ -33,6 +33,9 @@ import java.nio.ByteBuffer;
  */
 public class ECC {
 
+    /** Default ECC constructor */
+    public ECC() { }
+
     /**
      * ECC verify. Wraps native wc_ecc_verify_hash() to verify ECDSA
      * signature against known hash value.

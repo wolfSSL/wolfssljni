@@ -38,6 +38,9 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
     private char[] pswd;
     private KeyStore store;
 
+    /** Default WolfSSLKeyManager constructor */
+    public WolfSSLKeyManager() { }
+
     @Override
     protected void engineInit(KeyStore store, char[] password)
             throws KeyStoreException, NoSuchAlgorithmException,

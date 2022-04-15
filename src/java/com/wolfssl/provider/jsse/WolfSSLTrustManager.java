@@ -51,6 +51,9 @@ import com.wolfssl.WolfSSLException;
 public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     private KeyStore store;
 
+    /** Default WolfSSLTrustManager constructor */
+    public WolfSSLTrustManager() { }
+
     /* Initialize TrustManager. Attempts to load CA certifciates as trusted
      * roots into wolfSSL from user-provided KeyStore. If KeyStore is null,
      * we attempt to load default system CA certificates in the following

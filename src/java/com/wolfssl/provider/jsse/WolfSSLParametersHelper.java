@@ -34,6 +34,9 @@ public class WolfSSLParametersHelper
     private static Method getServerNames = null;
     private static Method setServerNames = null;
 
+    /** Default WolfSSLParametersHelper constructor */
+    public WolfSSLParametersHelper() { }
+
     /* Runs upon class initialization to detect if this version of Java
      * has SSLParameters methods that older versions may not have */
     static
