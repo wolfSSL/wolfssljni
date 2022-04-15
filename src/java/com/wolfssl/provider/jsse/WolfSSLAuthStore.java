@@ -63,6 +63,7 @@ public class WolfSSLAuthStore {
     private WolfSSLSessionContext clientCtx = null;
 
     /**
+     * Protected constructor to create new WolfSSLAuthStore
      * @param keyman key manager to use
      * @param trustman trust manager to use
      * @param random secure random
@@ -189,6 +190,7 @@ public class WolfSSLAuthStore {
 
 
     /**
+     * Get X509KeyManager for this object
      * @return get the key manager used
      */
     protected X509KeyManager getX509KeyManager() {
@@ -196,6 +198,7 @@ public class WolfSSLAuthStore {
     }
 
     /**
+     * Get X509TrustManager for this object
      * @return get the trust manager used
      */
     protected X509TrustManager getX509TrustManager() {
@@ -203,6 +206,7 @@ public class WolfSSLAuthStore {
     }
 
     /**
+     * Get the SecureRandom for this object
      * @return get secure random
      */
     protected SecureRandom getSecureRandom() {
@@ -210,6 +214,7 @@ public class WolfSSLAuthStore {
     }
 
     /**
+     * Get protocol version set
      * @return get the current protocol version set
      */
     protected TLS_VERSION getProtocolVersion() {
@@ -217,6 +222,7 @@ public class WolfSSLAuthStore {
     }
 
     /**
+     * Set certificate alias
      * @param in alias to set for certificate used
      */
     protected void setCertAlias(String in) {
@@ -224,6 +230,7 @@ public class WolfSSLAuthStore {
     }
 
     /**
+     * Get certificate alias
      * @return alias name
      */
     protected String getCertAlias() {
