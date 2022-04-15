@@ -137,7 +137,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             return new byte[0];
         }
         try {
-            if (this.ssl.getVersion().equals("TLSv1.3")) {
+            /* use pseudo session ID if session tickets are being used */
+            if (this.ssl.getVersion().equals("TLSv1.3") ||
+                this.ssl.sessionTicketsEnabled()) {
                  return this.pseudoSessionID;
             }
             else {

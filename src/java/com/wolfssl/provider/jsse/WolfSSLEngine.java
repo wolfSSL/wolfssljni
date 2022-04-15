@@ -203,7 +203,11 @@ public class WolfSSLEngine extends SSLEngine {
             this.outBoundOpen = false;
             hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
         }
-        else if (ret == WolfSSL.SSL_SHUTDOWN_NOT_DONE) {
+        /* wolfSSL_shutdown() will return either SSL_SHUTDOWN_NOT_DONE (2), or
+         * will map that to 0 if WOLFSSL_ERROR_CODE_OPENSSL is defined. Either
+         * should indicate that the full bidirectional shutdown has not
+         * completed. */
+        else if (ret == WolfSSL.SSL_SHUTDOWN_NOT_DONE || ret == 0) {
             hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
         }
         else {

@@ -65,6 +65,9 @@ public class WolfSSLSession {
     private WolfSSLIORecvCallback internRecvSSLCb;
     private WolfSSLIOSendCallback internSendSSLCb;
 
+    /* have session tickets been enabled for this session? */
+    private boolean sessionTicketsEnabled = true;
+
     /* is this context active, or has it been freed? */
     private boolean active = false;
 
@@ -508,16 +511,26 @@ public class WolfSSLSession {
      * before calling <code>newSSL()</code>, though it's not recommended.
      *
      * @return <code>SSL_SUCCESS</code> if successful, otherwise
-     *         <code>SSL_FATAL_ERROR</code> if an error occurred. To get
+     *         <code>SSL_FAILURE</code> if an error occurred. To get
      *         a more detailed error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if underlying socket timed out
      */
-    public int connect() throws IllegalStateException {
+    public int connect() throws IllegalStateException, SocketTimeoutException {
+
+        int ret = 0;
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return connect(getSessionPtr(), 0);
+        ret = connect(getSessionPtr(), 0);
+
+        if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException(
+                    "Native socket timed out during SSL_connect()");
+        }
+
+        return ret;
     }
 
     /**
@@ -2710,10 +2723,33 @@ public class WolfSSLSession {
      */
     public int useSessionTicket() throws IllegalStateException {
 
+        int ret;
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
-        return useSessionTicket(getSessionPtr());
+        ret = useSessionTicket(getSessionPtr());
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            this.sessionTicketsEnabled = true;
+        }
+
+        return ret;
+    }
+
+    /**
+     * Determine if session tickets have been enabled for this session.
+     * Session tickets can be enabled for this session by calling
+     * WolfSSLSession.useSessionTicket().
+     *
+     * @return true if enabled, otherwise false.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public boolean sessionTicketsEnabled() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return this.sessionTicketsEnabled;
     }
 
     /**

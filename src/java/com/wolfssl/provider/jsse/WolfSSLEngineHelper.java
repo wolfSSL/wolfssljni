@@ -697,6 +697,7 @@ public class WolfSSLEngineHelper {
             if (this.clientMode) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "calling native wolfSSL_connect()");
+                /* may throw SocketTimeoutException on socket timeout */
                 ret = this.ssl.connect(timeout);
 
             } else {

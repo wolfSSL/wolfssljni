@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -458,6 +459,10 @@ public class WolfSSLSessionTest {
             ret = ssl.connect();
         } catch (IllegalStateException ise) {
             System.out.println("\t\t... passed");
+            return;
+        } catch (SocketTimeoutException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
             return;
         }
 
