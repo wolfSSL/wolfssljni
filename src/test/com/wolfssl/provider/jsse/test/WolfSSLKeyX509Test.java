@@ -162,7 +162,7 @@ public class WolfSSLKeyX509Test {
         }
 
         /* should be no ECC keys in RSA key store */
-        list = tf.createKeyManager("SunX509", tf.rsaJKS, provider);
+        list = tf.createKeyManager("SunX509", tf.serverRSAJKS, provider);
         km = (X509KeyManager) list[0];
         alias = km.getServerAliases("EC", null);
         if (alias != null) {

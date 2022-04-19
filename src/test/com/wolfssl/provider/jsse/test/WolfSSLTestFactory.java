@@ -58,27 +58,59 @@ import com.wolfssl.WolfSSLException;
  */
 class WolfSSLTestFactory {
 
-    protected String clientJKS;
-    protected String serverJKS;
     protected String allJKS;
-    protected String mixedJKS;
+    protected String allMixedJKS;
+    protected String clientJKS;
+    protected String clientRSA1024JKS;
+    protected String clientRSAJKS;
+    protected String clientECCJKS;
+    protected String serverJKS;
+    protected String serverRSA1024JKS;
+    protected String serverRSAJKS;
+    protected String serverECCJKS;
     protected String caJKS;
-    protected String rsaJKS;
+    protected String caClientJKS;
+    protected String caServerJKS;
+
     protected String googleCACert;
     protected String exampleComCert;
+
     protected final static char[] jksPass = "wolfSSL test".toCharArray();
     protected String keyStoreType = "JKS";
     private boolean extraDebug = false;
 
     protected WolfSSLTestFactory() throws WolfSSLException {
-        serverJKS = "examples/provider/server.jks";
-        clientJKS = "examples/provider/client.jks";
-        allJKS = "examples/provider/all.jks";
-        mixedJKS = "examples/provider/all_mixed.jks";
-        caJKS = "examples/provider/cacerts.jks";
-        rsaJKS = "examples/provider/rsa.jks";
-        googleCACert = "examples/certs/ca-google-root.der";
-        exampleComCert = "examples/certs/example-com.der";
+        /* wolfJSSE example Java KeyStore files, containing:
+         * all.jks               All certs
+         * all_mixed.jks         All certs, mixed order
+         * client.jks            RSA 2048-bit and ECC client certs
+         * client-rsa-1024.jks   RSA 1024-bit only client cert
+         * client-rsa.jks        RSA 2048-bit only client cert
+         * client-ecc.jks        ECC only client cert
+         * server.jks            RSA 2048-bit and ECC server certs
+         * server-rsa-1024.jks   RSA 1024-bit only server cert
+         * server-rsa.jks        RSA 2048-bit only server cert
+         * server-ecc.jks        ECC only server cert
+         * cacerts.jks           All CA certs (RSA, ECC, 1024, 2048, etc)
+         * ca-client.jks         CA certs used to verify client certs
+         * ca-server.jks         CA certs used to verify server certs */
+        allJKS           = "examples/provider/all.jks";
+        allMixedJKS      = "examples/provider/all_mixed.jks";
+        clientJKS        = "examples/provider/client.jks";
+        clientRSA1024JKS = "examples/provider/client-rsa-1024.jks";
+        clientRSAJKS     = "examples/provider/client-rsa.jks";
+        clientECCJKS     = "examples/provider/client-ecc.jks";
+        serverJKS        = "examples/provider/server.jks";
+        serverRSA1024JKS = "examples/provider/server-rsa-1024.jks";
+        serverRSAJKS     = "examples/provider/server-rsa.jks";
+        serverECCJKS     = "examples/provider/server-ecc.jks";
+        caJKS            = "examples/provider/cacerts.jks";
+        caClientJKS      = "examples/provider/ca-client.jks";
+        caServerJKS      = "examples/provider/ca-server.jks";
+
+        /* External CA certificate files */
+        googleCACert     = "examples/certs/ca-google-root.der";
+        exampleComCert   = "examples/certs/example-com.der";
 
         /* test if running from IDE directory */
         File f = new File(serverJKS);
@@ -99,12 +131,20 @@ class WolfSSLTestFactory {
     }
 
     private void setPaths(String in) {
-        serverJKS = in.concat(serverJKS);
-        clientJKS = in.concat(clientJKS);
         allJKS = in.concat(allJKS);
-        mixedJKS = in.concat(mixedJKS);
+        allMixedJKS = in.concat(allMixedJKS);
+        clientJKS = in.concat(clientJKS);
+        clientRSA1024JKS = in.concat(clientRSA1024JKS);
+        clientRSAJKS = in.concat(clientRSAJKS);
+        clientECCJKS = in.concat(clientECCJKS);
+        serverJKS = in.concat(serverJKS);
+        serverRSA1024JKS = in.concat(serverRSA1024JKS);
+        serverRSAJKS = in.concat(serverRSAJKS);
+        serverECCJKS = in.concat(serverECCJKS);
         caJKS = in.concat(caJKS);
-        rsaJKS = in.concat(rsaJKS);
+        caClientJKS = in.concat(caClientJKS);
+        caServerJKS = in.concat(caServerJKS);
+
         googleCACert = in.concat(googleCACert);
         exampleComCert = in.concat(exampleComCert);
     }
@@ -126,12 +166,19 @@ class WolfSSLTestFactory {
         File f;
 
         if (isAndroid()) {
-            serverJKS = "examples/provider/server.bks";
-            clientJKS = "examples/provider/client.bks";
-            allJKS = "examples/provider/all.bks";
-            mixedJKS = "examples/provider/all_mixed.bks";
-            caJKS = "examples/provider/cacerts.bks";
-            rsaJKS = "examples/provider/rsa.bks";
+            allJKS           = "examples/provider/all.bks";
+            allMixedJKS      = "examples/provider/all_mixed.bks";
+            clientJKS        = "examples/provider/client.bks";
+            clientRSA1024JKS = "examples/provider/client-rsa-1024.bks";
+            clientRSAJKS     = "examples/provider/client-rsa.bks";
+            clientECCJKS     = "examples/provider/client-ecc.bks";
+            serverJKS        = "examples/provider/server.bks";
+            serverRSA1024JKS = "examples/provider/server-rsa-1024.bks";
+            serverRSAJKS     = "examples/provider/server-rsa.bks";
+            serverECCJKS     = "examples/provider/server-ecc.bks";
+            caJKS            = "examples/provider/cacerts.bks";
+            caClientJKS      = "examples/provider/ca-client.bks";
+            caServerJKS      = "examples/provider/ca-server.bks";
             keyStoreType = "BKS";
         }
 

@@ -78,11 +78,13 @@ public class WolfSSLTrustX509Test {
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
+
+        String OU[] = { "OU=Programming-2048", "OU=Support",
+            "OU=Support_1024", "OU=Consulting", "OU=Development",
+            "OU=Fast", "OU=Consulting_1024", "OU=Programming-1024", "OU=ECC" };
+
         int i = 0;
-        int expected = 9;
-        String OU[] = { "OU=ECC", "OU=Programming-2048", "OU=Support",
-            "OU=Support_1024", "OU=Consulting", "OU=Development", "OU=Fast",
-            "OU=Consulting_1024", "OU=Programming-1024" };
+        int expected = OU.length;
 
         System.out.print("\tTesting parse all.jks");
 
@@ -92,10 +94,11 @@ public class WolfSSLTrustX509Test {
             return;
         }
 
-        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
-         * to false so it is not added as a CA */
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
+         * set to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
-            expected = 8; /* one less than SunJSSE because of server-ecc */
+            /* one less than SunJSSE because of server-ecc */
+            expected = expected - 1;
         }
 
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
@@ -120,6 +123,8 @@ public class WolfSSLTrustX509Test {
         for (String x: OU) {
             if (this.provider != null &&
                     provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                /* skip checking ECC certs, since not all Java versions
+                 * support them */
                 continue;
             }
 
@@ -139,10 +144,11 @@ public class WolfSSLTrustX509Test {
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
+
+        String OU[] = { "OU=Support", "OU=ECC" };
+
         int i = 0;
-        int expected = 6;
-        String OU[] = { "OU=Programming-2048", "OU=Fast", "OU=Support",
-                        "OU=ECC", "OU=Programming-1024", "OU=Support_1024" };
+        int expected = OU.length;
 
         System.out.print("\tTesting parsing server.jks");
 
@@ -152,10 +158,11 @@ public class WolfSSLTrustX509Test {
             return;
         }
 
-        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
-         * to false so it is not added as a CA */
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
+         * set to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
-            expected = expected-1; /* one less than SunJSSE because of server-ecc */
+            /* one less than SunJSSE because of server-ecc */
+            expected = expected - 1;
         }
 
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
@@ -200,12 +207,13 @@ public class WolfSSLTrustX509Test {
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
+
+        String OU[] = { "OU=Consulting", "OU=Programming-2048", "OU=Fast",
+            "OU=Support", "OU=Programming-1024", "OU=Consulting_1024",
+            "OU=Support_1024", "OU=ECC" };
+
         int i = 0, j;
-        int expected = 8;
-        String OU[] = { "OU=Consulting", "Programming-2048", "OU=Fast",
-            "OU=Support", "OU=ECC", "OU=Programming-1024", "OU=Consulting_1024",
-            "OU=Support_1024",
-            };
+        int expected = OU.length;
 
         System.out.print("\tTesting parse all_mixed.jks");
 
@@ -214,13 +222,14 @@ public class WolfSSLTrustX509Test {
             pass("\t... skipped");
             return;
         }
-        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is set
-         * to false so it is not added as a CA */
+        /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
+         * set to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE")) {
-            expected = 7; /* one less than SunJSSE because of server-ecc */
+            /* one less than SunJSSE because of server-ecc */
+            expected = expected - 1;
         }
 
-        tm = tf.createTrustManager("SunX509", tf.mixedJKS, provider);
+        tm = tf.createTrustManager("SunX509", tf.allMixedJKS, provider);
         if (tm == null) {
             error("\t... failed");
             fail("failed to create trustmanager");
@@ -242,6 +251,8 @@ public class WolfSSLTrustX509Test {
         for (j = 0; j < OU.length && i < cas.length; j++) {
             if (this.provider != null &&
                     provider.equals("wolfJSSE") && OU[j].equals("OU=ECC")) {
+                /* skip checking ECC certs, since not all Java versions
+                 * support them */
                 continue;
             }
 

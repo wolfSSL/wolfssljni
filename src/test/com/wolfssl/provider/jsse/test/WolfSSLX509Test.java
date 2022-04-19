@@ -396,14 +396,19 @@ public class WolfSSLX509Test {
         int ret, i;
         String[] ciphers;
         String   certType;
-        SSLContext ctx;
+        SSLContext ctxClient;
+        SSLContext ctxServer;
         System.out.print("\tTesting x509 getters");
 
-        ctx = tf.createSSLContext("TLS", provider,
-                tf.createTrustManager("SunX509", tf.rsaJKS, provider),
-                tf.createKeyManager("SunX509", tf.rsaJKS, provider));
-        server = ctx.createSSLEngine();
-        client = ctx.createSSLEngine("wolfSSL client test", 11111);
+        ctxClient = tf.createSSLContext("TLS", provider,
+                    tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                    tf.createKeyManager("SunX509", tf.clientRSAJKS, provider));
+        ctxServer = tf.createSSLContext("TLS", provider,
+                    tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                    tf.createKeyManager("SunX509", tf.serverRSAJKS, provider));
+
+        server = ctxServer.createSSLEngine();
+        client = ctxClient.createSSLEngine("wolfSSL client test", 11111);
 
         /* make connection using RSA certificate */
         server.setUseClientMode(false);

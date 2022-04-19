@@ -151,9 +151,9 @@ public class ThreadedSSLSocketClientServer
         Security.addProvider(new WolfSSLProvider());
 
         String serverKS = "./examples/provider/server.jks";
-        String serverTS = "./examples/provider/client.jks";
+        String serverTS = "./examples/provider/ca-client.jks";
         String clientKS = "./examples/provider/client.jks";
-        String clientTS = "./examples/provider/client.jks";
+        String clientTS = "./examples/provider/ca-server.jks";
         String pass = "wolfSSL test";
 
         ServerThread server = new ServerThread(

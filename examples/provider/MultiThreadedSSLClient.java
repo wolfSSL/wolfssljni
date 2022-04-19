@@ -152,7 +152,7 @@ public class MultiThreadedSSLClient
         Security.addProvider(new WolfSSLProvider());
 
         String clientKS = "./examples/provider/client.jks";
-        String clientTS = "./examples/provider/client.jks";
+        String clientTS = "./examples/provider/ca-server.jks";
         String jkspass = "wolfSSL test";
         char[] passArr = jkspass.toCharArray();
 

@@ -80,12 +80,17 @@ public class ClientSSLSocket {
 
         try {
 
-            /* load wolfJSSE as provider */
-            Security.addProvider(new WolfSSLProvider());
+            /* load wolfJSSE as provider as top priority provider */
+            Security.insertProviderAt(new WolfSSLProvider(), 1);
 
             /* set up key and trust stores */
             ks = KeyStore.getInstance("JKS");
             ks.load(new FileInputStream(keyStorePath), keyStorePass);
+
+            /* NOTE: Some versions of Java/JDK do not have support for EC
+             * certificate types. If run on one of those versions, this
+             * example may fail with an ASN no signer error / -188. If that
+             * is the case, try again using RSA certs and CA certs instead */
             ts = KeyStore.getInstance("JKS");
             ts.load(new FileInputStream(trustStorePath), trustStorePass);
 

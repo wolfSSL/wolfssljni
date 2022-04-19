@@ -470,11 +470,19 @@ public class WolfSSLEngineHelper {
         X509TrustManager tm = authStore.getX509TrustManager();
         if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
             /* use internal peer verification logic */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager is of type WolfSSLTrustX509");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Using native internal peer verification logic");
             this.ssl.setVerify(mask, null);
 
         } else {
             /* not our own TrustManager, set up callback so JSSE can use
              * TrustManager.checkClientTrusted/checkServerTrusted() */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager is not of type WolfSSLTrustX509");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Using checkClientTrusted/ServerTrusted() for verification");
             wicb = new WolfSSLInternalVerifyCb(authStore.getX509TrustManager(),
                                                this.clientMode);
             this.ssl.setVerify(WolfSSL.SSL_VERIFY_PEER, wicb);

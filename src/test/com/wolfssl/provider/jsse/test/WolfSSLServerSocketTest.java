@@ -486,9 +486,9 @@ public class WolfSSLServerSocketTest {
         ss.close();
 
         /* fail case, incorrect root CA loaded to verify client cert.
-         * caJKS does not verify clientJKS (client cert is self-signed) */
+         * caServerJKS does not verify clientJKS (client cert is self-signed) */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", tf.caJKS, ctxProvider),
+                tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
         ss = (SSLServerSocket)ctx.getServerSocketFactory()
@@ -548,7 +548,7 @@ public class WolfSSLServerSocketTest {
 
         /* client has correct CA to authenticate server */
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", tf.clientJKS, ctxProvider),
+                tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
         ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
