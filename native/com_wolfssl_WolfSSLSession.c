@@ -2789,8 +2789,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
 
     void*          eccSignCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -2851,6 +2851,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
 
     wolfSSL_SetEccSignCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or ECC");
     return;
@@ -2866,8 +2868,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
 
     void*          eccVerifyCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -2928,6 +2930,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccVerifyCtx
 
     wolfSSL_SetEccVerifyCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or ECC");
     return;
@@ -2943,8 +2947,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSharedSecretCtx
 
     void*          eccSharedSecretCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -3005,6 +3009,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSharedSecretCtx
 
     wolfSSL_SetEccSharedSecretCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or ECC");
     return;
@@ -3020,8 +3026,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
 
     void*          rsaSignCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -3082,6 +3088,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaSignCtx
 
     wolfSSL_SetRsaSignCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or RSA support");
     return;
@@ -3097,8 +3105,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
 
     void*          rsaVerifyCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -3159,6 +3167,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaVerifyCtx
 
     wolfSSL_SetRsaVerifyCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or RSA support");
     return;
@@ -3174,8 +3184,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
 
     void*          rsaEncCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -3237,6 +3247,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaEncCtx
 
     wolfSSL_SetRsaEncCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or RSA support");
     return;
@@ -3252,8 +3264,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
 
     void*          rsaDecCtx;
     internCtx*     myCtx;
-#endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
 
     /* find exception class in case we need it */
     excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
@@ -3314,6 +3326,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setRsaDecCtx
 
     wolfSSL_SetRsaDecCtx(ssl, myCtx);
 #else
+    (void)jcl;
+    (void)sslPtr;
     (*jenv)->ThrowNew(jenv, excClass,
         "wolfSSL not compiled with PK Callbacks and/or RSA support");
     return;
