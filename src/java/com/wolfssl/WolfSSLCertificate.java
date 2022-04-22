@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.Charset;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -62,7 +63,7 @@ public class WolfSSLCertificate {
     static native byte[] X509_get_signature(long x509);
     static native String X509_get_signature_type(long x509);
     static native String X509_get_signature_OID(long x509);
-    static native String X509_print(long x509);
+    static native byte[] X509_print(long x509);
     static native int X509_get_isCA(long x509);
     static native String X509_get_subject_name(long x509);
     static native String X509_get_issuer_name(long x509);
@@ -600,7 +601,20 @@ public class WolfSSLCertificate {
 
     @Override
     public String toString() {
-        return X509_print(this.x509Ptr);
+
+        byte[] x509Text;
+
+        if (this.active == false) {
+            return super.toString();
+        }
+
+        x509Text = X509_print(this.x509Ptr);
+        if (x509Text != null) {
+            /* let Java do the modified UTF-8 conversion */
+            return new String(x509Text, Charset.forName("UTF-8"));
+        }
+
+        return super.toString();
     }
 
     /**
