@@ -44,6 +44,9 @@ else
     echo 'Unknown host OS!'
     exit
 fi
+echo "        $OS $ARCH"
+
+echo "    Java Home = $javaHome"
 
 # create /lib directory if doesn't exist
 if [ ! -d ./lib ]
