@@ -1,11 +1,17 @@
 
 # wolfSSL JSSE Provider and JNI Wrapper
 
-This package provides both a wolfSSL Java JSSE provider (**wolfJSSE**), and a
-thin JNI-based interface to the native
-[wolfSSL embedded SSL/TLS library](https://www.wolfssl.com/products/wolfssl/).
-These provide Java applications with SSL/TLS support up to the current
-[TLS 1.3](https://www.wolfssl.com/tls13) protocol standard.
+This package provides Java support for the
+[wolfSSL embedded SSL/TLS library](https://www.wolfssl.com/products/wolfssl/),
+giving applications support for SSL/TLS up to the current
+[TLS 1.3](https://www.wolfssl.com/tls13) protocol level.
+It contains both a wolfSSL **JSSE** (Java Secure Socket Extension) provider,
+called **wolfJSSE**, and a thin JNI-based interface that wraps the native C
+library.
+
+wolfSSL also provides a **JCE** (Java Cryptography Extension) provider that
+wraps native wolfCrypt. This can be found in a separate repository, located
+[here](https://github.com/wolfSSL/wolfcrypt-jni).
 
 ## Why use wolfJSSE?
 
@@ -19,10 +25,10 @@ and more!
 
 ## User Manual
 
-The wolfSSL JNI/JSSE Manual is available on wolfssl.com:
+The wolfSSL JNI/JSSE Manual is available on the wolfSSL website:
 [wolfSSL JNI Manual](https://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf).
 
-For additional build instructions and more detailed comments, please check
+For additional build instructions and more detailed comments, please reference
 the manual.
 
 ## Building
@@ -40,11 +46,12 @@ Build targets for ant are :
 * **ant clean**     (cleans all Java artifacts)
 * **ant cleanjni**  (cleans native artifacts)
 
-wolfJSSE currently supports compilation on Linux/Unix and Android.
+wolfJSSE currently supports compilation on Linux/Unix, OSX, and Android.
 
-To build wolfJSSE on Linux, first download, compile, and install wolfSSL.
-wolfSSL can be downloaded from the wolfSSL download page or cloned from
-GitHub.
+To build wolfJSSE in Linux/Unix environments, first download, compile, and
+install wolfSSL. wolfSSL can be downloaded from the wolfSSL
+[download page](https://www.wolfssl.com/download/) or cloned from
+[GitHub](https://github.com/wolfssl/wolfssl).
 
 ```
 $ unzip wolfssl-X.X.X.zip
@@ -60,6 +67,7 @@ Then, to build wolfJSSE:
 $ cd wolfssljni
 $ ./java.sh
 $ ant
+$ export JUNIT_HOME=/path/to/junit/jars
 $ ant test
 ```
 
@@ -82,7 +90,7 @@ $ ./examples/provider/ClientJSSE.sh
 Examples of using wolfssljni can be found in the `./examples` subdirectory.
 See [examples/README.md](./examples/README.md) for more details.
 
-Examples of using wolfJSSE can be found in the `./examples/provider`
+Examples of using the wolfJSSE provider can be found in the `./examples/provider`
 subdirectory. See [examples/provider/README.md](./examples/provider/README.md)
 for more details.
 
@@ -106,15 +114,15 @@ Android AOSP at the system-level.
 
 An example Android Studio application is included in this package, to show
 users how they could include the wolfSSL native and wolfSSL JNI/JSSE sources
-in an Androi Studio application. For more details, see the Android Studio
+in an Android Studio application. For more details, see the Android Studio
 project and README.md located in the [./IDE/Android](./IDE/Android) directory.
 
 Using wolfJSSE at the application level will allow developers to register
 wolfJSSE as a Security provider at the application scope. The application can
-they use the Java Security API for SSL/TLS operations which will then use the
+use the Java Security API for SSL/TLS operations which will then use the
 underlying wolfJSSE provider (and subsequently native wolfSSL).
 
-Applications can add the wolfJSSE provider using:
+Applications can register the wolfJSSE provider using:
 
 ```
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -122,7 +130,8 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 Security.addProvider(new WolfSSLProvider());
 ```
 
-To instead insert the WolfSSLProvider as the top priority provider:
+To instead insert the WolfSSLProvider as the top priority provider, or at
+a specified index (note: indexing starts at 1):
 
 ```
 import com.wolfssl.provider.jsse.WolfSSLProvider;
