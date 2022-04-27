@@ -148,12 +148,38 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Release Notes
 
-### wolfSSL JNI Release X.X.X (TBD)
+### wolfSSL JNI Release 1.9.0 (TBD)
 
-Release X.X.X has bug fixes and new features including:
+Release 1.9.0 has bug fixes and new features including:
 
-* Removal of HC-128 stream cipher support. Native wolfSSL removed HC-128
-support in [PR #4767](https://github.com/wolfSSL/wolfssl/pull/4767)
+**JNI and JSSE Changes:**
+* Add synchronization to class cleanup/free routines (PR 78)
+* Fix JNI native casting to use utintptr\_t instead of intptr\_t (PR 79)
+* Add support for newer Java versions (ex: Java 17) (PR 90)
+* Remove HC-128 support (PR 94). Native wolfSSL removed with
+[PR #4767](https://github.com/wolfSSL/wolfssl/pull/4767)
+* Remove RABBIT support (PR 96). Native wolfSSL removed with
+[PR #4774](https://github.com/wolfSSL/wolfssl/pull/4767)
+* Remove IDEA support (PR 97). Native wolfSSL removed in
+[PR #4806](https://github.com/wolfSSL/wolfssl/pull/4806).
+* Fix typecasting issues and cleanup for native argument checking (PR 98, 99)
+* Add Socket timeout support for native SSL\_connect/write() (PR 95)
+* SSLSocket.getSession() now tries to do TLS handshake if not completed (PR 76)
+* Fix shutdown/close\_notify alert handling in WolfSSLEngine (PR 83)
+* Fix WolfSSLSocket to test if close() called before object init (PR 88)
+* Add support for loading default system CA certs on Java 9+ (PR 89)
+* Fix timeout behavior with WolfSSLSession.connect() (PR 100)
+
+**Example Changes:**
+* Print wolfJSSE provider info in JSSE ProviderTest (PR 77)
+* Add option to ClientJSSE to do one session resumption (PR 80)
+* Update example certificates and keys (PR 81)
+
+**Documentation Changes:**
+* Add missing Javadocs, fix warnings on newer Java versions (PR 92)
+
+**Testing Changes:**
+* Update junit dependency to 4.13.2 (PR 91)
 
 The wolfSSL JNI Manual is available at:
 http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
