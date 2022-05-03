@@ -21,7 +21,7 @@ if [ "$OS" == "Darwin" ] ; then
     echo "    Detected Darwin/OSX host OS"
     javaHome=`/usr/libexec/java_home`
     javaIncludes="-I$javaHome/include -I$javaHome/include/darwin -I$WOLFSSL_INSTALL_DIR/include"
-    javaLibs="-dynamiclib -framework JavaVM"
+    javaLibs="-dynamiclib"
     jniLibName="libwolfssljni.jnilib"
     cflags="-DHAVE_ECC"
 elif [ "$OS" == "Linux" ] ; then
@@ -44,6 +44,9 @@ else
     echo 'Unknown host OS!'
     exit
 fi
+echo "        $OS $ARCH"
+
+echo "    Java Home = $javaHome"
 
 # create /lib directory if doesn't exist
 if [ ! -d ./lib ]

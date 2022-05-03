@@ -207,6 +207,7 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
     @Override
+    @SuppressWarnings("removal")
     public void finalize() throws Throwable {
         super.finalize();
         this.cert.free();

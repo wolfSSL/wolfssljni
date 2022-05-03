@@ -418,12 +418,13 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
     return (*jenv)->NewStringUTF(jenv, oid);
 }
 
-JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
     WOLFSSL_BIO* bio;
-    jstring ret = NULL;
+    int sz = 0;
     const char* mem = NULL;
+    jbyteArray  memArr = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
@@ -441,12 +442,25 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
         return NULL;
     }
 
-    wolfSSL_BIO_get_mem_data(bio, &mem);
-    if (mem != NULL) {
-        ret = (*jenv)->NewStringUTF(jenv, mem);
+    sz = wolfSSL_BIO_get_mem_data(bio, &mem);
+    if (sz > 0 && mem != NULL) {
+
+        memArr = (*jenv)->NewByteArray(jenv, sz);
+        if (memArr == NULL) {
+            wolfSSL_BIO_free(bio);
+            return NULL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, memArr, 0, sz, (jbyte*)mem);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            /* failed to set byte region */
+            (*jenv)->DeleteLocalRef(jenv, memArr);
+            wolfSSL_BIO_free(bio);
+            return NULL;
+        }
     }
     wolfSSL_BIO_free(bio);
-    return ret;
+    return memArr;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1isCA

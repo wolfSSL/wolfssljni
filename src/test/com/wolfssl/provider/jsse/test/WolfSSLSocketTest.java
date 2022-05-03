@@ -1123,7 +1123,7 @@ public class WolfSSLSocketTest {
 
         /* client has correct CA to authenticate server */
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", ctxProvider,
-                tf.createTrustManager("SunX509", tf.clientJKS, ctxProvider),
+                tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
         ss = (SSLServerSocket)srvCtx.getServerSocketFactory()

@@ -567,7 +567,7 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     @Override
     public void finalize() throws Throwable {
         try {

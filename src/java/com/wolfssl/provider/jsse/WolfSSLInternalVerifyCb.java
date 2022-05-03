@@ -84,6 +84,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "NOTE: Native wolfSSL peer verification failed");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "      Continuing with X509TrustManager verification");
         }
 
         try {
@@ -94,6 +96,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
         } catch (WolfSSLException e) {
             /* failed to get certs from native, give app null array */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Failed to get certs from x509StorePtr, certs = null");
             certs = null;
         }
 
@@ -103,9 +107,13 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                 x509certs = new X509Certificate[certs.length];
                 for (int i = 0; i < certs.length; i++) {
                     x509certs[i] = certs[i].getX509Certificate();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Peer cert: " + x509certs[i].getSubjectDN().getName());
                 }
             } catch (CertificateException | IOException ce) {
                 /* failed to get cert array, give app null array */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Failed to get X509Certificate[] array, set to null");
                 x509certs = null;
             }
 
@@ -120,6 +128,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             } else if (sigType.contains("ED25519")) {
                 authType = "ED25519";
             }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Auth type: " + authType);
 
             /* Free native WolfSSLCertificate memory. At this
              * point x509certs[] is all Java managed memory now. */
@@ -132,15 +142,23 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             /* poll TrustManager for cert verification, should throw
              * CertificateException if verification fails */
             if (clientMode) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Calling TrustManager.checkServerTrusted()");
                 tm.checkServerTrusted(x509certs, authType);
             } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Calling TrustManager.checkClientTrusted()");
                 tm.checkClientTrusted(x509certs, authType);
             }
         } catch (Exception e) {
             /* TrustManager rejected certificate, not valid */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "TrustManager rejected certificates, verification failed");
             return 0;
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "TrustManager verification successful");
         /* continue handshake, verification succeeded */
         return 1;
     }

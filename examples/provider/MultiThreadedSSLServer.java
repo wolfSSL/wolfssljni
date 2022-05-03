@@ -45,8 +45,8 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 public class MultiThreadedSSLServer
 {
     private char[] psw = "wolfSSL test".toCharArray();
-    private String serverKS = "./examples/provider/rsa.jks";
-    private String serverTS = "./examples/provider/client.jks";
+    private String serverKS = "./examples/provider/server.jks";
+    private String serverTS = "./examples/provider/ca-client.jks";
     private String jsseProv = "wolfJSSE";
     int serverPort = 11118;
 

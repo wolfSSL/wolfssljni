@@ -91,7 +91,7 @@ public class ClientJSSE {
 
         /* cert info */
         String clientJKS  = "../provider/client.jks";
-        String caJKS      = "../provider/client.jks";
+        String caJKS      = "../provider/ca-server.jks";
         String clientPswd = "wolfSSL test";
         String caPswd = "wolfSSL test";
 
@@ -140,9 +140,6 @@ public class ClientJSSE {
                 cipherList = args[++i];
 
             } else if (arg.equals("-c")) {
-                if (args.length < i+2) {
-                    printUsage();
-                }
                 String[] tmp = args[++i].split(":");
                 if (tmp.length != 2) {
                     printUsage();
@@ -151,8 +148,6 @@ public class ClientJSSE {
                 clientPswd = tmp[1];
 
             } else if (arg.equals("-A")) {
-                if (args.length < i+2)
-                    printUsage();
                 String[] tmp = args[++i].split(":");
                 if (tmp.length != 2) {
                     printUsage();
@@ -351,9 +346,9 @@ public class ClientJSSE {
         System.out.println("-setp <protocols> \tSet enabled protocols " +
                            "e.g \"TLSv1.1 TLSv1.2\"");
         System.out.println("-c <file>:<password>\tCertificate/key JKS,\t\tdefault " +
-                "../provider/rsa.jks:wolfSSL test");
+                "../provider/client.jks:wolfSSL test");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
-                "../provider/cacerts.jks:wolfSSL test");
+                "../provider/ca-server.jks:wolfSSL test");
         System.out.println("-r Resume session");
         System.exit(1);
     }

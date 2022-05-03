@@ -90,9 +90,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_print
- * Signature: (J)Ljava/lang/String;
+ * Signature: (J)[B
  */
-JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1print
   (JNIEnv *, jclass, jlong);
 
 /*

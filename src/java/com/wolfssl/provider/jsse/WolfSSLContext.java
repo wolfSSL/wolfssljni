@@ -171,6 +171,8 @@ public class WolfSSLContext extends SSLContextSpi {
          * If tm is not an instance of WolfSSLTrustX509, simply return
          * here since we do not need to interface with native verification */
         if (!(tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509)) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Deferring verification to checkClientTrusted/ServerTrusted()");
             return;
         }
 

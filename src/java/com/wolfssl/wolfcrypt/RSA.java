@@ -33,6 +33,9 @@ import java.nio.ByteBuffer;
  */
 public class RSA {
 
+    /** Default RSA constructor */
+    public RSA() { }
+
     /**
      * RSA sign, wraps native wolfCrypt operation.
      *
