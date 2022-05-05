@@ -157,7 +157,7 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Release Notes
 
-### wolfSSL JNI Release 1.9.0 (TBD)
+### wolfSSL JNI Release 1.9.0 (5/5/2022)
 
 Release 1.9.0 has bug fixes and new features including:
 
