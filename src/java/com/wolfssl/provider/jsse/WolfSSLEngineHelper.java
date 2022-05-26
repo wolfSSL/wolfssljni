@@ -370,6 +370,12 @@ public class WolfSSLEngineHelper {
         return null;
     }
 
+    /**
+     * Get selected ALPN protocol string
+     *
+     * @return String representation of selected ALPN protocol or null
+     *         if handshake has not finished
+     */
     protected String getAlpnSelectedProtocolString() {
         if (ssl.handshakeDone()) {
             String proto = ssl.getAlpnSelectedString();

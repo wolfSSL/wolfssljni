@@ -110,8 +110,14 @@ public class WolfSSLJDK8Helper
         }
     }
 
-    /* Call SSLParameters.setApplicationProtocols() to set ALPN protocols from
-     * WolfSSLParameters into SSLParameters */
+    /**
+     * Call SSLParameters.setApplicationProtocols() to set ALPN protocols from
+     * WolfSSLParameters into SSLParameters.
+     *
+     * @param out output SSLParameters to store ALPN protocols into
+     * @param m method to invoke to set protocols
+     * @param in input WolfSSLParameters to read ALPN protocols from
+     */
     protected static void setApplicationProtocols(final SSLParameters out,
                                          final Method m, WolfSSLParameters in) {
 
@@ -137,8 +143,13 @@ public class WolfSSLJDK8Helper
         }
     }
 
-    /* Call SSLParameters.getApplicationProtocols() to get ALPN protocols from
-     * SSLParameters into WolfSSLParameters */
+    /**
+     * Call SSLParameters.getApplicationProtocols() to get ALPN protocols from
+     * SSLParameters into WolfSSLParameters.
+     *
+     * @param in input SSLParameters to read ALPN protocols from
+     * @param out output WolfSSLParameters to store ALPN protocols into
+     */
     protected static void getApplicationProtocols(final SSLParameters in,
                                          WolfSSLParameters out) {
 
