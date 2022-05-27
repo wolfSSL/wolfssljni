@@ -33,6 +33,8 @@ public class WolfSSLParametersHelper
 {
     private static Method getServerNames = null;
     private static Method setServerNames = null;
+    private static Method getApplicationProtocols = null;
+    private static Method setApplicationProtocols = null;
 
     /** Default WolfSSLParametersHelper constructor */
     public WolfSSLParametersHelper() { }
@@ -58,6 +60,12 @@ public class WolfSSLParametersHelper
                                 continue;
                             case "setServerNames":
                                 setServerNames = m;
+                                continue;
+                            case "getApplicationProtocols":
+                                getApplicationProtocols = m;
+                                continue;
+                            case "setApplicationProtocols":
+                                setApplicationProtocols = m;
                                 continue;
                             default:
                                 continue;
@@ -100,7 +108,7 @@ public class WolfSSLParametersHelper
         /* Methods added as of JDK 1.8, older JDKs will not have them. Using
          * Java reflection to detect availability. */
 
-        if (setServerNames != null) {
+        if (setServerNames != null || setApplicationProtocols != null) {
 
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
@@ -110,9 +118,16 @@ public class WolfSSLParametersHelper
                 paramList[0] = javax.net.ssl.SSLParameters.class;
                 paramList[1] = java.lang.reflect.Method.class;
                 paramList[2] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
+                Method mth = null;
 
-                Method mth = cls.getDeclaredMethod("setServerNames", paramList);
-                mth.invoke(obj, ret, setServerNames, in);
+                if (setServerNames != null) {
+                    mth = cls.getDeclaredMethod("setServerNames", paramList);
+                    mth.invoke(obj, ret, setServerNames, in);
+                }
+                if (setApplicationProtocols != null) {
+                    mth = cls.getDeclaredMethod("setApplicationProtocols", paramList);
+                    mth.invoke(obj, ret, setServerNames, in);
+                }
 
             } catch (Exception e) {
                 /* ignore, class not found */
@@ -124,7 +139,6 @@ public class WolfSSLParametersHelper
          * with newer versions of SSLParameters, but will need to be added
          * conditionally to wolfJSSE when supported. */
         /*ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
-        ret.setApplicationProtocols(in.getApplicationProtocols());
         ret.setEnableRetransmissions(in.getEnableRetransmissions());
         ret.setEndpointIdentificationAlgorithm(
             in.getEndpointIdentificationAlgorithm());
@@ -170,7 +184,7 @@ public class WolfSSLParametersHelper
         /* Methods added as of JDK 1.8, older JDKs will not have them. Using
          * Java reflection to detect availability. */
 
-        if (getServerNames != null) {
+        if (getServerNames != null || getApplicationProtocols != null) {
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
@@ -178,9 +192,16 @@ public class WolfSSLParametersHelper
                 Class[] paramList = new Class[2];
                 paramList[0] = javax.net.ssl.SSLParameters.class;
                 paramList[1] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
+                Method mth = null;
 
-                Method mth = cls.getDeclaredMethod("getServerNames", paramList);
-                mth.invoke(obj, in, out);
+                if (getServerNames != null) {
+                    mth = cls.getDeclaredMethod("getServerNames", paramList);
+                    mth.invoke(obj, in, out);
+                }
+                if (getApplicationProtocols != null) {
+                    mth = cls.getDeclaredMethod("getApplicationProtocols", paramList);
+                    mth.invoke(obj, in, out);
+                }
 
             } catch (Exception e) {
                 /* ignore, class not found */
@@ -192,7 +213,6 @@ public class WolfSSLParametersHelper
          * with newer versions of SSLParameters, but will need to be added
          * conditionally to wolfJSSE when supported. */
         /*out.setAlgorithmConstraints(in.getAlgorithmConstraints());
-        out.setApplicationProtocols(in.getApplicationProtocols());
         out.setEnableRetransmissions(in.getEnableRetransmissions());
         out.setEndpointIdentificationAlgorithm(
             in.getEndpointIdentificationAlgorithm());

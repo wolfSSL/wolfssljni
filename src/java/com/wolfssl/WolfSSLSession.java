@@ -25,6 +25,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
+import java.lang.StringBuilder;
+import java.nio.charset.StandardCharsets;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
@@ -276,6 +278,7 @@ public class WolfSSLSession {
     private native int gotCloseNotify(long ssl);
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
     private native byte[] sslGet0AlpnSelected(long ssl);
+    private native int useALPN(long ssl, String protocols, int options);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2753,16 +2756,19 @@ public class WolfSSLSession {
     }
 
     /**
-     * Set ALPN extension protocol for this session.
-     * Calls native SSL_set_alpn_protos() at native level. Format starts with
+     * Set ALPN extension protocol for this session from encoded byte array.
+     * Calls SSL_set_alpn_protos() at native level. Format starts with
      * length, where length does not include length byte itself. Example format:
      *
      * byte[] p = "http/1.1".getBytes();
      *
+     * Unless this input format is explicitly needed, useALPN(String[], int)
+     * will likely be easier to use.
+     *
      * @param alpnProtos ALPN protocols, encoded as byte array vector
-     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative on error.
      */
-    public int setAlpnProtos(byte[] alpnProtos) throws IllegalStateException {
+    public int useALPN(byte[] alpnProtos) throws IllegalStateException {
 
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
@@ -2771,10 +2777,48 @@ public class WolfSSLSession {
     }
 
     /**
+     * Set ALPN extension protocol for this session from String array.
+     * Calls native wolfSSL_useALPN(), where protocols should be a String
+     * array of ALPN protocols. At the native JNI level, this is converted to
+     * a comma-delimited list of prototocls and passed to native wolfSSL.
+     *
+     * This method is similar to useALPN(byte[]), but accepts a String array
+     * and calls a different native wolfSSL API for ALPN use.
+     *
+     * @param protocols Array of ALPN protocol Strings
+     * @param options Options to control behavior of ALPN failure mode.
+     *                Possible options include:
+     *                    WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH
+     *                    WolfSSL.WOLFSSL_ALPN_FAILED_ON_MISMATCH
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative on error.
+     *
+     */
+    public int useALPN(String[] protocols, int options) {
+
+        /* all protocols, comma delimited */
+        StringBuilder allProtocols = new StringBuilder();
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        if (protocols == null) {
+            return WolfSSL.BAD_FUNC_ARG;
+        }
+
+        for (int i = 0; i < protocols.length; i++) {
+            if (i != 0) {
+                allProtocols.append(",");
+            }
+            allProtocols.append(protocols[i]);
+        }
+
+        return useALPN(getSessionPtr(), allProtocols.toString(), options);
+    }
+
+    /**
      * Get the ALPN protocol selected by the client/server for this session.
      *
-     * @return byte array representation of selected protocol, starting with
-     *         length byte. Length does not include length byte itself.
+     * @return byte array representation of selected protocol.
      * @throws IllegalStateException WolfSSLSession has been freed
      */
     public byte[] getAlpnSelected() throws IllegalStateException {
@@ -2783,6 +2827,31 @@ public class WolfSSLSession {
             throw new IllegalStateException("Object has been freed");
 
         return sslGet0AlpnSelected(getSessionPtr());
+    }
+
+    /**
+     * Get the ALPN protocol selected by the client/server for this session.
+     *
+     * Same behavior as getAlpnSelected(), but returns a String instead of a
+     * byte array.
+     *
+     * @return String of the selected ALPN protocol
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public String getAlpnSelectedString() throws IllegalStateException {
+
+        byte[] alpnSelectedBytes = null;
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        alpnSelectedBytes = getAlpnSelected();
+
+        if (alpnSelectedBytes != null) {
+            return new String(alpnSelectedBytes, StandardCharsets.UTF_8);
+        } else {
+            return null;
+        }
     }
 
     /**

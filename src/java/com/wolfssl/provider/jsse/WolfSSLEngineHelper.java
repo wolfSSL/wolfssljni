@@ -358,12 +358,32 @@ public class WolfSSLEngineHelper {
     /**
      * Get selected ALPN protocol
      *
+     * Used by some versions of Android, non-standard ALPN API.
+     *
      * @return encoded byte array for selected ALPN protocol or null if
      *         handshake has not finished
      */
     protected byte[] getAlpnSelectedProtocol() {
         if (ssl.handshakeDone()) {
             return ssl.getAlpnSelected();
+        }
+        return null;
+    }
+
+    /**
+     * Get selected ALPN protocol string
+     *
+     * @return String representation of selected ALPN protocol or null
+     *         if handshake has not finished
+     */
+    protected String getAlpnSelectedProtocolString() {
+        if (ssl.handshakeDone()) {
+            String proto = ssl.getAlpnSelectedString();
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "selected ALPN protocol = " + proto);
+
+            return proto;
         }
         return null;
     }
@@ -577,13 +597,51 @@ public class WolfSSLEngineHelper {
 
     /* Set the ALPN to be used for this session */
     private void setLocalAlpnProtocols() {
-        byte[] alpnProtos = this.params.getAlpnProtos();
 
-        if (alpnProtos != null) {
+        /* ALPN protocol list could be stored in either of the following,
+         * depending on what platform/JDK we are being used on:
+         *     this.params.getAlpnProtos() or
+         *     this.params.getApplicationProtocols()
+         * For example, Conscrypt consumers on older Android versions with
+         * JDK 7 will be in params.getAlpnProtos(). JDK versions > 8, with
+         * support for params.getApplicationProtocols() will likely use that
+         * instead. */
+
+        int i;
+        byte[] alpnProtos = this.params.getAlpnProtos();
+        String[] applicationProtocols = this.params.getApplicationProtocols();
+
+        if ((alpnProtos != null && alpnProtos.length > 0) &&
+            (applicationProtocols != null && applicationProtocols.length > 0)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Setting ALPN protocols for WOLFSSL session");
-            this.ssl.setAlpnProtos(alpnProtos);
-        } else {
+                "ALPN protocols found in both params.getAlpnProtos() and " +
+                "params.getApplicationProtocols()");
+        }
+
+        /* try to set from byte[] first, then overwrite with String[] if
+         * both have been set */
+        if (alpnProtos != null && alpnProtos.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting ALPN protocols for WOLFSSL session from byte[" +
+                alpnProtos.length + "]");
+            this.ssl.useALPN(alpnProtos);
+        }
+
+        if (applicationProtocols != null && applicationProtocols.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting Application Protocols for WOLFSSL session " +
+                "from String[]:");
+            for (i = 0; i < applicationProtocols.length; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "\t" + i + ": " + applicationProtocols[i]);
+            }
+
+            /* continue on mismatch */
+            this.ssl.useALPN(applicationProtocols,
+                             WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+        }
+
+        if (alpnProtos == null && applicationProtocols == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "No ALPN protocols set, not setting for this WOLFSSL session");
         }

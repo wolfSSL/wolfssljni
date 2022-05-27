@@ -186,6 +186,16 @@ public class WolfSSL {
     /** CertManager: disable sending OCSP nonce */
     public final static int WOLFSSL_OCSP_NO_NONCE     = 2;
 
+    /* ALPN definitions from ssl.h */
+    /** ALPN: no match found */
+    public final static int WOLFSSL_ALPN_NO_MATCH = 0;
+    /** ALPN: found match */
+    public final static int WOLFSSL_ALPN_MATCH    = 1;
+    /** ALPN: continue on protocol mismatch */
+    public final static int WOLFSSL_ALPN_CONTINUE_ON_MISMATCH = 2;
+    /** ALPN: failed on protocol mismatch */
+    public final static int WOLFSSL_ALPN_FAILED_ON_MISMATCH   = 4;
+
     /* I/O callback default errors, pulled from wolfssl/ssl.h IOerrors */
     /** I/O callback error: general error */
     public final static int WOLFSSL_CBIO_ERR_GENERAL    = -1;

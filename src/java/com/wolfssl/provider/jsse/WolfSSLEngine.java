@@ -545,6 +545,10 @@ public class WolfSSLEngine extends SSLEngine {
         return EngineHelper.getEnableSessionCreation();
     }
 
+    public String getApplicationProtocol() {
+        return EngineHelper.getAlpnSelectedProtocolString();
+    }
+
     /**
      * Set the SSLParameters for this SSLSocket.
      *
