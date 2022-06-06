@@ -132,7 +132,7 @@ public class WolfSSLJDK8Helper
             AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 public Object run() {
                     try {
-                        m.invoke(out, appProtos);
+                        m.invoke(out, (Object[])appProtos);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
