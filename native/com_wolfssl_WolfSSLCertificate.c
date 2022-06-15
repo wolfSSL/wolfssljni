@@ -63,6 +63,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certificate_1file
   (JNIEnv* jenv, jclass jcl, jstring filename, jint format)
 {
+#ifndef NO_FILESYSTEM
     WOLFSSL_X509* x509 = NULL;
     const char* path = NULL;
     (void)jcl;
@@ -80,6 +81,13 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
     (*jenv)->ReleaseStringUTFChars(jenv, filename, path);
 
     return (jlong)(uintptr_t)x509;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)filename;
+    (void)format;
+    return 0;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der

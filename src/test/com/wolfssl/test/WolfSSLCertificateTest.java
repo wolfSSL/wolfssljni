@@ -68,13 +68,15 @@ public class WolfSSLCertificateTest {
         test_WolfSSLCertificate_new_pemArray();
         test_runCertTestsAfterConstructor();
 
-        /* WolfSSLCertificate(byte[] pem) */
-        test_WolfSSLCertificate_new_derFile();
-        test_runCertTestsAfterConstructor();
+        if (WolfSSL.FileSystemEnabled() == true) {
+            /* WolfSSLCertificate(byte[] pem) */
+            test_WolfSSLCertificate_new_derFile();
+            test_runCertTestsAfterConstructor();
 
-        /* WolfSSLCertificate(String pem) */
-        test_WolfSSLCertificate_new_pemFile();
-        test_runCertTestsAfterConstructor();
+            /* WolfSSLCertificate(String pem) */
+            test_WolfSSLCertificate_new_pemFile();
+            test_runCertTestsAfterConstructor();
+        }
     }
 
 
@@ -189,6 +191,19 @@ public class WolfSSLCertificateTest {
                                 Level.SEVERE, null, ex);
         }
         System.out.println("\t... passed");
+    }
+
+    private byte[] fileToByteArray(String filePath)
+        throws IOException {
+        File f = new File(filePath);
+        byte[] fBytes = null;
+
+        InputStream stream = new FileInputStream(f);
+        fBytes = new byte[(int) f.length()];
+        stream.read(fBytes, 0, fBytes.length);
+        stream.close();
+
+        return fBytes;
     }
 
 
@@ -501,7 +516,13 @@ public class WolfSSLCertificateTest {
             int i;
             boolean[] kuse;
 
-            ext = new WolfSSLCertificate(this.external);
+            if (WolfSSL.FileSystemEnabled() == true) {
+                ext = new WolfSSLCertificate(this.external);
+            } else {
+                ext = new WolfSSLCertificate(fileToByteArray(this.external),
+                                             WolfSSL.SSL_FILETYPE_ASN1);
+            }
+
             kuse = ext.getKeyUsage();
             if (kuse == null) {
                 System.out.println("\t\t... failed");
@@ -516,8 +537,9 @@ public class WolfSSLCertificateTest {
                 }
             }
             ext.free();
-        } catch (WolfSSLException ex) {
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
             System.out.println("\t\t... failed");
             fail("Error loading external certificate");
         }
