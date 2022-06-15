@@ -162,6 +162,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_newContext(JNIEnv* jenv,
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file, jint format)
 {
+#ifndef NO_FILESYSTEM
     jint ret = 0;
     jclass excClass;
     const char* certFile;
@@ -192,11 +193,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, certFile);
 
     return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)file;
+    (void)format;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyFile
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file, jint format)
 {
+#ifndef NO_FILESYSTEM
     jint ret = 0;
     jclass excClass;
     const char* keyFile;
@@ -227,11 +237,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, keyFile);
 
     return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)file;
+    (void)format;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyLocations
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file, jstring path)
 {
+#ifndef NO_FILESYSTEM
     jint ret = 0;
     jclass excClass;
     const char* caFile;
@@ -276,11 +295,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyLocations
         (*jenv)->ReleaseStringUTFChars(jenv, path, caPath);
 
     return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)file;
+    (void)path;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainFile
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file)
 {
+#ifndef NO_FILESYSTEM
     jint ret = 0;
     jclass excClass;
     const char* chainFile;
@@ -312,6 +340,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainFile
     (*jenv)->ReleaseStringUTFChars(jenv, file, chainFile);
 
     return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)file;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_freeContext
@@ -1503,7 +1538,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadCRL
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring path, jint type,
    jint monitor)
 {
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     int ret;
     const char* crlPath;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;

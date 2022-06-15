@@ -54,6 +54,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509;
@@ -145,6 +146,12 @@ public class WolfSSLX509Test {
 
         System.out.print("\tTesting x509 ext");
 
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        if (WolfSSL.FileSystemEnabled() == false) {
+            pass("\t\t... skipped");
+            return;
+        }
+
         try {
             x509 = new WolfSSLX509(tf.googleCACert);
 
@@ -220,6 +227,13 @@ public class WolfSSLX509Test {
         WolfSSLX509X x509;
 
         System.out.print("\tTesting X509X validity");
+
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        if (WolfSSL.FileSystemEnabled() == false) {
+            pass("\t\t... skipped");
+            return;
+        }
+
         try {
             x509 = new WolfSSLX509X(tf.googleCACert);
             x509.checkValidity();
@@ -239,6 +253,13 @@ public class WolfSSLX509Test {
         WolfSSLX509 x509;
 
         System.out.print("\tTesting TBS");
+
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        if (WolfSSL.FileSystemEnabled() == false) {
+            pass("\t\t\t... skipped");
+            return;
+        }
+
         try {
             x509 = new WolfSSLX509(tf.googleCACert);
             tbs = x509.getTBSCertificate();
@@ -574,6 +595,12 @@ public class WolfSSLX509Test {
         int ALT_DNS_NAME = 2; /* dNSName type */
 
         System.out.print("\tTesting getting alt names");
+
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        if (WolfSSL.FileSystemEnabled() == false) {
+            pass("\t... skipped");
+            return;
+        }
 
         /* populate known alt name list for example.com cert, for comparison */
         List<String> expected = new ArrayList<>();

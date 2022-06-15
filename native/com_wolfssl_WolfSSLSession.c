@@ -377,7 +377,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring file, jint format)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     jint ret = 0;
     const char* certFile;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -411,7 +411,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring file, jint format)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     jint ret = 0;
     const char* keyFile;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -445,7 +445,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainFile
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring file)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     jint ret = 0;
     const char* chainFile;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -1855,7 +1855,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring file, jint format)
 {
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
     int ret;
     const char* fname;
     jclass excClass;
@@ -2098,7 +2098,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring path, jint type,
    jint monitor)
 {
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     int ret;
     const char* crlPath;
     jclass excClass;

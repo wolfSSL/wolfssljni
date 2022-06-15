@@ -102,15 +102,18 @@ public class WolfSSLContextTest {
         test_ucf(null, null, 9999, WolfSSL.SSL_FAILURE,
                  "useCertificateFile(null, null, 9999)");
 
-        test_ucf(ctx, bogusFile, WolfSSL.SSL_FILETYPE_PEM, WolfSSL.SSL_FAILURE,
-                 "useCertificateFile(ctx, bogusFile, SSL_FILETYPE_PEM)");
+        if (WolfSSL.FileSystemEnabled() == true) {
+            test_ucf(ctx, bogusFile, WolfSSL.SSL_FILETYPE_PEM,
+                     WolfSSL.SSL_FAILURE,
+                     "useCertificateFile(ctx, bogusFile, SSL_FILETYPE_PEM)");
 
-        test_ucf(ctx, cliCert, 9999, WolfSSL.SSL_FAILURE,
-                 "useCertificateFile(ctx, cliCert, 9999)");
+            test_ucf(ctx, cliCert, 9999, WolfSSL.SSL_FAILURE,
+                     "useCertificateFile(ctx, cliCert, 9999)");
 
-        test_ucf(ctx, cliCert, WolfSSL.SSL_FILETYPE_PEM,
-                 WolfSSL.SSL_SUCCESS,
-                 "useCertificateFile(ctx, cliCert, SSL_FILETYPE_PEM)");
+            test_ucf(ctx, cliCert, WolfSSL.SSL_FILETYPE_PEM,
+                     WolfSSL.SSL_SUCCESS,
+                     "useCertificateFile(ctx, cliCert, SSL_FILETYPE_PEM)");
+        }
 
         System.out.println("\t\t... passed");
     }
@@ -148,15 +151,18 @@ public class WolfSSLContextTest {
         test_upkf(null, null, 9999, WolfSSL.SSL_FAILURE,
                  "usePrivateKeyFile(null, null, 9999)");
 
-        test_upkf(ctx, bogusFile, WolfSSL.SSL_FILETYPE_PEM,
-                  WolfSSL.SSL_FAILURE,
-                 "usePrivateKeyFile(ctx, bogusFile, SSL_FILETYPE_PEM)");
+        if (WolfSSL.FileSystemEnabled() == true) {
+            test_upkf(ctx, bogusFile, WolfSSL.SSL_FILETYPE_PEM,
+                      WolfSSL.SSL_FAILURE,
+                     "usePrivateKeyFile(ctx, bogusFile, SSL_FILETYPE_PEM)");
 
-        test_upkf(ctx, cliKey, 9999, WolfSSL.SSL_FAILURE,
-                 "usePrivateKeyFile(ctx, cliKey, 9999)");
+            test_upkf(ctx, cliKey, 9999, WolfSSL.SSL_FAILURE,
+                     "usePrivateKeyFile(ctx, cliKey, 9999)");
 
-        test_upkf(ctx, cliKey, WolfSSL.SSL_FILETYPE_PEM, WolfSSL.SSL_SUCCESS,
-                 "usePrivateKeyFile(ctx, cliKey, SSL_FILETYPE_PEM)");
+            test_upkf(ctx, cliKey, WolfSSL.SSL_FILETYPE_PEM,
+                     WolfSSL.SSL_SUCCESS,
+                     "usePrivateKeyFile(ctx, cliKey, SSL_FILETYPE_PEM)");
+        }
 
         System.out.println("\t\t... passed");
     }
@@ -194,14 +200,16 @@ public class WolfSSLContextTest {
         test_lvl(null, null, null, WolfSSL.SSL_FAILURE,
                 "loadVerifyLocations(null, null, null)");
 
-        test_lvl(ctx, null, null, WolfSSL.SSL_FAILURE,
-                "loadVerifyLocations(ctx, null, null)");
+        if (WolfSSL.FileSystemEnabled() == true ) {
+            test_lvl(ctx, null, null, WolfSSL.SSL_FAILURE,
+                    "loadVerifyLocations(ctx, null, null)");
 
-        test_lvl(null, caCert, null, WolfSSL.SSL_FAILURE,
-                "loadVerifyLocations(null, caCert, null)");
+            test_lvl(null, caCert, null, WolfSSL.SSL_FAILURE,
+                    "loadVerifyLocations(null, caCert, null)");
 
-        test_lvl(ctx, caCert, null, WolfSSL.SSL_SUCCESS,
-                "loadVerifyLocations(ctx, caCert, 0)");
+            test_lvl(ctx, caCert, null, WolfSSL.SSL_SUCCESS,
+                    "loadVerifyLocations(ctx, caCert, 0)");
+        }
 
         System.out.println("\t\t... passed");
     }

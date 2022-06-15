@@ -50,6 +50,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerFree
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
   (JNIEnv* jenv, jclass jcl, jlong cmPtr, jstring f, jstring d)
 {
+#ifndef NO_FILESYSTEM
     int ret;
     const char* certFile = NULL;
     const char* certPath = NULL;
@@ -69,6 +70,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
     (*jenv)->ReleaseStringUTFChars(jenv, d, certPath);
 
     return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)cmPtr;
+    (void)f;
+    (void)d;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuffer

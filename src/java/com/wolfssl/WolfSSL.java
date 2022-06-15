@@ -507,6 +507,13 @@ public class WolfSSL {
      */
     public static native boolean RsaEnabled();
 
+    /**
+     * Tests if filesystem support has been compiled into the wolfSSL library.
+     *
+     * @return 1 if enabled, otherwise 0 if NO_FILESYSTEM has been defined.
+     */
+    public static native boolean FileSystemEnabled();
+
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**

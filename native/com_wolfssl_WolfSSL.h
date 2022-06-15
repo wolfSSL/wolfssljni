@@ -377,6 +377,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    FileSystemEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_FileSystemEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    SSLv3_ServerMethod
  * Signature: ()J
  */
