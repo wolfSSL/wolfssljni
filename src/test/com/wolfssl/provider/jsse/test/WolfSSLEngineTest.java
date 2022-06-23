@@ -356,6 +356,76 @@ public class WolfSSLEngineTest {
     }
 
     @Test
+    public void testSetUseClientMode()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        System.out.print("\tTesting setUseClientMode()");
+
+        /* expected to fail, not calling setUseClientMode() */
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to fail, only calling client.setUseClientMode() */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without server.setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to fail, only calling client.setUseClientMode() */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        server.setUseClientMode(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without client.setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to succeed, both setUseClientMode() set */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+            error("\t... failed");
+            fail("failed with setUseClientMode(), should succeed");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
     public void testMutualAuth()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
@@ -396,6 +466,7 @@ public class WolfSSLEngineTest {
         server.setWantClientAuth(true);
         server.setNeedClientAuth(true);
         client.setUseClientMode(true);
+        server.setUseClientMode(false);
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret == 0) {
             error("\t\t... failed");

@@ -40,7 +40,17 @@ import javax.net.ssl.SSLParameters;
 import java.net.SocketTimeoutException;
 
 /**
- * wolfSSL implementation of SSLEngine
+ * wolfSSL implementation of SSLEngine.
+ *
+ * There is more verbose debugging available for this class apart
+ * from the normal 'wolfjsse.debug' logging. To enable more verbose
+ * logging use both the following system properties:
+ *
+ * System.setProperty("wolfjsse.debug", "true");
+ * System.setProperty("wolfsslengine.debug", "true");
+ *
+ * This will add extra debug logs around wrap() and unwrap() calls, as well
+ * as printing out the data sent/received in the I/O callbacks.
  *
  * @author wolfSSL
  */
@@ -63,8 +73,33 @@ public class WolfSSLEngine extends SSLEngine {
     /* closed completely (post shutdown or before handshake) */
     private boolean closed = true;
 
+    /* handshake completed */
+    private boolean handshakeFinished = false;
+
+    /* closeNotify status when shutting down */
+    private boolean closeNotifySent = false;
+    private boolean closeNotifyReceived = false;
+
+    /* client/server mode has been set */
+    private boolean clientModeSet = false;
+
     static private SendCB sendCb = null;
     static private RecvCB recvCb = null;
+
+    /** Turn on extra/verbose SSLEngine debug logging */
+    public boolean extraDebugEnabled = false;
+
+    /**
+     * Turns on additional debugging based on system properties set.
+     */
+    private void enableExtraDebug() {
+        /* turn on verbose extra debugging if 'wolfsslengine.debug'
+         * system property is set */
+        String engineDebug  = System.getProperty("wolfsslengine.debug");
+        if ((engineDebug != null) && (engineDebug.equalsIgnoreCase("true"))) {
+            this.extraDebugEnabled = true;
+        }
+    }
 
     /**
      *  Create a new engine with no hints for session reuse
@@ -147,31 +182,61 @@ public class WolfSSLEngine extends SSLEngine {
         setCallbacks();
         ssl.setIOReadCtx(this);
         ssl.setIOWriteCtx(this);
+
+        enableExtraDebug();
     }
 
     /**
-     * returns 0 if no data was waiting and size of copied on success
-     * negative values are returned in error cases
+     * Copy buffered data to be sent into provided output ByteBuffer.
+     *
+     * Data sent will be minimum of either buffered data size or
+     * destination buffer remaining space.
+     *
+     * Returns size of data copied.
      */
     private int CopyOutPacket(ByteBuffer out, Status status) {
-        int max = 0;
+        int sendSz = 0;
 
         if (this.toSend != null) {
-            max = out.remaining();
+            sendSz = Math.min(this.toSend.length, out.remaining());
+            out.put(this.toSend, 0, sendSz);
 
-            if (this.toSend.length > max) {
-                /* output not large enough to read packet */
-                status = Status.BUFFER_OVERFLOW;
-                return -1;
+            if (sendSz != this.toSend.length) {
+                /* resize and adjust remaining toSend data */
+                byte[] tmp = new byte[this.toSend.length - sendSz];
+                System.arraycopy(this.toSend, sendSz, tmp, 0,
+                                 this.toSend.length - sendSz);
+                this.toSend = tmp;
             }
             else {
-                /* read all from toSend */
-                out.put(this.toSend);
-                max = this.toSend.length;
                 this.toSend = null;
             }
         }
-        return max;
+        return sendSz;
+    }
+
+    /**
+     * Helper function, updates internal close_notify alert status
+     * and inBound/outBoundOpen.
+     */
+    private void UpdateCloseNotifyStatus() {
+        int ret;
+
+        ret = ssl.getShutdown();
+        if (ret == (WolfSSL.SSL_RECEIVED_SHUTDOWN |
+                    WolfSSL.SSL_SENT_SHUTDOWN)) {
+            this.closeNotifySent = true;
+            this.closeNotifyReceived = true;
+            this.inBoundOpen = false;
+            this.outBoundOpen = false;
+            closed = true;
+        } else if (ret == WolfSSL.SSL_RECEIVED_SHUTDOWN) {
+            this.closeNotifyReceived = true;
+            this.inBoundOpen = false;
+        } else if (ret == WolfSSL.SSL_SENT_SHUTDOWN) {
+            this.closeNotifySent = true;
+            this.outBoundOpen = false;
+        }
     }
 
     /**
@@ -184,44 +249,113 @@ public class WolfSSLEngine extends SSLEngine {
             EngineHelper.saveSession();
         }
 
-        ret = ssl.getShutdown();
-        if (ret == (WolfSSL.SSL_RECEIVED_SHUTDOWN |
-                    WolfSSL.SSL_SENT_SHUTDOWN)) {
-            /* sent and received close_notify alert, all finished */
-            closed = true;
-            this.inBoundOpen = false;
-            this.outBoundOpen = false;
-            hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        /* get current close_notify state */
+        UpdateCloseNotifyStatus();
+        if (this.closeNotifySent == true &&
+            this.closeNotifyReceived == true) {
             return WolfSSL.SSL_SUCCESS;
         }
 
+        /* send/recv close_notify as needed */
         ret = ssl.shutdownSSL();
-        if (ret == WolfSSL.SSL_SUCCESS) {
-            /* if shutdown is successfull then is closed */
-            closed = true;
-            this.inBoundOpen = false;
-            this.outBoundOpen = false;
-            hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        UpdateCloseNotifyStatus();
+
+        return ret;
+    }
+
+    /**
+     * Starts or continues SSL/TLS handshake.
+     * Returns WolfSSL.SSL_SUCCESS or WolfSSL.SSL_FAILURE
+     */
+    private int DoHandshake() throws SSLException {
+        int ret = WolfSSL.SSL_SUCCESS;
+
+        try {
+            if (this.getUseClientMode() == true) {
+                ret = this.ssl.connect();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ssl.connect() ret:err = " + ret + " : " +
+                    ssl.getError(ret));
+            }
+            else {
+                ret = this.ssl.accept();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ssl.connect() ret:err = " + ret + " : " +
+                    ssl.getError(ret));
+            }
+        } catch (SocketTimeoutException e) {
+            throw new SSLException(e);
         }
-        /* wolfSSL_shutdown() will return either SSL_SHUTDOWN_NOT_DONE (2), or
-         * will map that to 0 if WOLFSSL_ERROR_CODE_OPENSSL is defined. Either
-         * should indicate that the full bidirectional shutdown has not
-         * completed. */
-        else if (ret == WolfSSL.SSL_SHUTDOWN_NOT_DONE || ret == 0) {
-            hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+
+        return ret;
+    }
+
+    /**
+     * Write application data using ssl.write().
+     *
+     * Only sends up to maximum app data chunk size
+     * (SSLSession.getApplicationBufferSize()).
+     *
+     * Return bytes sent on success, negative on error */
+    private int SendAppData(ByteBuffer[] in, int ofst, int len,
+            ByteBuffer out) throws SSLException {
+
+        int i = 0;
+        int ret = 0;
+        int totalIn = 0;
+        int sendSz = 0;
+        int inputLeft = 0;
+        int inLimit = 0;
+        ByteBuffer dataBuf;
+        byte[] dataArr;
+        int pos[] = new int[len];   /* in[] positions */
+        int limit[] = new int[len]; /* in[] limits */
+
+        /* get total input data size, store input array positions */
+        for (i = ofst; i < ofst + len; i++) {
+            totalIn += in[i].remaining();
+            pos[i] = in[i].position();
+            limit[i] = in[i].limit();
         }
-        else {
-            int err = ssl.getError(ret);
-             switch (err) {
-                case WolfSSL.SSL_ERROR_WANT_READ:
-                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
-                    break;
-                case WolfSSL.SSL_ERROR_WANT_WRITE:
-                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                    break;
-                default:
-             }
+
+        /* only send up to maximum app data size chunk */
+        sendSz = Math.min(totalIn,
+                          EngineHelper.getSession().getApplicationBufferSize());
+        dataBuf = ByteBuffer.allocate(sendSz);
+
+        /* gather byte array of sendSz bytes from input buffers */
+        inputLeft = sendSz;
+        for (i = ofst; i < ofst + len; i++) {
+            int bufChunk = Math.min(in[i].remaining(), inputLeft);
+
+            in[i].limit(in[i].position() + bufChunk);       /* set limit */
+            dataBuf.put(in[i]);                             /* get data */
+            inputLeft -= bufChunk;
+            in[i].limit(limit[i]);                          /* reset limit */
+
+            if (inputLeft == 0) {
+                break; /* reached data size needed, stop reading */
+            }
         }
+
+        dataArr = new byte[sendSz];
+        dataBuf.rewind();
+        dataBuf.get(dataArr);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                         "calling ssl.write() with size: " + sendSz);
+
+        ret = this.ssl.write(dataArr, sendSz);
+        if (ret <= 0) {
+            /* error, reset in[] positions for next call */
+            for (i = ofst; i < ofst + len; i++) {
+                in[i].position(pos[i]);
+            }
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                         "ssl.write() returning: " + ret);
+
         return ret;
     }
 
@@ -235,10 +369,67 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
-        int i, max = 0, ret = 0, idx = 0, pro = 0;
-        ByteBuffer tmp;
-        byte[] msg;
-        int pos[] = new int[len];
+        int ret = 0, i;
+        int produced = 0;
+        int consumed = 0;
+
+        /* Set initial status for SSLEngineResult return */
+        Status status = SSLEngineResult.Status.OK;
+
+        if (in == null || ofst + len > in.length || out == null) {
+            throw new SSLException("SSLEngine.wrap() bad arguments");
+        }
+
+        if (this.clientModeSet == false) {
+            throw new IllegalStateException(
+                    "setUseClientMode() has not been called on this SSLEngine");
+        }
+
+        if (extraDebugEnabled == true) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "==== [ entering wrap() ] ===================================");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "setUseClientMode: " + EngineHelper.getUseClientMode());
+            for (i = 0; i < len; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].position(): " + in[i].position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].limit(): " + in[i].position());
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ofst: " + ofst + ", len: " + len);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.remaining(): " + out.remaining());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.position(): " + out.position());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.limit(): " + out.limit());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "toReadSz: " + this.toReadSz);
+            if (this.toSend != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: " + this.toSend.length);
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: 0");
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifySent: " + this.closeNotifySent);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifyReceived: " + this.closeNotifyReceived);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "inBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "outBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeFinished: " + this.handshakeFinished);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "===========================================================");
+        }
 
         if (needInit) {
             EngineHelper.initHandshake();
@@ -246,76 +437,156 @@ public class WolfSSLEngine extends SSLEngine {
             closed = false; /* opened a connection */
         }
 
-        /* for sslengineresults return */
-        Status status = SSLEngineResult.Status.OK;
-        if (in == null || ofst + len > in.length || out == null) {
-            throw new SSLException("bad arguments");
+        /* Force out buffer to be large enough to hold max packet size */
+        if (out.remaining() < EngineHelper.getSession().getPacketBufferSize()) {
+            return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
         }
 
-        /* check if left over data to be wrapped
-         * (pro can be negative on error) */
-        pro = CopyOutPacket(out, status);
+        /* Copy buffered data to be sent into output buffer */
+        produced = CopyOutPacket(out, status);
 
         /* check if closing down connection */
-        if (pro >=0 && !outBoundOpen) {
+        if (produced >= 0 && !outBoundOpen) {
             status = SSLEngineResult.Status.CLOSED;
             ClosingConnection();
-            ret = CopyOutPacket(out, status);
-            if (ret > 0) {
-                pro += ret;
+            produced += CopyOutPacket(out, status);
+        }
+        else if (produced == 0) {
+            /* continue handshake or application data */
+            if (this.handshakeFinished == false) {
+                ret = DoHandshake();
+            }
+            else {
+                ret = SendAppData(in, ofst, len, out);
+                if (ret > 0) {
+                    consumed += ret;
+                }
+            }
+
+            /* copy any produced data into output buffer */
+            produced += CopyOutPacket(out, status);
+        }
+
+        SetHandshakeStatus(ret);
+
+        if (extraDebugEnabled == true) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "==== [ exiting wrap() ] ===================================");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "setUseClientMode: " + EngineHelper.getUseClientMode());
+            for (i = 0; i < len; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].position(): " + in[i].position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ByteBuffer in["+i+"].limit(): " + in[i].position());
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ofst: " + ofst + ", len: " + len);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.remaining(): " + out.remaining());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.position(): " + out.position());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.limit(): " + out.limit());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "toReadSz: " + this.toReadSz);
+            if (this.toSend != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: " + this.toSend.length);
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: 0");
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifySent: " + this.closeNotifySent);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifyReceived: " + this.closeNotifyReceived);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeFinished: " + this.handshakeFinished);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "inBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "outBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeStatus: " + hs);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "===========================================================");
+        }
+
+        return new SSLEngineResult(status, hs, consumed, produced);
+    }
+
+    /**
+     * Receive application data using ssl.read() from in buffer, placing
+     * processed/decrypted data into out[].
+     *
+     * @param in input data encrypted/encapsulated in SSL/TLS records
+     * @param out output ByteBuffer arrays, to hold processed/decoded plaintext
+     * @param ofst offset into out[] array to begin writing data
+     * @param length length of out[] array
+     * @param maxOutSz maximum size of all output buffers in out[]
+     *
+     * @return number of plaintext bytes received, or negative on error.
+     */
+    private int RecvAppData(ByteBuffer in, ByteBuffer[] out, int ofst,
+            int length, int maxOutSz) throws SSLException {
+
+        int i, sz, bufSpace;
+        int totalRead = 0;
+        int ret = 0;
+        int idx = 0; /* index into out[] array */
+        byte[] tmp;
+
+        /* read all data we have cached, if it fits in output buffers */
+        while ((this.toReadSz > 0) && (totalRead < maxOutSz)) {
+
+            tmp = new byte[maxOutSz];
+
+            ret = this.ssl.read(tmp, maxOutSz);
+            if (ret <= 0) {
+                int err = ssl.getError(ret);
+
+                switch (err) {
+                    case WolfSSL.SSL_ERROR_WANT_READ:
+                    case WolfSSL.SSL_ERROR_WANT_WRITE:
+                        break;
+                    case WolfSSL.SSL_ERROR_ZERO_RETURN:
+                        /* check if is shutdown message */
+                        if (ssl.getShutdown() ==
+                                WolfSSL.SSL_RECEIVED_SHUTDOWN) {
+                            ret = ClosingConnection();
+                            return ret;
+                        }
+                        break;
+                    default:
+                        throw new SSLException("wolfSSL_read() error: " +
+                                ret + " , err = " + err);
+                }
+            }
+            else {
+                /* write processed data into output buffers */
+                for (i = 0; i < ret;) {
+                    if (idx + ofst >= length) { /* no more buffers left */
+                        break;
+                    }
+                    bufSpace = out[idx + ofst].remaining();
+                    sz = (bufSpace >= ret) ? ret : bufSpace;
+                    out[idx + ofst].put(tmp, i, sz);
+                    i += sz;
+                    totalRead += sz;
+
+                    if (bufSpace < ret) {
+                        idx++; /* go to next output buffer */
+                    }
+                }
             }
         }
-        else if (pro == 0) {
-                /* get buffer size */
-                for (i = ofst; i < ofst + len; i++) {
-                    max += in[i].remaining();
-                }
-                tmp = ByteBuffer.allocate(max);
 
-                for (i = ofst; i < len; i++) {
-                    pos[idx++] = in[i].position();
-                    tmp.put(in[i]);
-                }
-
-                msg = new byte[max];
-                tmp.rewind();
-                tmp.get(msg);
-                ret = this.ssl.write(msg, max);
-                if (ret <= 0) {
-                    int err = ssl.getError(ret);
-
-                    switch (err) {
-                        case WolfSSL.SSL_ERROR_WANT_READ:
-                            hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
-                            break;
-                        case WolfSSL.SSL_ERROR_WANT_WRITE:
-                            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                            break;
-                        default:
-                            throw new SSLException("wolfSSL error case " + ret);
-                    }
-                }
-
-                /* if the handshake is not done then reset input
-                 * buffer postions */
-                if (!ssl.handshakeDone()) {
-                    idx = 0;
-                    for (i = ofst; i < ofst + len; i++) {
-                        in[i].position(pos[idx++]);
-                    }
-                }
-                else {
-                    hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
-                }
-
-                pro = CopyOutPacket(out, status);
-        }
-
-        /* consumed no bytes */
-        if (ret < 0) {
-            ret = 0;
-        }
-        return new SSLEngineResult(status, hs, ret, pro);
+        return totalRead;
     }
 
     @Override
@@ -327,21 +598,22 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
-        int i, ret = 0, sz = 0, idx = 0, max = 0, pos, cns = 0, pro = 0;
+        int i, ret = 0, sz = 0, idx = 0, maxOutSz = 0, pos;
+        int consumed = 0;
+        int produced = 0;
         byte[] tmp;
-        Status status;
 
-        if (needInit) {
-            EngineHelper.initHandshake();
-            needInit = false;
-            closed = false;
-        }
-
-        /* for sslengineresults return */
-        status = SSLEngineResult.Status.OK;
+        /* Set initial status for SSLEngineResult return */
+        Status status = SSLEngineResult.Status.OK;
 
         if (in == null || out == null || ofst + length > out.length) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(
+                "SSLEngine.unwrap() bad arguments");
+        }
+
+        if (this.clientModeSet == false) {
+            throw new IllegalStateException(
+                    "setUseClientMode() has not been called on this SSLEngine");
         }
 
         for (i = 0; i < length; i++) {
@@ -349,78 +621,227 @@ public class WolfSSLEngine extends SSLEngine {
                 throw new IllegalArgumentException(
                         "null or readonly out buffer found");
             }
-            max += out[i + ofst].remaining();
+            /* pre-calculate max output size, used in RecvAppData */
+            maxOutSz += out[i + ofst].remaining();
         }
 
-        sz = cns = in.remaining();
+        if (extraDebugEnabled == true) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "==== [ entering unwrap() ] =================================");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "setUseClientMode: " + EngineHelper.getUseClientMode());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.remaining(): " + in.remaining());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.position(): " + in.position());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.limit(): " + in.position());
+            for (i = 0; i < length; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].remaining(): " + out[i].remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].position(): " + out[i].position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].limit(): " + out[i].limit());
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ofst: " + ofst + ", length: " + length);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "toReadSz: " + this.toReadSz);
+            if (this.toSend != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: " + this.toSend.length);
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: 0");
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifySent: " + this.closeNotifySent);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifyReceived: " + this.closeNotifyReceived);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "inBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "outBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeFinished: " + this.handshakeFinished);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "===========================================================");
+        }
+
+        if (needInit) {
+            EngineHelper.initHandshake();
+            needInit = false;
+            closed = false;
+        }
+
+        sz = in.remaining();
         pos = in.position();
         if (sz > 0) {
-            /* add new encrypted input to the read buffer for
-             * wolfSSL_read call */
+            /* add new encrypted input to read buffer for wolfSSL calls */
             tmp = new byte[sz];
             in.get(tmp);
             addToRead(tmp);
+            consumed += sz;
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "added " + sz + " bytes to internal read buffer");
         }
 
-        tmp = new byte[max];
-        if (!outBoundOpen) {
+        if (outBoundOpen == false) {
             if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
                 status = SSLEngineResult.Status.CLOSED;
             }
         }
         else {
-            ret = this.ssl.read(tmp, max);
-            if (ret <= 0) {
-                int err = ssl.getError(ret);
+            if (this.handshakeFinished == false) {
 
-                switch (err) {
-                    case WolfSSL.SSL_ERROR_WANT_READ:
-                        if (cns > 0) {
-                            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                        }
-                        break;
-                    case WolfSSL.SSL_ERROR_WANT_WRITE:
-                        break;
-
-                    case WolfSSL.SSL_ERROR_ZERO_RETURN:
-                        /* check if is shutdown message */
-                        if (ssl.getShutdown() == WolfSSL.SSL_RECEIVED_SHUTDOWN) {
-                            this.outBoundOpen = false;
-                            ClosingConnection();
-                            status = SSLEngineResult.Status.CLOSED;
-                            if (toSend != null && toSend.length > 0) {
-                                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                            }
-                        }
-                        break;
-
-                    default:
-                        throw new SSLException("wolfSSL error case " + err);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "starting or continuing handshake");
+                ret = DoHandshake();
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "receiving application data");
+                ret = RecvAppData(in, out, ofst, length, maxOutSz);
+                if (ret > 0) {
+                    consumed += ret;
                 }
             }
-        }
 
-        for (i = 0; i < ret;) {
-            if (idx >= length) { /* no more output buffers left */
-                break;
+            if (outBoundOpen == false) {
+                status = SSLEngineResult.Status.CLOSED;
             }
-            sz = out[idx + ofst].remaining();
-            sz = (sz > ret)? ret : sz;
-            out[idx + ofst].put(tmp, i, sz);
-            i   += sz;
-            pro += sz;
-            idx++;
+
+            int err = ssl.getError(ret);
+            if (ret < 0 &&
+                (err != WolfSSL.SSL_ERROR_WANT_READ) &&
+                (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+                throw new SSLException(
+                    "wolfSSL error, ret:err = " + ret + " : " + err);
+            }
         }
 
-        if (ssl.handshakeDone()) {
-            hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        SetHandshakeStatus(ret);
+
+        if (extraDebugEnabled == true) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "==== [ exiting unwrap() ] ==================================");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "setUseClientMode: " + EngineHelper.getUseClientMode());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.remaining(): " + in.remaining());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.position(): " + in.position());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "in.limit(): " + in.position());
+            for (i = 0; i < length; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].remaining(): " + out[i].remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].position(): " + out[i].position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "out["+i+"].limit(): " + out[i].limit());
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ofst: " + ofst + ", length: " + length);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "toReadSz: " + this.toReadSz);
+            if (this.toSend != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: " + this.toSend.length);
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "toSend.length: 0");
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeFinished: " + this.handshakeFinished);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifySent: " + this.closeNotifySent);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "closeNotifyReceived: " + this.closeNotifyReceived);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "inBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "outBoundOpen: " + this.outBoundOpen);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeStatus: " + hs);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "===========================================================");
         }
-        return new SSLEngineResult(status, hs, cns, pro);
+
+        return new SSLEngineResult(status, hs, consumed, produced);
+    }
+
+    /**
+     * Sets handshake status after I/O operation of unwrap(), helper function.
+     */
+    private void SetHandshakeStatus(int ret) {
+
+        int err = ssl.getError(ret);
+
+        if (this.handshakeFinished == true) {
+            /* close_notify sent by wolfSSL but not across transport yet */
+            if (this.closeNotifySent == true &&
+                this.toSend != null && this.toSend.length > 0) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+            }
+            /* close_notify received, need to send one back */
+            else if (this.closeNotifyReceived == true &&
+                     this.closeNotifySent == false) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+            }
+            /* close_notify sent, need to read peer's */
+            else if (this.closeNotifySent == true &&
+                     this.closeNotifyReceived == false) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+            }
+            else {
+                hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+            }
+        }
+        else {
+            if (ssl.handshakeDone() && this.toSend == null &&
+                this.toReadSz == 0) {
+                this.handshakeFinished = true;
+                hs = SSLEngineResult.HandshakeStatus.FINISHED;
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "SSL/TLS handshake finished");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "SSL/TLS protocol: " +
+                    EngineHelper.getSession().getProtocol());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "SSL/TLS cipher suite: " +
+                    EngineHelper.getSession().getCipherSuite());
+            }
+            /* give priority of WRAP/UNWRAP to state of our internal
+             * I/O data buffers first, then wolfSSL err status */
+            else if (this.toSend != null && this.toSend.length > 0) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+            }
+            else if (this.toReadSz > 0) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+            }
+            else if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+            }
+            else if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_WRITE) {
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+            }
+            else {
+                hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+            }
+        }
+
+        return;
     }
 
     @Override
     public Runnable getDelegatedTask() {
-
         /* no tasks left to run */
         return null;
     }
@@ -508,6 +929,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public void setUseClientMode(boolean mode) {
         EngineHelper.setUseClientMode(mode);
+        this.clientModeSet = true;
     }
 
     @Override
@@ -583,6 +1005,11 @@ public class WolfSSLEngine extends SSLEngine {
         }
         System.arraycopy(in, 0, tmp, idx, in.length);
         this.toSend = tmp;
+
+        if (extraDebugEnabled == true) {
+            printHex(in, sz, "CB Write");
+        }
+
         return sz;
     }
 
@@ -618,12 +1045,8 @@ public class WolfSSLEngine extends SSLEngine {
             this.toReadSz = 0;
         }
 
-        if (WolfSSLDebug.DEBUG) {
-            System.out.println("CB Read ["+max+"] :");
-            for (int i = 0; i < max; i++) {
-                System.out.printf("%02X", toRead[i]);
-            }
-            System.out.println("");
+        if (extraDebugEnabled == true) {
+            printHex(toRead, max, "CB Read");
         }
 
         return max;
@@ -640,6 +1063,46 @@ public class WolfSSLEngine extends SSLEngine {
         System.arraycopy(in, 0, combined, toReadSz, in.length);
         toRead = combined;
         toReadSz += in.length;
+    }
+
+    /**
+     * Helper function, print byte[] as hex to stdout
+     *
+     * @param in input array to be printed as hex
+     * @param sz number of bytes to print from input array
+     * @param label label String to previx output with
+     */
+    protected void printHex(byte[] in, int sz, String label) {
+        int i = 0, j = 0;
+
+        System.out.print(label + " [" + sz + "]: ");
+        for (i = 0; i < sz; i++) {
+            if ((i % 8) == 0) {
+                System.out.printf("\n%06X", j * 8);
+                j++;
+            }
+            System.out.printf(" %02X ", in[i]);
+        }
+        System.out.println("");
+    }
+
+    /**
+     * Removes the last 'sz' bytes from the internal read buffer.
+     * Used to back out application data not yet ready for processing.
+     */
+    private synchronized void removeFromRead(int sz) {
+        byte[] reduced;
+
+        if (sz > toReadSz || toRead == null || sz == 0) {
+            return;
+        }
+
+        reduced = new byte[toReadSz - sz];
+        System.arraycopy(toRead, 0, reduced, 0, toReadSz - sz);
+        toRead = reduced;
+        toReadSz = toReadSz - sz;
+
+        return;
     }
 
     private class SendCB implements WolfSSLIOSendCallback {

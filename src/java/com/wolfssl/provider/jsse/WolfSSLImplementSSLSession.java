@@ -488,18 +488,20 @@ public class WolfSSLImplementSSLSession implements SSLSession {
 
     @Override
     public int getPacketBufferSize() {
-        return 16394; /* 2^14, max size by standard, enum MAX_RECORD_SIZE */
+        /* Match conscrypt's calculations here for maximum potential
+         * SSL/TLS record length. Used by SSLEngine consumers to allocate
+         * output buffer size.
+         *
+         * type(1) + version(2) + length(2) + 2^14 plaintext +
+         * max compression overhead (1024) + max AEAD overhead (1024) */
+        return 18437;
     }
 
     @Override
     public int getApplicationBufferSize() {
-        /* 16394 - (38 + 64)
-         * max added to msg, mac + pad  from RECORD_HEADER_SZ + BLOCK_SZ (pad) +
-         * Max digest sz + BLOC_SZ (iv) + pad byte (1)
-         */
-        return 16292;
+        /* max plaintext bytes allowed by spec, MAX_RECORD_SIZE enum (2^14) */
+        return 16384;
     }
-
 
     /**
      * Takes in a new WOLFSSL object and sets the stored session
