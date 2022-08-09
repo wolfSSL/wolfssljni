@@ -612,7 +612,10 @@ class WolfSSLTestFactory {
         if (extraDebug) {
             System.out.println("client status = " + s.toString());
         }
-        if (result.bytesProduced() <= 0 || result.bytesConsumed() == 0) {
+        /* result.bytesProduced() should be > 0 for closeNotify produced.
+         * consumed will be 0 at this point since peer closeNotify not yet
+         * consumed */
+        if (result.bytesProduced() <= 0) {
             throw new SSLException("Client wrap consumed/produced error");
         }
         if (!s.toString().equals("NEED_UNWRAP") ||
@@ -647,6 +650,7 @@ class WolfSSLTestFactory {
             return 0;
         }
 
+        /* server unwraps client close_notify */
         result = server.unwrap(cliToSer, empty);
         if (extraDebug) {
             System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
@@ -669,6 +673,7 @@ class WolfSSLTestFactory {
             throw new SSLException("Bad status");
         }
 
+        /* server wraps its own close_notify */
         result = server.wrap(empty, serToCli);
         if (extraDebug) {
             System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
@@ -690,6 +695,7 @@ class WolfSSLTestFactory {
             throw new SSLException("Bad status");
         }
 
+        /* client unwraps server close_notify */
         serToCli.flip();
         result = client.unwrap(serToCli, empty);
         if (extraDebug) {

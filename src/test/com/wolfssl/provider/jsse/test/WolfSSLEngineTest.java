@@ -32,10 +32,12 @@ import java.security.Provider;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Random;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -57,9 +59,10 @@ public class WolfSSLEngineTest {
 
     private SSLContext ctx = null;
     private static String allProtocols[] = {
-        "TLSV1",
-        "TLSV1.1",
-        "TLSV1.2",
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2",
+        "TLSv1.3",
         "TLS"
     };
 
@@ -70,6 +73,8 @@ public class WolfSSLEngineTest {
     public static void testProviderInstallationAtRuntime()
         throws NoSuchProviderException {
 
+        SSLContext ctx;
+
         System.out.println("WolfSSLEngine Class");
 
         /* install wolfJSSE provider at runtime */
@@ -77,6 +82,17 @@ public class WolfSSLEngineTest {
 
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
+
+        /* populate enabledProtocols */
+        for (int i = 0; i < allProtocols.length; i++) {
+            try {
+                ctx = SSLContext.getInstance(allProtocols[i], "wolfJSSE");
+                enabledProtocols.add(allProtocols[i]);
+
+            } catch (NoSuchAlgorithmException e) {
+                /* protocol not enabled */
+            }
+        }
 
         try {
             tf = new WolfSSLTestFactory();
@@ -95,11 +111,14 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tTesting creation");
 
-        this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
-        e = this.ctx.createSSLEngine();
-        if (e == null) {
-            error("\t\t... failed");
-            fail("failed to create engine");
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            this.ctx = tf.createSSLContext(enabledProtocols.get(i),
+                                           engineProvider);
+            e = this.ctx.createSSLEngine();
+            if (e == null) {
+                error("\t\t... failed");
+                fail("failed to create engine for " + enabledProtocols.get(i));
+            }
         }
         pass("\t\t... passed");
     }
@@ -176,18 +195,6 @@ public class WolfSSLEngineTest {
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
-
-//        /* use wolfJSSE client */
-//        SSLContext c = SSLContext.getInstance("TLS", "wolfJSSE");
-//        try {
-//            c.init(createKeyManager("SunX509", clientJKS),
-//                    createTrustManager("SunX509", clientJKS), null);
-//        } catch (KeyManagementException ex) {
-//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-//        client = c.createSSLEngine("wolfSSL client test", 11111);
-//        server = c.createSSLEngine();
-
 
         ciphers = client.getSupportedCipherSuites();
         certs = server.getSession().getLocalCertificates();
@@ -356,6 +363,76 @@ public class WolfSSLEngineTest {
     }
 
     @Test
+    public void testSetUseClientMode()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        System.out.print("\tTesting setUseClientMode()");
+
+        /* expected to fail, not calling setUseClientMode() */
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to fail, only calling client.setUseClientMode() */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without server.setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to fail, only calling client.setUseClientMode() */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        server.setUseClientMode(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+            error("\t... failed");
+            fail("did not fail without client.setUseClientMode()");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* expected to succeed, both setUseClientMode() set */
+        server = this.ctx.createSSLEngine();
+        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setWantClientAuth(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+        try {
+            ret = tf.testConnection(server, client, null, null, "Testing");
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+            error("\t... failed");
+            fail("failed with setUseClientMode(), should succeed");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
     public void testMutualAuth()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         SSLEngine server;
@@ -396,6 +473,7 @@ public class WolfSSLEngineTest {
         server.setWantClientAuth(true);
         server.setNeedClientAuth(true);
         client.setUseClientMode(true);
+        server.setUseClientMode(false);
         ret = tf.testConnection(server, client, null, null, "Test in/out bound");
         if (ret == 0) {
             error("\t\t... failed");
@@ -419,16 +497,6 @@ public class WolfSSLEngineTest {
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
-        /* use wolfJSSE client */
-//        SSLContext c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
-//        try {
-//            c.init(createKeyManager("SunX509", clientJKS),
-//                    createTrustManager("SunX509", clientJKS), null);
-//        } catch (KeyManagementException ex) {
-//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-//        client = c.createSSLEngine("wolfSSL client test", 11111);
-//        server = c.createSSLEngine();
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
@@ -445,18 +513,6 @@ public class WolfSSLEngineTest {
             error("\t... failed");
             fail("failed to create engine");
         }
-
-        /* use wolfJSSE client */
-//        c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
-//        try {
-//            c.init(createKeyManager("SunX509", clientJKS),
-//                    createTrustManager("SunX509", clientJKS), null);
-//        } catch (KeyManagementException ex) {
-//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-//        client = c.createSSLEngine("wolfSSL client test", 11111);
-//        server = c.createSSLEngine();
-
 
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
@@ -497,17 +553,6 @@ public class WolfSSLEngineTest {
         server = new ServerEngine(this);
         client = new ClientEngine(this);
 
-        /* use wolfJSSE client */
-//        SSLContext c = SSLContext.getInstance("TLSv1.2", "wolfJSSE");
-//        try {
-//            c.init(createKeyManager("SunX509", clientJKS),
-//                    createTrustManager("SunX509", clientJKS), null);
-//        } catch (KeyManagementException ex) {
-//            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-//        client = c.createSSLEngine("wolfSSL client test", 11111);
-//        server = c.createSSLEngine();
-
         client.setServer(server);
         server.setClient(client);
 
@@ -519,7 +564,9 @@ public class WolfSSLEngineTest {
             client.join(1000);
         } catch (InterruptedException ex) {
             System.out.println("interupt happened");
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(
+                    WolfSSLEngineTest.class.getName()).log(
+                        Level.SEVERE, null, ex);
         }
 
         if (!server.success || !client.success) {
@@ -558,7 +605,8 @@ public class WolfSSLEngineTest {
         @Override
         public void run() {
             ByteBuffer out =
-                    ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());;
+                    ByteBuffer.allocateDirect(
+                            server.getSession().getPacketBufferSize());;
             ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
 
             do {
@@ -578,7 +626,8 @@ public class WolfSSLEngineTest {
                     }
                     status = result.getHandshakeStatus();
                 } catch (SSLException ex) {
-                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(
+                                        Level.SEVERE, null, ex);
                     return;
                 }
             } while (status != HandshakeStatus.NOT_HANDSHAKING);
@@ -590,8 +639,8 @@ public class WolfSSLEngineTest {
         protected void toServer(ByteBuffer in) throws SSLException {
             Runnable run;
             SSLEngineResult result;
-            ByteBuffer out =
-                    ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());;
+            ByteBuffer out = ByteBuffer.allocateDirect(
+                                server.getSession().getPacketBufferSize());;
             result = server.unwrap(in, out);
             while ((run = server.getDelegatedTask()) != null) {
                 run.run();
@@ -611,7 +660,8 @@ public class WolfSSLEngineTest {
         protected boolean success;
 
         public ClientEngine(WolfSSLEngineTest in) {
-            client = in.ctx.createSSLEngine("wolfSSL threaded client test", 11111);
+            client = in.ctx.createSSLEngine("wolfSSL threaded client test",
+                                            11111);
             client.setUseClientMode(true);
             status = HandshakeStatus.NOT_HANDSHAKING;
             success = false;
@@ -619,8 +669,8 @@ public class WolfSSLEngineTest {
 
         @Override
         public void run() {
-            ByteBuffer out =
-                    ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());;
+            ByteBuffer out = ByteBuffer.allocateDirect(
+                                client.getSession().getPacketBufferSize());;
             ByteBuffer in = ByteBuffer.wrap("Hello wolfSSL JSSE".getBytes());
 
             do {
@@ -640,7 +690,8 @@ public class WolfSSLEngineTest {
                     }
                     status = result.getHandshakeStatus();
                 } catch (SSLException ex) {
-                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(WolfSSLEngineTest.class.getName()).log(
+                                        Level.SEVERE, null, ex);
                     return;
                 }
             } while (status != HandshakeStatus.NOT_HANDSHAKING);
@@ -650,8 +701,8 @@ public class WolfSSLEngineTest {
         protected void toClient(ByteBuffer in) throws SSLException {
             Runnable run;
             SSLEngineResult result;
-            ByteBuffer out =
-                    ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
+            ByteBuffer out = ByteBuffer.allocateDirect(
+                                client.getSession().getPacketBufferSize());
             result = client.unwrap(in, out);
             while ((run = client.getDelegatedTask()) != null) {
                 run.run();
@@ -662,4 +713,175 @@ public class WolfSSLEngineTest {
             server = in;
         }
     }
+
+    @Test
+    public void testGetApplicationBufferSize() {
+
+        int appBufSz = 0;
+        SSLEngine engine;
+        SSLSession session;
+
+        System.out.print("\tTesting getAppBufferSize");
+
+        try {
+            /* create SSLContext */
+            this.ctx = tf.createSSLContext("TLS", engineProvider);
+
+            engine = this.ctx.createSSLEngine("test", 11111);
+            session = engine.getSession();
+            appBufSz = session.getApplicationBufferSize();
+
+            /* expected to be 16384 */
+            if (appBufSz != 16384) {
+                error("\t... failed");
+                fail("got incorrect application buffer size");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            error("\t... failed");
+            fail("unexpected Exception during getApplicationBufferSize test");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testGetPacketBufferSize() {
+
+        int packetBufSz = 0;
+        SSLEngine engine;
+        SSLSession session;
+
+        System.out.print("\tTesting getPacketBufferSize");
+
+        try {
+            /* create SSLContext */
+            this.ctx = tf.createSSLContext("TLS", engineProvider);
+
+            engine = this.ctx.createSSLEngine("test", 11111);
+            session = engine.getSession();
+            packetBufSz = session.getPacketBufferSize();
+
+            /* expected to be 18437 */
+            if (packetBufSz != 18437) {
+                error("\t... failed");
+                fail("got incorrect packet buffer size");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            error("\t... failed");
+            fail("unexpected Exception during getPacketBufferSize test");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSSLEngineBigInput() throws Exception {
+
+        int appBufMax, netBufMax;
+        int done = 0;
+        ByteBuffer cIn;
+        ByteBuffer cOut;
+        ByteBuffer sIn;
+        ByteBuffer sOut;
+        ByteBuffer clientToServer;
+        ByteBuffer serverToClient;
+
+        /* big input buffer to test, 16k */
+        byte[] bigInput = new byte[16384];
+
+        SSLEngineResult cResult;
+        SSLEngineResult sResult;
+
+        System.out.print("\tTesting large data transfer");
+
+        try {
+            /* create SSLContext */
+            this.ctx = tf.createSSLContext("TLS", engineProvider);
+
+            /* create server SSLEngine */
+            SSLEngine server = this.ctx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(true);
+
+            /* create client SSLEngine */
+            SSLEngine client = this.ctx.createSSLEngine(
+                                   "wolfSSL client test", 11111);
+            client.setUseClientMode(true);
+
+            SSLSession session = client.getSession();
+            appBufMax = session.getApplicationBufferSize();
+            netBufMax = session.getPacketBufferSize();
+
+            cIn = ByteBuffer.allocate(appBufMax);
+            sIn = ByteBuffer.allocate(netBufMax);
+            clientToServer = ByteBuffer.allocate(netBufMax);
+            serverToClient = ByteBuffer.allocate(netBufMax);
+
+            /* generate random bytes for input buffer */
+            Random rand = new Random();
+            rand.nextBytes(bigInput);
+
+            cOut = ByteBuffer.wrap(bigInput);
+            sOut = ByteBuffer.wrap("Hello client, from server".getBytes());
+
+            while (!(client.isOutboundDone() && client.isInboundDone()) &&
+                   !(server.isOutboundDone() && server.isInboundDone())) {
+
+                cResult = client.wrap(cOut, clientToServer);
+                sResult = server.wrap(sOut, serverToClient);
+
+                clientToServer.flip();
+                serverToClient.flip();
+
+                cResult = client.unwrap(serverToClient, cIn);
+                sResult = server.unwrap(clientToServer, sIn);
+
+                clientToServer.compact();
+                serverToClient.compact();
+
+                if (done == 0 &&
+                    (cOut.limit() == sIn.position()) &&
+                    (sOut.limit() == cIn.position())) {
+
+                    /* check server out matches client in */
+                    sOut.flip();
+                    cIn.flip();
+
+                    if (!sOut.equals(cIn)) {
+                        error("\t... failed");
+                        fail("server output does not match client input");
+                    }
+                    sOut.position(sOut.limit());
+                    cIn.position(cIn.limit());
+                    sOut.limit(sOut.capacity());
+                    cIn.limit(cIn.capacity());
+
+                    /* check client out matches server in */
+                    cOut.flip();
+                    sIn.flip();
+
+                    if (!cOut.equals(sIn)) {
+                        error("\t... failed");
+                        fail("client output does not match server input");
+                    }
+                    cOut.position(cOut.limit());
+                    sIn.position(sIn.limit());
+                    cOut.limit(cOut.capacity());
+                    sIn.limit(sIn.capacity());
+
+                    /* close client outbound, mark done */
+                    client.closeOutbound();
+                    done = 1;
+                }
+            }
+        } catch (Exception e) {
+            error("\t... failed");
+            e.printStackTrace();
+            fail("failed large input test with Exception");
+        }
+        pass("\t... passed");
+    }
 }
+
