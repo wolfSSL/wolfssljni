@@ -6,11 +6,11 @@ project should be used for reference only.
 Tool and version information used when testing this project:
 
 - Ubuntu 20.04.3 LTS
-- Android Studio Bumblebeea 2021.1.1 Patch 3
+- Android Studio Chipmunk 2021.2.1
 - Android Gradle Plugin Version: 4.2.2
 - Gradle Version: 7.1.3
-- API 28: Android 9.0 (Pie)
-- Emulator: Nexus 5X API 28
+- API 30: Android 11
+- Emulator: Pixel 5 API 31
 
 The following sections outline steps required to run this example on an
 Android device or emulator.
