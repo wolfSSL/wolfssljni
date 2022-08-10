@@ -157,6 +157,30 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Release Notes
 
+### wolfSSL JNI Release 1.10.0 (8/11/2022)
+
+Release 1.10.0 has bug fixes and new features including:
+
+**JNI and JSSE Changes:**
+* Add SSLEngine.getApplicationProtocol(), fixes Undertow compatibility (PR 84)
+* Wrap wolfSSL\_UseALPN() at JNI level (PR 84)
+* Fix compile error for wolfSSL < 4.2.0 and wolfSSL\_set\_alpn\_protos() (PR 84)
+* Fix NullPointerException when no selected ALPN is available (PR 84)
+* Fix JNI build when wolfSSL compiled with --disable-filesystem (PR 104)
+* Fix SSLEngine compatibility with data larger than TLS record size (PR 105)
+* Refactor SSLEngine handshake status to be more inline with SunJSSE (PR 105)
+* Add verbose SSLEngine logging with "wolfsslengine.debug" property (PR 105)
+
+**Documentation Changes**
+* Fix missing Javadoc warnings in ALPN code
+
+**Example Changes:**
+* Update Android Studio IDE project to use Android 11 (SDK 30)
+
+The wolfSSL JNI Manual is available at:
+http://www.wolfssl.com/documentation/wolfSSL-JNI-Manual.pdf. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.9.0 (5/5/2022)
 
 Release 1.9.0 has bug fixes and new features including:
