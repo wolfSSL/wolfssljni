@@ -11,6 +11,11 @@
     $JUNIT_HOME/junit.jar
     </description>
 
+    <!-- versioning/manifest properties -->
+    <property name="implementation.vendor"  value="wolfSSL Inc." />
+    <property name="implementation.title"   value="wolfSSL JNI/JSSE" />
+    <property name="implementation.version" value="1.10" />
+
     <!-- set properties for this build -->
     <property name="src.dir" value="src/java/"/>
     <property name="native.dir" value="native"/>
@@ -157,6 +162,14 @@
 
     <target name="jar">
         <jar jarfile="${lib.dir}/wolfssl.jar">
+            <manifest>
+                <attribute name="Implementation-Title"
+                           value="${implementation.title}" />
+                <attribute name="Implementation-Version"
+                           value="${implementation.version}" />
+                <attribute name="Implementation-Vendor"
+                           value="${implementation.vendor}" />
+            </manifest>
             <fileset dir="${build.dir}">
                 <include name="com/wolfssl/*.class"/>
                 <include name="com/wolfssl/wolfcrypt/*.class"/>
@@ -165,7 +178,16 @@
     </target>
 
     <target name="jar-jsse">
-        <jar jarfile="${lib.dir}/wolfssl-jsse.jar" basedir="${build.dir}"></jar>
+        <jar jarfile="${lib.dir}/wolfssl-jsse.jar" basedir="${build.dir}">
+            <manifest>
+                <attribute name="Implementation-Title"
+                           value="${implementation.title}" />
+                <attribute name="Implementation-Version"
+                           value="${implementation.version}" />
+                <attribute name="Implementation-Vendor"
+                           value="${implementation.vendor}" />
+            </manifest>
+        </jar>
     </target>
 
     <target name="javadoc" description="generate documentation">

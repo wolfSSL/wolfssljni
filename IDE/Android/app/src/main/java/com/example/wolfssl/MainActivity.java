@@ -22,11 +22,15 @@
 
 package com.example.wolfssl;
 
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
-import android.Manifest;
-import android.content.pm.PackageManager;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
@@ -34,7 +38,6 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -48,25 +51,38 @@ import javax.net.ssl.SSLEngine;
 
 public class MainActivity extends AppCompatActivity {
 
+    private View.OnClickListener buttonListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            TextView tv = (TextView) findViewById(R.id.sample_text);
+
+            try {
+                testLoadCert(tv);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         int permission;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Button button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(buttonListener);
+
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText("wolfSSL JNI Android Studio Example App");
 
 
-        permission = checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE},1);
-        }
-
-        try {
-            testLoadCert(tv);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (Environment.isExternalStorageManager()) {
+        } else {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            Uri uri = Uri.fromParts("package", getPackageName(), null);
+            intent.setData(uri);
+            startActivity(intent);
         }
     }
 
