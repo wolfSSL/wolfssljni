@@ -1267,11 +1267,13 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
             if (ianaName != NULL) {
                 /* colon separated list */
                 if (i != 0 && (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
-                    XSTRNCAT(cipherList, ":", 1);
+                    XSTRNCAT(cipherList, ":",
+                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
                 if ((XSTRLEN(ianaName) + XSTRLEN(cipherList) + 1) <
                         sizeof(cipherList)) {
-                    XSTRNCAT(cipherList, ianaName, XSTRLEN(ianaName));
+                    XSTRNCAT(cipherList, ianaName,
+                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
             }
         }
