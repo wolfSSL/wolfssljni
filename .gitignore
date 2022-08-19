@@ -16,3 +16,6 @@ build/
 lib/
 docs/
 report/
+IDE/Android/.idea/deploymentTargetDropDown.xml
+IDE/Android/app/.cxx/
+IDE/Android/app/src/main/cpp/wolfssl/
