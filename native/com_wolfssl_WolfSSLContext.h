@@ -351,6 +351,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setPskServerCb
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
   (JNIEnv *, jobject, jlong, jstring);
 
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    useSecureRenegotiation
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

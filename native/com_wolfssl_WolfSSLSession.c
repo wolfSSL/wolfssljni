@@ -3784,6 +3784,32 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
     return ret;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jenv;
+    (void)jcl;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    return (jint)wolfSSL_UseSecureRenegotiation((WOLFSSL*)(uintptr_t)ssl);
+#else
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_rehandshake
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jenv;
+    (void)jcl;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    return (jint)wolfSSL_Rehandshake((WOLFSSL*)(uintptr_t)ssl);
+#else
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

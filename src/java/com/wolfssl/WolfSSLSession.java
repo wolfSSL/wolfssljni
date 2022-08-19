@@ -279,6 +279,8 @@ public class WolfSSLSession {
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
     private native byte[] sslGet0AlpnSelected(long ssl);
     private native int useALPN(long ssl, String protocols, int options);
+    private native int useSecureRenegotiation(long ssl);
+    private native int rehandshake(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2852,6 +2854,74 @@ public class WolfSSLSession {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Enable use of secure renegotiation on this session. Calling this
+     * API does not initiate secure renegotiation, but enables it. If enabled,
+     * and peer requests secure renegotiation, this session will renegotiate.
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise negative.
+     *         Will return <code>WolfSSL.NOT_COMPILED_IN</code> if native
+     *         wolfSSL has not been compiled with
+     *         <code>HAVE_SECURE_RENEGOTIATION</code>.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int useSecureRenegotiation() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return useSecureRenegotiation(getSessionPtr());
+    }
+
+    /**
+     * Enable use of secure renegotiation on this session. Calling this
+     * API does not initiate secure renegotiation, but enables it. If enabled,
+     * and peer requests secure renegotiation, this session will renegotiate.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative. Will
+     *         return WolfSSL.NOT_COMPILED_IN if native wolfSSL has not been
+     *         compiled with HAVE_SECURE_RENEGOTIATION.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    /**
+     * Initiates a secure renegotiation attempt with the peer.
+     * For this function to attempt a secure renegotiation,
+     * <code>useSecureRenegotiation()</code> must be called prior to calling
+     * this method. When called, the underlying communication channel should
+     * also already be set up.
+     * <p>
+     * <code>rehandshake()</code> works with both blocking and non-blocking I/O.
+     * When the underlying I/O is non-blocking, <code>rehandshake()</code> will
+     * return when the underlying I/O could not satisfy the needs of
+     * <code>rehandshake()</code> to continue the handshake. In this case, a
+     * call to <code>getError</code> will yield either
+     * <b>SSL_ERROR_WANT_READ</b> or <b>SSL_ERROR_WANT_WRITE</b>. The calling
+     * process must then repeat the call to <code>rehandshake()</code> when the
+     * underlying I/O is ready and wolfSSL will pick up where it left off.
+     * <p>
+     * If the underlying I/O is blocking, <code>rehandshake()</code> will only
+     * return once the handshake has been finished or an error occurred.
+     * </p>
+     *
+     * @return <code>SSL_SUCCESS</code> if successful, otherwise
+     *         <code>SSL_FATAL_ERROR</code> if an error occurred. To get
+     *         a more detailed error code, call <code>getError()</code>.
+     *         <code>WolfSSL.NOT_COMPILED_IN</code> will be returned if
+     *         native wolfSSL has not been compiled with
+     *         <code>HAVE_SECURE_RENEGOTIATION</code>.
+     *         <code>WolfSSL.SECURE_RENEGOTIATION_E</code> will be returned
+     *         if secure renegotiation has not been enabled for this session,
+     *         or a secure renegotiation error has occurred.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int rehandshake() throws IllegalStateException {
+
+        if (this.active == false)
+            throw new IllegalStateException("Object has been freed");
+
+        return rehandshake(getSessionPtr());
     }
 
     /**
