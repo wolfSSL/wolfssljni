@@ -280,7 +280,7 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 ret = this.ssl.accept();
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.connect() ret:err = " + ret + " : " +
+                    "ssl.accept() ret:err = " + ret + " : " +
                     ssl.getError(ret));
             }
         } catch (SocketTimeoutException e) {
@@ -425,6 +425,8 @@ public class WolfSSLEngine extends SSLEngine {
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeStatus: " + hs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -666,6 +668,8 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeStatus: " + hs);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "status: " + status);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
@@ -826,10 +830,10 @@ public class WolfSSLEngine extends SSLEngine {
             else if (this.toReadSz > 0) {
                 hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
             }
-            else if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ) {
+            else if (err == WolfSSL.SSL_ERROR_WANT_READ) {
                 hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
             }
-            else if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_WRITE) {
+            else if (err == WolfSSL.SSL_ERROR_WANT_WRITE) {
                 hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
             }
             else {
@@ -842,12 +846,17 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public Runnable getDelegatedTask() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getDelegatedTask()");
         /* no tasks left to run */
         return null;
     }
 
     @Override
     public synchronized void closeInbound() throws SSLException {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered closeInbound");
+
         if (!inBoundOpen)
             return;
 
@@ -863,111 +872,158 @@ public class WolfSSLEngine extends SSLEngine {
 
     @Override
     public synchronized boolean isInboundDone() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered isInboundDone()");
         return !inBoundOpen;
     }
 
     @Override
     public synchronized void closeOutbound() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered closeOutbound, outBoundOpen = false");
         outBoundOpen = false;
     }
 
     @Override
     public synchronized boolean isOutboundDone() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered isOutboundDone()");
         return !outBoundOpen;
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSupportedCipherSuites()");
         return EngineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnabledCipherSuites()");
         return EngineHelper.getCiphers();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnabledCipherSuites()");
         EngineHelper.setCiphers(suites);
     }
 
     @Override
     public String[] getSupportedProtocols() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSupportedProtocols()");
         return EngineHelper.getAllProtocols();
     }
 
     @Override
     public String[] getEnabledProtocols() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnabledProtocols()");
         return EngineHelper.getProtocols();
     }
 
     @Override
     public void setEnabledProtocols(String[] protocols) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnabledProtocols()");
         EngineHelper.setProtocols(protocols);
     }
 
     @Override
     public synchronized SSLSession getSession() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSession()");
         return EngineHelper.getSession();
     }
 
     @Override
     public synchronized void beginHandshake() throws SSLException {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered beginHandshake()");
         EngineHelper.initHandshake();
         try {
-            EngineHelper.doHandshake(1, 0);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "calling EngineHelper.doHandshake()");
+            int ret = EngineHelper.doHandshake(1, 0);
+            SetHandshakeStatus(ret);
+
         } catch (SocketTimeoutException e) {
+            e.printStackTrace();
             throw new SSLException(e);
         }
     }
 
     @Override
     public synchronized SSLEngineResult.HandshakeStatus getHandshakeStatus() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeStatus(): " + hs);
         return hs;
     }
 
     @Override
     public void setUseClientMode(boolean mode) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setUseClientMode()");
         EngineHelper.setUseClientMode(mode);
         this.clientModeSet = true;
     }
 
     @Override
     public boolean getUseClientMode() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getUseClientMode()");
         return EngineHelper.getUseClientMode();
     }
 
     @Override
     public void setNeedClientAuth(boolean need) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setNeedClientAuth()");
         EngineHelper.setNeedClientAuth(need);
     }
 
     @Override
     public boolean getNeedClientAuth() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getNeedClientAuth()");
         return EngineHelper.getNeedClientAuth();
     }
 
     @Override
     public void setWantClientAuth(boolean want) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setWantClientAuth()");
         EngineHelper.setWantClientAuth(want);
     }
 
     @Override
     public boolean getWantClientAuth() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getWantClientAuth()");
         return EngineHelper.getWantClientAuth();
     }
 
     @Override
     public void setEnableSessionCreation(boolean flag) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setEnableSessionCreation()");
         EngineHelper.setEnableSessionCreation(flag);
     }
 
     @Override
     public boolean getEnableSessionCreation() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getEnableSessionCreation()");
         return EngineHelper.getEnableSessionCreation();
     }
 
     public String getApplicationProtocol() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getApplicationProtocol()");
         return EngineHelper.getAlpnSelectedProtocolString();
     }
 
@@ -977,6 +1033,8 @@ public class WolfSSLEngine extends SSLEngine {
      * @param params SSLParameters to set for this SSLSocket object
      */
     public synchronized void setSSLParameters(SSLParameters params) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setSSLParameters()");
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
