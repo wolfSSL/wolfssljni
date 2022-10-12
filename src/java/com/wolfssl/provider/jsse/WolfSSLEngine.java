@@ -65,6 +65,8 @@ public class WolfSSLEngine extends SSLEngine {
     private byte[] toRead; /* encrypted packet coming in */
     private int toReadSz = 0;
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+
+    /** TLS handshake initialization not called */
     private boolean needInit = true;
 
     private boolean inBoundOpen = true;
@@ -512,9 +514,13 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "handshakeStatus: " + hs);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "status: " + status);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeStatus: " + hs);
+                "consumed: " + consumed);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
@@ -725,6 +731,14 @@ public class WolfSSLEngine extends SSLEngine {
                 throw new SSLException(
                     "wolfSSL error, ret:err = " + ret + " : " + err);
             }
+
+            if (ret < 0 && this.toReadSz == 0 &&
+                (this.toSend == null ||
+                (this.toSend != null && this.toSend.length == 0)) &&
+                err == WolfSSL.SSL_ERROR_WANT_READ) {
+                /* Need more data */
+                status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
+            }
         }
 
         SetHandshakeStatus(ret);
@@ -773,6 +787,10 @@ public class WolfSSLEngine extends SSLEngine {
                 "handshakeStatus: " + hs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "status: " + status);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "consumed: " + consumed);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
@@ -941,10 +959,24 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
+    public synchronized SSLSession getHandshakeSession() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeSession()");
+        return EngineHelper.getSession();
+    }
+
+    @Override
     public synchronized void beginHandshake() throws SSLException {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered beginHandshake()");
-        EngineHelper.initHandshake();
+
+        if (needInit == true) {
+            /* will throw SSLHandshakeException if session creation is
+               not allowed */
+            EngineHelper.initHandshake();
+            needInit = false;
+        }
+
         try {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "calling EngineHelper.doHandshake()");
