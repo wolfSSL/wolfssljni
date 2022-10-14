@@ -18,7 +18,8 @@ LOCAL_SRC_FILES:= \
 	./src/ssl.c \
 	./src/tls.c \
 	./src/tls13.c \
-	./src/wolfio.c
+	./src/wolfio.c \
+	./src/dtls.c
 
 LOCAL_SRC_FILES+= \
 	./wolfcrypt/src/aes.c \
