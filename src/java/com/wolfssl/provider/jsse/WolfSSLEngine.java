@@ -529,6 +529,32 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /**
+     * Return total remaining space in array of ByteBuffers.
+     *
+     * @param out array of ByteBuffers to be polled for available space
+     * @param ofst offset into out array to begin
+     * @param length length of ByteBuffer array
+     *
+     * @return number of available/remaining bytes in array of ByteBuffers
+     * @throws IllegalArgumentException if readonly buffer found
+     */
+    private static int getTotalOutputSize(ByteBuffer[] out,
+                                          int ofst, int length) {
+        int i = 0;
+        int maxOutSz = 0;
+
+        for (i = 0; i < length; i++) {
+            if (out[i + ofst] == null || out[i + ofst].isReadOnly()) {
+                throw new IllegalArgumentException(
+                    "null or readonly out buffer found");
+            }
+            maxOutSz += out[i + ofst].remaining();
+        }
+
+        return maxOutSz;
+    }
+
+    /**
      * Receive application data using ssl.read() from in buffer, placing
      * processed/decrypted data into out[].
      *
@@ -536,18 +562,21 @@ public class WolfSSLEngine extends SSLEngine {
      * @param out output ByteBuffer arrays, to hold processed/decoded plaintext
      * @param ofst offset into out[] array to begin writing data
      * @param length length of out[] array
-     * @param maxOutSz maximum size of all output buffers in out[]
      *
      * @return number of plaintext bytes received, or negative on error.
      */
     private int RecvAppData(ByteBuffer in, ByteBuffer[] out, int ofst,
-            int length, int maxOutSz) throws SSLException {
+            int length) throws SSLException {
 
         int i, sz, bufSpace;
         int totalRead = 0;
+        int maxOutSz = 0;
         int ret = 0;
         int idx = 0; /* index into out[] array */
         byte[] tmp;
+
+        /* pre-calculate max output size */
+        maxOutSz = getTotalOutputSize(out, ofst, length);
 
         /* read all data we have cached, if it fits in output buffers */
         while ((this.toReadSz > 0) && (totalRead < maxOutSz)) {
@@ -567,6 +596,10 @@ public class WolfSSLEngine extends SSLEngine {
                         if (ssl.getShutdown() ==
                                 WolfSSL.SSL_RECEIVED_SHUTDOWN) {
                             ret = ClosingConnection();
+                            if (ret > 0) {
+                                /* Returns number of bytes read, 0, or err */
+                                ret = 0;
+                            }
                             return ret;
                         }
                         break;
@@ -614,7 +647,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
-        int i, ret = 0, sz = 0, idx = 0, maxOutSz = 0, pos;
+        int i, ret = 0, sz = 0, idx = 0, pos;
         int consumed = 0;
         int produced = 0;
         byte[] tmp;
@@ -630,15 +663,6 @@ public class WolfSSLEngine extends SSLEngine {
         if (this.clientModeSet == false) {
             throw new IllegalStateException(
                     "setUseClientMode() has not been called on this SSLEngine");
-        }
-
-        for (i = 0; i < length; i++) {
-            if (out[i + ofst] == null || out[i + ofst].isReadOnly()) {
-                throw new IllegalArgumentException(
-                        "null or readonly out buffer found");
-            }
-            /* pre-calculate max output size, used in RecvAppData */
-            maxOutSz += out[i + ofst].remaining();
         }
 
         if (extraDebugEnabled == true) {
@@ -722,9 +746,16 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "receiving application data");
-                ret = RecvAppData(in, out, ofst, length, maxOutSz);
+                ret = RecvAppData(in, out, ofst, length);
                 if (ret > 0) {
                     produced += ret;
+
+                    if (this.toReadSz > 0 &&
+                        getTotalOutputSize(out, ofst, length) == 0) {
+                        /* We have more data buffered to read, but no more
+                         * output space left in ByteBuffer[], ask for more */
+                        status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                    }
                 }
             }
 
@@ -740,10 +771,9 @@ public class WolfSSLEngine extends SSLEngine {
                     "wolfSSL error, ret:err = " + ret + " : " + err);
             }
 
-            if (ret < 0 && this.toReadSz == 0 &&
-                (this.toSend == null ||
-                (this.toSend != null && this.toSend.length == 0)) &&
-                err == WolfSSL.SSL_ERROR_WANT_READ) {
+            if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
+                this.toReadSz == 0 && (this.toSend == null ||
+                (this.toSend != null && this.toSend.length == 0))) {
                 /* Need more data */
                 status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
             }
@@ -834,8 +864,7 @@ public class WolfSSLEngine extends SSLEngine {
             }
         }
         else {
-            if (ssl.handshakeDone() && this.toSend == null &&
-                this.toReadSz == 0) {
+            if (ssl.handshakeDone() && this.toSend == null) {
                 this.handshakeFinished = true;
                 hs = SSLEngineResult.HandshakeStatus.FINISHED;
 
