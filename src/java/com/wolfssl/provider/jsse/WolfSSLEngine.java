@@ -552,9 +552,9 @@ public class WolfSSLEngine extends SSLEngine {
         /* read all data we have cached, if it fits in output buffers */
         while ((this.toReadSz > 0) && (totalRead < maxOutSz)) {
 
-            tmp = new byte[maxOutSz];
+            tmp = new byte[maxOutSz - totalRead];
 
-            ret = this.ssl.read(tmp, maxOutSz);
+            ret = this.ssl.read(tmp, (maxOutSz - totalRead));
             if (ret <= 0) {
                 int err = ssl.getError(ret);
 
@@ -578,16 +578,24 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 /* write processed data into output buffers */
                 for (i = 0; i < ret;) {
-                    if (idx + ofst >= length) { /* no more buffers left */
+                    if (idx + ofst >= length) {
+                        /* no more output buffers left */
                         break;
                     }
+
                     bufSpace = out[idx + ofst].remaining();
-                    sz = (bufSpace >= ret) ? ret : bufSpace;
+                    if (bufSpace == 0) {
+                        /* no more space in current out buffer, advance */
+                        idx++;
+                        continue;
+                    }
+
+                    sz = (bufSpace >= (ret - i)) ? (ret - i) : bufSpace;
                     out[idx + ofst].put(tmp, i, sz);
                     i += sz;
                     totalRead += sz;
 
-                    if (bufSpace < ret) {
+                    if ((ret - i) > 0) {
                         idx++; /* go to next output buffer */
                     }
                 }
@@ -716,7 +724,7 @@ public class WolfSSLEngine extends SSLEngine {
                     "receiving application data");
                 ret = RecvAppData(in, out, ofst, length, maxOutSz);
                 if (ret > 0) {
-                    consumed += ret;
+                    produced += ret;
                 }
             }
 
@@ -1053,7 +1061,7 @@ public class WolfSSLEngine extends SSLEngine {
         return EngineHelper.getEnableSessionCreation();
     }
 
-    public String getApplicationProtocol() {
+    public synchronized String getApplicationProtocol() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getApplicationProtocol()");
         return EngineHelper.getAlpnSelectedProtocolString();
