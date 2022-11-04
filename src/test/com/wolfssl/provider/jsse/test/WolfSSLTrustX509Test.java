@@ -23,8 +23,12 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLTrustX509;
+
+import java.util.List;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,10 +38,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -72,6 +79,7 @@ public class WolfSSLTrustX509Test {
 
     }
 
+    /* Testing WolfSSLTrustX509.getAcceptedIssuers() with all.jks */
     @Test
     public void testCAParsing()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -138,6 +146,7 @@ public class WolfSSLTrustX509Test {
         pass("\t\t... passed");
     }
 
+    /* Testing WolfSSLTrustX509.getAcceptedIssuers() with server.jks */
     @Test
     public void testServerParsing()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -201,6 +210,7 @@ public class WolfSSLTrustX509Test {
     }
 
 
+    /* Testing WolfSSLTrustX509.getAcceptedIssuers() with all_mixed.jks */
     @Test
     public void testCAParsingMixed()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -317,8 +327,9 @@ public class WolfSSLTrustX509Test {
 
     @Test
     public void testVerify()
-        throws NoSuchProviderException, NoSuchAlgorithmException, KeyStoreException,
-            FileNotFoundException, IOException, CertificateException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
@@ -386,6 +397,768 @@ public class WolfSSLTrustX509Test {
         pass("\t\t\t... passed");
     }
 
+    @Test
+    public void testCheckServerTrustedWithChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\tcheckServerTrusted() chain");
+
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1Cert = "/sdcard/" + eccInt1Cert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* ---------- RSA Based Chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(rsaInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of RSA chain with intermediates");
+        }
+
+        /* ---------- ECC Based Chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(eccInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of ECC chain with intermediates");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCheckServerTrustedWithBadChainCert()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\tcheckServerTrusted() bad int");
+
+        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
+        /* wrong/bad CA as intermediate, should not verify. Using int CA
+         * from ECC chain but correct one is from RSA chain. */
+        String rsaInt1CertWrong =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        /* wrong/bad CA as intermediate, should not verify. Using int CA
+         * from RSA chain but correct one is from ECC chain. */
+        String eccInt1CertWrong =
+            "examples/certs/intermediate/ca-int-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1CertWrong = "/sdcard/" + rsaInt1CertWrong;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1CertWrong = "/sdcard/" + eccInt1CertWrong;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* ---------- RSA Based Chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 (wrong one, should cause error) */
+        fis = new FileInputStream(rsaInt1CertWrong);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+            error("\t... failed");
+            fail("Verified RSA chain with bad CA, but shouldn't have");
+        } catch (CertificateException e) {
+            /* expected, should fail with wrong intermediate chain CA */
+        }
+
+        /* ---------- ECC Based Chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 (wrong one, should cause error) */
+        fis = new FileInputStream(eccInt1CertWrong);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+            error("\t... failed");
+            fail("Verified RSA chain with bad CA, but shouldn't have");
+        } catch (CertificateException e) {
+            /* expected, should fail with wrong intermediate chain CA */
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCheckServerTrustedWithWrongChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\tcheckServerTrusted() bad chain");
+
+        /* server/peer cert is ECC, but is using RSA example chain. Should
+         * not verify correctly */
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        /* server/peer cert is RSA, but is using ECC example chain. Should
+         * not verify correctly */
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1Cert = "/sdcard/" + eccInt1Cert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* ---------- ECC Peer Cert, RSA chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 (wrong one, should cause error) */
+        fis = new FileInputStream(rsaInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+            error("\t... failed");
+            fail("Verified cert with wrong chain, should not happen");
+        } catch (CertificateException e) {
+            /* expected, should fail with wrong intermediate chain CA */
+        }
+
+        /* ---------- RSA Peer Cert, ECC chain ---------- */
+
+        /* build up X509Certificate[] chain */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 (wrong one, should cause error) */
+        fis = new FileInputStream(eccInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+            error("\t... failed");
+            fail("Verified cert with wrong chain, should not happen");
+        } catch (CertificateException e) {
+            /* expected, should fail with wrong intermediate chain CA */
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCheckServerTrustedMissingChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\tcheckServerTrusted() miss chain");
+
+        /* RSA chain, missing intermediate CA 1 */
+        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        /* ECC chain, missing intermediate CA 1 */
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* ---------- RSA Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, missing intermediate 1 */
+        certArray = new X509Certificate[2];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* try to verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+            error("\t... failed");
+            fail("Did not fail verify like expected when missing intermediate");
+        } catch (CertificateException e) {
+            /* Expected, missing intermediate 1 from chain */
+        }
+
+        /* ---------- ECC Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, missing intermediate 1 */
+        certArray = new X509Certificate[2];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* try to verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+            error("\t... failed");
+            fail("Did not fail verify like expected when missing intermediate");
+        } catch (CertificateException e) {
+            /* Expected, missing intermediate 1 from chain */
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCheckServerTrustedWithChainWrongOrder()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\tcheckServerTrusted() ooo chain");
+
+        /* RSA chain, out of order intermediate CAs */
+        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        /* ECC chain, out of order intermediate CAs */
+        String eccServerCert = "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1Cert = "/sdcard/" + eccInt1Cert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* ---------- RSA Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 1 */
+        fis = new FileInputStream(rsaInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of RSA chain with intermediates");
+        }
+
+        /* ---------- ECC Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 1 */
+        fis = new FileInputStream(eccInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of ECC chain with intermediates");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCheckServerTrustedWithChainReturnsChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        WolfSSLTrustX509 wolfX509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        List<X509Certificate> retChain = null;
+
+        System.out.print("\tcheckServerTrusted() ret chain");
+
+        /* RSA chain */
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        /* ECC chain */
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1Cert = "/sdcard/" + eccInt1Cert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* checkServerTrusted() that returns List<X509Certificate> is non
+         * standard, must call directly from WolfSSLTrustX509. Called by
+         * okhttp on Android. */
+        wolfX509tm = (WolfSSLTrustX509)x509tm;
+
+        /* ---------- RSA Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(rsaInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            /* hostname cert pinning not supported yet by wolfJSSE */
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                                                     "RSA", "localhost");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of RSA chain with intermediates");
+        }
+
+        if (retChain == null) {
+            error("\t... failed");
+            fail("checkServerTrusted() did not return expected List of certs");
+        }
+
+        /* cert chain returned should include peer, ints, and root */
+        if (retChain.size() != 4) {
+            error("\t... failed");
+            fail("checkServerTrusted() didn't return expected number of certs");
+        }
+
+        /* ---------- ECC Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(eccInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            /* hostname cert pinning not supported yet by wolfJSSE */
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                                                     "ECC", "localhost");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of ECC chain with intermediates");
+        }
+
+        if (retChain == null) {
+            error("\t... failed");
+            fail("checkServerTrusted() did not return expected List of certs");
+        }
+
+        /* cert chain returned should include peer, ints, and root */
+        if (retChain.size() != 4) {
+            error("\t... failed");
+            fail("checkServerTrusted() didn't return expected number of certs");
+        }
+
+        pass("\t... passed");
+    }
 
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);

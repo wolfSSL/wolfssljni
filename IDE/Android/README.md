@@ -85,6 +85,7 @@ mkdir examples/certs
 exit
 adb push ./examples/provider/*.bks /sdcard/examples/provider/
 adb push ./examples/certs/ /sdcard/examples/
+adb push ./examples/certs/intermediate/* /sdcard/examples/certs/intermediate/
 ```
 
 ## 4. Import and Build the Example Project with Android Studio
