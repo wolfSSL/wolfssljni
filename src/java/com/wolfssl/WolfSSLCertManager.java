@@ -45,6 +45,7 @@ public class WolfSSLCertManager {
     static native int CertManagerLoadCA(long cm, String f, String d);
     static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz,
                                               int format);
+    static native int CertManagerUnloadCAs(long cm);
     static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz,
                                               int format);
 
@@ -148,6 +149,19 @@ public class WolfSSLCertManager {
         } else {
             return WolfSSL.SSL_FAILURE;
         }
+    }
+
+    /**
+     * Unload any CAs that have been loaded into WolfSSLCertManager object.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error.
+     */
+    public int CertManagerUnloadCAs() {
+        if (this.active == false) {
+            throw new IllegalStateException("Object has been freed");
+        }
+
+        return CertManagerUnloadCAs(this.cmPtr);
     }
 
     /**

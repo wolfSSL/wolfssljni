@@ -103,6 +103,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
     return (jint)ret;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerUnloadCAs
+  (JNIEnv* jenv, jclass jcl, jlong cmPtr)
+{
+    int ret = 0;
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)(uintptr_t)cmPtr;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+
+    return (jint)ret;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuffer
   (JNIEnv* jenv, jclass jcl, jlong cmPtr, jbyteArray in, jlong sz, jint format)
 {
