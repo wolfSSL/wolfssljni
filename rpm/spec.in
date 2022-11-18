@@ -1,0 +1,50 @@
+Name:           @NAME@
+Version:        @VERSION@
+Release:        1
+Summary:        wolfSSL JSSE Provider and JNI Wrapper
+
+License:        GPLv2
+URL:            http://www.wolfssl.com/
+Source0:        @NAME@-@VERSION@.tar.gz
+
+BuildRequires:  ant
+
+# Don't add wolfSSL to dependency list. User may want to
+# use a version outside of RPM.
+%global __requires_exclude ^libwolfssl.*$
+
+
+%description
+This package contains the libraries for %{name}.
+
+
+# Don't generate the debug sources
+%define  debug_package %{nil}
+
+
+%prep
+%autosetup
+
+
+%build
+%make_build
+
+
+%install
+%make_install LIBDIR=%{_lib} PREFIX=%{_prefix}
+
+
+%clean
+%{__rm} -rf %{buildroot}
+
+
+%files
+%{_libdir}/libwolfssljni.so
+%{_libdir}/wolfssl.jar
+%{_libdir}/wolfssl-jsse.jar
+
+
+%changelog
+* Fri Nov 18 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>
+- Initial package
+

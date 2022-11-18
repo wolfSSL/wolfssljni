@@ -19,3 +19,7 @@ report/
 IDE/Android/.idea/deploymentTargetDropDown.xml
 IDE/Android/app/.cxx/
 IDE/Android/app/src/main/cpp/wolfssl/
+
+# RPM package files
+rpm/spec
+*.rpm
