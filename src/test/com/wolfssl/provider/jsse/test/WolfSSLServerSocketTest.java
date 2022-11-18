@@ -528,7 +528,8 @@ public class WolfSSLServerSocketTest {
             /* Expected. Different versions of wolfSSL can display
              * varying error strings. Check for either here. */
             if (!e.toString().contains("ASN no signer") &&
-                !e.toString().contains("certificate verify failed")) {
+                !e.toString().contains("certificate verify failed") &&
+                !e.toString().contains("ASN self-signed certificate error")) {
                 System.out.println("\t\t... failed");
                 fail();
             }
