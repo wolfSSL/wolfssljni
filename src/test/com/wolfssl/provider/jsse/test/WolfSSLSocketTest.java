@@ -89,6 +89,7 @@ import com.wolfssl.WolfSSLException;
     public void testGetSetEnabledProtocols();
     public void testClientServerThreaded();
     public void testPreConsumedSocket();
+    public void testCreateSocketNullHost();
     public void testEnableSessionCreation();
     public void testSetUseClientMode();
     public void testGetSSLParameters();
@@ -530,6 +531,36 @@ public class WolfSSLSocketTest {
         System.out.println("\t... passed");
     }
 
+    @Test
+    public void testCreateSocketNullHost() throws Exception {
+
+        System.out.print("\tcreateSocket(null host)");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create new ServerSocket first to get ephemeral port */
+        ServerSocket ss = new ServerSocket(0);
+
+        /* create new Socket, connect() to server */
+        Socket cs = new Socket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        /* accept client connection, normal java.net.Socket */
+        final Socket socket = ss.accept();
+
+        /* Try to convert client Socket to SSLSocket, with null hostname.
+         * This should not throw any Exceptions, null host is ok. */
+        SSLSocket ssc = (SSLSocket)ctx.getSocketFactory().createSocket(
+                cs, null, cs.getPort(), false);
+
+        ssc.close();
+        cs.close();
+        socket.close();
+        ss.close();
+
+        System.out.println("\t\t... passed");
+    }
 
     @Test
     public void testEnableSessionCreation() throws Exception {

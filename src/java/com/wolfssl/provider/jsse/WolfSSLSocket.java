@@ -333,7 +333,6 @@ public class WolfSSLSocket extends SSLSocket {
         this.params = params.copy();
         this.socket = s;
         this.autoClose = autoClose;
-        this.address = new InetSocketAddress(host, port);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "creating new WolfSSLSocket(clientMode: " +
