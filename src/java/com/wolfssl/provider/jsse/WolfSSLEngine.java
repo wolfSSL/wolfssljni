@@ -706,7 +706,7 @@ public class WolfSSLEngine extends SSLEngine {
                     "receiving application data");
                 ret = RecvAppData(in, out, ofst, length, maxOutSz);
                 if (ret > 0) {
-                    consumed += ret;
+                    produced += ret;
                 }
             }
 
