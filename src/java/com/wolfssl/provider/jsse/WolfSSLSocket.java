@@ -69,7 +69,6 @@ public class WolfSSLSocket extends SSLSocket {
 
     private Socket socket = null;
     private boolean autoClose;
-    private InetSocketAddress address = null;
 
     private WolfSSLInputStream inStream;
     private WolfSSLOutputStream outStream;
@@ -1566,6 +1565,8 @@ public class WolfSSLSocket extends SSLSocket {
     synchronized public void connect(SocketAddress endpoint)
         throws IOException {
 
+        InetSocketAddress address = null;
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered connect(SocketAddress endpoint)");
 
@@ -1580,15 +1581,15 @@ public class WolfSSLSocket extends SSLSocket {
             super.connect(endpoint);
         }
 
-        this.address = (InetSocketAddress)endpoint;
+        address = (InetSocketAddress)endpoint;
 
         /* register host/port for session resumption in case where
            createSocket() was called without host/port, but
            SSLSocket.connect() was explicitly called with SocketAddress */
-        if (this.address != null && EngineHelper != null) {
+        if (address != null && EngineHelper != null) {
             EngineHelper.setHostAndPort(
-                this.address.getAddress().getHostName(),
-                this.address.getPort());
+                address.getAddress().getHostName(),
+                address.getPort());
         }
 
         /* if user is calling after WolfSSLSession creation, register
@@ -1614,6 +1615,8 @@ public class WolfSSLSocket extends SSLSocket {
     synchronized public void connect(SocketAddress endpoint, int timeout)
         throws IOException {
 
+        InetSocketAddress address = null;
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered connect(SocketAddress endpoint, int timeout)");
 
@@ -1628,15 +1631,15 @@ public class WolfSSLSocket extends SSLSocket {
             super.connect(endpoint, timeout);
         }
 
-        this.address = (InetSocketAddress)endpoint;
+        address = (InetSocketAddress)endpoint;
 
         /* register host/port for session resumption in case where
            createSocket() was called without host/port, but
            SSLSocket.connect() was explicitly called with SocketAddress */
-        if (this.address != null && EngineHelper != null) {
+        if (address != null && EngineHelper != null) {
             EngineHelper.setHostAndPort(
-                this.address.getAddress().getHostName(),
-                this.address.getPort());
+                address.getAddress().getHostName(),
+                address.getPort());
         }
 
         /* if user is calling after WolfSSLSession creation, register
