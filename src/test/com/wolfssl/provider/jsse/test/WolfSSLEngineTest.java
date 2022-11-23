@@ -883,5 +883,115 @@ public class WolfSSLEngineTest {
         }
         pass("\t... passed");
     }
+
+    @Test
+    public void testSSLEngineSplitInput() throws Exception {
+
+        int appBufMax, netBufMax;
+        int done = 0;
+        ByteBuffer cIn;
+        ByteBuffer cOut1;
+        ByteBuffer cOut2;
+        ByteBuffer[] cOutBuffs = new ByteBuffer[2];
+        ByteBuffer[] sOutBuffs = new ByteBuffer[2];
+        ByteBuffer sIn;
+        ByteBuffer sOut1;
+        ByteBuffer sOut2;
+        ByteBuffer clientToServer;
+        ByteBuffer serverToClient;
+
+        byte[] input1Buf = "Hello client, ".getBytes();
+        byte[] input2Buf = "from server".getBytes();
+
+        SSLEngineResult cResult;
+        SSLEngineResult sResult;
+
+        System.out.print("\tTesting split input data");
+
+        try {
+            /* create SSLContext */
+            this.ctx = tf.createSSLContext("TLS", engineProvider);
+
+            /* create server SSLEngine */
+            SSLEngine server = this.ctx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(true);
+
+            /* create client SSLEngine */
+            SSLEngine client = this.ctx.createSSLEngine(
+                                   "wolfSSL client test", 11111);
+            client.setUseClientMode(true);
+
+            SSLSession session = client.getSession();
+            appBufMax = session.getApplicationBufferSize();
+            netBufMax = session.getPacketBufferSize();
+
+            cIn = ByteBuffer.allocate(appBufMax);
+            sIn = ByteBuffer.allocate(netBufMax);
+            clientToServer = ByteBuffer.allocate(netBufMax);
+            serverToClient = ByteBuffer.allocate(netBufMax);
+
+            /* Input data split across 2 ByteBuffers on both cli and svr */
+            cOut1 = ByteBuffer.wrap("Hello server, ".getBytes());
+            cOut2 = ByteBuffer.wrap("from client".getBytes());
+            cOutBuffs[0] = cOut1;
+            cOutBuffs[1] = cOut2;
+
+            sOut1 = ByteBuffer.wrap("Hello client, ".getBytes());
+            sOut2 = ByteBuffer.wrap("from server".getBytes());
+            sOutBuffs[0] = sOut1;
+            sOutBuffs[1] = sOut2;
+
+            while (!(client.isOutboundDone() && client.isInboundDone()) &&
+                   !(server.isOutboundDone() && server.isInboundDone())) {
+
+                cResult = client.wrap(cOutBuffs, clientToServer);
+                sResult = server.wrap(sOutBuffs, serverToClient);
+
+                clientToServer.flip();
+                serverToClient.flip();
+
+                cResult = client.unwrap(serverToClient, cIn);
+                sResult = server.unwrap(clientToServer, sIn);
+
+                clientToServer.compact();
+                serverToClient.compact();
+
+                if (done == 0 &&
+                    ((cOut1.limit() + cOut2.limit()) == sIn.position()) &&
+                    ((sOut1.limit() + sOut2.limit()) == cIn.position())) {
+
+                    /* check server out matches client in */
+                    ByteBuffer cExpectedIn = ByteBuffer.wrap(
+                            "Hello client, from server".getBytes());
+                    cIn.flip();
+
+                    if (!cIn.equals(cExpectedIn)) {
+                        error("\t... failed");
+                        fail("server output does not match expected");
+                    }
+
+                    /* check client out matches server in */
+                    ByteBuffer sExpectedIn = ByteBuffer.wrap(
+                            "Hello server, from client".getBytes());
+                    sIn.flip();
+
+                    if (!sIn.equals(sExpectedIn)) {
+                        error("\t... failed");
+                        fail("client output does not match expected");
+                    }
+
+                    /* close client outbound, mark done */
+                    client.closeOutbound();
+                    done = 1;
+                }
+            }
+        } catch (Exception e) {
+            error("\t... failed");
+            e.printStackTrace();
+            fail("failed split input test with Exception");
+        }
+        pass("\t... passed");
+    }
 }
 
