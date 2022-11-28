@@ -1014,7 +1014,6 @@ public class WolfSSLEngine extends SSLEngine {
         return EngineHelper.getSession();
     }
 
-    @Override
     public synchronized SSLSession getHandshakeSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeSession()");
