@@ -94,6 +94,13 @@ Examples of using the wolfJSSE provider can be found in the `./examples/provider
 subdirectory. See [examples/provider/README.md](./examples/provider/README.md)
 for more details.
 
+Example certificates and keys are included in this bundle. These should only
+be used for testing and prototyping. Example certificates included here are
+duplicates of the ones that ship with standard wolfSSL. If needed, certificates
+can be easily updated from an existing wolfSSL directory by using the script
+**examples/certs/update-certs.sh**. This should be run from the examples/certs
+directory and given one argument which is the path to a wolfSSL certs directory.
+
 ## Debugging
 
 wolfJSSE debug logging can be enabled by using `-Dwolfjsse.debug=true` at
