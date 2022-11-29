@@ -64,7 +64,11 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
     /**
      * Sort provided certificate chain by subject and issuer.
-     * Begin with leaf cert, end with last most intermediate cert.
+     *
+     * Begin with leaf cert, end with last most intermediate cert. Current
+     * routine assumes that peer cert will be first in the provided certs
+     * array, and will use that as a base/starting point to sort intermediate
+     * certs going up the chain.
      *
      * @param certs Peer certificate chain, assuming leaf/peer is first
      *
@@ -84,9 +88,15 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             throw new CertificateException("Input cert chain null");
         }
 
+        /* If certs array is only one cert (peer), just return copy of it */
+        if (certs.length == 1) {
+            return certs.clone();
+        }
+
         /* Make copy of peer cert chain, so we don't change original */
         chain = certs.clone();
 
+        /* Print out chain for debugging */
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "sorting peer chain (" + chain.length + " certs):");
         for (i = 0; i < chain.length; i++) {
@@ -119,6 +129,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             }
         }
 
+        /* Print out sorted peer chain for debugging */
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "sorted peer chain (" + (curr + 1) + " certs):");
         for (i = 0; i <= curr; i++) {
@@ -141,6 +152,9 @@ public class WolfSSLTrustX509 implements X509TrustManager {
      * Finds and returns X509Certificate matching the root CA that will
      * verify the given leaf/intermediate certificate.
      *
+     * This will search through the provided KeyStore for the approproate
+     * root CA that correctly verifies the given certificate.
+     *
      * @param cert Certificate for which to find verifying root CA
      * @param ks   KeyStore to search in for root CA
      *
@@ -160,11 +174,14 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         boolean rootFound = false;
 
         if (cert == null || ks == null) {
-            throw new CertificateException("cert or keystore is null");
+            throw new CertificateException("Certificate or KeyStore is null");
         }
 
         /* Issuer name we need to match */
         X500Principal issuer = cert.getIssuerX500Principal();
+        if (issuer == null) {
+            throw new CertificateException("Unable to get expected issuer");
+        }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "Searching KeyStore for root CA matching: " + issuer.getName());
@@ -255,6 +272,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             }
         }
 
+        /* Free native WolfSSLCertManager resources */
         cm.free();
 
         if (rootFound == true) {
