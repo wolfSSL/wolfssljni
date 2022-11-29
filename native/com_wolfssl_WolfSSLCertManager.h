@@ -41,6 +41,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
 
 /*
  * Class:     com_wolfssl_WolfSSLCertManager
+ * Method:    CertManagerUnloadCAs
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerUnloadCAs
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertManager
  * Method:    CertManagerVerifyBuffer
  * Signature: (J[BJI)I
  */
