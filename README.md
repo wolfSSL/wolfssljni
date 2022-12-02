@@ -109,6 +109,9 @@ runtime.
 wolfSSL native debug logging can be enabled by using `-Dwolfssl.debug=true` at
 runtime, if native wolfSSL has been compiled with `--enable-debug`.
 
+More verbose SSLEngine debug logs can be enabled by using the
+`-Dwolfsslengine.debug=true` system property.
+
 JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
 
 ## Building for Android
@@ -179,12 +182,20 @@ Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
 
 ## Release Notes
 
-### wolfSSL JNI Release X.X.X (TBD)
+### wolfSSL JNI Release 1.11.0 (12/2/2022)
 
-Future release X.X.X has bug fixes and new features including:
+Future release 1.11.0 has bug fixes and new features including:
 
 **JNI and JSSE Changes:**
+* Add support for system properties: keyStore, keyStoreType, keyStorePassword (PR 74)
 * Add support for secure renegotiation if available in native wolfSSL (PR 75)
+* Fix compilation against newer wolfSSL versions that have dtls.c (PR 107)
+* Fixes and cleanup to SSLEngine implementation (PR 108)
+* Fixes for SSLEngine synchronization issues (PR 108)
+* Add non-standard X509TrustManager.checkServerTrusted() for use on Android (PR 109)
+* Add RPM packaging support (PR 110)
+* Fix SSLSocketFactory.createSocket() to allow for null host (PR 111)
+* Remove @Override on SSLEngine.getHandshakeSession() for older Java versions (PR 114)
 
 The wolfSSL JNI Manual is available at:
 https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
