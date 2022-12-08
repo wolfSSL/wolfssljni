@@ -184,7 +184,7 @@ Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
 
 ### wolfSSL JNI Release 1.11.0 (12/2/2022)
 
-Future release 1.11.0 has bug fixes and new features including:
+Release 1.11.0 has bug fixes and new features including:
 
 **JNI and JSSE Changes:**
 * Add support for system properties: keyStore, keyStoreType, keyStorePassword (PR 74)

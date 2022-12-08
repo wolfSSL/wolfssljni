@@ -50,7 +50,32 @@ $ cd /IDE/Android/app/src/main/cpp/
 $ ln -s /path/to/local/wolfssl ./wolfssl
 ```
 
-## 2. Convert Example JKS files to BKS for Android Use
+## 2. Update Java Symbolic Links (Only applies to Windows Users)
+
+The following Java source directory is a Unix/Linux symlink:
+
+```
+wolfssljni/IDE/Android/app/src/main/java/com/wolfssl
+```
+
+This will not work correctly on Windows, and a new Windows symbolic link needs
+to be created in this location. To do so:
+
+1) Open Windows Command Prompt (Right click, and "Run as Administrator")
+2) Navigate to `wolfssljni\IDE\Android\app\src\main\java\com`
+3) Delete the existing symlink file (it shows up as a file called "wolfssl")
+
+```
+del wolfssl
+```
+
+4) Create a new relative symbolic link with `mklink`:
+
+```
+mklink /D wolfssl ..\..\..\..\..\..\..\src\java\com\wolfssl\
+```
+
+## 3. Convert Example JKS files to BKS for Android Use
 
 On an Android device BKS format key stores are expected. To convert the
 JKS example bundles to BKS use the following commands. Note: you will need
@@ -68,7 +93,7 @@ cd examples/provider
 ./convert-to-bks.sh ~/Downloads/bcprov-ext-jdk15on-169.jar
 ```
 
-## 3. Push BKS files to Android Device or Emulator
+## 4. Push BKS files to Android Device or Emulator
 
 Push BKS bundles up to the device along with certificates. To do this start
 up the emulator/device and use `adb push`. An example of this would be the
@@ -88,7 +113,7 @@ adb push ./examples/certs/ /sdcard/examples/
 adb push ./examples/certs/intermediate/* /sdcard/examples/certs/intermediate/
 ```
 
-## 4. Import and Build the Example Project with Android Studio
+## 5. Import and Build the Example Project with Android Studio
 
 1) Open the Android Studio project by double clicking on the `Android` folder
 in wolfssljni/IDE/. Or, from inside Android Studio, open the `Android` project
