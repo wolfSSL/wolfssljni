@@ -50,6 +50,9 @@ public class WolfSSLCertificate {
     private boolean active = false;
     private long x509Ptr = 0;
 
+    /* lock around active state */
+    private static final Object stateLock = new Object();
+
     /* cache alt names once retrieved once */
     private Collection<List<?>> altNames = null;
 
@@ -98,7 +101,9 @@ public class WolfSSLCertificate {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
-        this.active = true;
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -131,7 +136,9 @@ public class WolfSSLCertificate {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
-        this.active = true;
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -154,7 +161,9 @@ public class WolfSSLCertificate {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
-        this.active = true;
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -188,7 +197,9 @@ public class WolfSSLCertificate {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
-        this.active = true;
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -204,7 +215,10 @@ public class WolfSSLCertificate {
             throw new WolfSSLException("Input pointer may not be 0/NULL");
         }
         x509Ptr = x509;
-        this.active = true;
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -214,8 +228,10 @@ public class WolfSSLCertificate {
      */
     public byte[] getDer() {
 
-        if (this.active == true) {
-            return X509_get_der(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_der(this.x509Ptr);
+            }
         }
 
         return null;
@@ -228,8 +244,10 @@ public class WolfSSLCertificate {
      */
     public byte[] getTbs() {
 
-        if (this.active == true) {
-            return X509_get_tbs(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_tbs(this.x509Ptr);
+            }
         }
 
         return null;
@@ -244,17 +262,19 @@ public class WolfSSLCertificate {
         byte[] out = new byte[32];
         int sz;
 
-        if (this.active == false) {
-            return null;
-        }
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return null;
+            }
 
-        sz = X509_get_serial_number(this.x509Ptr, out);
-        if (sz <= 0) {
-            return null;
-        }
-        else {
-            byte[] serial = Arrays.copyOf(out, sz);
-            return new BigInteger(serial);
+            sz = X509_get_serial_number(this.x509Ptr, out);
+            if (sz <= 0) {
+                return null;
+            }
+            else {
+                byte[] serial = Arrays.copyOf(out, sz);
+                return new BigInteger(serial);
+            }
         }
     }
 
@@ -266,18 +286,20 @@ public class WolfSSLCertificate {
     public Date notBefore() {
         String nb;
 
-        if (this.active == false) {
-            return null;
-        }
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return null;
+            }
 
-        nb  = X509_notBefore(this.x509Ptr);
-        if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
-            try {
-                return format.parse(nb);
-            } catch (ParseException ex) {
-                /* error case parsing date */
+            nb  = X509_notBefore(this.x509Ptr);
+            if (nb != null) {
+                SimpleDateFormat format =
+                        new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+                try {
+                    return format.parse(nb);
+                } catch (ParseException ex) {
+                    /* error case parsing date */
+                }
             }
         }
         return null;
@@ -291,18 +313,20 @@ public class WolfSSLCertificate {
     public Date notAfter() {
         String nb;
 
-        if (this.active == false) {
-            return null;
-        }
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return null;
+            }
 
-        nb = X509_notAfter(this.x509Ptr);
-        if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
-            try {
-                return format.parse(nb);
-            } catch (ParseException ex) {
-                /* error case parsing date */
+            nb = X509_notAfter(this.x509Ptr);
+            if (nb != null) {
+                SimpleDateFormat format =
+                        new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+                try {
+                    return format.parse(nb);
+                } catch (ParseException ex) {
+                    /* error case parsing date */
+                }
             }
         }
         return null;
@@ -315,8 +339,10 @@ public class WolfSSLCertificate {
      */
     public int getVersion() {
 
-        if (this.active == true) {
-            return X509_version(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_version(this.x509Ptr);
+            }
         }
 
         return 0;
@@ -329,8 +355,10 @@ public class WolfSSLCertificate {
      */
     public byte[] getSignature() {
 
-        if (this.active == true) {
-            return X509_get_signature(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_signature(this.x509Ptr);
+            }
         }
 
         return null;
@@ -343,8 +371,10 @@ public class WolfSSLCertificate {
      */
     public String getSignatureType() {
 
-        if (this.active == true) {
-            return X509_get_signature_type(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_signature_type(this.x509Ptr);
+            }
         }
 
         return null;
@@ -357,8 +387,10 @@ public class WolfSSLCertificate {
      */
     public String getSignatureOID() {
 
-        if (this.active == true) {
-            return X509_get_signature_OID(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_signature_OID(this.x509Ptr);
+            }
         }
 
         return null;
@@ -371,8 +403,10 @@ public class WolfSSLCertificate {
      */
     public byte[] getPubkey() {
 
-        if (this.active == true) {
-            return X509_get_pubkey(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_pubkey(this.x509Ptr);
+            }
         }
 
         return null;
@@ -385,8 +419,10 @@ public class WolfSSLCertificate {
      */
     public String getPubkeyType() {
 
-        if (this.active == true) {
-            return X509_get_pubkey_type(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_pubkey_type(this.x509Ptr);
+            }
         }
 
         return null;
@@ -399,8 +435,10 @@ public class WolfSSLCertificate {
      */
     public int isCA() {
 
-        if (this.active == true) {
-            return X509_get_isCA(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_isCA(this.x509Ptr);
+            }
         }
 
         return 0;
@@ -413,8 +451,10 @@ public class WolfSSLCertificate {
      */
     public int getPathLen() {
 
-        if (this.active == true) {
-            return X509_get_pathLength(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_pathLength(this.x509Ptr);
+            }
         }
 
         return 0;
@@ -427,8 +467,10 @@ public class WolfSSLCertificate {
      */
     public String getSubject() {
 
-        if (this.active == true) {
-            return X509_get_subject_name(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_subject_name(this.x509Ptr);
+            }
         }
 
         return null;
@@ -441,8 +483,10 @@ public class WolfSSLCertificate {
      */
     public String getIssuer() {
 
-        if (this.active == true) {
-            return X509_get_issuer_name(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_issuer_name(this.x509Ptr);
+            }
         }
 
         return null;
@@ -459,14 +503,17 @@ public class WolfSSLCertificate {
     public boolean verify(byte[] pubKey, int pubKeySz) {
         int ret;
 
-        if (this.active == false) {
-            return false;
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return false;
+            }
+
+            ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                return true;
+            }
         }
 
-        ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
-        if (ret == WolfSSL.SSL_SUCCESS) {
-            return true;
-        }
         return false;
     }
 
@@ -488,8 +535,10 @@ public class WolfSSLCertificate {
      */
     public boolean[] getKeyUsage() {
 
-        if (this.active == true) {
-            return X509_get_key_usage(this.x509Ptr);
+        synchronized (stateLock) {
+            if (this.active == true) {
+                return X509_get_key_usage(this.x509Ptr);
+            }
         }
 
         return null;
@@ -503,10 +552,13 @@ public class WolfSSLCertificate {
      * @return DER encoded extension value, or null
      */
     public byte[] getExtension(String oid) {
-        if (oid == null || this.active == false) {
-            return null;
+
+        synchronized (stateLock) {
+            if (oid == null || this.active == false) {
+                return null;
+            }
+            return X509_get_extension(this.x509Ptr, oid);
         }
-        return X509_get_extension(this.x509Ptr, oid);
     }
 
     /**
@@ -520,10 +572,13 @@ public class WolfSSLCertificate {
      *         otherwise negative value on error
      */
     public int getExtensionSet(String oid) {
-        if (this.active == false) {
-            return 0;
+
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return 0;
+            }
+            return X509_is_extension_set(this.x509Ptr, oid);
         }
-        return X509_is_extension_set(this.x509Ptr, oid);
     }
 
     /**
@@ -541,30 +596,32 @@ public class WolfSSLCertificate {
      */
     public Collection<List<?>> getSubjectAltNames() {
 
-        if (this.active == false) {
-            throw new IllegalStateException("Object has been freed");
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new IllegalStateException("Object has been freed");
+            }
+
+            if (this.altNames != null) {
+                /* already gathered, return cached version */
+                return this.altNames;
+            }
+
+            Collection<List<?>> names = new ArrayList<List<?>>();
+
+            String nextAltName = X509_get_next_altname(this.x509Ptr);
+            while (nextAltName != null) {
+                Object[] entry = new Object[2];
+                entry[0] = 2; // Only return dNSName type for now
+                entry[1] = nextAltName;
+                List<?> entryList = Arrays.asList(entry);
+
+                names.add(Collections.unmodifiableList(entryList));
+                nextAltName = X509_get_next_altname(this.x509Ptr);
+            }
+
+            /* cache altNames collection for later use */
+            this.altNames = Collections.unmodifiableCollection(names);
         }
-
-        if (this.altNames != null) {
-            /* already gathered, return cached version */
-            return this.altNames;
-        }
-
-        Collection<List<?>> names = new ArrayList<List<?>>();
-
-        String nextAltName = X509_get_next_altname(this.x509Ptr);
-        while (nextAltName != null) {
-            Object[] entry = new Object[2];
-            entry[0] = 2; // Only return dNSName type for now
-            entry[1] = nextAltName;
-            List<?> entryList = Arrays.asList(entry);
-
-            names.add(Collections.unmodifiableList(entryList));
-            nextAltName = X509_get_next_altname(this.x509Ptr);
-        }
-
-        /* cache altNames collection for later use */
-        this.altNames = Collections.unmodifiableCollection(names);
 
         return this.altNames;
     }
@@ -584,15 +641,21 @@ public class WolfSSLCertificate {
 
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        try {
-            in = new ByteArrayInputStream(this.getDer());
-            cert = (X509Certificate)cf.generateCertificate(in);
-            in.close();
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new CertificateException("Object has been freed");
+            }
 
-        } catch (Exception e) {
-            if (in != null) {
+            try {
+                in = new ByteArrayInputStream(this.getDer());
+                cert = (X509Certificate)cf.generateCertificate(in);
                 in.close();
-                throw e;
+
+            } catch (Exception e) {
+                if (in != null) {
+                    in.close();
+                    throw e;
+                }
             }
         }
 
@@ -604,14 +667,16 @@ public class WolfSSLCertificate {
 
         byte[] x509Text;
 
-        if (this.active == false) {
-            return super.toString();
-        }
+        synchronized (stateLock) {
+            if (this.active == false) {
+                return super.toString();
+            }
 
-        x509Text = X509_print(this.x509Ptr);
-        if (x509Text != null) {
-            /* let Java do the modified UTF-8 conversion */
-            return new String(x509Text, Charset.forName("UTF-8"));
+            x509Text = X509_print(this.x509Ptr);
+            if (x509Text != null) {
+                /* let Java do the modified UTF-8 conversion */
+                return new String(x509Text, Charset.forName("UTF-8"));
+            }
         }
 
         return super.toString();
@@ -624,32 +689,29 @@ public class WolfSSLCertificate {
      */
     public synchronized void free() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        synchronized (stateLock) {
+            if (this.active == false) {
+                /* already freed, just return */
+                return;
+            }
 
-        /* set this.altNames to null so GC can free */
-        this.altNames = null;
+            /* set this.altNames to null so GC can free */
+            this.altNames = null;
 
-        /* free native resources */
-        X509_free(this.x509Ptr);
+            /* free native resources */
+            X509_free(this.x509Ptr);
 
-        /* free Java resources */
-        this.active = false;
-        this.x509Ptr = 0;
+            /* free Java resources */
+            this.active = false;
+            this.x509Ptr = 0;
+        }
     }
 
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            try {
-                this.free();
-            } catch (IllegalStateException e) {
-                /* already freed */
-            }
-            this.active = false;
-        }
+        this.free();
         super.finalize();
     }
 }
