@@ -201,7 +201,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getCertificateChain(), alias: " + alias);
 
-        if (store == null) {
+        if (store == null || alias == null) {
             return null;
         }
 
