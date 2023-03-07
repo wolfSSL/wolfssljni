@@ -88,6 +88,15 @@ public class WolfSSLKeyX509Test {
             fail("unexpected number of alias found");
         }
 
+        /* Try getting chain with null alias, should return null */
+        chain = km.getCertificateChain(null);
+        if (chain != null) {
+            error("\t... failed");
+            fail("did not return null chain with null alias");
+            return;
+        }
+
+        /* Try getting chain with client alias */
         chain = km.getCertificateChain("client");
         if (chain == null || chain.length < 1) {
             error("\t... failed");
