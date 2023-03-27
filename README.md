@@ -214,6 +214,22 @@ Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
 
 ## Release Notes
 
+### wolfSSL JNI Release 1.12.0 (03/31/2023)
+
+Release 1.12.0 has bug fixes and new features including:
+
+**JNI and JSSE Changes:**
+* Additional synchronization support in WolfSSLCertificate (PR 118)
+* Prevent WolfSSLCertificate from freeing `WOLFSSL_X509` if not owned (PR 118)
+* Fix `X509KeyManager.getCertificateChain()` to return `null` when alias is `null` (PR 119)
+
+**Documentation Changes:**
+* Add Android Studio instructions for how to update source symlinks on Windows (PR 117)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.11.0 (12/2/2022)
 
 Release 1.11.0 has bug fixes and new features including:
