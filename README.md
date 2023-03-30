@@ -34,9 +34,9 @@ the manual.
 ## Building
 
 ***Note 1)***
-The java.sh script uses a common location for the Java install location. If
+The `java.sh` script uses a common location for the Java install location. If
 your Java install location is different, this could lead to an error when
-running java.sh. In this case, you should modify java.sh to match your
+running `java.sh`. In this case, you should modify `java.sh` to match your
 environment.
 
 Build targets for ant are :
@@ -46,7 +46,11 @@ Build targets for ant are :
 * **ant clean**     (cleans all Java artifacts)
 * **ant cleanjni**  (cleans native artifacts)
 
-wolfJSSE currently supports compilation on Linux/Unix, OSX, and Android.
+wolfJSSE currently supports compilation on the following platforms:
+- Linux/Unix
+- Mac OSX
+- Android Studio
+- Android AOSP
 
 To build wolfJSSE in Linux/Unix environments, first download, compile, and
 install wolfSSL. wolfSSL can be downloaded from the wolfSSL
@@ -114,6 +118,13 @@ More verbose SSLEngine debug logs can be enabled by using the
 
 JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
 
+These system properties can also be set programmatically at runtime:
+
+```
+System.setProperty("wolfjsse.debug", "true");
+System.setProperty("wolfsslengine.debug", "true);
+```
+
 ## Building for Android
 
 wolfSSL JNI and JSSE can be built and used on the Android platform, either
@@ -167,6 +178,27 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ## Behavior and Functionality Notes
 
+### JSSE Class Implementation Support
+
+wolfJSSE extends or implements the following JSSE classes:
+- javax.net.ssl.SSLContextSpi
+    - SSL, TLS, DEFAULT, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3
+- javax.net.ssl.KeyManagerFactorySpi
+    - PKIX, X509, SunX509
+- javax.net.ssl.TrustManagerFactorySpi
+    - PKIX, X509, SunX509
+- javax.net.ssl.SSLEngine
+- javax.net.ssl.SSLSession
+- javax.net.ssl.X509KeyManager
+- javax.net.ssl.X509TrustManager
+- javax.net.ssl.SSLServerSocket
+- javax.net.ssl.SSLServerSocketFactory
+- javax.net.ssl.SSLSocket
+- javax.net.ssl.SSLSocketFactory
+- javax.net.ssl.SSLSessionContext
+- java.security.cert.X509Certificate
+- javax.security.cert.X509Certificate
+
 ### Secure Renegotiation Support
 
 wolfSSL JNI and JSSE provider wrap native wolfSSL APIs to enable and conduct
@@ -181,6 +213,22 @@ $ ./configure --enable-secure-renegotiation
 Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
 
 ## Release Notes
+
+### wolfSSL JNI Release 1.12.0 (03/31/2023)
+
+Release 1.12.0 has bug fixes and new features including:
+
+**JNI and JSSE Changes:**
+* Additional synchronization support in WolfSSLCertificate (PR 118)
+* Prevent WolfSSLCertificate from freeing `WOLFSSL_X509` if not owned (PR 118)
+* Fix `X509KeyManager.getCertificateChain()` to return `null` when alias is `null` (PR 119)
+
+**Documentation Changes:**
+* Add Android Studio instructions for how to update source symlinks on Windows (PR 117)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
 
 ### wolfSSL JNI Release 1.11.0 (12/2/2022)
 
