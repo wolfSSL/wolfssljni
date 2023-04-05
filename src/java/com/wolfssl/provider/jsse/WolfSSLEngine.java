@@ -1048,6 +1048,11 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLEngineResult.HandshakeStatus getHandshakeStatus() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeStatus(): " + hs);
+
+        /* Update status based on internal state. Some calling applications
+         * loop around getHandshakeStatus(), it needs to be up to date. */
+        SetHandshakeStatus(0);
+
         return hs;
     }
 
