@@ -22,7 +22,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 

@@ -18,11 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/rsa.h>
-#include "com_wolfssl_wolfcrypt_RSA.h"
 #include <stdio.h>
+
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/rsa.h>
+
+#include "com_wolfssl_wolfcrypt_RSA.h"
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
   (JNIEnv* jenv, jobject jcl, jobject in, jlong inSz, jobject out,
@@ -33,7 +38,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     RsaKey  myKey;
     unsigned int idx;
     unsigned int tmpOut;
-
+    unsigned char* inBuf = NULL;
+    unsigned char* outBuf = NULL;
+    unsigned char* keyBuf = NULL;
     (void)jcl;
 
     /* check in and key sz */
@@ -42,19 +49,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     }
 
     /* get pointers to our buffers */
-    unsigned char* inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
+    inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
     if (inBuf == NULL) {
         printf("problem getting in buffer address\n");
         return -1;
     }
 
-    unsigned char* outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
+    outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
     if (outBuf == NULL) {
         printf("problem getting out buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
@@ -94,7 +101,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
     int     ret;
     RsaKey  myKey;
     unsigned int idx;
-
+    unsigned char* sigBuf = NULL;
+    unsigned char* outBuf = NULL;
+    unsigned char* keyBuf = NULL;
     (void)jcl;
 
     /* check in and key sz */
@@ -103,19 +112,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
     }
 
     /* get pointers to our buffers */
-    unsigned char* sigBuf = (*jenv)->GetDirectBufferAddress(jenv, sig);
+    sigBuf = (*jenv)->GetDirectBufferAddress(jenv, sig);
     if (sigBuf == NULL) {
         printf("problem getting sig buffer address\n");
         return -1;
     }
 
-    unsigned char* outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
+    outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
     if (outBuf == NULL) {
         printf("problem getting out buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
@@ -150,7 +159,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     WC_RNG  rng;
     unsigned int idx;
     unsigned int tmpOut;
-
+    unsigned char* inBuf = NULL;
+    unsigned char* outBuf = NULL;
+    unsigned char* keyBuf = NULL;
     (void)jcl;
 
     /* check in and key sz */
@@ -159,19 +170,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     }
 
     /* get pointers to our buffers */
-    unsigned char* inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
+    inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
     if (inBuf == NULL) {
         printf("problem getting in buffer address\n");
         return -1;
     }
 
-    unsigned char* outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
+    outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
     if (outBuf == NULL) {
         printf("problem getting out buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
@@ -210,7 +221,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
     int     ret;
     RsaKey  myKey;
     unsigned int idx;
-
+    unsigned char* inBuf = NULL;
+    unsigned char* outBuf = NULL;
+    unsigned char* keyBuf = NULL;
     (void)jcl;
 
     /* check in and key sz */
@@ -219,19 +232,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
     }
 
     /* get pointers to our buffers */
-    unsigned char* inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
+    inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
     if (inBuf == NULL) {
         printf("problem getting in buffer address\n");
         return -1;
     }
 
-    unsigned char* outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
+    outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
     if (outBuf == NULL) {
         printf("problem getting out buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;

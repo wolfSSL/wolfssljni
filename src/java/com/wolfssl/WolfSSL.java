@@ -420,9 +420,19 @@ public class WolfSSL {
      * The native library is expected to be be called "wolfssljni", and must be
      * on the system library search path.
      *
+     * "wolfssljni" links against the wolfSSL native C library ("wolfssl"),
+     * and for Windows compatibility "wolfssl" needs to be explicitly
+     * loaded first here.
+     *
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
+
+        String osName = System.getProperty("os.name").toLowerCase();
+        if (osName.contains("win")) {
+            System.loadLibrary("wolfssl");
+        }
+
         System.loadLibrary("wolfssljni");
     }
 
