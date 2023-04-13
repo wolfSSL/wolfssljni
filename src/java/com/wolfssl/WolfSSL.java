@@ -428,11 +428,26 @@ public class WolfSSL {
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
 
+        int fipsLoaded = 0;
+
         String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("win")) {
-            System.loadLibrary("wolfssl");
+            try {
+                /* Default wolfCrypt FIPS library on Windows is compiled
+                 * as "wolfssl-fips" by Visual Studio solution */
+                System.loadLibrary("wolfssl-fips");
+                fipsLoaded = 1;
+            } catch (UnsatisfiedLinkError e) {
+                /* wolfCrypt FIPS not available */
+            }
+
+            if (fipsLoaded == 0) {
+                /* FIPS library not loaded, try normal libwolfssl */
+                System.loadLibrary("wolfssl");
+            }
         }
 
+        /* Load wolfssljni library */
         System.loadLibrary("wolfssljni");
     }
 

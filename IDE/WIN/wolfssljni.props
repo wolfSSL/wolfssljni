@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <wolfSSLDir>..\..\..\wolfssl</wolfSSLDir>
+    <wolfSSLDebug32>$(wolfSSLDir)\Debug\Win32</wolfSSLDebug32>
+    <wolfSSLRelease32>$(wolfSSLDir)\Release\Win32</wolfSSLRelease32>
+    <wolfSSLDebug64>$(wolfSSLDir)\Debug\x64</wolfSSLDebug64>
+    <wolfSSLRelease64>$(wolfSSLDir)\Release\x64</wolfSSLRelease64>
+    <wolfSSLDllDebug32>$(wolfSSLDir)\DLL Debug\Win32</wolfSSLDllDebug32>
+    <wolfSSLDllRelease32>$(wolfSSLDir)\DLL Release\Win32</wolfSSLDllRelease32>
+    <wolfSSLDllDebug64>$(wolfSSLDir)\DLL Debug\x64</wolfSSLDllDebug64>
+    <wolfSSLDllRelease64>$(wolfSSLDir)\DLL Release\x64</wolfSSLDllRelease64>
+    <wolfSSLDllDebug32FIPS>$(wolfSSLDir)\IDE\WIN10\DLL Debug\Win32</wolfSSLDllDebug32FIPS>
+    <wolfSSLDllRelease32FIPS>$(wolfSSLDir)\IDE\WIN10\DLL Release\Win32</wolfSSLDllRelease32FIPS>
+    <wolfSSLDllDebug64FIPS>$(wolfSSLDir)\IDE\WIN10\DLL Debug\x64</wolfSSLDllDebug64FIPS>
+    <wolfSSLDllRelease64FIPS>$(wolfSSLDir)\IDE\WIN10\DLL Release\x64</wolfSSLDllRelease64FIPS>
+  </PropertyGroup>
+  <ItemDefinitionGroup />
+  <ItemGroup>
+    <BuildMacro Include="wolfSSLDir">
+      <Value>$(wolfSSLDir)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDebug32">
+      <Value>$(wolfSSLDebug32)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLRelease32">
+      <Value>$(wolfSSLRelease32)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDebug64">
+      <Value>$(wolfSSLDebug64)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLRelease64">
+      <Value>$(wolfSSLRelease64)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllDebug32">
+      <Value>$(wolfSSLDllDebug32)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllRelease32">
+      <Value>$(wolfSSLDllRelease32)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllDebug64">
+      <Value>$(wolfSSLDllDebug64)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllRelease64">
+      <Value>$(wolfSSLDllRelease64)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllDebug32FIPS">
+      <Value>$(wolfSSLDllDebug32FIPS)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllRelease32FIPS">
+      <Value>$(wolfSSLDllRelease32FIPS)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllDebug64FIPS">
+      <Value>$(wolfSSLDllDebug64FIPS)</Value>
+    </BuildMacro>
+    <BuildMacro Include="wolfSSLDllRelease64FIPS">
+      <Value>$(wolfSSLDllRelease64FIPS)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>
