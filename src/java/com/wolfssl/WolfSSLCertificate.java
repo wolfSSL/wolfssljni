@@ -55,7 +55,7 @@ public class WolfSSLCertificate {
     private boolean weOwnX509Ptr = false;
 
     /* lock around active state */
-    private static final Object stateLock = new Object();
+    private final Object stateLock = new Object();
 
     /* cache alt names once retrieved once */
     private Collection<List<?>> altNames = null;
