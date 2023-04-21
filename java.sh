@@ -11,10 +11,23 @@
 # prior to running this script.
 #
 # This script will try to link against a wolfSSL library installed to the
-# default location of /usr/local. This script accepts one argument on the
-# command line which can point to a custom wolfSSL installation location. A
-# custom install location would match the directory set at wolfSSL
+# default location of /usr/local. This script accepts two arguments on the
+# command line. The first argument can point to a custom wolfSSL installation
+# location. A custom install location would match the directory set at wolfSSL
 # ./configure --prefix=<DIR>.
+#
+# The second argument represents the wolfSSL library name that should be
+# linked against. This is helpful if a non-standard library name has been
+# used with wolfSSL, for example the ./configure --with-libsuffix option
+# has been used to add a suffix to the wolfSSL library name. Note that to
+# use this argument, an installation location must be specified via the
+# first argument.
+#
+# For example, if wolfSSL was configured with --with-libsuffix=jsse, then
+# this script could be called like so using the default installation
+# path of /usr/local.
+#
+# java.sh /usr/local wolfssljsse
 
 OS=`uname`
 ARCH=`uname -m`
@@ -26,6 +39,15 @@ else
     # use custom wolfSSL install location
     # should match directory set at wolfSSL ./configure --prefix=<DIR>
     WOLFSSL_INSTALL_DIR=$1
+fi
+
+if [ -z "$2" ]; then
+    # default wolfSSL library name is libwolfssl
+    WOLFSSL_LIBNAME="wolfssl"
+else
+    # use custom wolfSSL library name
+    # should match wolfsslSUFFIX as set using ./configure --with-libsuffix
+    WOLFSSL_LIBNAME=$2
 fi
 
 echo "Compiling Native JNI library:"
@@ -95,7 +117,7 @@ gcc -Wall -c $fpic $cflags ./native/com_wolfssl_wolfcrypt_EccKey.c -o ./native/c
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLCertManager.c -o ./native/com_wolfssl_WolfSSLCertManager.o $javaIncludes
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLCertificate.c -o ./native/com_wolfssl_WolfSSLCertificate.o $javaIncludes
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLX509StoreCtx.c -o ./native/com_wolfssl_WolfSSLX509StoreCtx.o $javaIncludes
-gcc -Wall $javaLibs $cflags -o ./lib/$jniLibName ./native/com_wolfssl_WolfSSL.o ./native/com_wolfssl_WolfSSLSession.o ./native/com_wolfssl_WolfSSLContext.o ./native/com_wolfssl_wolfcrypt_RSA.o ./native/com_wolfssl_wolfcrypt_ECC.o ./native/com_wolfssl_wolfcrypt_EccKey.o ./native/com_wolfssl_WolfSSLCertManager.o ./native/com_wolfssl_WolfSSLCertificate.o ./native/com_wolfssl_WolfSSLX509StoreCtx.o -L$WOLFSSL_INSTALL_DIR/lib -lwolfssl
+gcc -Wall $javaLibs $cflags -o ./lib/$jniLibName ./native/com_wolfssl_WolfSSL.o ./native/com_wolfssl_WolfSSLSession.o ./native/com_wolfssl_WolfSSLContext.o ./native/com_wolfssl_wolfcrypt_RSA.o ./native/com_wolfssl_wolfcrypt_ECC.o ./native/com_wolfssl_wolfcrypt_EccKey.o ./native/com_wolfssl_WolfSSLCertManager.o ./native/com_wolfssl_WolfSSLCertificate.o ./native/com_wolfssl_WolfSSLX509StoreCtx.o -L$WOLFSSL_INSTALL_DIR/lib -l$WOLFSSL_LIBNAME
 if [ $? != 0 ]; then
     echo "Error creating native JNI library"
     exit 1
