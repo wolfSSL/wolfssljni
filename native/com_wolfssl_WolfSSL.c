@@ -21,7 +21,11 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -34,6 +38,11 @@
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
+
+#ifdef _MSC_VER
+    /* 4996 warning to use MS extensions e.g., strncat_s instead of XSTRNCAT */
+    #pragma warning(disable: 4996)
+#endif
 
 /* global JavaVM reference for JNIEnv lookup */
 JavaVM*  g_vm;
@@ -50,7 +59,7 @@ static jobject g_fipsCbIfaceObj;
 void NativeLoggingCallback(const int logLevel, const char *const logMessage);
 
 /* called when native library is loaded */
-jint JNI_OnLoad(JavaVM* vm, void* reserved)
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     (void)reserved;
 
@@ -62,10 +71,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
   (JNIEnv* jenv, jobject jcl)
 {
+    int ret = 0;
+
     (void)jenv;
     (void)jcl;
-
-    int ret = 0;
 
 #ifdef WC_RNG_SEED_CB
     ret = wc_SetSeed_Cb(wc_GenerateSeed);
@@ -175,10 +184,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
   (JNIEnv* jenv, jobject jcl, jlong jptr)
 {
-    void* ptr = (void*)(uintptr_t)jptr;
+    void* ptr = NULL;
+
     (void)jenv;
     (void)jcl;
 
+    ptr = (void*)(uintptr_t)jptr;
     if(ptr != NULL) {
         XFREE(ptr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -632,7 +643,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
 
     (void)jcl;
 
-    wolfSSL_ERR_error_string(errNumber, buffer);
+    wolfSSL_ERR_error_string((unsigned long)errNumber, buffer);
     retString = (*jenv)->NewStringUTF(jenv, buffer);
 
     return retString;
@@ -676,7 +687,9 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_debuggingOFF
     (void)jenv;
     (void)jcl;
 
-    return wolfSSL_Debugging_OFF();
+    wolfSSL_Debugging_OFF();
+
+    return;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
@@ -715,8 +728,10 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
     JNIEnv*   jenv;
     jint      vmret  = 0;
     jclass    excClass;
+    jclass    logClass;
     jmethodID logMethod;
     jobjectRefType refcheck;
+    jstring logMsg;
 
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -746,7 +761,7 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
     if (refcheck == 2) {
 
         /* lookup WolfSSLLoggingCallback class from global object ref */
-        jclass logClass = (*jenv)->GetObjectClass(jenv, g_loggingCbIfaceObj);
+        logClass = (*jenv)->GetObjectClass(jenv, g_loggingCbIfaceObj);
         if (!logClass) {
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
@@ -772,7 +787,7 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
         }
 
         /* create jstring from char* */
-        jstring logMsg = (*jenv)->NewStringUTF(jenv, logMessage);
+        logMsg = (*jenv)->NewStringUTF(jenv, logMessage);
 
         (*jenv)->CallVoidMethod(jenv, g_loggingCbIfaceObj, logMethod,
                 logLevel, logMsg);
@@ -804,8 +819,10 @@ void NativeFIPSErrorCallback(const int ok, const int err,
     JNIEnv*   jenv;
     jint      vmret  = 0;
     jclass    excClass;
+    jclass    fipsCbClass;
     jmethodID errorMethod;
     jobjectRefType refcheck;
+    jstring hashString;
 
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -835,7 +852,7 @@ void NativeFIPSErrorCallback(const int ok, const int err,
     if (refcheck == JNIGlobalRefType) {
 
         /* lookup WolfSSLLoggingCallback class from global object ref */
-        jclass fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
+        fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
         if (!fipsCbClass) {
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
@@ -861,7 +878,7 @@ void NativeFIPSErrorCallback(const int ok, const int err,
         }
 
         /* create jstring from char* */
-        jstring hashString = (*jenv)->NewStringUTF(jenv, hash);
+        hashString = (*jenv)->NewStringUTF(jenv, hash);
 
         (*jenv)->CallVoidMethod(jenv, g_fipsCbIfaceObj, errorMethod,
                 ok, err, hashString);
@@ -952,12 +969,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
 #ifdef PERSIST_SESSION_CACHE
     int ret;
     int cacheSz;
-    char memBuf[sz];
+    unsigned char* memBuf = NULL;
 
     (void)jcl;
 
     if (!jenv || !mem || (sz <= 0))
         return BAD_FUNC_ARG;
+
+    memBuf = (unsigned char*)XMALLOC((int)sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (memBuf == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(memBuf, 0, (int)sz);
 
     ret = wolfSSL_memsave_session_cache(memBuf, sz);
 
@@ -970,9 +993,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return SSL_FAILURE;
         }
     }
+
+    XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 #else
@@ -988,22 +1014,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
   (JNIEnv* jenv, jclass jcl, jbyteArray mem, jint sz)
 {
 #ifdef PERSIST_SESSION_CACHE
-    int ret;
-    char memBuf[sz];
+    int ret = SSL_SUCCESS;
+    unsigned char* memBuf = NULL;
 
     (void)jcl;
 
     if (!jenv || !mem || (sz <= 0))
         return BAD_FUNC_ARG;
 
+    memBuf = (unsigned char*)XMALLOC((int)sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (memBuf == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(memBuf, 0, (int)sz);
+
     (*jenv)->GetByteArrayRegion(jenv, mem, 0, sz, (jbyte*)memBuf);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        return SSL_FAILURE;
+        ret = SSL_FAILURE;
     }
 
-    ret = wolfSSL_memrestore_session_cache(memBuf, sz);
+    if (ret == SSL_SUCCESS) {
+        ret = wolfSSL_memrestore_session_cache(memBuf, sz);
+    }
+
+    XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     return ret;
 #else
     (void)jenv;
@@ -1031,22 +1068,31 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
 {
     int ret;
     word32 inOutIdx;
-    unsigned char inBuf[sz];
+    unsigned char* inBuf;
 
     (void)jcl;
 
     if (!jenv || !in || (sz <= 0))
         return BAD_FUNC_ARG;
 
-    (*jenv)->GetByteArrayRegion(jenv, in, 0, sz, (jbyte*)inBuf);
+    inBuf = (unsigned char*)XMALLOC((long)sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (inBuf == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(inBuf, 0, DYNAMIC_TYPE_TMP_BUFFER);
+
+    (*jenv)->GetByteArrayRegion(jenv, in, 0, (jsize)sz, (jbyte*)inBuf);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+    	XFREE(inBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
 
     inOutIdx = (word32)idx;
     ret = wc_GetPkcs8TraditionalOffset(inBuf, &inOutIdx, (word32)sz);
+
+    XFREE(inBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret < 0)
         return ret;
@@ -1058,7 +1104,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
-    int* outSz = NULL;
+    int outSz = 0;
     const unsigned char* derCert;
     jbyteArray out = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
@@ -1069,11 +1115,11 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
         return NULL;
     }
 
-    derCert = wolfSSL_X509_get_der(x509, outSz);
+    derCert = wolfSSL_X509_get_der(x509, &outSz);
 
-    if (*outSz >= 0) {
+    if (outSz >= 0) {
 
-        (*jenv)->SetByteArrayRegion(jenv, out, 0, *outSz, (jbyte*)derCert);
+        (*jenv)->SetByteArrayRegion(jenv, out, 0, outSz, (jbyte*)derCert);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);

@@ -49,8 +49,12 @@ Build targets for ant are :
 wolfJSSE currently supports compilation on the following platforms:
 - Linux/Unix
 - Mac OSX
+- [Windows (Visual Studio)](./IDE/WIN/README.md)
 - Android Studio
 - Android AOSP
+
+To build wolfJSSE on Windows using Visual Studio, please reference the
+Windows [README.md](./IDE/WIN/README.md).
 
 To build wolfJSSE in Linux/Unix environments, first download, compile, and
 install wolfSSL. wolfSSL can be downloaded from the wolfSSL

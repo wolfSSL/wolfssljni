@@ -38,6 +38,11 @@
     <!-- check for SNIHostName class to determine if JDK version >= 1.8 -->
     <available property="have-SNIHostName" classname="javax.net.ssl.SNIHostName" />
 
+    <!-- Detect if running on Windows host -->
+    <condition property="isWindows">
+        <os family="windows" />
+    </condition>
+
     <!-- check if javac nativeheaderdir is available -->
     <condition property="have-nativeheaderdir">
         <and>
@@ -79,7 +84,7 @@
         <delete dir="${build.dir}"/>
         <delete dir="${examples.build.dir}"/>
         <delete dir="${reports.dir}"/>
-        <delete>
+        <delete failonerror="false">
             <fileset dir="${lib.dir}" includes="wolfssl.jar" />
             <fileset dir="${lib.dir}" includes="wolfssl-jsse.jar" />
         </delete>
@@ -230,31 +235,137 @@
         </javac>
     </target>
 
-    <target name="test" depends="build-test">
+    <!-- Set property to indicate Windows platform (Win32, x86) -->
+    <target name="setup-win32-debug">
+        <property name="ant.test.platform" value="Win32"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Debug/Win32/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/DLL Debug/Win32"/>
+    </target>
+    <target name="setup-win32-release">
+        <property name="ant.test.platform" value="Win32"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Release/Win32/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/DLL Release/Win32"/>
+    </target>
+
+    <target name="setup-win64-debug">
+        <property name="ant.test.platform" value="x64"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Debug/x64/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/DLL Debug/x64"/>
+    </target>
+    <target name="setup-win64-release">
+        <property name="ant.test.platform" value="x64"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Release/x64/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/DLL Release/x64"/>
+    </target>
+
+    <target name="setup-win32-debug-fips">
+        <property name="ant.test.platform" value="Win32"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Debug FIPS/Win32/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/IDE/WIN10/DLL Debug/Win32"/>
+    </target>
+    <target name="setup-win32-release-fips">
+        <property name="ant.test.platform" value="Win32"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Release FIPS/Win32/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/IDE/WIN10/DLL Release/Win32"/>
+    </target>
+    <target name="setup-win64-debug-fips">
+        <property name="ant.test.platform" value="x64"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Debug FIPS/x64/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/IDE/WIN10/DLL Debug/x64"/>
+    </target>
+    <target name="setup-win64-release-fips">
+        <property name="ant.test.platform" value="x64"/>
+        <property name="lib.win.dir" value="IDE/WIN/DLL Release FIPS/x64/"/>
+        <property name="lib.wolfssl.win.dir" value="../wolfssl/IDE/WIN10/DLL Release/x64"/>
+    </target>
+
+    <!-- Windows ant test targets, should be used in place of 'ant test' -->
+    <!-- Windows 32-bit -->
+    <target name="test-win32-debug" depends="setup-win32-debug, test"
+            description="Run JUnit tests on Windows x86/32-bit DLL Debug">
+    </target>
+    <target name="test-win32-release" depends="setup-win32-release, test"
+            description="Run JUnit tests on Windows x86/32-bit DLL Release">
+    </target>
+
+    <!-- Windows x64 -->
+    <target name="test-win64-debug" depends="setup-win64-debug, test"
+            description="Run JUnit tests on Windows x64/64-bit DLL Debug">
+    </target>
+    <target name="test-win64-release" depends="setup-win64-release, test"
+            description="Run JUnit tests on Windows x64/64-bit DLL Release">
+    </target>
+
+    <!-- Windows FIPS 140-2/140-3 -->
+    <target name="test-win32-debug-fips" depends="setup-win32-debug-fips, test"
+            description="Run JUnit tests on Windows x86/32-bit DLL FIPS Debug">
+    </target>
+    <target name="test-win32-release-fips" depends="setup-win32-release-fips, test"
+            description="Run JUnit tests on Windows x86/32-bit DLL FIPS Release">
+    </target>
+    <target name="test-win64-debug-fips" depends="setup-win64-debug-fips, test"
+            description="Run JUnit tests on Windows x64/64-bit DLL FIPS Debug">
+    </target>
+    <target name="test-win64-release-fips" depends="setup-win64-release-fips, test"
+            description="Run JUnit tests on Windows x64/64-bit DLL FIPS Release">
+    </target>
+
+    <!-- Print usage if plain 'ant test' called on Windows -->
+    <target name="antTestWindowsCheck">
+      <condition property="antTestCalledIncorrect">
+        <and>
+          <equals arg1="${isWindows}" arg2="true"/>
+          <equals arg1="${ant.project.invoked-targets}" arg2="test"/>
+        </and>
+      </condition>
+
+      <fail message="Please see usage instructions below" if="antTestCalledIncorrect">
+        wolfSSL JNI and JSSE: JUnit Test Usage on Windows
+        ---------------------------------------------------------------------------->
+        Run one of the following ant test targets for Windows use:
+        Normal wolfSSL (non-FIPS):
+            ant test-win32-debug         |  Run JUnit tests for Windows 32-bit Debug build
+            ant test-win32-release       |  Run JUnit tests for Windows 32-bit Release build
+            ant test-win64-debug         |  Run JUnit tests for Windows 64-bit Debug build
+            ant test-win64-release       |  Run JUnit tests for Windows 64-bit Release build
+
+        wolfSSL FIPS 140-2 / 140-3:
+            ant test-win32-debug-fips    |  Run JUnit tests for Windows 32-bit Debug FIPS build
+            ant test-win32-release-fips  |  Run JUnit tests for Windows 32-bit Release FIPS build
+            ant test-win64-debug-fips    |  Run JUnit tests for Windows 64-bit Debug FIPS build
+            ant test-win64-release-fips  |  Run JUnit tests for Windows 64-bit Release FIPS build
+        ----------------------------------------------------------------------------
+      </fail>
+    </target>
+
+    <!-- Primary ant test target, called direct on Linux/OSX
+         or from test-win32/test-win64 on Windows -->
+    <target name="test" description="Compile and run JUnit tests" depends="antTestWindowsCheck, build-test">
+        <property environment="env"/>
         <junit printsummary="yes" showoutput="yes" haltonfailure="yes" fork="true">
-        <classpath>
-            <pathelement location="${build.dir}"/>
-            <pathelement location="${test.build.dir}"/>
-            <fileset dir="${env.JUNIT_HOME}">
-                <include name="${junit4}"/>
-                <include name="${hamcrest-core}"/>
-                <include name="${ant-junit4}"/>
-            </fileset>
-        </classpath>
+            <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
+            <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
+            <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
+            <jvmarg value="-Djava.library.path=$JAVA_HOME/bin${path.separator}${env.LD_LIBRARY_PATH}${path.separator}${env.DYLD_LIBRARY_PATH}${path.separator}${lib.dir}${path.separator}${lib.win.dir}${path.separator}${lib.wolfssl.win.dir}"/>
 
-        <formatter type="plain"/>
-        <formatter type="xml"/>
+            <classpath>
+                <pathelement location="${build.dir}"/>
+                <pathelement location="${test.build.dir}"/>
+                <fileset dir="${env.JUNIT_HOME}">
+                    <include name="${junit4}"/>
+                    <include name="${hamcrest-core}"/>
+                    <include name="${ant-junit4}"/>
+                </fileset>
+            </classpath>
 
-        <sysproperty key="sun.boot.library.path" value="$JAVA_HOME/bin:${lib.dir}" />
-        <env key="LD_LIBRARY_PATH" path="${env.LD_LIBRARY_PATH}:{lib.dir}:/usr/local/lib" />
-        <env key="CLASSPATH" path="${env.LD_LIBRARY_PATH}:${env.JUNIT_HOME}/${junit4}" />
+            <formatter type="plain"/>
+            <formatter type="xml"/>
 
-        <batchtest fork="yes" todir="${reports.dir}">
-            <fileset dir="${test.dir}">
-                <include name="**/*TestSuite.java"/>
-            </fileset>
-        </batchtest>
-
+            <batchtest fork="yes" todir="${reports.dir}">
+                <fileset dir="${test.dir}">
+                    <include name="**/*TestSuite.java"/>
+                </fileset>
+            </batchtest>
         </junit>
     </target>
 

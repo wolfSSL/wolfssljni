@@ -19,6 +19,12 @@ report/
 IDE/Android/.idea/deploymentTargetDropDown.xml
 IDE/Android/app/.cxx/
 IDE/Android/app/src/main/cpp/wolfssl/
+IDE/WIN/.vs
+IDE/WIN/wolfssljni.vcxproj.user
+IDE/WIN/DLL Debug
+IDE/WIN/DLL Debug FIPS
+IDE/WIN/DLL Release
+IDE/WIN/DLL Release FIPS
 
 # RPM package files
 rpm/spec

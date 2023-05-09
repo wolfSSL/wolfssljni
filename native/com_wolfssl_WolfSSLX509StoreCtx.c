@@ -19,7 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/ssl.h>
 #include <stdint.h>
 
@@ -31,11 +35,15 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
 {
 #ifdef OPENSSL_EXTRA
     jclass arrType;
+    jclass excClass = NULL;
     X509* x509 = NULL;
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)(uintptr_t)ctx;
     const unsigned char* der = NULL;
     int derSz = 0, skNum = 0, i = 0;
+    jobjectArray certArr = NULL;
+    jbyteArray derArr = NULL;
+    jbyte* buf = NULL;
     (void)jcl;
 
     if (jenv == NULL || store == NULL) {
@@ -43,8 +51,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
     }
 
     /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv,
-            "com/wolfssl/WolfSSLJNIException");
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -61,15 +68,15 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
 
     /* create new array of byte arrays, of size skNum */
     arrType = (*jenv)->FindClass(jenv, "[B");
-    jobjectArray certArr = (*jenv)->NewObjectArray(jenv, skNum, arrType,
-                                        (*jenv)->NewByteArray(jenv, 1));
+    certArr = (*jenv)->NewObjectArray(jenv, skNum, arrType,
+                                      (*jenv)->NewByteArray(jenv, 1));
     for (i = 0; i < skNum; i++) {
         x509 = wolfSSL_sk_X509_value(sk, i);
         der = wolfSSL_X509_get_der(x509, &derSz);
 
         if (der != NULL) {
             /* create byte[] per WOLFSSL_X509 der, add to certArr[] */
-            jbyteArray derArr = (*jenv)->NewByteArray(jenv, derSz);
+            derArr = (*jenv)->NewByteArray(jenv, derSz);
             if (!derArr) {
                 (*jenv)->ThrowNew(jenv, excClass,
                     "Failed to create byte array in native getDerCerts()");
@@ -77,7 +84,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
                 return NULL;
             }
 
-            jbyte* buf = (*jenv)->GetByteArrayElements(jenv, derArr, NULL);
+            buf = (*jenv)->GetByteArrayElements(jenv, derArr, NULL);
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);

@@ -18,12 +18,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#include <stdio.h>
 
-#include <wolfssl/options.h>
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
+
 #include "com_wolfssl_wolfcrypt_ECC.h"
-#include <stdio.h>
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
   (JNIEnv* jenv, jobject jcl, jobject sig, jlong sigSz, jobject hash,
@@ -32,25 +37,28 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
     int     ret;
     int     tmpResult;
     ecc_key myKey;
+    unsigned char* sigBuf = NULL;
+    unsigned char* hashBuf = NULL;
+    unsigned char* keyBuf = NULL;
 
     if ((sigSz  < 0) || (hashSz < 0) || (keySz  < 0)) {
         return -1;
     }
 
     /* get pointers to our buffers */
-    unsigned char* sigBuf = (*jenv)->GetDirectBufferAddress(jenv, sig);
+    sigBuf = (*jenv)->GetDirectBufferAddress(jenv, sig);
     if (sigBuf == NULL) {
         printf("problem getting sig buffer address\n");
         return -1;
     }
 
-    unsigned char* hashBuf = (*jenv)->GetDirectBufferAddress(jenv, hash);
+    hashBuf = (*jenv)->GetDirectBufferAddress(jenv, hash);
     if (hashBuf == NULL) {
         printf("problem getting hash buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
@@ -90,6 +98,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
     ecc_key myKey;
     unsigned int tmpOut;
     unsigned int idx = 0;
+    unsigned char* inBuf = NULL;
+    unsigned char* outBuf = NULL;
+    unsigned char* keyBuf = NULL;
+    jlong tmp = 0;
 
     /* check in and key sz */
     if ((inSz  < 0) || (keySz < 0)) {
@@ -97,33 +109,32 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
     }
 
     /* get pointers to our buffers */
-    unsigned char* inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
+    inBuf = (*jenv)->GetDirectBufferAddress(jenv, in);
     if (inBuf == NULL) {
         printf("problem getting in buffer address\n");
         return -1;
     }
 
-    unsigned char* outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
+    outBuf = (*jenv)->GetDirectBufferAddress(jenv, out);
     if (outBuf == NULL) {
         printf("problem getting out buffer address\n");
         return -1;
     }
 
-    unsigned char* keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
+    keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
         return -1;
     }
 
     /* set previous value of outSz */
-    jlong tmp;
     (*jenv)->GetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
     tmpOut = (unsigned int)tmp;
 
     wc_InitRng(&rng);
     wc_ecc_init(&myKey);
 
-    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
+    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, (long)keySz);
     if (ret == 0) {
         ret = wc_ecc_sign_hash(inBuf, (unsigned int)inSz, outBuf, &tmpOut,
                 &rng, &myKey);
