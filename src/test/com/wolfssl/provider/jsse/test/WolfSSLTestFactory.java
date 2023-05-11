@@ -64,12 +64,12 @@ class WolfSSLTestFactory {
     protected String clientRSA1024JKS;
     protected String clientRSAJKS;
     protected String clientECCJKS;
-    protected String serverJKS;
+    protected static String serverJKS;
     protected String serverRSA1024JKS;
     protected String serverRSAJKS;
     protected String serverECCJKS;
     protected String caJKS;
-    protected String caClientJKS;
+    protected static String caClientJKS;
     protected String caServerJKS;
 
     protected String googleCACert;
