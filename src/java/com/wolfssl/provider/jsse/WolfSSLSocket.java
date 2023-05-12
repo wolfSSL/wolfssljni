@@ -1354,7 +1354,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException if InputStream is not able to be returned
      */
     @Override
-    public InputStream getInputStream() throws IOException {
+    public synchronized InputStream getInputStream() throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getInputStream()");
@@ -1376,7 +1376,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException if OutputStream is not able to be returned
      */
     @Override
-    public OutputStream getOutputStream() throws IOException {
+    public synchronized OutputStream getOutputStream() throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getOutputStream()");
@@ -1509,6 +1509,12 @@ public class WolfSSLSocket extends SSLSocket {
                         /* Connection is closed, free native WOLFSSL session
                          * to release native memory earlier than garbage
                          * collector might with finalize(). */
+                        Object readCtx = this.ssl.getIOReadCtx();
+                        if (readCtx != null &&
+                            readCtx instanceof ConsumedRecvCtx) {
+                            ConsumedRecvCtx rctx = (ConsumedRecvCtx)readCtx;
+                            rctx.closeDataStreams();
+                        }
                         this.ssl.freeSSL();
                         this.ssl = null;
                     }
@@ -1528,10 +1534,10 @@ public class WolfSSLSocket extends SSLSocket {
             } else {
                 if (this.socket != null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "socket (external) not closed, autoClose set to false");
+                        "socket (external) not closed, autoClose set to false");
                 } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "socket (super) not closed, autoClose set to false");
+                        "socket (super) not closed, autoClose set to false");
                 }
             }
 
@@ -1655,8 +1661,14 @@ public class WolfSSLSocket extends SSLSocket {
 
     @SuppressWarnings("deprecation")
     @Override
-    protected void finalize() throws Throwable {
+    protected synchronized void finalize() throws Throwable {
         if (this.ssl != null) {
+            Object readCtx = this.ssl.getIOReadCtx();
+            if (readCtx != null &&
+                readCtx instanceof ConsumedRecvCtx) {
+                ConsumedRecvCtx rctx = (ConsumedRecvCtx)readCtx;
+                rctx.closeDataStreams();
+            }
             this.ssl.freeSSL();
             this.ssl = null;
         }
@@ -1664,20 +1676,42 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     class ConsumedRecvCtx {
-        private Socket s;
-        private DataInputStream consumed;
+        private Socket s = null;
+        private DataInputStream consumed = null;
+        private DataInputStream sockStream = null;
 
         public ConsumedRecvCtx(Socket s, InputStream in) {
             this.s = s;
             this.consumed = new DataInputStream(in);
         }
 
-        public DataInputStream getSocketDataStream() throws IOException {
-            return new DataInputStream(this.s.getInputStream());
+        public synchronized DataInputStream getSocketDataStream()
+            throws IOException {
+
+            if (this.s != null) {
+                if (this.sockStream == null) {
+                    this.sockStream =
+                        new DataInputStream(this.s.getInputStream());
+                }
+                return this.sockStream;
+            }
+            else {
+                return null;
+            }
         }
 
-        public DataInputStream getConsumedDataStream() {
+        public synchronized DataInputStream getConsumedDataStream() {
             return this.consumed;
+        }
+
+        public synchronized void closeDataStreams()
+            throws IOException {
+            if (consumed != null) {
+                consumed.close();
+            }
+            if (sockStream != null) {
+                sockStream.close();
+            }
         }
     }
 
@@ -1686,7 +1720,7 @@ public class WolfSSLSocket extends SSLSocket {
         public int receiveCallback(WolfSSLSession ssl, byte[] buf,
             int sz, Object ctx) {
 
-            int ret;
+            int ret = 0;
 
             try {
                 ConsumedRecvCtx context = (ConsumedRecvCtx)ctx;
@@ -1701,7 +1735,7 @@ public class WolfSSLSocket extends SSLSocket {
                         ret = 0;
                     }
 
-                } else {
+                } else if (current != null) {
                     /* read directly from Socket, may throw SocketException
                      * if underlying socket is non-blocking and returns
                      * WANT_READ. */

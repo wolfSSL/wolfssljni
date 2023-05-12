@@ -641,9 +641,9 @@ public class WolfSSLCertificate {
 
             /* cache altNames collection for later use */
             this.altNames = Collections.unmodifiableCollection(names);
-        }
 
-        return this.altNames;
+            return this.altNames;
+        }
     }
 
     /**
