@@ -43,6 +43,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 import static org.junit.Assert.assertNotNull;
@@ -144,6 +145,47 @@ public class WolfSSLTrustX509Test {
 
         }
         pass("\t\t... passed");
+    }
+
+    @Test
+    public void testUseBeforeInit()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+        TrustManagerFactory tmf;
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+
+        System.out.print("\tTesting use before init()");
+
+        if (tf.isAndroid()) {
+            /* @TODO finding that BKS has different order of certs */
+            pass("\t... skipped");
+            return;
+        }
+
+        tmf = TrustManagerFactory.getInstance("SunX509", provider);
+        if (tmf == null) {
+            error("\t... failed");
+            fail("failed to get instance of trustmanager factory");
+            return;
+        }
+
+        tm = tmf.getTrustManagers();
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to get instance of trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas != null) {
+            error("\t... failed");
+            fail("found a CA even though not initialized");
+            return;
+        }
+
+        pass("\t... passed");
     }
 
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with server.jks */
