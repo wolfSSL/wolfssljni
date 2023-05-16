@@ -460,6 +460,12 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getAcceptedIssuers()");
 
+        if (store == null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                    "Trust Manager was not initialized");
+            return new X509Certificate[0];
+        }
+
         try {
             List<X509Certificate> CAs = new ArrayList<X509Certificate>();
             /* Store the alias of all CAs */
