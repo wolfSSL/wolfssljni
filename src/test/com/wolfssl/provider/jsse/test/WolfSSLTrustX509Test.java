@@ -179,10 +179,15 @@ public class WolfSSLTrustX509Test {
 
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
-        if (cas != null) {
+        if (cas == null) {
             error("\t... failed");
-            fail("found a CA even though not initialized");
+            fail("get accepted issuers returned null");
             return;
+        }
+
+        if (cas.length != 0) {
+            error("\t... failed");
+            fail("cas should be empty");
         }
 
         pass("\t... passed");

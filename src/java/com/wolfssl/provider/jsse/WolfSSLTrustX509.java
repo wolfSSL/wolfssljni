@@ -463,7 +463,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         if (store == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                     "Trust Manager was not initialized");
-            return null;
+            return new X509Certificate[0];
         }
 
         try {
