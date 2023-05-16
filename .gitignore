@@ -29,3 +29,7 @@ IDE/WIN/DLL Release FIPS
 # RPM package files
 rpm/spec
 *.rpm
+
+# infer RacerD
+infer-out/
+

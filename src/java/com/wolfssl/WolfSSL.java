@@ -430,8 +430,8 @@ public class WolfSSL {
 
         int fipsLoaded = 0;
 
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("win")) {
+        String osName = System.getProperty("os.name");
+        if (osName != null && osName.toLowerCase().contains("win")) {
             try {
                 /* Default wolfCrypt FIPS library on Windows is compiled
                  * as "wolfssl-fips" by Visual Studio solution */

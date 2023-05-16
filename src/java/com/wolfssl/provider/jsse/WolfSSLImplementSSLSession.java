@@ -526,7 +526,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * Sets the native WOLFSSL_SESSION timeout
      * @param in timeout in seconds
      */
-    protected void setNativeTimeout(long in) {
+    protected synchronized void setNativeTimeout(long in) {
         ssl.setSessTimeout(in);
     }
 

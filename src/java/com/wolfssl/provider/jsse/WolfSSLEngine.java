@@ -1065,7 +1065,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public boolean getUseClientMode() {
+    public synchronized boolean getUseClientMode() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getUseClientMode()");
         return EngineHelper.getUseClientMode();
@@ -1079,7 +1079,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public boolean getNeedClientAuth() {
+    public synchronized boolean getNeedClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getNeedClientAuth()");
         return EngineHelper.getNeedClientAuth();
@@ -1093,7 +1093,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public boolean getWantClientAuth() {
+    public synchronized boolean getWantClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getWantClientAuth()");
         return EngineHelper.getWantClientAuth();
@@ -1107,7 +1107,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public boolean getEnableSessionCreation() {
+    public synchronized boolean getEnableSessionCreation() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnableSessionCreation()");
         return EngineHelper.getEnableSessionCreation();

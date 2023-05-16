@@ -690,32 +690,33 @@ public class WolfSSLEngineHelper {
         this.session = this.authStore.getSession(ssl, this.port, this.hostname,
             this.clientMode);
 
-        if (this.session != null && this.clientMode) {
-            this.session.setSessionContext(authStore.getClientContext());
-            this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
-        }
-        else {
-            this.session.setSessionContext(authStore.getServerContext());
-            this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
-        }
+        if (this.session != null) {
+            if (this.clientMode) {
+                this.session.setSessionContext(authStore.getClientContext());
+                this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
+            }
+            else {
+                this.session.setSessionContext(authStore.getServerContext());
+                this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+            }
 
-        if (this.session != null && this.sessionCreation == false &&
-                !this.session.fromTable) {
-            /* new handshakes can not be made in this case. */
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session creation not allowed");
+            if (this.sessionCreation == false && !this.session.fromTable) {
+                /* new handshakes can not be made in this case. */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "session creation not allowed");
 
-            /* send CloseNotify */
-            /* TODO: SunJSSE sends a Handshake Failure alert instead here */
-            this.ssl.shutdownSSL();
+                /* send CloseNotify */
+                /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+                this.ssl.shutdownSSL();
 
-            throw new SSLHandshakeException("Session creation not allowed");
-        }
+                throw new SSLHandshakeException("Session creation not allowed");
+            }
 
-        if (this.session != null && this.sessionCreation) {
-            /* can only add new sessions to the resumption table if session
-             * creation is allowed */
-            this.authStore.addSession(this.session);
+            if (this.sessionCreation) {
+                /* can only add new sessions to the resumption table if session
+                 * creation is allowed */
+                this.authStore.addSession(this.session);
+            }
         }
 
         this.setLocalParams();

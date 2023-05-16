@@ -97,7 +97,7 @@ public class WolfSSLContext {
 
     /* ------------------- private/protected methods -------------------- */
 
-    long getContextPtr()
+    protected synchronized long getContextPtr()
     {
         if (this.active == false) {
             return 0;
@@ -310,6 +310,19 @@ public class WolfSSLContext {
         return ret;
     }
 
+    /**
+     * Verifies that the current WolfSSLContext object is active.
+     *
+     * @throws IllegalStateException if object has been freed
+     */
+    private synchronized void confirmObjectIsActive()
+        throws IllegalStateException {
+
+        if (this.active == false) {
+            throw new IllegalStateException(
+                "WolfSSLContext object has been freed");
+        }
+    }
 
     /* ------------------ native method declarations -------------------- */
 
@@ -392,8 +405,7 @@ public class WolfSSLContext {
     public int useCertificateFile(String file, int format)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useCertificateFile(getContextPtr(), file, format);
     }
@@ -426,8 +438,7 @@ public class WolfSSLContext {
     public int usePrivateKeyFile(String file, int format)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return usePrivateKeyFile(getContextPtr(), file, format);
     }
@@ -478,8 +489,7 @@ public class WolfSSLContext {
     public int loadVerifyLocations(String file, String path)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return loadVerifyLocations(getContextPtr(), file, path);
     }
@@ -507,8 +517,7 @@ public class WolfSSLContext {
     public int useCertificateChainFile(String file)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useCertificateChainFile(getContextPtr(), file);
     }
@@ -551,8 +560,7 @@ public class WolfSSLContext {
     public void setVerify(int mode, WolfSSLVerifyCallback callback)
         throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         setVerify(getContextPtr(), mode, callback);
     }
@@ -569,8 +577,7 @@ public class WolfSSLContext {
     public long setOptions(long op)
             throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return setOptions(getContextPtr(), op);
     }
@@ -586,8 +593,7 @@ public class WolfSSLContext {
     public long getOptions()
             throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return getOptions(getContextPtr());
     }
@@ -602,8 +608,7 @@ public class WolfSSLContext {
      */
     public synchronized void free() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* free native resources */
         freeContext(this.sslCtxPtr);
@@ -641,8 +646,7 @@ public class WolfSSLContext {
     public int memsaveCertCache(byte[] mem, int sz, int[] used)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return memsaveCertCache(getContextPtr(), mem, sz, used);
     }
@@ -675,8 +679,7 @@ public class WolfSSLContext {
     public int memrestoreCertCache(byte[] mem, int sz)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return memrestoreCertCache(getContextPtr(), mem, sz);
     }
@@ -698,8 +701,7 @@ public class WolfSSLContext {
     public int getCertCacheMemsize()
         throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return getCertCacheMemsize(getContextPtr());
     }
@@ -715,8 +717,8 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      */
     public long setCacheSize(long sz) throws IllegalStateException {
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+
+        confirmObjectIsActive();
 
         return setCacheSize(getContextPtr(), sz);
     }
@@ -730,8 +732,8 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      */
     public long getCacheSize() throws IllegalStateException {
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+
+        confirmObjectIsActive();
 
         return getCacheSize(getContextPtr());
     }
@@ -765,8 +767,7 @@ public class WolfSSLContext {
     public int setCipherList(String list)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return setCipherList(getContextPtr(), list);
     }
@@ -811,8 +812,7 @@ public class WolfSSLContext {
     public int loadVerifyBuffer(byte[] in, long sz, int format)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return loadVerifyBuffer(getContextPtr(), in, sz, format);
     }
@@ -848,8 +848,7 @@ public class WolfSSLContext {
     public int useCertificateBuffer(byte[] in, long sz, int format)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useCertificateBuffer(getContextPtr(), in, sz, format);
     }
@@ -888,8 +887,7 @@ public class WolfSSLContext {
     public int usePrivateKeyBuffer(byte[] in, long sz, int format)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return usePrivateKeyBuffer(getContextPtr(), in, sz, format);
     }
@@ -928,8 +926,7 @@ public class WolfSSLContext {
     public int useCertificateChainBuffer(byte[] in, long sz)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useCertificateChainBuffer(getContextPtr(), in, sz);
     }
@@ -972,8 +969,7 @@ public class WolfSSLContext {
     public int useCertificateChainBufferFormat(byte[] in, long sz, int format)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useCertificateChainBufferFormat(getContextPtr(), in, sz, format);
     }
@@ -989,8 +985,7 @@ public class WolfSSLContext {
      */
     public int setGroupMessages() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return setGroupMessages(getContextPtr());
     }
@@ -1018,8 +1013,7 @@ public class WolfSSLContext {
     public void setIORecv(WolfSSLIORecvCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set user I/O recv */
         internRecvCb = callback;
@@ -1051,8 +1045,7 @@ public class WolfSSLContext {
     public void setIOSend(WolfSSLIOSendCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set user I/O send */
         internSendCb = callback;
@@ -1084,8 +1077,7 @@ public class WolfSSLContext {
     public void setGenCookie(WolfSSLGenCookieCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set DTLS cookie generation callback */
         internCookieCb = callback;
@@ -1119,8 +1111,7 @@ public class WolfSSLContext {
      */
     public int enableCRL(int options) throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return enableCRL(getContextPtr(), options);
     }
@@ -1144,8 +1135,7 @@ public class WolfSSLContext {
      */
     public int disableCRL() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return disableCRL(getContextPtr());
     }
@@ -1192,8 +1182,7 @@ public class WolfSSLContext {
     public int loadCRL(String path, int type, int monitor)
         throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return loadCRL(getContextPtr(), path, type, monitor);
     }
@@ -1218,8 +1207,7 @@ public class WolfSSLContext {
     public int setCRLCb(WolfSSLMissingCRLCallback cb)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return setCRLCb(getContextPtr(), cb);
     }
@@ -1249,8 +1237,7 @@ public class WolfSSLContext {
     public int enableOCSP(long options)
         throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return enableOCSP(getContextPtr(), options);
     }
@@ -1265,8 +1252,7 @@ public class WolfSSLContext {
      */
     public int disableOCSP() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return disableOCSP(getContextPtr());
     }
@@ -1291,8 +1277,7 @@ public class WolfSSLContext {
     public int setOCSPOverrideUrl(String url)
         throws IllegalStateException, NullPointerException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return setOCSPOverrideUrl(getContextPtr(), url);
     }
@@ -1325,8 +1310,7 @@ public class WolfSSLContext {
     public void setMacEncryptCb(WolfSSLMacEncryptCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set MAC encrypt callback */
         internMacEncryptCb = callback;
@@ -1363,8 +1347,7 @@ public class WolfSSLContext {
     public void setDecryptVerifyCb(WolfSSLDecryptVerifyCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set decrypt/verify callback */
         internDecryptVerifyCb = callback;
@@ -1398,8 +1381,7 @@ public class WolfSSLContext {
     public void setEccSignCb(WolfSSLEccSignCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set ecc sign callback */
         internEccSignCb = callback;
@@ -1433,8 +1415,7 @@ public class WolfSSLContext {
     public void setEccVerifyCb(WolfSSLEccVerifyCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set ecc verify callback */
         internEccVerifyCb = callback;
@@ -1483,8 +1464,7 @@ public class WolfSSLContext {
     public void setEccSharedSecretCb(WolfSSLEccSharedSecretCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set ecc shared secret callback */
         internEccSharedSecretCb = callback;
@@ -1518,8 +1498,7 @@ public class WolfSSLContext {
     public void setRsaSignCb(WolfSSLRsaSignCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set rsa sign callback */
         internRsaSignCb = callback;
@@ -1553,8 +1532,7 @@ public class WolfSSLContext {
     public void setRsaVerifyCb(WolfSSLRsaVerifyCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set rsa verify callback */
         internRsaVerifyCb = callback;
@@ -1588,8 +1566,7 @@ public class WolfSSLContext {
     public void setRsaEncCb(WolfSSLRsaEncCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set rsa public encrypt callback */
         internRsaEncCb = callback;
@@ -1622,8 +1599,7 @@ public class WolfSSLContext {
     public void setRsaDecCb(WolfSSLRsaDecCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set rsa private decrypt callback */
         internRsaDecCb = callback;
@@ -1660,8 +1636,7 @@ public class WolfSSLContext {
     public void setPskClientCb(WolfSSLPskClientCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set PSK client callback */
         internPskClientCb = callback;
@@ -1697,8 +1672,7 @@ public class WolfSSLContext {
     public void setPskServerCb(WolfSSLPskServerCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         /* set PSK server callback */
         internPskServerCb = callback;
@@ -1725,8 +1699,7 @@ public class WolfSSLContext {
      */
     public int usePskIdentityHint(String hint) {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return usePskIdentityHint(getContextPtr(), hint);
     }
@@ -1744,8 +1717,7 @@ public class WolfSSLContext {
      */
     public int useSecureRenegotiation() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
         return useSecureRenegotiation(getContextPtr());
     }
@@ -1754,13 +1726,11 @@ public class WolfSSLContext {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            try {
-                this.free();
-            } catch (IllegalStateException e) {
-                /* already freed */
-            }
-            this.active = false;
+        try {
+            /* free() checks and resets this.active */
+            this.free();
+        } catch (IllegalStateException e) {
+            /* already freed */
         }
         super.finalize();
     }

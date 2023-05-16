@@ -70,7 +70,7 @@ public class WolfSSLCertManager {
      *
      * @return WolfSSL.SSL_SUCESS on success, negative on error
      */
-    public int CertManagerLoadCA(String f, String d) {
+    public synchronized int CertManagerLoadCA(String f, String d) {
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
@@ -88,7 +88,9 @@ public class WolfSSLCertManager {
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error
      */
-    public int CertManagerLoadCABuffer(byte[] in, long sz, int format) {
+    public synchronized int CertManagerLoadCABuffer(
+        byte[] in, long sz, int format) {
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
@@ -103,7 +105,9 @@ public class WolfSSLCertManager {
      * @return WolfSSL.SSL_SUCCESS if at least one cert was loaded
      *         successfully, otherwise WolfSSL.SSL_FAILURE.
      */
-    public int CertManagerLoadCAKeyStore(KeyStore ks) throws WolfSSLException {
+    public synchronized int CertManagerLoadCAKeyStore(KeyStore ks)
+        throws WolfSSLException {
+
         int ret = 0;
         int loadedCerts = 0;
 
@@ -156,7 +160,7 @@ public class WolfSSLCertManager {
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error.
      */
-    public int CertManagerUnloadCAs() {
+    public synchronized int CertManagerUnloadCAs() {
         if (this.active == false) {
             throw new IllegalStateException("Object has been freed");
         }
@@ -176,7 +180,9 @@ public class WolfSSLCertManager {
      * @return WolfSSL.SSL_SUCCESS on successful verification, otherwise
      *         negative on error.
      */
-    public int CertManagerVerifyBuffer(byte[] in, long sz, int format) {
+    public synchronized int CertManagerVerifyBuffer(
+        byte[] in, long sz, int format) {
+
         if (this.active == false)
             throw new IllegalStateException("Object has been freed");
 
@@ -206,13 +212,11 @@ public class WolfSSLCertManager {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.active == true) {
-            try {
-                this.free();
-            } catch (IllegalStateException e) {
-                /* already freed */
-            }
-            this.active = false;
+        try {
+            /* checks active state in this.free() */
+            this.free();
+        } catch (IllegalStateException e) {
+            /* already freed */
         }
         super.finalize();
     }
