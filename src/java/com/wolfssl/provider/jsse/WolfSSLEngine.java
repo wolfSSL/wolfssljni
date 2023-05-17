@@ -1157,7 +1157,8 @@ public class WolfSSLEngine extends SSLEngine {
         this.toSend = tmp;
 
         if (extraDebugEnabled == true) {
-            printHex(in, sz, "CB Write");
+            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                                "CB Write", in, sz);
         }
 
         return sz;
@@ -1196,7 +1197,8 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (extraDebugEnabled == true) {
-            printHex(toRead, max, "CB Read");
+            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                                "CB Read", toRead, max);
         }
 
         return max;
@@ -1213,27 +1215,6 @@ public class WolfSSLEngine extends SSLEngine {
         System.arraycopy(in, 0, combined, toReadSz, in.length);
         toRead = combined;
         toReadSz += in.length;
-    }
-
-    /**
-     * Helper function, print byte[] as hex to stdout
-     *
-     * @param in input array to be printed as hex
-     * @param sz number of bytes to print from input array
-     * @param label label String to previx output with
-     */
-    protected void printHex(byte[] in, int sz, String label) {
-        int i = 0, j = 0;
-
-        System.out.print(label + " [" + sz + "]: ");
-        for (i = 0; i < sz; i++) {
-            if ((i % 8) == 0) {
-                System.out.printf("\n%06X", j * 8);
-                j++;
-            }
-            System.out.printf(" %02X ", in[i]);
-        }
-        System.out.println("");
     }
 
     /**
