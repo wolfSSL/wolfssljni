@@ -184,10 +184,9 @@ public class WolfSSLEngine extends SSLEngine {
             recvCb = new RecvCB();
         }
 
+        /* will throw WolfSSLException if issue creating WOLFSSL */
         ssl = new WolfSSLSession(ctx);
-        if (ssl == null) {
-            throw new WolfSSLException("Issue creating WOLFSSL structure");
-        }
+
         setCallbacks();
         ssl.setIOReadCtx(this);
         ssl.setIOWriteCtx(this);
@@ -203,7 +202,7 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * Returns size of data copied.
      */
-    private synchronized int CopyOutPacket(ByteBuffer out, Status status) {
+    private int CopyOutPacket(ByteBuffer out) {
         int sendSz = 0;
 
         synchronized (toSendLock) {
@@ -258,14 +257,13 @@ public class WolfSSLEngine extends SSLEngine {
     private synchronized int ClosingConnection() {
         int ret;
 
-        if (this.getUseClientMode() == true) {
+        if (this.getUseClientMode()) {
             EngineHelper.saveSession();
         }
 
         /* get current close_notify state */
         UpdateCloseNotifyStatus();
-        if (this.closeNotifySent == true &&
-            this.closeNotifyReceived == true) {
+        if (this.closeNotifySent && this.closeNotifyReceived) {
             return WolfSSL.SSL_SUCCESS;
         }
 
@@ -286,7 +284,7 @@ public class WolfSSLEngine extends SSLEngine {
         int ret = WolfSSL.SSL_SUCCESS;
 
         try {
-            if (this.getUseClientMode() == true) {
+            if (this.getUseClientMode()) {
                 synchronized (ioLock) {
                     ret = this.ssl.connect();
                 }
@@ -316,19 +314,17 @@ public class WolfSSLEngine extends SSLEngine {
      * (SSLSession.getApplicationBufferSize()).
      *
      * Return bytes sent on success, negative on error */
-    private synchronized int SendAppData(ByteBuffer[] in, int ofst, int len,
-            ByteBuffer out) throws SSLException {
+    private synchronized int SendAppData(ByteBuffer[] in, int ofst, int len) {
 
         int i = 0;
         int ret = 0;
         int totalIn = 0;
         int sendSz = 0;
         int inputLeft = 0;
-        int inLimit = 0;
         ByteBuffer dataBuf;
         byte[] dataArr;
-        int pos[] = new int[len];   /* in[] positions */
-        int limit[] = new int[len]; /* in[] limits */
+        int[] pos = new int[len];   /* in[] positions */
+        int[] limit = new int[len]; /* in[] limits */
 
         /* get total input data size, store input array positions */
         for (i = ofst; i < ofst + len; i++) {
@@ -401,12 +397,12 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException("SSLEngine.wrap() bad arguments");
         }
 
-        if (this.clientModeSet == false) {
+        if (!this.clientModeSet) {
             throw new IllegalStateException(
                     "setUseClientMode() has not been called on this SSLEngine");
         }
 
-        if (extraDebugEnabled == true) {
+        if (extraDebugEnabled) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ entering wrap() ] ===================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -466,33 +462,33 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         /* Copy buffered data to be sent into output buffer */
-        produced = CopyOutPacket(out, status);
+        produced = CopyOutPacket(out);
 
         /* check if closing down connection */
         if (produced >= 0 && !outBoundOpen) {
             status = SSLEngineResult.Status.CLOSED;
             ClosingConnection();
-            produced += CopyOutPacket(out, status);
+            produced += CopyOutPacket(out);
         }
         else if (produced == 0) {
             /* continue handshake or application data */
-            if (this.handshakeFinished == false) {
+            if (!this.handshakeFinished) {
                 ret = DoHandshake();
             }
             else {
-                ret = SendAppData(in, ofst, len, out);
+                ret = SendAppData(in, ofst, len);
                 if (ret > 0) {
                     consumed += ret;
                 }
             }
 
             /* copy any produced data into output buffer */
-            produced += CopyOutPacket(out, status);
+            produced += CopyOutPacket(out);
         }
 
         SetHandshakeStatus(ret);
 
-        if (extraDebugEnabled == true) {
+        if (extraDebugEnabled) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ exiting wrap() ] ===================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -577,15 +573,14 @@ public class WolfSSLEngine extends SSLEngine {
      * Receive application data using ssl.read() from in buffer, placing
      * processed/decrypted data into out[].
      *
-     * @param in input data encrypted/encapsulated in SSL/TLS records
      * @param out output ByteBuffer arrays, to hold processed/decoded plaintext
      * @param ofst offset into out[] array to begin writing data
      * @param length length of out[] array
      *
      * @return number of plaintext bytes received, or negative on error.
      */
-    private synchronized int RecvAppData(ByteBuffer in, ByteBuffer[] out,
-            int ofst, int length) throws SSLException {
+    private synchronized int RecvAppData(ByteBuffer[] out, int ofst, int length)
+        throws SSLException {
 
         int i, sz, bufSpace;
         int totalRead = 0;
@@ -676,7 +671,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
-        int i, ret = 0, sz = 0, idx = 0, pos;
+        int i, ret = 0, sz = 0;
         int consumed = 0;
         int produced = 0;
         byte[] tmp;
@@ -689,12 +684,12 @@ public class WolfSSLEngine extends SSLEngine {
                 "SSLEngine.unwrap() bad arguments");
         }
 
-        if (this.clientModeSet == false) {
+        if (!this.clientModeSet) {
             throw new IllegalStateException(
                     "setUseClientMode() has not been called on this SSLEngine");
         }
 
-        if (extraDebugEnabled == true) {
+        if (extraDebugEnabled) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ entering unwrap() ] =================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -749,7 +744,6 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         sz = in.remaining();
-        pos = in.position();
         if (sz > 0) {
             /* add new encrypted input to read buffer for wolfSSL calls */
             tmp = new byte[sz];
@@ -775,7 +769,7 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "receiving application data");
-                ret = RecvAppData(in, out, ofst, length);
+                ret = RecvAppData(out, ofst, length);
                 if (ret > 0) {
                     produced += ret;
 
@@ -1017,7 +1011,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public String[] getEnabledProtocols() {
+    public synchronized String[] getEnabledProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
         return EngineHelper.getProtocols();
@@ -1245,27 +1239,6 @@ public class WolfSSLEngine extends SSLEngine {
             this.toRead = combined;
             this.toReadSz += in.length;
         }
-    }
-
-    /**
-     * Removes the last 'sz' bytes from the internal read buffer.
-     * Used to back out application data not yet ready for processing.
-     */
-    private synchronized void removeFromRead(int sz) {
-        byte[] reduced;
-
-        synchronized (toReadLock) {
-            if (sz > this.toReadSz || this.toRead == null || sz == 0) {
-                return;
-            }
-
-            reduced = new byte[this.toReadSz - sz];
-            System.arraycopy(this.toRead, 0, reduced, 0, this.toReadSz - sz);
-            this.toRead = reduced;
-            this.toReadSz = toReadSz - sz;
-        }
-
-        return;
     }
 
     private class SendCB implements WolfSSLIOSendCallback {

@@ -30,17 +30,12 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
 
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateEncodingException;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * wolfSSL implementation of X509TrustManager
@@ -145,7 +140,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
             retChain = chain;
         }
 
-        return chain;
+        return retChain;
     }
 
     /**
@@ -165,7 +160,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         KeyStore ks) throws CertificateException {
 
         int i = 0;
-        int ret = WolfSSL.SSL_FAILURE;
+        int ret;
         int verifiedRootIdx = -1;
         WolfSSLCertManager cm = null;
         List<X509Certificate> possibleCerts = new ArrayList<X509Certificate>();
@@ -299,7 +294,7 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         X509Certificate[] certs, String type, boolean returnChain)
         throws CertificateException {
 
-        int ret = WolfSSL.SSL_FAILURE;
+        int ret;
         WolfSSLCertManager cm = null;
         X509Certificate[] sortedCerts = null;
 
@@ -322,6 +317,10 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         /* load trusted certs from KeyStore */
         try {
             ret = cm.CertManagerLoadCAKeyStore(this.store);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new CertificateException(
+                    "Failed to load trusted certs into WolfSSLCertManager");
+            }
         } catch (WolfSSLException e) {
             cm.free();
             throw new CertificateException(

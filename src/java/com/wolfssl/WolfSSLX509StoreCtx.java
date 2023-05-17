@@ -20,8 +20,6 @@
  */
 package com.wolfssl;
 
-import com.wolfssl.WolfSSLCertificate;
-
 /**
  * WolfSSLX509StoreCtx class
  *

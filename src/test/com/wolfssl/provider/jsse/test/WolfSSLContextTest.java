@@ -57,10 +57,10 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 public class WolfSSLContextTest {
 
     private static WolfSSLTestFactory tf;
-    public final static char[] jksPass = "wolfSSL test".toCharArray();
-    private final static String ctxProvider = "wolfJSSE";
+    private static final char[] jksPass = "wolfSSL test".toCharArray();
+    private static final String ctxProvider = "wolfJSSE";
 
-    private static String allProtocols[] = {
+    private static String[] allProtocols = {
         "TLSV1",
         "TLSV1.1",
         "TLSV1.2",

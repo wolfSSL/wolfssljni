@@ -47,8 +47,6 @@ import java.security.Provider;
 import java.security.Security;
 import java.security.cert.CertificateException;
 
-import javax.net.ssl.SSLEngine;
-
 public class MainActivity extends AppCompatActivity {
 
     private View.OnClickListener buttonListener = new View.OnClickListener() {
@@ -66,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        int permission;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -76,10 +73,9 @@ public class MainActivity extends AppCompatActivity {
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText("wolfSSL JNI Android Studio Example App");
 
-
-        if (Environment.isExternalStorageManager()) {
-        } else {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+        if (!Environment.isExternalStorageManager()) {
+            Intent intent = new Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
             Uri uri = Uri.fromParts("package", getPackageName(), null);
             intent.setData(uri);
             startActivity(intent);
@@ -87,12 +83,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void testLoadCert(TextView tv)
-            throws NoSuchProviderException, NoSuchAlgorithmException, KeyStoreException, IOException, CertificateException, WolfSSLException {
-        SSLEngine e;
+            throws NoSuchProviderException, NoSuchAlgorithmException,
+                   KeyStoreException, IOException, CertificateException,
+                   WolfSSLException {
         String file = "/sdcard/examples/provider/all.bks";
         WolfSSLX509 x509;
         KeyStore ks;
-
 
         WolfSSL.loadLibrary();
 

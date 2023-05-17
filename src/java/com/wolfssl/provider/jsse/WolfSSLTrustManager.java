@@ -80,7 +80,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String vmVendor = System.getProperty("java.vm.vendor");
             String javaHome = System.getenv("JAVA_HOME");
             String androidRoot = System.getenv("ANDROID_ROOT");
-            char passAr[] = null;
+            char[] passAr = null;
             InputStream stream = null;
             boolean systemCertsFound = false;
             int aliasCnt = 0;
@@ -101,7 +101,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 /* We default to use a JKS KeyStore type if not set at the
                  * system level, except on Android we use BKS */
                 try {
-                    if (type != null && type != "") {
+                    if (type != null && !type.trim().isEmpty()) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "javax.net.ssl.trustStoreType system property " +
                             "set: " + type);

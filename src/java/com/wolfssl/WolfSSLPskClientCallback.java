@@ -21,8 +21,6 @@
 
 package com.wolfssl;
 
-import java.nio.ByteBuffer;
-
 /**
  * wolfSSL PSK Client Callback Interface.
  * This interface specifies how applications should implement the PSK client

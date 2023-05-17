@@ -457,7 +457,8 @@ public class WolfSSLX509 extends X509Certificate {
             "entered toString()");
 
         if (this.cert == null) {
-            return null;
+            /* return empty string instead of null */
+            return "";
         }
         return this.cert.toString();
     }
@@ -486,7 +487,7 @@ public class WolfSSLX509 extends X509Certificate {
             return null;
         }
         String type  = this.cert.getPubkeyType();
-        byte der[]   = this.cert.getPubkey();
+        byte[] der   = this.cert.getPubkey();
 
         try {
             return new WolfSSLPubKey(der, type, "X.509");
@@ -569,7 +570,7 @@ public class WolfSSLX509 extends X509Certificate {
 
     @SuppressWarnings("removal")
     @Override
-    public void finalize() throws Throwable {
+    protected void finalize() throws Throwable {
         try {
             this.free();
         } finally {

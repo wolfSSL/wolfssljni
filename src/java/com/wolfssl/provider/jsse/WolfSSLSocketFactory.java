@@ -30,9 +30,7 @@ import java.net.UnknownHostException;
 import javax.net.ssl.SSLSocketFactory;
 
 import com.wolfssl.WolfSSL;
-import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
-
 
 /**
  * wolfSSL implementation of SSLSocketFactory
