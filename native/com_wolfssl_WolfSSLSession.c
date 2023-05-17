@@ -3978,7 +3978,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jclass     sslClass;              /* WolfSSLSession class */
     jmethodID  recvCbMethodId;        /* internalIORecvCallback ID */
     jbyteArray inData;
@@ -4015,7 +4015,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* get stored WolfSSLSession jobject */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)(uintptr_t)ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
@@ -4131,7 +4131,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jclass     sslClass;              /* WolfSSLSession class */
     jmethodID  sendCbMethodId;        /* internalIOSendCallback ID */
     jbyteArray outData;               /* jbyteArray for data to send */
@@ -4168,7 +4168,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* get stored WolfSSLSession jobject */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)(uintptr_t)ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "

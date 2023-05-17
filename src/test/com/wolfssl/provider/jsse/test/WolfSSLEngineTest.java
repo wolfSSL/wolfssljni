@@ -24,24 +24,36 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.security.KeyStore;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CountDownLatch;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -540,44 +552,403 @@ public class WolfSSLEngineTest {
         pass("\t... passed");
     }
 
+    /**
+     * More extended threading test of SSLEngine class.
+     * Launches a simple multi-threaded SSLSocket-based server, which
+     * creates a new thread for each incoming client thread. Then, launches
+     * "numThreads" concurrent SSLEngine clients which connect to that server.
+     * SSLEngine clients use SocketChannel class to communicate with server.
+     *
+     * CountDownLatch is used with a 10 second timeout on latch.await(), so
+     * that this test will time out and return with error instead of
+     * infinitely block if SSLEngine threads end up in a bad state or
+     * deadlock and never return.
+     */
+    @Test
+    public void testExtendedThreadingUse()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               InterruptedException {
+
+        /* Number of SSLEngine client threads to start up */
+        int numThreads = 50;
+
+        /* Port of internal HTTPS server */
+        final int svrPort = 11119;
+
+        /* Create ExecutorService to launch client SSLEngine threads */
+        ExecutorService service = Executors.newFixedThreadPool(numThreads);
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+        final SSLContext localCtx = tf.createSSLContext("TLS", engineProvider);
+
+        /* Used to detect timeout of CountDownLatch, don't run infinitely
+         * if SSLEngine threads are stalled out or deadlocked */
+        boolean returnWithoutTimeout = true;
+
+        /* Keep track of failure and success count */
+        final int[] failures = new int[1];
+        final int[] success = new int[1];
+        failures[0] = 0;
+        success[0] = 0;
+
+        System.out.print("\tTesting ExtendedThreadingUse");
+
+        /* Start up simple TLS test server */
+        InternalMultiThreadedSSLSocketServer server =
+            new InternalMultiThreadedSSLSocketServer(svrPort);
+        server.start();
+
+        /* Sleep 1 second to allow time for server thread to start up */
+        Thread.sleep(1000);
+
+        /* Start up client threads */
+        for (int i = 0; i < numThreads; i++) {
+            service.submit(new Runnable() {
+                @Override public void run() {
+                    SSLEngineClient client =
+                        new SSLEngineClient(localCtx, "localhost", svrPort);
+                    try {
+                        client.connect();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        failures[0] = failures[0] + 1;
+                    }
+                    success[0] = success[0] + 1;
+
+                    latch.countDown();
+                }
+            });
+        }
+
+        /* Wait for all client threads to finish, else time out */
+        returnWithoutTimeout = latch.await(10, TimeUnit.SECONDS);
+        server.join(1000);
+
+        /* check failure count and success count against thread count */
+        if (failures[0] == 0 && success[0] == numThreads) {
+            pass("\t... passed");
+        } else {
+            if (returnWithoutTimeout == true) {
+                fail("SSLEngine threading error");
+            } else {
+                fail("SSLEngine threading error, threads timed out");
+            }
+        }
+    }
+
+    /**
+     * Internal protected class used by testSSLEngineExtendedThreadingUse.
+     */
+    protected class SSLEngineClient
+    {
+        /* Server host and port to connect SSLEngine client to */
+        private int serverPort;
+        private String host;
+
+        /* SSLContext, created beforehand and passed via constructor */
+        private SSLContext ctx;
+
+        public SSLEngineClient(SSLContext ctx, String host, int port) {
+            this.ctx = ctx;
+            this.host = host;
+            this.serverPort = port;
+        }
+
+        /**
+         * After creating SSLEngineClient class, call connect() to
+         * connect client to server and send/receive simple test data.
+         */
+        public void connect() throws Exception {
+
+            SSLEngine engine = null;
+            SSLSession sess = null;
+            SSLEngineResult result;
+            HandshakeStatus hsStatus = null;
+
+            int appBuffSz = 0;
+            int packBuffSz = 0;
+            ByteBuffer appData = null;
+            ByteBuffer netData = null;
+            ByteBuffer peerAppData = null;
+            ByteBuffer peerNetData = null;
+
+            SocketChannel sock = null;
+
+            /* Create SSLEngine, set as client */
+            engine = this.ctx.createSSLEngine(host, serverPort);
+            engine.setUseClientMode(true);
+
+            /* Set up ByteBuffers for SSLEngine use */
+            sess = engine.getSession();
+            appBuffSz = sess.getApplicationBufferSize();
+            packBuffSz = sess.getPacketBufferSize();
+            appData = ByteBuffer.allocate(appBuffSz);
+            netData = ByteBuffer.allocate(packBuffSz);
+            peerAppData = ByteBuffer.allocate(appBuffSz);
+            peerNetData = ByteBuffer.allocate(packBuffSz);
+
+            /* Create SocketChannel for comm with peer, blocking I/O */
+            sock = SocketChannel.open();
+            sock.configureBlocking(true);
+            sock.connect(new InetSocketAddress(host, serverPort));
+
+            /* Do TLS handshake */
+            engine.beginHandshake();
+
+            hsStatus = engine.getHandshakeStatus();
+            while (hsStatus != SSLEngineResult.HandshakeStatus.FINISHED &&
+                  hsStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+                switch (hsStatus) {
+                    case NEED_WRAP:
+                        netData.clear();
+                        try {
+                            result = engine.wrap(appData, netData);
+                            hsStatus = engine.getHandshakeStatus();
+                        } catch (Exception e) {
+                            engine.closeOutbound();
+                            throw e;
+                        }
+                        switch (result.getStatus()) {
+                            case OK:
+                            case CLOSED:
+                                netData.flip();
+                                while (netData.hasRemaining()) {
+                                    sock.write(netData);
+                                }
+                                netData.compact();
+                                break;
+                            case BUFFER_OVERFLOW:
+                                /* not handling BUFFER_OVERFLOW for simple
+                                 * test case here. Shouldn't happen. */
+                                throw new Exception(
+                                    "BUFFER_OVERFLOW during engine.wrap()");
+                            case BUFFER_UNDERFLOW:
+                                /* not handling BUFFER_UNDERFLOW for simple
+                                 * test case here. Shouldn't happen. */
+                                throw new Exception(
+                                    "BUFFER_UNDERFLOW during engine.wrap()");
+                            default:
+                                throw new Exception(
+                                    "Unknown HandshakeStatus");
+                        }
+                        break;
+                    case NEED_UNWRAP:
+                        if (sock.read(peerNetData) < 0) {
+                            engine.closeInbound();
+                            engine.closeOutbound();
+                        }
+                        else {
+                            peerNetData.flip();
+                            try {
+                                result = engine.unwrap(peerNetData, peerAppData);
+                                peerNetData.compact();
+                                hsStatus = engine.getHandshakeStatus();
+                            } catch (Exception e) {
+                                engine.closeOutbound();
+                                throw e;
+                            }
+                            switch (result.getStatus()) {
+                                case OK:
+                                    break;
+                                case CLOSED:
+                                    engine.closeOutbound();
+                                    break;
+                                case BUFFER_UNDERFLOW:
+                                    /* need more data, try to read again */
+                                    break;
+                                case BUFFER_OVERFLOW:
+                                    /* not handling BUFFER_OVERFLOW for simple
+                                     * test case here. Shouldn't happen. */
+                                    throw new Exception(
+                                        "BUFFER_OVERFLOW during engine.unwrap");
+                                default:
+                                    throw new Exception(
+                                        "Unknown HandshakeStatus");
+                            }
+                        }
+                        break;
+                    case FINISHED:
+                        break;
+                    case NOT_HANDSHAKING:
+                        break;
+                    default:
+                        throw new Exception("Invalid HandshakeStatus");
+                }
+                hsStatus = engine.getHandshakeStatus();
+            }
+
+            /* write app data */
+            appData.clear();
+            appData.put("Hello from wolfJSSE".getBytes());
+            appData.flip();
+
+            while (appData.hasRemaining()) {
+                netData.clear();
+                result = engine.wrap(appData, netData);
+                switch (result.getStatus()) {
+                    case OK:
+                        netData.flip();
+                        while (netData.hasRemaining()) {
+                            int sent = sock.write(netData);
+                        }
+                        break;
+                    case CLOSED:
+                        engine.closeOutbound();
+                        engine.closeInbound();
+                        break;
+                    case BUFFER_OVERFLOW:
+                        throw new Exception(
+                            "BUFFER_OVERFLOW during engine.wrap()");
+                    case BUFFER_UNDERFLOW:
+                        throw new Exception(
+                            "BUFFER_UNDERFLOW during engine.wrap()");
+                    default:
+                        throw new Exception(
+                            "Unknown HandshakeStatus");
+                }
+            }
+
+            /* read response */
+            peerNetData.clear();
+            int recvd = sock.read(peerNetData);
+            if (recvd > 0) {
+                peerNetData.flip();
+                result = engine.unwrap(peerNetData, peerAppData);
+                switch (result.getStatus()) {
+                    case OK:
+                        peerNetData.compact();
+                        peerAppData.flip();
+                        /* not doing anything with returned data */
+                        break;
+                    case CLOSED:
+                        engine.closeOutbound();
+                        engine.closeInbound();
+                        break;
+                    case BUFFER_OVERFLOW:
+                        throw new Exception(
+                            "BUFFER_OVERFLOW during engine.unwrp()");
+                    case BUFFER_UNDERFLOW:
+                        throw new Exception(
+                            "BUFFER_UNDERFLOW during engine.unwrap()");
+                    default:
+                        throw new Exception(
+                            "Unknown HandshakeStatus");
+                }
+            }
+
+            /* shutdown */
+            engine.closeOutbound();
+            while (engine.isOutboundDone() == false) {
+                /* get close notify */
+                result = engine.wrap(ByteBuffer.allocate(0), netData);
+                /* send close notify */
+                while (netData.hasRemaining()) {
+                    sock.write(netData);
+                }
+                netData.compact();
+
+            }
+            sock.close();
+        }
+    }
+
+    /**
+     * Internal multi-threaded SSLSocket-based server.
+     * Used when testing concurrent threaded SSLEngine client connections.
+     */
+    protected class InternalMultiThreadedSSLSocketServer extends Thread
+    {
+        private int serverPort;
+
+        public InternalMultiThreadedSSLSocketServer(int port) {
+            this.serverPort = port;
+        }
+
+        @Override
+        public void run() {
+            try {
+                SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+                SSLServerSocket ss = (SSLServerSocket)ctx
+                    .getServerSocketFactory().createServerSocket(serverPort);
+
+                while (true) {
+                    SSLSocket sock = (SSLSocket)ss.accept();
+                    ClientHandler client = new ClientHandler(sock);
+                    client.start();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        class ClientHandler extends Thread
+        {
+            SSLSocket sock;
+
+            public ClientHandler(SSLSocket s) {
+                sock = s;
+            }
+
+            public void run() {
+                byte[] response = new byte[80];
+                String msg = "I hear you fa shizzle, from Java!";
+
+                try {
+                    sock.startHandshake();
+                    sock.getInputStream().read(response);
+                    sock.getOutputStream().write(msg.getBytes());
+                    sock.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    } /* InternalMultiThreadedSSLSocketServer */
+
     @Test
     public void testThreadedUse()
         throws NoSuchProviderException, NoSuchAlgorithmException {
-        ServerEngine server;
-        ClientEngine client;
+        ServerEngine server1;
+        ServerEngine server2;
+        ClientEngine client1;
+        ClientEngine client2;
 
         /* create new SSLEngine */
         System.out.print("\tTesting threaded use");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = new ServerEngine(this);
-        client = new ClientEngine(this);
+        server1 = new ServerEngine(this);
+        server2 = new ServerEngine(this);
+        client1 = new ClientEngine(this);
+        client2 = new ClientEngine(this);
 
-        client.setServer(server);
-        server.setClient(client);
+        client1.setServer(server1);
+        client2.setServer(server2);
+        server1.setClient(client1);
+        server2.setClient(client2);
 
-        server.start();
-        client.start();
+        server1.start();
+        server2.start();
+        client1.start();
+        client2.start();
 
         try {
-            server.join(1000);
-            client.join(1000);
+            server1.join(1000);
+            server2.join(1000);
+            client1.join(1000);
+            client2.join(1000);
         } catch (InterruptedException ex) {
+            ex.printStackTrace();
             System.out.println("interupt happened");
-            Logger.getLogger(
-                    WolfSSLEngineTest.class.getName()).log(
-                        Level.SEVERE, null, ex);
         }
 
-        if (!server.success || !client.success) {
+        if (!server1.success || !client1.success ||
+            !server2.success || !client2.success) {
             error("\t\t... failed");
             fail("failed to successfully connect");
         }
         pass("\t\t... passed");
     }
-
-    /* status tests buffer overflow/underflow/closed test */
-
 
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
@@ -593,6 +964,14 @@ public class WolfSSLEngineTest {
         private ClientEngine client;
         private HandshakeStatus status;
         protected boolean success;
+
+        public ServerEngine(SSLEngine engine) {
+            server = engine;
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            status = HandshakeStatus.NOT_HANDSHAKING;
+            success = false;
+        }
 
         public ServerEngine(WolfSSLEngineTest in) {
             server = in.ctx.createSSLEngine();
@@ -658,6 +1037,13 @@ public class WolfSSLEngineTest {
         private ServerEngine server;
         private HandshakeStatus status;
         protected boolean success;
+
+        public ClientEngine(SSLEngine engine) {
+            client = engine;
+            client.setUseClientMode(true);
+            status = HandshakeStatus.NOT_HANDSHAKING;
+            success = false;
+        }
 
         public ClientEngine(WolfSSLEngineTest in) {
             client = in.ctx.createSSLEngine("wolfSSL threaded client test",
