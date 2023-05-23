@@ -20,7 +20,6 @@
  */
 
 package com.wolfssl.provider.jsse;
-import  com.wolfssl.WolfSSL;
 import  com.wolfssl.WolfSSL.TLS_VERSION;
 
 /**
@@ -73,4 +72,4 @@ public class WolfSSLCustomUser {
         ctxAttr.noOptions = 0;
         return ctxAttr;
     }
-} /* end WolfSSL */
+}

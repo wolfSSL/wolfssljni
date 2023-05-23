@@ -20,7 +20,6 @@
  */
 package com.wolfssl.provider.jsse;
 
-import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
@@ -34,7 +33,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -59,7 +57,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private final String host;
     Date creation;
     Date accessed; /* when new connection was made using session */
-    byte pseudoSessionID[] = null; /* used with TLS 1.3*/
+    byte[] pseudoSessionID = null; /* used with TLS 1.3*/
     private int side = 0;
 
     /** Has this session been registered */
@@ -165,7 +163,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      *
      * @param ctx value to set the session context as
      */
-    protected void setSessionContext(WolfSSLSessionContext ctx) {
+    protected synchronized void setSessionContext(WolfSSLSessionContext ctx) {
         this.ctx = ctx;
     }
 
@@ -536,7 +534,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * search for sessions.
      * @param id pseudo session ID at the java wrapper level
      */
-    protected synchronized void setPseudoSessionId(byte id[]) {
+    protected synchronized void setPseudoSessionId(byte[] id) {
         this.pseudoSessionID = id.clone();
     }
 

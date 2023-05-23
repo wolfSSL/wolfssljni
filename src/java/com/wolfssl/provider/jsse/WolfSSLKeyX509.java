@@ -27,14 +27,10 @@ import java.security.KeyStoreException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
-
 import javax.net.ssl.X509KeyManager;
-
-import com.wolfssl.WolfSSLException;
 
 /**
  * wolfSSL implementation of X509KeyManager

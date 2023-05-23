@@ -43,7 +43,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
-import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLJNIException;
@@ -74,7 +73,6 @@ public class WolfSSLSocket extends SSLSocket {
     private WolfSSLOutputStream outStream;
 
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
-    private WolfSSLDebug debug;
 
     /** TLS handshake initialization called */
     protected volatile boolean handshakeInitCalled = false;
@@ -84,11 +82,11 @@ public class WolfSSLSocket extends SSLSocket {
     protected volatile boolean connectionClosed = false;
 
     /* lock for handshakInitCalled and handshakeComplete */
-    final private Object handshakeLock = new Object();
+    private final Object handshakeLock = new Object();
 
     /* protect read/write/connect/accept from multiple threads simultaneously
      * entering library */
-    final private Object ioLock = new Object();
+    private final Object ioLock = new Object();
 
     /**
      * Create new WolfSSLSocket object
@@ -475,7 +473,8 @@ public class WolfSSLSocket extends SSLSocket {
      * Gets the value of the SO_RCVBUF option for this socket.
      */
     @Override
-    public final int getReceiveBufferSize() throws SocketException {
+    public final synchronized int getReceiveBufferSize()
+        throws SocketException {
         if (this.socket != null) {
             return this.socket.getReceiveBufferSize();
         } else {
@@ -499,7 +498,8 @@ public class WolfSSLSocket extends SSLSocket {
      * Gets the value of the SO_SNDBUF option for this socket.
      */
     @Override
-    public final int getSendBufferSize() throws SocketException {
+    public final synchronized int getSendBufferSize()
+        throws SocketException {
         if (this.socket != null) {
             return this.socket.getSendBufferSize();
         } else {
@@ -658,7 +658,8 @@ public class WolfSSLSocket extends SSLSocket {
      * Sets the SO_RCVBUF option to the specified value for this Socket.
      */
     @Override
-    public final void setReceiveBufferSize(int size) throws SocketException {
+    public final synchronized void setReceiveBufferSize(int size)
+        throws SocketException {
         if (this.socket != null) {
             this.socket.setReceiveBufferSize(size);
         } else {
@@ -682,7 +683,8 @@ public class WolfSSLSocket extends SSLSocket {
      * Sets the SO_SNDBUF option to the specified value for this Socket.
      */
     @Override
-    public final void setSendBufferSize(int size) throws SocketException {
+    public final synchronized void setSendBufferSize(int size)
+        throws SocketException {
         if (this.socket != null) {
             this.socket.setSendBufferSize(size);
         } else {
@@ -914,7 +916,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return array of enabled cipher suite Strings
      */
     @Override
-    synchronized public String[] getEnabledCipherSuites() {
+    public synchronized String[] getEnabledCipherSuites() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledCipherSuites()");
@@ -931,7 +933,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         cipher suites unsupported by native wolfSSL
      */
     @Override
-    synchronized public void setEnabledCipherSuites(String[] suites)
+    public synchronized void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -964,7 +966,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return String array containing enabled protocols
      */
     @Override
-    synchronized public String[] getEnabledProtocols() {
+    public synchronized String[] getEnabledProtocols() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
@@ -982,7 +984,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         protocols unsupported by native wolfSSL
      */
     @Override
-    synchronized public void setEnabledProtocols(String[] protocols)
+    public synchronized void setEnabledProtocols(String[] protocols)
         throws IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1006,7 +1008,7 @@ public class WolfSSLSocket extends SSLSocket {
      *
      * @param alpnProtos ALPN protocols, encoded as byte array vector
      */
-    synchronized public void setAlpnProtocols(byte[] alpnProtos) {
+    public synchronized void setAlpnProtocols(byte[] alpnProtos) {
 
         /* store protocol array in WolfSSLParameters, will push to WOLFSSL
          * from EngineHelper */
@@ -1023,7 +1025,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return byte array representation of selected protocol, starting with
      *         length byte. Length does not include length byte itself.
      */
-    synchronized public byte[] getAlpnSelectedProtocol() {
+    public synchronized byte[] getAlpnSelectedProtocol() {
         return EngineHelper.getAlpnSelectedProtocol();
     }
 
@@ -1034,7 +1036,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         Socket has not progressed enough to create the session
      */
     @Override
-    synchronized public SSLSession getSession() {
+    public synchronized SSLSession getSession() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSession()");
@@ -1064,7 +1066,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IllegalArgumentException when listener is null
      */
     @Override
-    synchronized public void addHandshakeCompletedListener(
+    public synchronized void addHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1093,7 +1095,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         been registered wit this Socket
      */
     @Override
-    synchronized public void removeHandshakeCompletedListener(
+    public synchronized void removeHandshakeCompletedListener(
         HandshakeCompletedListener listener) throws IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1121,7 +1123,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException if a network error occurs
      */
     @Override
-    synchronized public void startHandshake() throws IOException {
+    public synchronized void startHandshake() throws IOException {
         int ret;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1204,7 +1206,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         after handshaking has completed
      */
     @Override
-    synchronized public void setUseClientMode(boolean mode)
+    public synchronized void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1221,7 +1223,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return true if in client mode, otherwise false for server mode
      */
     @Override
-    synchronized public boolean getUseClientMode() {
+    public synchronized boolean getUseClientMode() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getUseClientMode()");
@@ -1239,7 +1241,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @param need true sets client auth requirement, otherwise false
      */
     @Override
-    synchronized public void setNeedClientAuth(boolean need) {
+    public synchronized void setNeedClientAuth(boolean need) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setNeedClientAuth(need: " + String.valueOf(need) + ")");
@@ -1254,7 +1256,7 @@ public class WolfSSLSocket extends SSLSocket {
      *         otherwise false
      */
     @Override
-    synchronized public boolean getNeedClientAuth() {
+    public synchronized boolean getNeedClientAuth() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getNeedClientAuth()");
@@ -1273,7 +1275,7 @@ public class WolfSSLSocket extends SSLSocket {
      *        false if client auth should be disabled
      */
     @Override
-    synchronized public void setWantClientAuth(boolean want) {
+    public synchronized void setWantClientAuth(boolean want) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setWantClientAuth(want: " + String.valueOf(want) + ")");
@@ -1292,7 +1294,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return true if Socket will request client auth, false otherwise
      */
     @Override
-    synchronized public boolean getWantClientAuth() {
+    public synchronized boolean getWantClientAuth() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getWantClientAuth()");
@@ -1309,7 +1311,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @param flag true to allow session creation, otherwise false
      */
     @Override
-    synchronized public void setEnableSessionCreation(boolean flag) {
+    public synchronized void setEnableSessionCreation(boolean flag) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnableSessionCreation(flag: " +
@@ -1324,7 +1326,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return true if this Socket can create new sessions, otherwise false
      */
     @Override
-    synchronized public boolean getEnableSessionCreation() {
+    public synchronized boolean getEnableSessionCreation() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnableSessionCreation()");
@@ -1337,7 +1339,7 @@ public class WolfSSLSocket extends SSLSocket {
      *
      * @param useTickets true to enable session tickets, otherwise false
      */
-    synchronized public void setUseSessionTickets(boolean useTickets) {
+    public synchronized void setUseSessionTickets(boolean useTickets) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setUseSessionTickets(flag: " +
@@ -1399,7 +1401,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws SocketException if there is an error setting the timeout value
      */
     @Override
-    public void setSoTimeout(int timeout) throws SocketException {
+    public synchronized void setSoTimeout(int timeout) throws SocketException {
         if (this.socket != null) {
             this.socket.setSoTimeout(timeout);
         } else {
@@ -1415,7 +1417,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws SocketException if there is an error getting timeout value
      */
     @Override
-    public int getSoTimeout() throws SocketException {
+    public synchronized int getSoTimeout() throws SocketException {
         if (this.socket != null) {
             return this.socket.getSoTimeout();
         } else {
@@ -1428,7 +1430,7 @@ public class WolfSSLSocket extends SSLSocket {
      *
      * @param params SSLParameters to set for this SSLSocket object
      */
-    synchronized public void setSSLParameters(SSLParameters params) {
+    public synchronized void setSSLParameters(SSLParameters params) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setSSLParameters()");
@@ -1447,7 +1449,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException upon error closing the connection
      */
     @Override
-    synchronized public void close() throws IOException {
+    public synchronized void close() throws IOException {
 
         int ret;
         boolean beforeObjectInit = false;
@@ -1568,7 +1570,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException upon error connecting Socket
      */
     @Override
-    synchronized public void connect(SocketAddress endpoint)
+    public synchronized void connect(SocketAddress endpoint)
         throws IOException {
 
         InetSocketAddress address = null;
@@ -1618,7 +1620,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws IOException upon error connecting Socket
      */
     @Override
-    synchronized public void connect(SocketAddress endpoint, int timeout)
+    public synchronized void connect(SocketAddress endpoint, int timeout)
         throws IOException {
 
         InetSocketAddress address = null;
@@ -1764,7 +1766,7 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        final private Object readLock = new Object();
+        private final Object readLock = new Object();
 
         public WolfSSLInputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
             this.ssl = ssl;
@@ -1774,11 +1776,10 @@ public class WolfSSLSocket extends SSLSocket {
         @Override
         public int read() throws IOException {
 
-            int ret = 0;
             byte[] data = new byte[1];
 
             try {
-                ret = this.read(data, 0, 1);
+                this.read(data, 0, 1);
 
             } catch (NullPointerException ne) {
                 throw new IOException(ne);
@@ -1904,7 +1905,7 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        final private Object writeLock = new Object();
+        private final Object writeLock = new Object();
 
         public WolfSSLOutputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
             this.ssl = ssl;

@@ -20,8 +20,6 @@
  */
 package com.wolfssl;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
@@ -35,9 +33,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;

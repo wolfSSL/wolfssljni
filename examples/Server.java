@@ -591,6 +591,10 @@ public class Server {
             cce.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
         }
 
     } /* end run() */

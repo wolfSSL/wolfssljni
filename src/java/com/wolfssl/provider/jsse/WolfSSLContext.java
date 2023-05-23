@@ -30,8 +30,6 @@ import java.security.cert.X509Certificate;
 import javax.security.auth.x500.X500Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContextSpi;
@@ -48,7 +46,6 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSL.TLS_VERSION;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
-import com.wolfssl.provider.jsse.WolfSSLAuthStore;
 
 /**
  * wolfSSL implementation of SSLContextSpi
@@ -86,7 +83,6 @@ public class WolfSSLContext extends SSLContextSpi {
                 "Invalid SSL/TLS protocol version");
         }
 
-        method = WolfSSL.NOT_COMPILED_IN;
         switch (this.currentVersion) {
             case TLSv1:
                 method = WolfSSL.TLSv1_Method();
@@ -228,7 +224,8 @@ public class WolfSSLContext extends SSLContextSpi {
 
     private void LoadClientKeyAndCertChain() throws Exception {
 
-        int ret, offset;
+        int ret;
+        int offset;
         X509KeyManager km = authStore.getX509KeyManager();
         String javaVersion = System.getProperty("java.version");
 
@@ -301,7 +298,7 @@ public class WolfSSLContext extends SSLContextSpi {
                 certStream.write(cert[i].getEncoded());
                 chainLength++;
             }
-            byte certChain[] = certStream.toByteArray();
+            byte[] certChain = certStream.toByteArray();
             certStream.close();
 
             ret = ctx.useCertificateChainBufferFormat(certChain,

@@ -35,8 +35,6 @@ import java.security.cert.CertificateException;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactorySpi;
 import javax.net.ssl.ManagerFactoryParameters;
-import com.wolfssl.WolfSSLCertificate;
-import com.wolfssl.WolfSSLException;
 
 /**
  * WolfSSL KeyManagerFactory implementation
@@ -83,7 +81,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                     /* We default to use a JKS KeyStore type if not set at the
                      * system level, except on Android we use BKS */
                     try {
-                        if (type != null && type != "") {
+                        if (type != null && !type.trim().isEmpty()) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "javax.net.ssl.keyStoreType system property " +
                                 "set: " + type);

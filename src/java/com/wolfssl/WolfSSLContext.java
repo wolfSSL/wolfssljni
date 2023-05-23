@@ -21,11 +21,7 @@
 
 package com.wolfssl;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.util.HashMap;
 import java.nio.ByteBuffer;
-
 import com.wolfssl.wolfcrypt.EccKey;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

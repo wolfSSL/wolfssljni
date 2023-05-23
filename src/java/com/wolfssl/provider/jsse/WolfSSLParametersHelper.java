@@ -47,31 +47,30 @@ public class WolfSSLParametersHelper
             public Object run() {
                 Class<?> c = SSLParameters.class;
                 Method[] methods = c.getDeclaredMethods();
-                if (methods == null) {
-                    return null;
-                }
 
-                /* check for availability of methods */
-                try {
-                    for (Method m : methods) {
-                        switch (m.getName()) {
-                            case "getServerNames":
-                                getServerNames = m;
-                                continue;
-                            case "setServerNames":
-                                setServerNames = m;
-                                continue;
-                            case "getApplicationProtocols":
-                                getApplicationProtocols = m;
-                                continue;
-                            case "setApplicationProtocols":
-                                setApplicationProtocols = m;
-                                continue;
-                            default:
-                                continue;
+                if (methods != null) {
+                    /* check for availability of methods */
+                    try {
+                        for (Method m : methods) {
+                            switch (m.getName()) {
+                                case "getServerNames":
+                                    getServerNames = m;
+                                    continue;
+                                case "setServerNames":
+                                    setServerNames = m;
+                                    continue;
+                                case "getApplicationProtocols":
+                                    getApplicationProtocols = m;
+                                    continue;
+                                case "setApplicationProtocols":
+                                    setApplicationProtocols = m;
+                                    continue;
+                                default:
+                                    continue;
+                            }
                         }
+                    } catch (Exception e) {
                     }
-                } catch (Exception e) {
                 }
 
                 return null;

@@ -33,7 +33,6 @@ import javax.net.ssl.TrustManagerFactory;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 
-import java.lang.IllegalArgumentException;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -88,8 +87,7 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
-        store = new SessionStore<Integer,
-                                 WolfSSLImplementSSLSession>(defaultCacheSize);
+        store = new SessionStore<>(defaultCacheSize);
         this.serverCtx = new WolfSSLSessionContext(
                 this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
         this.clientCtx = new WolfSSLSessionContext(
@@ -266,7 +264,7 @@ public class WolfSSLAuthStore {
      */
     protected void resizeCache(int sz, int side) {
             SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
-                    new SessionStore<Integer, WolfSSLImplementSSLSession>(sz);
+                    new SessionStore<>(sz);
 
         //@TODO check for side server/client, currently a resize is for all
         store.putAll(newStore);
@@ -292,7 +290,7 @@ public class WolfSSLAuthStore {
         }
 
         /* server mode, or client mode with no host */
-        if (clientMode == false || host == null) {
+        if (!clientMode || host == null) {
             return this.getSession(ssl);
         }
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -325,11 +323,12 @@ public class WolfSSLAuthStore {
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
+
         WolfSSLImplementSSLSession ses = new WolfSSLImplementSSLSession(ssl, this);
-        if (ses != null) {
-            ses.setValid(true);
-            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
-        }
+
+        ses.setValid(true);
+        ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
+
         return ses;
     }
 
@@ -355,7 +354,7 @@ public class WolfSSLAuthStore {
                 hashCode = Arrays.toString(session.getId()).hashCode();
         }
 
-        if (hashCode != 0 && store.containsKey(hashCode) != true) {
+        if (hashCode != 0 && !store.containsKey(hashCode)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "stored session in cache table (host: " +
                     session.getPeerHost() + ", port: " +
@@ -373,7 +372,7 @@ public class WolfSSLAuthStore {
      * @return enumerated session IDs
      */
     protected Enumeration<byte[]> getAllIDs(int side) {
-        List<byte[]> ret = new ArrayList<byte[]>();
+        List<byte[]> ret = new ArrayList<>();
 
         for (Object obj : store.values()) {
             WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;

@@ -20,21 +20,14 @@
  */
 package com.wolfssl.provider.jsse;
 
-import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLX509StoreCtx;
 import com.wolfssl.provider.jsse.WolfSSLInternalVerifyCb;
-import java.util.Arrays;
-import java.util.List;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 
 /**

@@ -30,23 +30,20 @@ package com.wolfssl.provider.jsse;
  */
 public class WolfSSLDebug {
 
-    /** Default WolfSSLDebug constructor */
-    public WolfSSLDebug() { }
-
     /**
      * boolean to check if debug mode is on
      */
-    public static boolean DEBUG = checkProperty();
+    public static final boolean DEBUG = checkProperty();
 
     /**
      * Error level debug message
      */
-    public static String ERROR = "ERROR";
+    public static final String ERROR = "ERROR";
 
     /**
      * Info level debug message
      */
-    public static String INFO = "INFO";
+    public static final String INFO = "INFO";
 
     private static boolean checkProperty() {
 
