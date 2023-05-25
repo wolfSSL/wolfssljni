@@ -592,8 +592,12 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            if (serverSocket != null) {
-                serverSocket.close();
+            try {
+                if (serverSocket != null) {
+                    serverSocket.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
