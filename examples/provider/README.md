@@ -55,7 +55,7 @@ Example usage for connecting to the wolfSSL example server is:
 
 ```
 $ ./examples/provider/ClientSSLSocket.sh 127.0.0.1 11111 \
-  ./examples/provider/client.jks ./examples/provider/client.jks
+  ./examples/provider/client.jks ./examples/provider/ca-server.jks
 ```
 
 The password for client.jks is: "wolfSSL test"
