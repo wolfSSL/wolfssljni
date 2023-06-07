@@ -27,12 +27,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.util.List;
+import java.util.Arrays;
 import java.util.ArrayList;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLContext;
 
 import java.io.FileInputStream;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
@@ -52,6 +56,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLContextTest {
@@ -61,9 +66,10 @@ public class WolfSSLContextTest {
     private static final String ctxProvider = "wolfJSSE";
 
     private static String[] allProtocols = {
-        "TLSV1",
-        "TLSV1.1",
-        "TLSV1.2",
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2",
+        "TLSv1.3",
         "TLS"
     };
 
@@ -95,6 +101,13 @@ public class WolfSSLContextTest {
             try {
                 SSLContext ctx = SSLContext.getInstance(allProtocols[i],
                     ctxProvider);
+
+                if (WolfSSLTestFactory.securityPropContains(
+                    "jdk.tls.disabledAlgorithms", allProtocols[i])) {
+                    /* skip adding, protocol has been disabled */
+                    continue;
+                }
+
                 enabledProtocols.add(allProtocols[i]);
 
             } catch (NoSuchAlgorithmException e) {
@@ -385,6 +398,267 @@ public class WolfSSLContextTest {
                 fail("UnsupportedOperationException thrown but not expected");
             }
         }
+
+        System.out.println("\t... passed");
+    }
+
+    /* Returns ArrayList of expected default SSLcontext protocols, assuming
+     * none have been disabled at the system level via system/security
+     * properties. The order of items in the list should also match expected
+     * order. */
+    private ArrayList<String> buildExpectedDefaultProtocolList(
+        String ctxProtocol) {
+
+        ArrayList<String> expected = new ArrayList<String>();
+
+        /* already sorted highest to lowest (ie TLSv1.3, ..., TLSv1.1) */
+        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+
+        if (ctxProtocol == "TLS") {
+            if (enabledNativeProtocols.contains("TLSv1.3")) {
+                expected.add("TLSv1.3");
+            }
+            if (enabledNativeProtocols.contains("TLSv1.2")) {
+                expected.add("TLSv1.2");
+            }
+            if (enabledNativeProtocols.contains("TLSv1.1")) {
+                expected.add("TLSv1.1");
+            }
+            if (enabledNativeProtocols.contains("TLSv1")) {
+                expected.add("TLSv1");
+            }
+        }
+
+        else if (ctxProtocol == "TLSv1.3") {
+            if (enabledNativeProtocols.contains("TLSv1.3")) {
+                expected.add("TLSv1.3");
+            }
+            if (enabledNativeProtocols.contains("TLSv1.2")) {
+                expected.add("TLSv1.2");
+            }
+            if (enabledNativeProtocols.contains("TLSv1.1")) {
+                expected.add("TLSv1.1");
+            }
+            if (enabledNativeProtocols.contains("TLSv1")) {
+                expected.add("TLSv1");
+            }
+        }
+
+        else if (ctxProtocol == "TLSv1.2") {
+            if (enabledNativeProtocols.contains("TLSv1.2")) {
+                expected.add("TLSv1.2");
+            }
+            if (enabledNativeProtocols.contains("TLSv1.1")) {
+                expected.add("TLSv1.1");
+            }
+            if (enabledNativeProtocols.contains("TLSv1")) {
+                expected.add("TLSv1");
+            }
+        }
+
+        else if (ctxProtocol == "TLSv1.1") {
+            if (enabledNativeProtocols.contains("TLSv1.1")) {
+                expected.add("TLSv1.1");
+            }
+            if (enabledNativeProtocols.contains("TLSv1")) {
+                expected.add("TLSv1");
+            }
+        }
+
+        else if (ctxProtocol == "TLSv1") {
+            if (enabledNativeProtocols.contains("TLSv1")) {
+                expected.add("TLSv1");
+            }
+        }
+
+        return expected;
+    }
+
+     /* Tests that disabling protocols using the system property
+      * 'jdk.tls.disabledAlgorithms' works as expected.
+      */
+    @Test
+    public void testJdkTlsDisabledAlgorithms() throws NoSuchProviderException,
+        NoSuchAlgorithmException, IllegalStateException,
+        KeyManagementException, IOException {
+
+        SSLContext ctx = null;
+        SocketFactory sf = null;
+        SSLSocket sock = null;
+        String[] defaultSSLContextProtocols = null;
+        ArrayList<String> expectedList = null;
+
+        System.out.print("\tjdk.tls.disabledAlgorithms");
+
+        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+        if (enabledNativeProtocols == null) {
+            System.out.println("\t... failed");
+            fail("WolfSSL.getProtocols() returned null");
+        }
+
+        /* Save original property value to reset after test */
+        String originalProperty =
+            Security.getProperty("jdk.tls.disabledAlgorithms");
+
+        /* Test with no protocols disabled */
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+        for (int i = 0; i < allProtocols.length; i++) {
+
+            if (!enabledNativeProtocols.contains(allProtocols[i])) {
+                /* protocol not available in native library, skip */
+                continue;
+            }
+
+            ctx = SSLContext.getInstance(allProtocols[i]);
+            ctx.init(null, null, null);
+
+            expectedList = buildExpectedDefaultProtocolList(allProtocols[i]);
+            defaultSSLContextProtocols =
+                ctx.getDefaultSSLParameters().getProtocols();
+
+            if (!Arrays.equals(defaultSSLContextProtocols,
+                    expectedList.toArray(new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLContext protocol list did not " +
+                     "match expected");
+            }
+
+            /* Also test SSLSocket.getEnabledProtocols() */
+            sf = ctx.getSocketFactory();
+            sock = (SSLSocket)sf.createSocket();
+            String[] sockEnabledProtocols = sock.getEnabledProtocols();
+
+            if (!Arrays.equals(sockEnabledProtocols,
+                    expectedList.toArray(new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLSocket protocol list did not " +
+                     "match expected");
+            }
+        }
+
+        /* Test with each allProtocol disabled individually */
+        for (int i = 0; i < allProtocols.length; i++) {
+            Security.setProperty("jdk.tls.disabledAlgorithms", allProtocols[i]);
+            for (int j = 0; j < allProtocols.length; j++) {
+
+                if (!enabledNativeProtocols.contains(allProtocols[j])) {
+                    /* protocol not available in native library, skip */
+                    continue;
+                }
+
+                ctx = SSLContext.getInstance(allProtocols[j]);
+                ctx.init(null, null, null);
+
+                expectedList =
+                    buildExpectedDefaultProtocolList(allProtocols[j]);
+                /* remove protocol under test */
+                expectedList.remove(allProtocols[i]);
+                defaultSSLContextProtocols =
+                    ctx.getDefaultSSLParameters().getProtocols();
+
+                if (!Arrays.equals(defaultSSLContextProtocols,
+                        expectedList.toArray(
+                            new String[expectedList.size()]))) {
+                    System.out.print("\t... failed");
+                    fail("Default SSLContext protocol list did not " +
+                         "match expected");
+                }
+
+                /* Also test SSLSocket.getEnabledProtocols() */
+                sf = ctx.getSocketFactory();
+                sock = (SSLSocket)sf.createSocket();
+                String[] sockEnabledProtocols = sock.getEnabledProtocols();
+
+                if (!Arrays.equals(sockEnabledProtocols,
+                        expectedList.toArray(
+                            new String[expectedList.size()]))) {
+                    System.out.print("\t... failed");
+                    fail("Default SSLSocket protocol list did not " +
+                         "match expected");
+                }
+            }
+        }
+
+        /* Test with TLSv1, TLSv1.1 protocols disabled */
+        Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1, TLSv1.1");
+        for (int i = 0; i < allProtocols.length; i++) {
+
+            if (!enabledNativeProtocols.contains(allProtocols[i])) {
+                /* protocol not available in native library, skip */
+                continue;
+            }
+
+            ctx = SSLContext.getInstance(allProtocols[i]);
+            ctx.init(null, null, null);
+
+            expectedList = buildExpectedDefaultProtocolList(allProtocols[i]);
+            expectedList.remove("TLSv1");
+            expectedList.remove("TLSv1.1");
+            defaultSSLContextProtocols =
+                ctx.getDefaultSSLParameters().getProtocols();
+
+            if (!Arrays.equals(defaultSSLContextProtocols,
+                    expectedList.toArray(new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLContext protocol list did not " +
+                     "match expected");
+            }
+
+            /* Also test SSLSocket.getEnabledProtocols() */
+            sf = ctx.getSocketFactory();
+            sock = (SSLSocket)sf.createSocket();
+            String[] sockEnabledProtocols = sock.getEnabledProtocols();
+
+            if (!Arrays.equals(sockEnabledProtocols,
+                    expectedList.toArray(
+                        new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLSocket protocol list did not " +
+                     "match expected");
+            }
+        }
+
+        /* Test with TLSv1.1, TLSv1.2 protocols disabled */
+        Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1.1, TLSv1.2");
+        for (int i = 0; i < allProtocols.length; i++) {
+
+            if (!enabledNativeProtocols.contains(allProtocols[i])) {
+                /* protocol not available in native library, skip */
+                continue;
+            }
+
+            ctx = SSLContext.getInstance(allProtocols[i]);
+            ctx.init(null, null, null);
+
+            expectedList = buildExpectedDefaultProtocolList(allProtocols[i]);
+            expectedList.remove("TLSv1.1");
+            expectedList.remove("TLSv1.2");
+            defaultSSLContextProtocols =
+                ctx.getDefaultSSLParameters().getProtocols();
+
+            if (!Arrays.equals(defaultSSLContextProtocols,
+                    expectedList.toArray(new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLContext protocol list did not " +
+                     "match expected");
+            }
+
+            /* Also test SSLSocket.getEnabledProtocols() */
+            sf = ctx.getSocketFactory();
+            sock = (SSLSocket)sf.createSocket();
+            String[] sockEnabledProtocols = sock.getEnabledProtocols();
+
+            if (!Arrays.equals(sockEnabledProtocols,
+                    expectedList.toArray(
+                        new String[expectedList.size()]))) {
+                System.out.print("\t... failed");
+                fail("Default SSLSocket protocol list did not " +
+                     "match expected");
+            }
+        }
+
+        /* Restore original system property value */
+        Security.setProperty("jdk.tls.disabledAlgorithms", originalProperty);
 
         System.out.println("\t... passed");
     }

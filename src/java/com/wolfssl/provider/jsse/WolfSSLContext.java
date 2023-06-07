@@ -69,9 +69,17 @@ public class WolfSSLContext extends SSLContextSpi {
         /* Get available wolfSSL cipher suites in IANA format */
         ciphersIana = WolfSSL.getCiphersAvailableIana(this.currentVersion);
 
+        /* Allow ability for user to hard-code and override version, cipher
+         * suite, and NO_* disable options. Otherwise just sets defaults
+         * into ctxAttr. */
         WolfSSLCustomUser ctxAttr = WolfSSLCustomUser.GetCtxAttributes
                           (this.currentVersion, ciphersIana);
 
+        /* Explicitly set SSLContext version if overridden by
+         * WolfSSLCustomUser or specific SSLContext version was created
+         * by user. Otherwise use default of SSLv23. Starts at highest TLS
+         * protocol version supported by native wolfSSL then downgrades to
+         * minimum native downgrade version. */
         if(ctxAttr.version == TLS_VERSION.TLSv1   ||
            ctxAttr.version == TLS_VERSION.TLSv1_1 ||
            ctxAttr.version == TLS_VERSION.TLSv1_2 ||
@@ -83,19 +91,29 @@ public class WolfSSLContext extends SSLContextSpi {
                 "Invalid SSL/TLS protocol version");
         }
 
+        /* Set SSLContext version. To be compatible with SunJSSE behavior,
+         * the enabled protocols are less than or equal to the version
+         * selected */
         switch (this.currentVersion) {
             case TLSv1:
                 method = WolfSSL.TLSv1_Method();
+                ctxAttr.noOptions = ctxAttr.noOptions |
+                    WolfSSL.SSL_OP_NO_TLSv1_1 | WolfSSL.SSL_OP_NO_TLSv1_2 |
+                    WolfSSL.SSL_OP_NO_TLSv1_3;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "creating WolfSSLContext with TLSv1");
                 break;
             case TLSv1_1:
                 method = WolfSSL.TLSv1_1_Method();
+                ctxAttr.noOptions = ctxAttr.noOptions |
+                    WolfSSL.SSL_OP_NO_TLSv1_2 | WolfSSL.SSL_OP_NO_TLSv1_3;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "creating WolfSSLContext with TLSv1_1");
                 break;
             case TLSv1_2:
                 method = WolfSSL.TLSv1_2_Method();
+                ctxAttr.noOptions = ctxAttr.noOptions |
+                    WolfSSL.SSL_OP_NO_TLSv1_3;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "creating WolfSSLContext with TLSv1_2");
                 break;
@@ -130,15 +148,31 @@ public class WolfSSLContext extends SSLContextSpi {
             throw new IllegalArgumentException(e);
         }
 
-        /* auto-populate enabled ciphersuites with supported ones */
         if(ctxAttr.list != null && ctxAttr.list.length > 0) {
-            params.setCipherSuites(ctxAttr.list);
+            ciphersIana = ctxAttr.list;
         } else {
-            params.setCipherSuites(WolfSSL.getCiphersIana());
+            ciphersIana = WolfSSL.getCiphersIana();
         }
 
-        /* auto-populate enabled protocols with supported ones */
-        params.setProtocols(this.getProtocolsMask(ctxAttr.noOptions));
+        enforceKeySizeLimitations();
+
+        /* TODO: filter cipher suite list and protocols to conform to
+         * limitations set by jdk.tls.disabledAlgorithms system property
+         * if set */
+
+        /* Auto-populate enabled ciphersuites with supported ones */
+        params.setCipherSuites(ciphersIana);
+
+        /* Auto-populate enabled protocols with supported ones. Protocols
+         * which have been disabled via system property get filtered in
+         * WolfSSLEngineHelper.sanitizeProtocols() */
+        params.setProtocols(WolfSSLUtil.sanitizeProtocols(
+            this.getProtocolsMask(ctxAttr.noOptions)));
+    }
+
+    private void enforceKeySizeLimitations() {
+        /* TODO: call WOLFSSL_CTX APIs to limit key sizes based on
+         * jdk.tls.disabledAlgorithms settings */
     }
 
     private void LoadTrustedRootCerts() {
