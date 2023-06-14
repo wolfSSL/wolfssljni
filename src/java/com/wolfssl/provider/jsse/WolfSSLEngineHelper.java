@@ -144,21 +144,24 @@ public class WolfSSLEngineHelper {
     }
 
     /**
-     * Get all supported cipher suites in native wolfSSL library
+     * Get all supported cipher suites in native wolfSSL library, which
+     * are also allowed by "wolfjsse.enabledCipherSuites" system Security
+     * property, if set.
      *
      * @return String array of all supported cipher suites
      */
     protected String[] getAllCiphers() {
-        return WolfSSL.getCiphersIana();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
     /**
-     * Get all enabled cipher suites
+     * Get all enabled cipher suites, and allowed via
+     * wolfjsse.enabledCipherSuites system Security property (if set).
      *
      * @return String array of all enabled cipher suites
      */
     protected String[] getCiphers() {
-        return this.params.getCipherSuites();
+        return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
     }
 
     /**
@@ -191,7 +194,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setCipherSuites(suites);
+        this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites));
     }
 
     /**
@@ -666,7 +669,8 @@ public class WolfSSLEngineHelper {
     }
 
     private void setLocalParams() throws SSLException {
-        this.setLocalCiphers(this.params.getCipherSuites());
+        this.setLocalCiphers(
+            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
         this.setLocalProtocol(
             WolfSSLUtil.sanitizeProtocols(this.params.getProtocols()));
         this.setLocalAuth();

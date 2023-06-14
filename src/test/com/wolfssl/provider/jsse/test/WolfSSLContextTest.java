@@ -662,5 +662,248 @@ public class WolfSSLContextTest {
 
         System.out.println("\t... passed");
     }
+
+    /** Helper method for testWolfJSSEEnabledCipherSuites() */
+    private WolfSSL.TLS_VERSION getWolfSSLTLSVersion(String version) {
+
+        WolfSSL.TLS_VERSION verEnum = WolfSSL.TLS_VERSION.INVALID;
+
+        switch (version) {
+            case "TLSv1":
+                verEnum = WolfSSL.TLS_VERSION.TLSv1;
+                break;
+            case "TLSv1.1":
+                verEnum = WolfSSL.TLS_VERSION.TLSv1_1;
+                break;
+            case "TLSv1.2":
+                verEnum = WolfSSL.TLS_VERSION.TLSv1_2;
+                break;
+            case "TLSv1.3":
+                verEnum = WolfSSL.TLS_VERSION.TLSv1_3;
+                break;
+            case "TLS":
+                verEnum = WolfSSL.TLS_VERSION.SSLv23;
+                break;
+            default:
+                break;
+        }
+
+        return verEnum;
+    }
+
+    /* Tests that setting/restricting TLS cipher suites with the
+     * 'wolfjsse.enabledCipherSuites' system Security property works as
+     * expected.
+     */
+    @Test
+    public void testWolfJSSEEnabledCipherSuites()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+        IllegalStateException, KeyManagementException, IOException {
+
+        SSLContext ctx = null;
+        SocketFactory sf = null;
+        SSLSocket sock = null;
+        String[] nativeSuites = null;
+        String[] defaultSSLContextSuites = null;
+        WolfSSL.TLS_VERSION version = WolfSSL.TLS_VERSION.INVALID;
+
+        System.out.print("\twolfjsse.enabledCipherSuites");
+
+        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+        if (enabledNativeProtocols == null) {
+            System.out.println("\t... failed");
+            fail("WolfSSL.getProtocols() returned null");
+        }
+
+        /* Save original property value to reset after test */
+        String originalProperty =
+            Security.getProperty("wolfjsse.enabledCipherSuites");
+
+        /* Test all enabled protocols */
+        for (int i = 0; i < allProtocols.length; i++) {
+
+            if (!enabledNativeProtocols.contains(allProtocols[i])) {
+                /* protocol not available in native library, skip */
+                continue;
+            }
+
+            /* get TLS_VERSION enum value from protocol version */
+            version = getWolfSSLTLSVersion(allProtocols[i]);
+            if (version == WolfSSL.TLS_VERSION.INVALID) {
+                System.out.print("\t... failed");
+                fail("Invalid TLS version");
+            }
+
+            /* String[] of all available native wolfSSL suites for version */
+            nativeSuites = WolfSSL.getCiphersAvailableIana(version);
+
+            /* ------------------------------------------------------------- */
+
+            /* Test with no cipher suites restricted, make sure SSLContext
+             * gives back the expected/full list of cipher suites. */
+            Security.setProperty("wolfjsse.enabledCipherSuites", "");
+
+            ctx = SSLContext.getInstance(allProtocols[i]);
+            ctx.init(null, null, null);
+
+            defaultSSLContextSuites =
+                ctx.getDefaultSSLParameters().getCipherSuites();
+
+            if (!Arrays.equals(defaultSSLContextSuites, nativeSuites)) {
+                System.out.print("\t... failed");
+                fail("Default SSLContext cipher list did not " +
+                     "match expected");
+            }
+
+            sf = ctx.getSocketFactory();
+            sock = (SSLSocket)sf.createSocket();
+
+            /* Test SSLSocket.getEnabledCipherSuites() */
+            String[] sockEnabledSuites = sock.getEnabledCipherSuites();
+
+            if (!Arrays.equals(sockEnabledSuites, nativeSuites)) {
+                System.out.print("\t... failed");
+                fail("SSLSocket enabled cipher list did not " +
+                     "match expected");
+            }
+
+            /* ------------------------------------------------------------- */
+
+            /* Set first default cipher suite as the only suite enabled,
+             * then make sure only that suite is available after
+             * SSLContext creation */
+            Security.setProperty("wolfjsse.enabledCipherSuites",
+                nativeSuites[0]);
+
+            ctx = SSLContext.getInstance(allProtocols[i]);
+            ctx.init(null, null, null);
+
+            defaultSSLContextSuites =
+                ctx.getDefaultSSLParameters().getCipherSuites();
+
+            if (!Arrays.equals(defaultSSLContextSuites,
+                    new String[] { nativeSuites[0] } )) {
+                System.out.print("\t... failed");
+                fail("Default SSLContext cipher list did not " +
+                     "match expected single suite");
+            }
+
+            sf = ctx.getSocketFactory();
+            sock = (SSLSocket)sf.createSocket();
+
+            /* Test SSLSocket.getEnabledCipherSuites() */
+            sockEnabledSuites = sock.getEnabledCipherSuites();
+            if (!Arrays.equals(sockEnabledSuites,
+                    new String[] { nativeSuites[0] } )) {
+                System.out.print("\t... failed");
+                fail("SSLSocket enabled cipher list did not " +
+                     "match expected single suite");
+            }
+
+            /* Test SSLSocket.getSupportedCipherSuites() */
+            sockEnabledSuites = sock.getSupportedCipherSuites();
+            if (!Arrays.equals(sockEnabledSuites,
+                    new String[] { nativeSuites[0] } )) {
+                System.out.print("\t... failed");
+                fail("SSLSocket supported cipher list did not " +
+                     "match expected single suite");
+            }
+
+            /* ------------------------------------------------------------- */
+
+            /* Set first two default cipher suites as the only suite enabled,
+             * then make sure only those suites are available after
+             * SSLContext creation. Tests property with multiple values. */
+
+            if (nativeSuites.length >= 2) {
+                Security.setProperty("wolfjsse.enabledCipherSuites",
+                        nativeSuites[0] + ", " + nativeSuites[1]);
+
+                ctx = SSLContext.getInstance(allProtocols[i]);
+                ctx.init(null, null, null);
+
+                defaultSSLContextSuites =
+                    ctx.getDefaultSSLParameters().getCipherSuites();
+
+                if (!Arrays.equals(defaultSSLContextSuites,
+                        new String[] { nativeSuites[0], nativeSuites[1] } )) {
+                    System.out.print("\t... failed");
+                    fail("Default SSLContext cipher list did not " +
+                         "match expected single suite");
+                }
+
+                sf = ctx.getSocketFactory();
+                sock = (SSLSocket)sf.createSocket();
+
+                /* Test SSLSocket.getEnabledCipherSuites() */
+                sockEnabledSuites = sock.getEnabledCipherSuites();
+                if (!Arrays.equals(sockEnabledSuites,
+                        new String[] { nativeSuites[0], nativeSuites[1] } )) {
+                    System.out.print("\t... failed");
+                    fail("SSLSocket enabled cipher list did not " +
+                         "match expected single suite");
+                }
+
+                /* Test SSLSocket.getSupportedCipherSuites(), may have
+                 * different order based on native sorting */
+                sockEnabledSuites = sock.getSupportedCipherSuites();
+                if (!Arrays.asList(sockEnabledSuites)
+                        .containsAll(Arrays.asList(
+                            new String[] {
+                                nativeSuites[0], nativeSuites[1] }))) {
+                    System.out.print("\t... failed");
+                    fail("SSLSocket supported cipher list did not " +
+                         "match expected single suite");
+                }
+            }
+
+            /* ------------------------------------------------------------- */
+
+            /* Set first default cipher suite as the only suite enabled,
+             * then make sure we get an exception when we try to set
+             * another/different suite on the SSLSocket */
+
+            if (nativeSuites.length >= 2) {
+                Security.setProperty("wolfjsse.enabledCipherSuites",
+                                   nativeSuites[0]);
+
+                ctx = SSLContext.getInstance(allProtocols[i]);
+                ctx.init(null, null, null);
+
+                sf = ctx.getSocketFactory();
+                sock = (SSLSocket)sf.createSocket();
+
+                try {
+                    /* set enabled suites as second available suite
+                     * (shouldn't work), should throw exception */
+                    sock.setEnabledCipherSuites(
+                        new String[] { nativeSuites[1] });
+                } catch (IllegalArgumentException e) {
+                    /* expected */
+                }
+
+                sockEnabledSuites = sock.getEnabledCipherSuites();
+
+                if (!Arrays.equals(sockEnabledSuites,
+                        new String[] { nativeSuites[0] } )) {
+                    System.out.print("\t... failed");
+                    fail("Default SSLSocket cipher list did not " +
+                         "match expected single suite");
+                }
+            }
+
+        } /* protocol for loop */
+
+        /* Restore original system property value */
+        if (originalProperty != null) {
+            Security.setProperty("wolfjsse.enabledCipherSuites",
+                originalProperty);
+        }
+        else {
+            Security.setProperty("wolfjsse.enabledCipherSuites", "");
+        }
+
+        System.out.println("\t... passed");
+    }
 }
 

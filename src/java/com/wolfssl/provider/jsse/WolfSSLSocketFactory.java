@@ -125,7 +125,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getDefaultCipherSuites()");
 
-        return WolfSSL.getCiphersIana();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
     /**

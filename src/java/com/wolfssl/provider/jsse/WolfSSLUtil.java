@@ -61,7 +61,7 @@ public class WolfSSLUtil {
         List disabledList = null;
 
         /* If system property not set, no filtering needed */
-        if (disabledAlgos == null) {
+        if (disabledAlgos == null || disabledAlgos.isEmpty()) {
             return protocols;
         }
 
@@ -81,6 +81,82 @@ public class WolfSSLUtil {
         }
 
         return filtered.toArray(new String[filtered.size()]);
+    }
+
+    /**
+     * Sanitize or filter SSL/TLS cipher suite list based on custom wolfJSSE
+     * system property limitations.
+     *
+     * Supported system Security properties which limit cipher suite list are:
+     *    - wolfjsse.enabledCipherSuites
+     *
+     * This security property should contain a comma-separated list of
+     * values, for example:
+     *
+     *    wolfjsse.enabledCipherSuites=
+     *        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, \
+     *         TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+     *
+     * Only the cipher suites included in this list will be allowed to be used
+     * in JSSE TLS connections. Applications can still set cipher suites,
+     * using for example SSLParameters, but the set cipher suite list will be
+     * filtered by this function to remove any suites not included in the
+     * system property mentioned here if it has been set.
+     *
+     * @param suites Full list of TLS cipher suites to sanitize/filter,
+     *               should be in format similar to: "SUITE1", "SUITE2", etc.
+     *
+     * @return New filtered String array of cipher suites.
+     */
+    protected static String[] sanitizeSuites(String[] suites) {
+        ArrayList<String> filtered = new ArrayList<String>();
+
+        String enabledSuites =
+            Security.getProperty("wolfjsse.enabledCipherSuites");
+        List enabledList = null;
+
+        /* If system property not set, no filtering needed */
+        if (enabledSuites == null || enabledSuites.isEmpty()) {
+            return suites;
+        }
+
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "sanitizing enabled cipher suites");
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "wolfjsse.enabledCipherSuites: " + enabledSuites);
+
+        /* Remove spaces after commas, split into List */
+        enabledSuites = enabledSuites.replaceAll(", ",",");
+        enabledList = Arrays.asList(enabledSuites.split(","));
+
+        for (int i = 0; i < suites.length; i++) {
+            if (enabledList.contains(suites[i])) {
+                filtered.add(suites[i]);
+            }
+        }
+
+        return filtered.toArray(new String[filtered.size()]);
+    }
+
+    /**
+     * Check if a given String-based Security property is set.
+     *
+     * @param property security property to check
+     * @return true if security property is set (meaning not null or
+     *         empty string), otherwise false.
+     */
+    protected static boolean isSecurityPropertyStringSet(String property) {
+
+        if (property == null || property.isEmpty()) {
+            return false;
+        }
+
+        String sysProp = Security.getProperty(property);
+        if (sysProp == null || sysProp.isEmpty()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

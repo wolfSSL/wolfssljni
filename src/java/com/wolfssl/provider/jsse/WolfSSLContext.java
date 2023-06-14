@@ -140,14 +140,6 @@ public class WolfSSLContext extends SSLContextSpi {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "created new native WOLFSSL_CTX");
 
-        try {
-            LoadTrustedRootCerts();
-            LoadClientKeyAndCertChain();
-
-        } catch (Exception e) {
-            throw new IllegalArgumentException(e);
-        }
-
         if(ctxAttr.list != null && ctxAttr.list.length > 0) {
             ciphersIana = ctxAttr.list;
         } else {
@@ -157,18 +149,68 @@ public class WolfSSLContext extends SSLContextSpi {
         /* Set minimum allowed RSA/DH/ECC key sizes */
         enforceKeySizeLimitations();
 
-        /* TODO: filter cipher suite list and protocols to conform to
-         * limitations set by jdk.tls.disabledAlgorithms system property
-         * if set */
-
-        /* Auto-populate enabled ciphersuites with supported ones */
-        params.setCipherSuites(ciphersIana);
+        /* Auto-populate enabled ciphersuites with supported ones. If suites
+         * have been restricted with wolfjsse.enabledCipherSuites system
+         * security property, the suite list will be filtered in
+         * WolfSSLEngineHelper.sanitizeSuites() to adhere to any
+         * set restrictions */
+        if (WolfSSLUtil.isSecurityPropertyStringSet(
+            "wolfjsse.enabledCipherSuites")) {
+            /* User is overriding cipher suites, set CTX list */
+            this.setCtxCiphers(WolfSSLUtil.sanitizeSuites(ciphersIana));
+        }
+        params.setCipherSuites(WolfSSLUtil.sanitizeSuites(ciphersIana));
 
         /* Auto-populate enabled protocols with supported ones. Protocols
          * which have been disabled via system property get filtered in
          * WolfSSLEngineHelper.sanitizeProtocols() */
         params.setProtocols(WolfSSLUtil.sanitizeProtocols(
             this.getProtocolsMask(ctxAttr.noOptions)));
+
+        try {
+            LoadTrustedRootCerts();
+            LoadClientKeyAndCertChain();
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    /**
+     * Set native WOLFSSL_CTX cipher suite list.
+     * Converts String[] to colon-delimited cipher suite array, then
+     * calls native wolfSSL_CTX_set_cipher_list().
+     */
+    private void setCtxCiphers(String[] suites)
+            throws IllegalArgumentException {
+        try {
+            String list;
+            StringBuilder sb = new StringBuilder();
+
+            if (suites == null || suites.length == 0) {
+                /* use default cipher suites */
+                return;
+            }
+
+            for (String s : suites) {
+                sb.append(s);
+                sb.append(":");
+            }
+
+            if (sb.length() > 0) {
+                /* remove last : */
+                sb.deleteCharAt(sb.length() - 1);
+                list = sb.toString();
+                if (this.ctx.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "error setting WolfSSLContext cipher list: " +
+                            list);
+                }
+            }
+
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     /**

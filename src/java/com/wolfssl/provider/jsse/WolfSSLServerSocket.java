@@ -163,7 +163,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledCipherSuites()");
 
-        return params.getCipherSuites();
+        return WolfSSLUtil.sanitizeSuites(params.getCipherSuites());
     }
 
     @Override
@@ -182,7 +182,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         }
 
         /* sanitize cipher array for unsupported strings */
-        List<String> supported = Arrays.asList(WolfSSL.getCiphersIana());
+        List<String> supported = Arrays.asList(
+            WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana()));
         for (int i = 0; i < suites.length; i++) {
             if (!supported.contains(suites[i])) {
                 throw new IllegalArgumentException("Unsupported CipherSuite: " +
@@ -202,7 +203,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedCipherSuites()");
 
-        return WolfSSL.getCiphersIana();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
     @Override
@@ -211,7 +212,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
 
-        return params.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(params.getProtocols());
     }
 
     @Override
@@ -220,7 +221,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
 
-        return params.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(params.getProtocols());
     }
 
     @Override
@@ -240,7 +241,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         /* sanitize protocol array for unsupported strings */
         List<String> supported;
-        supported = Arrays.asList(WolfSSL.getProtocols());
+        supported = Arrays.asList(
+            WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols()));
 
         for (int i = 0; i < protocols.length; i++) {
             if (!supported.contains(protocols[i])) {
