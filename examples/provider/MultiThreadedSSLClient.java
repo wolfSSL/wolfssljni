@@ -219,8 +219,10 @@ public class MultiThreadedSSLClient
         System.out.println("All Client Connections Finished");
         System.out.println("Successful = " + successClientConnections);
         System.out.println("Failed = " + failedClientConnections);
-        System.out.println("Avg handshake time = " +
-                totalConnectionTimeMs / successClientConnections + " ms");
+        if (successClientConnections > 0) {
+            System.out.println("Avg handshake time = " +
+                    totalConnectionTimeMs / successClientConnections + " ms");
+        }
         System.out.println("================================================");
     }
 

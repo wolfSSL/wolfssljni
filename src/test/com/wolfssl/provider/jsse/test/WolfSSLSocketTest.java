@@ -1356,7 +1356,7 @@ public class WolfSSLSocketTest {
     @Test
     public void testConnectionWithDisabledAlgorithms() throws Exception {
 
-        System.out.print("\tConnection with disabled algorithms");
+        System.out.print("\tConnect with disabled algos");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);

@@ -163,6 +163,133 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_newContext(JNIEnv* jenv,
     return (jlong)(uintptr_t)wolfSSL_CTX_new((WOLFSSL_METHOD*)(uintptr_t)method);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDH
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jbyteArray p, jint pSz,
+   jbyteArray g, jint gSz)
+{
+#ifndef NO_DH
+    int ret = 0;
+    jclass excClass;
+    unsigned char* pBuf = NULL;
+    unsigned char* gBuf = NULL;
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    if (jenv == NULL || p == NULL || g == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ctx == NULL) {
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return SSL_FAILURE;
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Input WolfSSLContext object was null in "
+                "setTmpDH");
+        return SSL_FAILURE;
+    }
+
+    pBuf = (unsigned char*)XMALLOC((int)pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pBuf == NULL) {
+        ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        XMEMSET(pBuf, 0, pSz);
+        gBuf = (unsigned char*)XMALLOC((int)gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (gBuf == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+
+    if (ret == 0) {
+        XMEMSET(gBuf, 0, gSz);
+        (*jenv)->GetByteArrayRegion(jenv, p, 0, pSz, (jbyte*)pBuf);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            ret = SSL_FAILURE;
+        }
+    }
+
+    if (ret == 0) {
+        (*jenv)->GetByteArrayRegion(jenv, g, 0, gSz, (jbyte*)gBuf);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            ret = SSL_FAILURE;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wolfSSL_CTX_SetTmpDH(ctx, pBuf, pSz, gBuf, gSz);
+    }
+
+    XMEMSET(pBuf, 0, (int)pSz);
+    XMEMSET(gBuf, 0, (int)gSz);
+    XFREE(pBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(gBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)p;
+    (void)pSz;
+    (void)g;
+    (void)gSz;
+    return NOT_COMPILED_IN;
+#endif /* !NO_DH */
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDHFile
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file, jint format)
+{
+#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+    int ret;
+    const char* fname;
+    jclass excClass;
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    if (file == NULL) {
+        return SSL_BAD_FILE;
+    }
+
+    if (ctx == NULL) {
+        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return SSL_FAILURE;
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Input WolfSSLContext object was null in "
+                "setTmpDHFile");
+        return SSL_FAILURE;
+    }
+
+    fname = (*jenv)->GetStringUTFChars(jenv, file, 0);
+
+    ret = wolfSSL_CTX_SetTmpDH_file(ctx, fname, format);
+
+    (*jenv)->ReleaseStringUTFChars(jenv, file, fname);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)file;
+    (void)format;
+    return NOT_COMPILED_IN;
+#endif /* !NO_DH && !NO_FILESYSTEM */
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring file, jint format)
 {
@@ -5326,6 +5453,72 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
                     (WOLFSSL_CTX*)(uintptr_t)ctx);
 #else
     (void)ctx;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinDhKeySz
+  (JNIEnv* jenv, jobject obj, jlong ctxPtr, jint keySzBits)
+{
+#ifndef NO_DH
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)obj;
+
+    /* wolfSSL_CTX_SetMinDhKey_Sz() sanitizes ctx and keySzBits */
+    if (jenv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)keySzBits);
+#else
+    (void)jenv;
+    (void)obj;
+    (void)ctxPtr;
+    (void)keySzBits;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinRsaKeySz
+  (JNIEnv* jenv, jobject obj, jlong ctxPtr, jint keySzBits)
+{
+#ifndef NO_RSA
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)obj;
+
+    /* wolfSSL_CTX_SetMinRsaKey_Sz() sanitizes ctx and keySzBits */
+    if (jenv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CTX_SetMinRsaKey_Sz(ctx, (short)keySzBits);
+#else
+    (void)jenv;
+    (void)obj;
+    (void)ctxPtr;
+    (void)keySzBits;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinEccKeySz
+  (JNIEnv* jenv, jobject obj, jlong ctxPtr, jint keySzBits)
+{
+#ifdef HAVE_ECC
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)obj;
+
+    /* wolfSSL_CTX_SetMinEccKey_Sz() sanitizes ctx and keySzBits */
+    if (jenv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CTX_SetMinEccKey_Sz(ctx, (short)keySzBits);
+#else
+    (void)jenv;
+    (void)obj;
+    (void)ctxPtr;
+    (void)keySzBits;
     return NOT_COMPILED_IN;
 #endif
 }

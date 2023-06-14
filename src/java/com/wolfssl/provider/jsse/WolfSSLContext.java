@@ -154,6 +154,7 @@ public class WolfSSLContext extends SSLContextSpi {
             ciphersIana = WolfSSL.getCiphersIana();
         }
 
+        /* Set minimum allowed RSA/DH/ECC key sizes */
         enforceKeySizeLimitations();
 
         /* TODO: filter cipher suite list and protocols to conform to
@@ -170,9 +171,37 @@ public class WolfSSLContext extends SSLContextSpi {
             this.getProtocolsMask(ctxAttr.noOptions)));
     }
 
-    private void enforceKeySizeLimitations() {
-        /* TODO: call WOLFSSL_CTX APIs to limit key sizes based on
-         * jdk.tls.disabledAlgorithms settings */
+    /**
+     * Set minimum supported key sizes for RSA/DH/ECC based on values
+     * set by user in jdk.tls.disabledAlgorithms security property.
+     *
+     * @throws WolfSSLException Key size limitation fails to set in CTX
+     */
+    private void enforceKeySizeLimitations() throws WolfSSLException {
+
+        int minKeySize = 0;
+        int ret = 0;
+
+        minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("RSA");
+        ret = this.ctx.setMinRSAKeySize(minKeySize);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting SSLContext min RSA key size");
+        }
+
+        minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("EC");
+        ret = this.ctx.setMinECCKeySize(minKeySize);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting SSLContext min ECC key size");
+        }
+
+        minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
+        ret = this.ctx.setMinDHKeySize(minKeySize);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting SSLContext min DH key size");
+        }
     }
 
     private void LoadTrustedRootCerts() {

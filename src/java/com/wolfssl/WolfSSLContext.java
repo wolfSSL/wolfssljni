@@ -323,6 +323,8 @@ public class WolfSSLContext {
     /* ------------------ native method declarations -------------------- */
 
     private native long newContext(long method);
+    private native int setTmpDH(long ctx, byte[] p, int pSz, byte[] g, int gSz);
+    private native int setTmpDHFile(long ctx, String fname, int format);
     private native int useCertificateFile(long ctx, String file, int format);
     private native int usePrivateKeyFile(long ctx, String file, int format);
     private native int loadVerifyLocations(long ctx, String file, String path);
@@ -371,6 +373,9 @@ public class WolfSSLContext {
     private native void setPskServerCb(long ctx);
     private native int usePskIdentityHint(long ssl, String hint);
     private native int useSecureRenegotiation(long ctx);
+    private native int setMinDhKeySz(long ctx, int keySzBits);
+    private native int setMinRsaKeySz(long ctx, int keySzBits);
+    private native int setMinEccKeySz(long ctx, int keySzBits);
 
     /* ------------------- context-specific methods --------------------- */
 
@@ -766,6 +771,57 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         return setCipherList(getContextPtr(), list);
+    }
+
+    /**
+     * Sets up the group parameters to be used if the server negotiates
+     * a cipher suite that uses DHE.
+     *
+     * @param p     Diffie-Hellman prime number parameter
+     * @param pSz   size of <code>p</code>
+     * @param g     Diffie-Hellman "generator" parameter
+     * @param gSz   size of <code>g</code>
+     * @return      <code>SSL_SUCCESS</code> on success. <code>MEMORY_E
+     *              </code> if a memory error was encountered. <code>
+     *              SIDE_ERROR</code> if this function is called on an
+     *              SSL client instead of an SSL server.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #accept()
+     */
+    public int setTmpDH(byte[] p, int pSz, byte[] g, int gSz)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        return setTmpDH(getContextPtr(), p, pSz, g, gSz);
+    }
+
+    /**
+     * Sets up the group parameters from the specified file to be used if the
+     * server negotiates a cipher suite that uses DHE.
+     *
+     * @param fname     path to Diffie-Hellman parameter file
+     * @param format    format of DH parameter file, either
+     *                  <code>SSL_FILETYPE_ASN1</code> or <code>
+     *                  SSL_FILETYPE_PEM</code>.
+     * @return          <code>SSL_SUCCESS</code> on success. <code>MEMORY_E
+     *                  </code> if a memory error was encountered. <code>
+     *                  SIDE_ERROR</code> if this function is called on an
+     *                  SSL client instead of an SSL server, <code>
+     *                  SSL_BAD_FILETYPE</code> if the specified format is
+     *                  incorrect, <code>SSL_BAD_FILE</code> if there is a
+     *                  problem with the input file.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setTmpDH(byte[], int, byte[], int)
+     */
+    public int setTmpDHFile(String fname, int format)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        return setTmpDHFile(getContextPtr(), fname, format);
     }
 
     /**
@@ -1716,6 +1772,63 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         return useSecureRenegotiation(getContextPtr());
+    }
+
+    /**
+     * Set minimum supported DH key size for this WOLFSSL_CTX.
+     *
+     * @param minKeySizeBits Minimum DH key size in bits (ex: 1024)
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> upon success,
+     *         <code>WolfSSL.SSL_FAILURE</code> or negative upon error.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    WolfSSLContext#setMinRSAKeySize(int)
+     * @see    WolfSSLContext#setMinECCKeySize(int)
+     */
+    public int setMinDHKeySize(int minKeySizeBits)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return setMinDhKeySz(getContextPtr(), minKeySizeBits);
+    }
+
+    /**
+     * Set minimum supported RSA key size for this WOLFSSL_CTX.
+     *
+     * @param minKeySizeBits Minimum RSA key size in bits (ex: 2048)
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> upon success,
+     *         <code>WolfSSL.SSL_FAILURE</code> or negative upon error.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    WolfSSLContext#setMinDHKeySize(int)
+     * @see    WolfSSLContext#setMinECCKeySize(int)
+     */
+    public int setMinRSAKeySize(int minKeySizeBits)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return setMinRsaKeySz(getContextPtr(), minKeySizeBits);
+    }
+
+    /**
+     * Set minimum supported ECC key size for this WOLFSSL_CTX.
+     *
+     * @param minKeySizeBits Minimum ECC key size in bits (ex: 224)
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> upon success,
+     *         <code>WolfSSL.SSL_FAILURE</code> or negative upon error.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    WolfSSLContext#setMinDHKeySize(int)
+     * @see    WolfSSLContext#setMinRSAKeySize(int)
+     */
+    public int setMinECCKeySize(int minKeySizeBits)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return setMinEccKeySz(getContextPtr(), minKeySizeBits);
     }
 
     @SuppressWarnings("deprecation")
