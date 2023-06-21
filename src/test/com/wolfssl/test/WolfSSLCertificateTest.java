@@ -27,15 +27,37 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static org.junit.Assert.fail;
+import java.time.Instant;
+import java.time.Duration;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.KeyPairGenerator;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.PublicKey;
+import java.security.PrivateKey;
+import java.security.NoSuchAlgorithmException;
+
 import org.junit.Test;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLX509Name;
 import com.wolfssl.WolfSSLCertificate;
+import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 /**
  *
@@ -47,18 +69,38 @@ public class WolfSSLCertificateTest {
 
     public static String cliCertDer = "examples/certs/client-cert.der";
     public static String cliCertPem = "examples/certs/client-cert.pem";
+    public static String cliKeyDer = "examples/certs/client-key.der";
+    public static String cliKeyPubDer = "examples/certs/client-keyPub.der";
+    public static String caCertPem = "examples/certs/ca-cert.pem";
+    public static String caKeyDer = "examples/certs/ca-key.der";
+    public static String caKeyPkcs8Der = "examples/certs/ca-keyPkcs8.der";
+    public static String serverCertPem = "examples/certs/server-cert.pem";
     public static String external = "examples/certs/ca-google-root.der";
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
+
+    @BeforeClass
+    public static void setCertPaths() throws WolfSSLException {
+
+        try {
+            WolfSSL.loadLibrary();
+        } catch (UnsatisfiedLinkError ule) {
+            fail("failed to load native JNI library");
+        }
+
+        cliCertDer = WolfSSLTestCommon.getPath(cliCertDer);
+        cliCertPem = WolfSSLTestCommon.getPath(cliCertPem);
+        cliKeyPubDer = WolfSSLTestCommon.getPath(cliKeyPubDer);
+        caCertPem = WolfSSLTestCommon.getPath(caCertPem);
+        caKeyDer = WolfSSLTestCommon.getPath(caKeyDer);
+        external   = WolfSSLTestCommon.getPath(external);
+    }
+
 
     @Test
     public void testWolfSSLCertificate() throws WolfSSLException {
 
         System.out.println("WolfSSLCertificate Class");
-
-        cliCertDer = WolfSSLTestCommon.getPath(cliCertDer);
-        cliCertPem = WolfSSLTestCommon.getPath(cliCertPem);
-        external   = WolfSSLTestCommon.getPath(external);
 
         /* WolfSSLCertificate(byte[] der) */
         test_WolfSSLCertificate_new_derArray();
@@ -79,7 +121,6 @@ public class WolfSSLCertificateTest {
         }
     }
 
-
     public void test_runCertTestsAfterConstructor() {
         test_getSerial();
         test_notBefore();
@@ -95,7 +136,11 @@ public class WolfSSLCertificateTest {
         test_getSignatureType();
         test_verify();
         test_getSignatureOID();
-        test_getKeyUsage();
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            test_getKeyUsage();
+        }
         test_getExtensionSet();
         test_toString();
         test_free();
@@ -208,11 +253,11 @@ public class WolfSSLCertificateTest {
 
 
     public void test_getSerial() {
-        byte[] expected = new byte[]{
-            (byte)0x01, (byte)0x1a, (byte)0xeb, (byte)0x56, (byte)0xab,
-            (byte)0xdc, (byte)0x8b, (byte)0xf3, (byte)0xa6, (byte)0x1e,
-            (byte)0xf4, (byte)0x93, (byte)0x60, (byte)0x89, (byte)0xb7,
-            (byte)0x05, (byte)0x07, (byte)0x29, (byte)0x01, (byte)0x2c
+        byte[] expected = new byte[] {
+            (byte)0x73, (byte)0xfb, (byte)0x54, (byte)0xd6, (byte)0x03,
+            (byte)0x7d, (byte)0x4c, (byte)0x07, (byte)0x84, (byte)0xe2,
+            (byte)0x00, (byte)0x11, (byte)0x8c, (byte)0xdd, (byte)0x90,
+            (byte)0xdc, (byte)0x48, (byte)0x8d, (byte)0xea, (byte)0x53
         };
         byte[] serial;
         int i;
@@ -232,7 +277,7 @@ public class WolfSSLCertificateTest {
     @SuppressWarnings("deprecation")
     public void test_notBefore() {
         Date date = cert.notBefore();
-        Date expected = new Date("Feb 15 12:50:24 2022 GMT");
+        Date expected = new Date("Dec 16 21:17:49 2022 GMT");
         System.out.print("\t\tnotBefore");
         if (date.compareTo(expected) != 0) {
             System.out.println("\t\t... failed");
@@ -245,7 +290,7 @@ public class WolfSSLCertificateTest {
     @SuppressWarnings("deprecation")
     public void test_notAfter() {
         Date date = cert.notAfter();
-        Date expected = new Date("Nov 11 12:50:24 2024 GMT");
+        Date expected = new Date("Sep 11 21:17:49 2025 GMT");
         System.out.print("\t\tnotAfter");
         if (date.compareTo(expected) != 0) {
             System.out.println("\t\t... failed");
@@ -268,49 +313,58 @@ public class WolfSSLCertificateTest {
     public void test_getSignature() {
         byte[] sig = cert.getSignature();
         byte[] expected = new byte[] {
-            (byte)0x64, (byte)0x6d, (byte)0xa6, (byte)0x4a, (byte)0xa8, (byte)0x9f,
-            (byte)0xa7, (byte)0xe9, (byte)0x75, (byte)0x2c, (byte)0xf3, (byte)0x85,
-            (byte)0x3d, (byte)0x3e, (byte)0xaf, (byte)0x38, (byte)0xfb, (byte)0x6c,
-            (byte)0xc7, (byte)0xeb, (byte)0xc7, (byte)0xd0, (byte)0x2b, (byte)0xa2,
-            (byte)0x45, (byte)0xb5, (byte)0x65, (byte)0xbe, (byte)0xd0, (byte)0x13,
-            (byte)0x2c, (byte)0xf7, (byte)0xa3, (byte)0xc1, (byte)0xeb, (byte)0x3c,
-            (byte)0xb1, (byte)0xf8, (byte)0xb8, (byte)0x3d, (byte)0x63, (byte)0x8f,
-            (byte)0xca, (byte)0x08, (byte)0x4e, (byte)0x65, (byte)0x1d, (byte)0x2c,
-            (byte)0xce, (byte)0x34, (byte)0x6e, (byte)0x35, (byte)0x96, (byte)0x87,
-            (byte)0x93, (byte)0x30, (byte)0x5d, (byte)0xaa, (byte)0xc8, (byte)0xe9,
-            (byte)0xa0, (byte)0x9c, (byte)0x9b, (byte)0x84, (byte)0x78, (byte)0x3a,
-            (byte)0x52, (byte)0xa1, (byte)0x33, (byte)0x48, (byte)0x6e, (byte)0x84,
-            (byte)0x66, (byte)0x71, (byte)0x9c, (byte)0xcf, (byte)0xd1, (byte)0xc7,
-            (byte)0x7b, (byte)0x02, (byte)0x4c, (byte)0xe1, (byte)0x49, (byte)0x7c,
-            (byte)0x69, (byte)0x47, (byte)0xfc, (byte)0xb7, (byte)0x01, (byte)0xf9,
-            (byte)0xa0, (byte)0x39, (byte)0x3b, (byte)0xab, (byte)0xb9, (byte)0xc6,
-            (byte)0xd9, (byte)0xca, (byte)0x27, (byte)0x85, (byte)0xf0, (byte)0x5c,
-            (byte)0xb6, (byte)0xa4, (byte)0xe6, (byte)0xdc, (byte)0xf2, (byte)0x52,
-            (byte)0xfe, (byte)0x44, (byte)0x00, (byte)0xb6, (byte)0xf0, (byte)0x47,
-            (byte)0xf2, (byte)0x6f, (byte)0x3f, (byte)0xd5, (byte)0x0f, (byte)0xff,
-            (byte)0x31, (byte)0x93, (byte)0x53, (byte)0x88, (byte)0x8c, (byte)0xc7,
-            (byte)0xfb, (byte)0x56, (byte)0x10, (byte)0x4b, (byte)0x3b, (byte)0x43,
-            (byte)0xe6, (byte)0x8a, (byte)0x9c, (byte)0xb7, (byte)0xb4, (byte)0x9a,
-            (byte)0xdd, (byte)0x5c, (byte)0xe3, (byte)0xcd, (byte)0x9c, (byte)0xbd,
-            (byte)0xa7, (byte)0x0c, (byte)0xc1, (byte)0xd9, (byte)0x96, (byte)0xf0,
-            (byte)0x93, (byte)0xf3, (byte)0xab, (byte)0xbd, (byte)0xd2, (byte)0x1e,
-            (byte)0x77, (byte)0x8a, (byte)0x42, (byte)0xcd, (byte)0x0f, (byte)0xfe,
-            (byte)0x48, (byte)0xda, (byte)0x57, (byte)0x34, (byte)0x61, (byte)0x46,
-            (byte)0xa3, (byte)0x89, (byte)0x2e, (byte)0x31, (byte)0xd2, (byte)0x4a,
-            (byte)0xd4, (byte)0x43, (byte)0x2f, (byte)0x56, (byte)0x85, (byte)0x44,
-            (byte)0x75, (byte)0xca, (byte)0x6b, (byte)0x36, (byte)0xe2, (byte)0xe8,
-            (byte)0x3a, (byte)0xb2, (byte)0x95, (byte)0x95, (byte)0x3a, (byte)0x28,
-            (byte)0x90, (byte)0x8d, (byte)0xc0, (byte)0x23, (byte)0xfb, (byte)0x3c,
-            (byte)0xd2, (byte)0x1a, (byte)0x73, (byte)0x6b, (byte)0xef, (byte)0xfd,
-            (byte)0xd6, (byte)0x1b, (byte)0xeb, (byte)0x6d, (byte)0x67, (byte)0x2a,
-            (byte)0xe1, (byte)0xeb, (byte)0x2a, (byte)0x83, (byte)0x22, (byte)0xad,
-            (byte)0xe3, (byte)0x95, (byte)0x19, (byte)0xe5, (byte)0x93, (byte)0xee,
-            (byte)0x14, (byte)0xdc, (byte)0xb5, (byte)0x7d, (byte)0xe7, (byte)0xcf,
-            (byte)0x89, (byte)0x8c, (byte)0xd7, (byte)0x8f, (byte)0xd2, (byte)0x3f,
-            (byte)0x68, (byte)0x7e, (byte)0xa9, (byte)0x74, (byte)0x7c, (byte)0x1b,
-            (byte)0x38, (byte)0x65, (byte)0xf9, (byte)0x28, (byte)0x4d, (byte)0xff,
-            (byte)0x50, (byte)0xc8, (byte)0xee, (byte)0x51, (byte)0x3a, (byte)0x8f,
-            (byte)0x1d, (byte)0x9e, (byte)0x55, (byte)0x5e
+            (byte)0x36, (byte)0xcb, (byte)0xbc, (byte)0xc5, (byte)0x52,
+            (byte)0x9a, (byte)0x66, (byte)0xcd, (byte)0x91, (byte)0x4d,
+            (byte)0x8f, (byte)0x27, (byte)0x9f, (byte)0xb3, (byte)0x64,
+            (byte)0x80, (byte)0x0e, (byte)0x64, (byte)0xb4, (byte)0xcb,
+            (byte)0x1a, (byte)0xcd, (byte)0x75, (byte)0x9e, (byte)0x82,
+            (byte)0x7c, (byte)0x55, (byte)0x67, (byte)0xd8, (byte)0x9f,
+            (byte)0x90, (byte)0xa3, (byte)0x34, (byte)0x96, (byte)0x99,
+            (byte)0x43, (byte)0xf7, (byte)0x49, (byte)0x53, (byte)0xa2,
+            (byte)0x58, (byte)0x85, (byte)0xa0, (byte)0xb3, (byte)0x83,
+            (byte)0x4f, (byte)0xaf, (byte)0xb8, (byte)0x15, (byte)0x8a,
+            (byte)0x88, (byte)0x1e, (byte)0xf3, (byte)0x60, (byte)0xf4,
+            (byte)0x7c, (byte)0x94, (byte)0xb5, (byte)0x58, (byte)0x68,
+            (byte)0xf1, (byte)0x2a, (byte)0x13, (byte)0x80, (byte)0x34,
+            (byte)0xc2, (byte)0x6f, (byte)0xa5, (byte)0xf8, (byte)0x7e,
+            (byte)0x76, (byte)0x16, (byte)0x81, (byte)0x4f, (byte)0x36,
+            (byte)0x8b, (byte)0xc3, (byte)0x59, (byte)0xbd, (byte)0x51,
+            (byte)0xdd, (byte)0x60, (byte)0x87, (byte)0xd7, (byte)0x1d,
+            (byte)0x96, (byte)0x44, (byte)0x69, (byte)0x07, (byte)0x3c,
+            (byte)0x8f, (byte)0x28, (byte)0x56, (byte)0xb1, (byte)0x11,
+            (byte)0x5c, (byte)0x4e, (byte)0x81, (byte)0x3f, (byte)0x57,
+            (byte)0x25, (byte)0xfd, (byte)0x65, (byte)0xdd, (byte)0x07,
+            (byte)0xcf, (byte)0x17, (byte)0x0a, (byte)0x01, (byte)0x7e,
+            (byte)0x4e, (byte)0x3f, (byte)0x8e, (byte)0x73, (byte)0xdb,
+            (byte)0xfe, (byte)0xf4, (byte)0xf2, (byte)0xc5, (byte)0xff,
+            (byte)0xa3, (byte)0x76, (byte)0xa8, (byte)0x74, (byte)0x46,
+            (byte)0x2e, (byte)0x47, (byte)0x0d, (byte)0xb0, (byte)0xed,
+            (byte)0x0a, (byte)0xc0, (byte)0xc5, (byte)0x0a, (byte)0x65,
+            (byte)0xd3, (byte)0xdc, (byte)0x62, (byte)0xb2, (byte)0xe0,
+            (byte)0x1e, (byte)0x8e, (byte)0xbd, (byte)0xf3, (byte)0xbd,
+            (byte)0xaf, (byte)0xaf, (byte)0x66, (byte)0x84, (byte)0x36,
+            (byte)0x92, (byte)0xe2, (byte)0x3b, (byte)0x80, (byte)0xd0,
+            (byte)0x57, (byte)0xa6, (byte)0x41, (byte)0xa3, (byte)0x62,
+            (byte)0xd1, (byte)0xa6, (byte)0x6d, (byte)0x14, (byte)0x6c,
+            (byte)0xcd, (byte)0x82, (byte)0xb1, (byte)0xc1, (byte)0xc1,
+            (byte)0x35, (byte)0x55, (byte)0xae, (byte)0x59, (byte)0x49,
+            (byte)0xa8, (byte)0x26, (byte)0x52, (byte)0xbd, (byte)0xef,
+            (byte)0x1b, (byte)0x2c, (byte)0x1f, (byte)0x9d, (byte)0x39,
+            (byte)0x04, (byte)0xd2, (byte)0x82, (byte)0xa0, (byte)0x6b,
+            (byte)0x39, (byte)0x71, (byte)0x59, (byte)0x33, (byte)0x82,
+            (byte)0xba, (byte)0x55, (byte)0x6c, (byte)0x97, (byte)0xf2,
+            (byte)0x1b, (byte)0x5b, (byte)0xe0, (byte)0x4d, (byte)0xe2,
+            (byte)0xcf, (byte)0x89, (byte)0xe7, (byte)0x26, (byte)0xb8,
+            (byte)0x2c, (byte)0x6c, (byte)0x9f, (byte)0x83, (byte)0xd6,
+            (byte)0xed, (byte)0x4e, (byte)0x2f, (byte)0x75, (byte)0xa9,
+            (byte)0x30, (byte)0x4e, (byte)0x01, (byte)0x95, (byte)0x0d,
+            (byte)0x4f, (byte)0x83, (byte)0x5e, (byte)0xc8, (byte)0xaf,
+            (byte)0x7f, (byte)0x67, (byte)0xea, (byte)0x53, (byte)0xbf,
+            (byte)0xca, (byte)0x9b, (byte)0x1f, (byte)0xd4, (byte)0xff,
+            (byte)0x36, (byte)0x97, (byte)0x02, (byte)0x71, (byte)0x8e,
+            (byte)0x33, (byte)0xde, (byte)0xe2, (byte)0x58, (byte)0x27,
+            (byte)0xaa, (byte)0x70, (byte)0x0c, (byte)0x5b, (byte)0xde,
+            (byte)0x0e
         };
         int i;
         System.out.print("\t\tgetSignature");
@@ -577,4 +631,616 @@ public class WolfSSLCertificateTest {
         this.cert.free();
         System.out.println("\t\t\t... passed");
     }
+
+    @Test
+    public void testWolfSSLCertificateGeneration()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException,
+               InvalidKeySpecException {
+
+        System.out.println("WolfSSLCertificate Generation");
+
+        if (WolfSSL.FileSystemEnabled() == true) {
+            testCertGen_SelfSigned_UsingFiles();
+            testCertGen_SelfSigned_UsingBuffers();
+            testCertGen_SelfSigned_UsingJavaClasses();
+            testCertGen_CASigned_UsingFiles();
+            testCertGen_CASigned_UsingBuffers();
+            testCertGen_CASigned_UsingJavaClasses();
+        }
+    }
+
+    /* Quick sanity check on certificate bytes. Loads cert into new
+     * WolfSSLCertificate object, tries to get various elements and
+     * simply verify if not null / etc. */
+    private void sanityCheckCertFileBytes(byte[] certBytes, int type)
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        if (certBytes == null ||
+            (type != WolfSSL.SSL_FILETYPE_ASN1 &&
+             type != WolfSSL.SSL_FILETYPE_PEM)) {
+            throw new WolfSSLException("certBytes is null or bad type");
+        }
+
+        WolfSSLCertificate tmp = new WolfSSLCertificate(certBytes, type);
+        assertNotNull(tmp);
+        assertNotNull(tmp.getDer());
+        assertNotNull(tmp.getPem());
+        assertNotNull(tmp.getTbs());
+        assertNotNull(tmp.getSerial());
+        assertNotNull(tmp.notBefore());
+        assertNotNull(tmp.notAfter());
+        assertTrue(tmp.getVersion() >= 0);
+        assertNotNull(tmp.getSignature());
+        assertNotNull(tmp.getSignatureType());
+        assertNotNull(tmp.getSignatureOID());
+        assertNotNull(tmp.getPubkey());
+        assertNotNull(tmp.getPubkeyType());
+        int isCA = tmp.isCA();
+        assertTrue(isCA == 0 || isCA == 1);
+        assertTrue(tmp.getPathLen() >= -1);
+        assertNotNull(tmp.getSubject());
+        assertNotNull(tmp.getIssuer());
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            assertNotNull(tmp.getKeyUsage());
+        }
+        assertNotNull(tmp.getSubjectAltNames());
+        assertNotNull(tmp.getX509Certificate());
+        assertNotNull(tmp.toString());
+    }
+
+    /* Make sure peer cert can be verified using CertManager and provided
+     * CA cert (and optional intermediate CA cert if needed). Supports PEM and
+     * DER. Throws WolfSSLException if not valid. */
+    private void verifyCertSignatureIsCorrect(
+        byte[] peerCert, int peerCertType,
+        byte[] intCaCert, int intCaCertType,
+        byte[] rootCaCert, int rootCaCertType) throws WolfSSLException {
+
+        int ret = WolfSSL.SSL_FAILURE;
+        WolfSSLCertManager cm = new WolfSSLCertManager();
+
+        if (peerCert == null || rootCaCert == null ||
+            (peerCertType != WolfSSL.SSL_FILETYPE_ASN1 &&
+             peerCertType != WolfSSL.SSL_FILETYPE_PEM) ||
+            (rootCaCertType != WolfSSL.SSL_FILETYPE_ASN1 &&
+             rootCaCertType != WolfSSL.SSL_FILETYPE_PEM)) {
+            throw new WolfSSLException("cert or CA cert is null or bad type");
+        }
+
+        /* Load root CA as trusted */
+        ret = cm.CertManagerLoadCABuffer(rootCaCert, rootCaCert.length,
+                                         rootCaCertType);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Failed to load CA for verifying");
+        }
+
+        /* Load intermediate CA as trusted if needed */
+        if (intCaCert != null) {
+            if (intCaCertType != WolfSSL.SSL_FILETYPE_ASN1 &&
+                intCaCertType != WolfSSL.SSL_FILETYPE_PEM) {
+                throw new WolfSSLException("intermediate cert is bad type");
+            }
+
+            ret = cm.CertManagerLoadCABuffer(intCaCert, intCaCert.length,
+                                             intCaCertType);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLException(
+                    "Failed to load intermediate CA for verifying");
+            }
+        }
+
+        ret = cm.CertManagerVerifyBuffer(peerCert, peerCert.length,
+            peerCertType);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Failed to verify peer cert against CA");
+        }
+    }
+
+
+    /* Internal helper method, generate test SubjectName for cert generation */
+    private WolfSSLX509Name GenerateTestSubjectName() throws WolfSSLException {
+
+        WolfSSLX509Name name = new WolfSSLX509Name();
+
+        name.setCountryName("US");
+        name.setStateOrProvinceName("Montana");
+        name.setStreetAddress("12345 Test Address");
+        name.setLocalityName("Bozeman");
+        name.setSurname("Test Surname");
+        name.setCommonName("wolfssl.com");
+        name.setEmailAddress("support@wolfssl.com");
+        name.setOrganizationName("wolfSSL Inc.");
+        name.setOrganizationalUnitName("Development Test");
+        name.setUserId("TestUserID");
+
+        return name;
+    }
+
+    /* Test self-signed certificate generation using files for public key,
+     * issuer name, and issuer private key */
+    private void testCertGen_SelfSigned_UsingFiles()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        System.out.print("\tself signed (files)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Not setting Issuer, since generating self-signed cert */
+
+        /* Set Public Key from file */
+        x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, true, true);
+
+        /* Sign cert, self-signed */
+        x509.signCert(cliKeyDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    /* Test CA-signed certificate generation using files for public key,
+     * issuer name, and issuer private key */
+    private void testCertGen_CASigned_UsingFiles()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        System.out.print("\tCA signed (files)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Set Issuer Name from existing PEM file */
+        WolfSSLCertificate issuer =
+            new WolfSSLCertificate(caCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        x509.setIssuerName(issuer);
+
+        /* Set Public Key from file */
+        x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, false, true);
+
+        /* Sign cert, CA-signed */
+        x509.signCert(caKeyDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    /* Test self-signed certificate generation using buffers for public key,
+     * issuer name, and issuer private key */
+    private void testCertGen_SelfSigned_UsingBuffers()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        System.out.print("\tself signed (buffers)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Not setting Issuer, since generating self-signed cert */
+
+        /* Set Public Key from file */
+        byte[] pubKey = Files.readAllBytes(Paths.get(cliKeyPubDer));
+        x509.setPublicKey(pubKey, WolfSSL.RSAk, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, true, true);
+
+        /* Sign cert, self-signed */
+        byte[] privKey = Files.readAllBytes(Paths.get(cliKeyDer));
+        x509.signCert(privKey, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    /* Test CA-signed certificate generation using buffers for public key,
+     * issuer name, and issuer private key */
+    private void testCertGen_CASigned_UsingBuffers()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        System.out.print("\tCA signed (buffers)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Set Issuer Name from existing PEM file */
+        WolfSSLCertificate issuer =
+            new WolfSSLCertificate(Files.readAllBytes(Paths.get(caCertPem)),
+                WolfSSL.SSL_FILETYPE_PEM);
+        x509.setIssuerName(issuer);
+
+        /* Set Public Key from file */
+        byte[] pubKey = Files.readAllBytes(Paths.get(cliKeyPubDer));
+        x509.setPublicKey(pubKey, WolfSSL.RSAk, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, false, true);
+
+        /* Sign cert, CA-signed */
+        byte[] privKey = Files.readAllBytes(Paths.get(caKeyDer));
+        x509.signCert(privKey, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    /* Test self-signed certificate generation using higher-level Java classes
+     * for public key, issuer name, and issuer private key */
+    private void testCertGen_SelfSigned_UsingJavaClasses()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tself signed (Java classes)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Not setting Issuer, since generating self-signed cert */
+
+        /* Set Public Key from generated java.security.PublicKey */
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+        PublicKey pubKey = keyPair.getPublic();
+        x509.setPublicKey(pubKey);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, true, true);
+
+        /* Sign cert, self-signed with java.security.PrivateKey */
+        PrivateKey privKey = keyPair.getPrivate();
+        x509.signCert(privKey, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, derCert, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t... passed");
+    }
+
+    /* Test CA-signed certificate generation using higher-level Java classes
+     * for public key, issuer name, and issuer private key */
+    private void testCertGen_CASigned_UsingJavaClasses()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException,
+               InvalidKeySpecException {
+
+        System.out.print("\tCA signed (Java classes)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Set Issuer Name from existing PEM file, using server cert since it
+         * is a CA, and wolfSSL proper ships a PKCS#8 encoded DER private key
+         * needed below */
+        WolfSSLCertificate issuer =
+            new WolfSSLCertificate(Files.readAllBytes(Paths.get(caCertPem)),
+                WolfSSL.SSL_FILETYPE_PEM);
+        X509Certificate issuerX509 = issuer.getX509Certificate();
+        x509.setIssuerName(issuerX509);
+
+        /* Set Public Key from generated java.security.PublicKey */
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+        PublicKey pubKey = keyPair.getPublic();
+        x509.setPublicKey(pubKey);
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            /* Key Usage and Extended Key Usage only work with wolfSSL
+             * later than 5.6.3 */
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,keyEncipherment,dataEncipherment", false);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth", false);
+        }
+        x509.addExtension(WolfSSL.NID_subject_alt_name,
+            "test.wolfssl.com", false);
+        x509.addExtension(WolfSSL.NID_basic_constraints, false, true);
+
+        /* Sign cert, with CA's private key */
+        byte[] privBytes = Files.readAllBytes(Paths.get(caKeyPkcs8Der));
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(privBytes);
+        RSAPrivateKey rsaPriv = (RSAPrivateKey)kf.generatePrivate(spec);
+        x509.signCert((PrivateKey)rsaPriv, "SHA256");
+
+        /* Output to DER and PEM */
+        byte[] derCert = x509.getDer();
+        byte[] pemCert = x509.getPem();
+
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+        assertNotNull(pemCert);
+        assertTrue(pemCert.length > 0);
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+        sanityCheckCertFileBytes(pemCert, WolfSSL.SSL_FILETYPE_PEM);
+
+        /* Sanity check CertManager can verify signature using expected CA */
+        verifyCertSignatureIsCorrect(derCert, WolfSSL.SSL_FILETYPE_ASN1,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+        verifyCertSignatureIsCorrect(pemCert, WolfSSL.SSL_FILETYPE_PEM,
+            null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t... passed");
+    }
+
+    /* Utility method if needed for testing, print out cert array to file */
+    private void writeOutCertFile(byte[] cert, String path)
+        throws IOException {
+        Files.write(new File(path).toPath(), cert);
+    }
 }
+

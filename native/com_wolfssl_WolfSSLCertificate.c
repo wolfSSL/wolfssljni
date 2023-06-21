@@ -38,6 +38,672 @@
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSLCertificate.h"
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1new
+  (JNIEnv* jenv, jclass jcl)
+{
+    WOLFSSL_X509* x509 = NULL;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return 0;
+    }
+
+    x509 = wolfSSL_X509_new();
+    if (x509 == NULL) {
+        return 0;
+    }
+
+    return (jlong)(uintptr_t)x509;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1name
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jlong x509NamePtr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_NAME* x509Name = (WOLFSSL_X509_NAME*)(uintptr_t)x509NamePtr;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || x509Name == NULL) {
+        return ret;
+    }
+
+    ret = wolfSSL_X509_set_subject_name(x509, x509Name);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)x509NamePtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1name
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jlong x509NamePtr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_NAME* x509Name = (WOLFSSL_X509_NAME*)(uintptr_t)x509NamePtr;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || x509Name == NULL) {
+        return ret;
+    }
+
+    ret = wolfSSL_X509_set_issuer_name(x509, x509Name);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)x509NamePtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1name_1from_1der
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jbyteArray certDer)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509* x509In = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || certDer == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    der = (byte*)(*jenv)->GetByteArrayElements(jenv, certDer, NULL);
+    derSz = (*jenv)->GetArrayLength(jenv, certDer);
+
+    if (der == NULL || derSz <= 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        x509In = wolfSSL_X509_load_certificate_buffer(der, derSz,
+                    SSL_FILETYPE_ASN1);
+        if (x509In == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Returns pointer into WOLFSSL_X509, no free needed on name */
+        name = wolfSSL_X509_get_issuer_name(x509In);
+        if (name == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_set_issuer_name(x509, name);
+    }
+
+    if (x509In != NULL) {
+        wolfSSL_X509_free(x509In);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, certDer, (jbyte*)der, JNI_ABORT);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)certDer;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1pubkey_1native_1open
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint keyType, jbyteArray fileBytes, jint fileFormat)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+
+    byte* fileBuf = NULL;
+    int fileSz = 0;
+    byte* derBuf = NULL;
+    int derSz = 0;
+    byte derAllocated = 0;
+    WOLFSSL_EVP_PKEY* pub = NULL;
+    unsigned char* rsaPubBuf = NULL;
+
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    fileBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, fileBytes, NULL);
+    fileSz = (*jenv)->GetArrayLength(jenv, fileBytes);
+
+    if (fileBuf == NULL || fileSz == 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    /* convert PEM to DER if needed */
+    if (ret == WOLFSSL_SUCCESS) {
+        if ((int)fileFormat == WOLFSSL_FILETYPE_ASN1) {
+            /* already in DER */
+            derBuf = fileBuf;
+            derSz = fileSz;
+        }
+        else {
+            /* get needed buffer size */
+            ret = wc_KeyPemToDer(fileBuf, fileSz, NULL, 0, NULL);
+            if (ret <= 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                derSz = ret;
+                derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (derBuf == NULL) {
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    ret = WOLFSSL_SUCCESS;
+                    derAllocated = 1;
+                    XMEMSET(derBuf, 0, derSz);
+                }
+            }
+        }
+    }
+
+    /* convert PEM to DER if derBuf has been allocated */
+    if (derAllocated == 1 && ret == WOLFSSL_SUCCESS) {
+        ret = wc_KeyPemToDer(fileBuf, fileSz, derBuf, derSz, NULL);
+        if (ret <= 0 || ret != derSz) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+        }
+    }
+
+    /* convert buffer into WOLFSSL_EVP_PKEY */
+    if (ret == WOLFSSL_SUCCESS) {
+        rsaPubBuf = derBuf;
+
+        pub = wolfSSL_d2i_PUBKEY(NULL, (const unsigned char**)&rsaPubBuf, derSz);
+        if (pub == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    /* set WOLFSSL_EVP_PKEY into WOLFSSL_X509 */
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_set_pubkey(x509, pub);
+    }
+
+    if (pub != NULL) {
+        /* free WOLFSSL_EVP_PKEY, since X509_set_pubkey() makes copy */
+        wolfSSL_EVP_PKEY_free(pub);
+    }
+    if (derAllocated == 1 && derBuf != NULL) {
+        XMEMSET(derBuf, 0, derSz);
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    (*jenv)->ReleaseByteArrayElements(jenv, fileBytes, (jbyte*)fileBuf,
+                                      JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)keyType;
+    (void)filePath;
+    (void)fileFormat;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1altname
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jstring altName, jint type)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    const char* name = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    name = (*jenv)->GetStringUTFChars(jenv, altName, 0);
+
+    if (name == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_X509_add_altname(x509, name, (int)type);
+    }
+
+    (*jenv)->ReleaseStringUTFChars(jenv, altName, name);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)altName;
+    (void)type;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1nconf_1nid
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint nid, jstring extValue, jboolean isCritical)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    const char* value = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    value = (*jenv)->GetStringUTFChars(jenv, extValue, 0);
+    if (value == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ext = wolfSSL_X509V3_EXT_nconf_nid(NULL, NULL, (int)nid, value);
+        if (ext == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        if (isCritical == JNI_TRUE) {
+            ret = wolfSSL_X509_EXTENSION_set_critical(ext, 1);
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_add_ext(x509, ext, -1);
+    }
+
+    if (ext != NULL) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+
+    (*jenv)->ReleaseStringUTFChars(jenv, extValue, value);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)nid;
+    (void)extValue;
+    (void)isCritical;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1set_1object_1boolean
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint nid, jboolean extValue, jboolean isCritical)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ext = wolfSSL_X509_EXTENSION_new();
+    if (ext == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        if (isCritical == JNI_TRUE) {
+            ret = wolfSSL_X509_EXTENSION_set_critical(ext, 1);
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        obj = wolfSSL_OBJ_nid2obj((int)nid);
+        if (obj == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        if (extValue == JNI_TRUE) {
+            obj->ca = 1;
+        }
+        else {
+            obj->ca = 0;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_EXTENSION_set_object(ext, obj);
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_add_ext(x509, ext, -1);
+    }
+
+
+    if (obj != NULL) {
+        wolfSSL_ASN1_OBJECT_free(obj);
+    }
+    if (ext != NULL) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)nid;
+    (void)extValue;
+    (void)isCritical;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notBefore
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jlong notBefore)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_ASN1_TIME* asnBefore = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    time_t notBeforeTime = (time_t)(long)notBefore;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* set time_t value into WOLFSSL_ASN1_TIME struct, no adjustment */
+    asnBefore = wolfSSL_ASN1_TIME_adj(NULL, notBeforeTime, 0, 0);
+    if (asnBefore == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_set_notBefore(x509, asnBefore);
+    }
+
+    if (asnBefore != NULL) {
+        wolfSSL_ASN1_TIME_free(asnBefore);
+    }
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)notBefore;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notAfter
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jlong notAfter)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_ASN1_TIME* asnAfter = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    time_t notAfterTime = (time_t)(long)notAfter;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* set time_t value into WOLFSSL_ASN1_TIME struct, no adjustment */
+    asnAfter = wolfSSL_ASN1_TIME_adj(NULL, notAfterTime, 0, 0);
+    if (asnAfter == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_set_notAfter(x509, asnAfter);
+    }
+
+    if (asnAfter != NULL) {
+        wolfSSL_ASN1_TIME_free(asnAfter);
+    }
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)notAfter;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumber
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jbyteArray serialBytes)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_ASN1_INTEGER* serial = NULL;
+    byte* serialBuf = NULL;
+    int serialSz = 0;
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    serialBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, serialBytes, NULL);
+    serialSz = (*jenv)->GetArrayLength(jenv, serialBytes);
+
+    if (serialBuf == NULL || serialSz == 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        serial = wolfSSL_ASN1_INTEGER_new();
+        if (serial == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            serial->data[0] = ASN_INTEGER;
+            serial->data[1] = serialSz;
+            XMEMCPY(&serial->data[2], serialBuf, serialSz);
+            serial->length = serialSz + 2;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* copies contents of ASN1_INTEGER, we can free below */
+        ret = wolfSSL_X509_set_serialNumber(x509, serial);
+    }
+
+    if (serial != NULL) {
+        wolfSSL_ASN1_INTEGER_free(serial);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, serialBytes, (jbyte*)serialBuf,
+                                      JNI_ABORT);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)serialBytes;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1sign
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint keyType, jbyteArray fileBytes, jint fileFormat, jstring digestAlg)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    defined(WOLFSSL_CERT_GEN)
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+
+    byte* fileBuf = NULL;
+    int fileSz = 0;
+    byte* derBuf = NULL;
+    int derSz = 0;
+    byte derAllocated = 0;
+    WOLFSSL_EVP_PKEY* priv = NULL;
+    const WOLFSSL_EVP_MD* md = NULL;
+    unsigned char* rsaPrivBuf = NULL;
+    const char* mdName = NULL;
+
+    int ret = WOLFSSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    fileBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, fileBytes, NULL);
+    fileSz = (*jenv)->GetArrayLength(jenv, fileBytes);
+
+    if (fileBuf == NULL || fileSz == 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    /* Set correct WOLFSSL_EVP_MD, does not need to be freed */
+    if (ret == WOLFSSL_SUCCESS) {
+        mdName = (*jenv)->GetStringUTFChars(jenv, digestAlg, 0);
+        if (mdName == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            md = wolfSSL_EVP_get_digestbyname(mdName);
+            if (md == NULL) {
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+    }
+
+    /* convert PEM to DER if needed */
+    if (ret == WOLFSSL_SUCCESS) {
+        if ((int)fileFormat == WOLFSSL_FILETYPE_ASN1) {
+            /* already in DER */
+            derBuf = fileBuf;
+            derSz = fileSz;
+        }
+        else {
+            /* get needed buffer size */
+            ret = wc_KeyPemToDer(fileBuf, fileSz, NULL, 0, NULL);
+            if (ret <= 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                derSz = ret;
+                derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (derBuf == NULL) {
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    ret = WOLFSSL_SUCCESS;
+                    derAllocated = 1;
+                    XMEMSET(derBuf, 0, derSz);
+                }
+            }
+        }
+    }
+
+    /* convert PEM to DER if derBuf has been allocated */
+    if (derAllocated == 1 && ret == WOLFSSL_SUCCESS) {
+        ret = wc_KeyPemToDer(fileBuf, fileSz, derBuf, derSz, NULL);
+        if (ret <= 0 || ret != derSz) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+        }
+    }
+
+    /* convert buffer into WOLFSSL_EVP_PKEY */
+    if (ret == WOLFSSL_SUCCESS) {
+        rsaPrivBuf = derBuf;
+
+        priv = wolfSSL_d2i_PrivateKey((int)keyType, NULL,
+                (const unsigned char**)&rsaPrivBuf, derSz);
+        if (priv == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    /* set version to v3 (only supported currently */
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_set_version(x509, 2L);
+    }
+
+    /* sign WOLFSSL_X509 with WOLFSSL_EVP_PKEY, returns size of signature
+     * on success or negative on error */
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wolfSSL_X509_sign(x509, priv, md);
+        if (ret >= 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    }
+
+    if (priv != NULL) {
+        wolfSSL_EVP_PKEY_free(priv);
+    }
+    if (derAllocated == 1 && derBuf != NULL) {
+        XMEMSET(derBuf, 0, derSz);
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    (*jenv)->ReleaseByteArrayElements(jenv, fileBytes, (jbyte*)fileBuf,
+                                      JNI_ABORT);
+    (*jenv)->ReleaseStringUTFChars(jenv, digestAlg, mdName);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)keyType;
+    (void)fileBytes;
+    (void)fileFormat;
+    (void)digestAlg;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certificate_1buffer
   (JNIEnv* jenv, jclass jcl, jbyteArray in, jint format)
 {
@@ -137,6 +803,83 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
         return NULL;
     }
     return derArr;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pem
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#ifdef WOLFSSL_DER_TO_PEM
+    int sz = 0;
+    const byte* der = NULL;
+    byte* pem = NULL;
+    int pemSz = 0;
+    jbyteArray pemArr = NULL;
+    jclass excClass = NULL;
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    der = wolfSSL_X509_get_der(x509, &sz);
+    if (der == NULL || sz == 0) {
+        return NULL;
+    }
+
+    pemSz = wc_DerToPem(der, sz, NULL, 0, CERT_TYPE);
+    if (pemSz < 0) {
+        return NULL;
+    }
+
+    pem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        return NULL;
+    }
+    XMEMSET(pem, 0, pemSz);
+
+    pemSz = wc_DerToPem(der, sz, pem, pemSz, CERT_TYPE);
+    if (pemSz < 0) {
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    pemArr = (*jenv)->NewByteArray(jenv, pemSz);
+    if (pemArr == NULL) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native X509_get_pem");
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, pemArr);
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, pemArr, 0, pemSz, (jbyte*)pem);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, pemArr);
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to set byte region in native X509_get_pem");
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return pemArr;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
@@ -539,6 +1282,33 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_
         return ret;
     }
     return NULL;
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name_1ptr
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(KEEP_PEER_CERT) || \
+     defined(SESSION_CERTS))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_NAME* name = NULL;
+
+    if (jenv == NULL || x509 == NULL) {
+        return 0;
+    }
+
+    name = wolfSSL_X509_get_issuer_name(x509);
+    if (name == NULL) {
+        return 0;
+    }
+
+    return (jlong)(uintptr_t)name;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return (jlong)0;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey

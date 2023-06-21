@@ -346,6 +346,20 @@ public class WolfSSL {
     /** Ed25519 key type */
     public static final int ED25519k = 256;
 
+    /* GeneralName types. Match native values in asn.h */
+    public static final int ASN_OTHER_TYPE  = 0x00;
+    public static final int ASN_RFC822_TYPE = 0x01;
+    public static final int ASN_DNS_TYPE    = 0x02;
+    public static final int ASN_DIR_TYPE    = 0x04;
+    public static final int ASN_URI_TYPE    = 0x06;
+    public static final int ASN_IP_TYPE     = 0x07;
+
+    /* NIDs, from native asn.h */
+    public static final int NID_key_usage         = 129;
+    public static final int NID_subject_alt_name  = 131;
+    public static final int NID_basic_constraints = 133;
+    public static final int NID_ext_key_usage     = 151;
+
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
 
@@ -1047,6 +1061,15 @@ public class WolfSSL {
      * @return  value of native MAX_DIGEST_SIZE define
      */
     public static native int getHmacMaxSize();
+
+    /**
+     * Return the wolfSSL library vesrion number in hex.
+     *
+     * Wrapper around native wolfSSL_lib_version_hex()
+     *
+     * @return wolfSSL native library version hex value
+     */
+    public static native long getLibVersionHex();
 
     /**
      * Returns the enabled cipher suites for native wolfSSL.

@@ -40,6 +40,7 @@ import javax.net.ssl.TrustManagerFactorySpi;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 /**
  * wolfSSL implemenation of TrustManagerFactorySpi
@@ -345,6 +346,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (NoSuchAlgorithmException ex) {
                 throw new KeyStoreException(ex);
             } catch (CertificateException ex) {
+                throw new KeyStoreException(ex);
+            } catch (WolfSSLJNIException ex) {
                 throw new KeyStoreException(ex);
             }
         }

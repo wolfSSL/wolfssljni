@@ -7,12 +7,24 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef com_wolfssl_WolfSSLCertificate_EVP_PKEY_RSA
+#define com_wolfssl_WolfSSLCertificate_EVP_PKEY_RSA 16L
+#undef com_wolfssl_WolfSSLCertificate_EVP_PKEY_EC
+#define com_wolfssl_WolfSSLCertificate_EVP_PKEY_EC 18L
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_get_der
  * Signature: (J)[B
  */
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_pem
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pem
   (JNIEnv *, jclass, jlong);
 
 /*
@@ -121,6 +133,14 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_issuer_name_ptr
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name_1ptr
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_get_pubkey
  * Signature: (J)[B
  */
@@ -198,6 +218,102 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certificate_1file
   (JNIEnv *, jclass, jstring, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_new
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1new
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_subject_name
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1name
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_issuer_name
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1name
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_issuer_name_from_der
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1name_1from_1der
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_pubkey_native_open
+ * Signature: (JI[BI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1pubkey_1native_1open
+  (JNIEnv *, jclass, jlong, jint, jbyteArray, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_add_altname
+ * Signature: (JLjava/lang/String;I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1altname
+  (JNIEnv *, jclass, jlong, jstring, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_add_ext_via_nconf_nid
+ * Signature: (JILjava/lang/String;Z)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1nconf_1nid
+  (JNIEnv *, jclass, jlong, jint, jstring, jboolean);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_add_ext_via_set_object_boolean
+ * Signature: (JIZZ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1set_1object_1boolean
+  (JNIEnv *, jclass, jlong, jint, jboolean, jboolean);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_notBefore
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notBefore
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_notAfter
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notAfter
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_serialNumber
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumber
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_sign
+ * Signature: (JI[BILjava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1sign
+  (JNIEnv *, jclass, jlong, jint, jbyteArray, jint, jstring);
 
 #ifdef __cplusplus
 }

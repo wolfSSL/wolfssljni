@@ -22,6 +22,7 @@ package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLX509StoreCtx;
 import com.wolfssl.provider.jsse.WolfSSLInternalVerifyCb;
@@ -103,7 +104,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "Peer cert: " + x509certs[i].getSubjectDN().getName());
                 }
-            } catch (CertificateException | IOException ce) {
+            } catch (CertificateException | IOException |
+                     WolfSSLJNIException ce) {
                 /* failed to get cert array, give app null array */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "Failed to get X509Certificate[] array, set to null");

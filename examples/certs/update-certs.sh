@@ -34,9 +34,12 @@ certList=(
     "ca-ecc-cert.pem"
     "ca-ecc-key.pem"
     "ca-key.pem"
+    "ca-key.der"
     "client-cert.der"
     "client-cert.pem"
     "client-key.pem"
+    "client-key.der"
+    "client-keyPub.der"
     "dh2048.pem"
     "ecc-client-key.pem"
     "ecc-key.pem"
@@ -66,14 +69,30 @@ do
     fi
 done
 
+# Generate ca-keyPkcs8.der, used by examples/X509CertificateGeneration.java
+openssl pkcs8 -topk8 -inform DER -outform DER -in ca-key.der -out ca-keyPkcs8.der -nocrypt
+if [ $? -ne 0 ]; then
+    printf "Failed to generate ca-keyPkcs8.der"
+    exit 1
+fi
+printf "Generated ca-keyPkcs8.der\n"
+
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-cert.pem
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-ecc-cert.pem
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-cert.pem
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-ecc-cert.pem
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-cert.pem
-sed -i -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-ecc-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-ecc-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-ecc-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-ecc-cert.pem
+
+# Remvoe sed .bak files
+rm intermediate/ca-int2-cert.pem.bak
+rm intermediate/ca-int2-ecc-cert.pem.bak
+rm intermediate/ca-int-cert.pem.bak
+rm intermediate/ca-int-ecc-cert.pem.bak
+rm intermediate/server-int-cert.pem.bak
+rm intermediate/server-int-ecc-cert.pem.bak
 
 printf "Finished successfully\n"
 
