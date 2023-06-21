@@ -3944,6 +3944,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_rehandshake
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring list)
+{
+#ifdef OPENSSL_EXTRA
+    int ret = 0;
+    const char* sigAlgList = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    if (jenv == NULL || ssl == NULL || list == NULL) {
+        return SSL_FAILURE;
+    }
+
+    sigAlgList = (*jenv)->GetStringUTFChars(jenv, list, 0);
+
+    ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
+
+    (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+#else
+    (void)jenv;
+    (void)ssl;
+    (void)list;
+    return NOT_COMPILED_IN;
+#endif
+    (void)jcl;
+    return (jint)ret;
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

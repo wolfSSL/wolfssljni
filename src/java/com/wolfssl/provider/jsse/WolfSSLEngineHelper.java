@@ -668,6 +668,31 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalSigAlgorithms() {
+
+        int ret = 0;
+
+        if (this.clientMode) {
+            /* Get restricted signature algorithms for ClientHello if set by
+             * user in "wolfjsse.enabledSigAlgorithms" Security property */
+            String sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
+
+            if (sigAlgos != null) {
+                ret = this.ssl.setSignatureAlgorithms(sigAlgos);
+                if (ret != WolfSSL.SSL_SUCCESS &&
+                    ret != WolfSSL.NOT_COMPILED_IN) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "error restricting signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                } else if (ret == WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "restricted signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                }
+            }
+        }
+    }
+
     private void setLocalParams() throws SSLException {
         this.setLocalCiphers(
             WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
@@ -678,6 +703,7 @@ public class WolfSSLEngineHelper {
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
         this.setLocalSecureRenegotiation();
+        this.setLocalSigAlgorithms();
     }
 
     /**

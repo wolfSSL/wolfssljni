@@ -787,7 +787,6 @@ public class WolfSSLContext {
      *              SSL client instead of an SSL server.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error
-     * @see    #accept()
      */
     public int setTmpDH(byte[] p, int pSz, byte[] g, int gSz)
         throws IllegalStateException, WolfSSLJNIException {

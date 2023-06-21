@@ -160,6 +160,33 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return TLS signature algorithms allowed if set in
+     * wolfjsse.enabledSignatureAlgorithms system Security property.
+     *
+     * @return Colon delimited list of signature algorithms to be set
+     *         in the ClientHello.
+     */
+    protected static String getSignatureAlgorithms() {
+
+        String sigAlgos =
+            Security.getProperty("wolfjsse.enabledSignatureAlgorithms");
+
+        if (sigAlgos == null || sigAlgos.isEmpty()) {
+            return null;
+        }
+
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "restricting enabled ClientHello signature algorithms");
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "wolfjsse.enabledSigAlgos: " + sigAlgos);
+
+        /* Remove spaces between colons if present */
+        sigAlgos = sigAlgos.replaceAll(" : ", ":");
+
+        return sigAlgos;
+    }
+
+    /**
      * Return maximum key size allowed if minimum is set in
      * jdk.tls.disabledAlgorithms security property for specified algorithm.
      *
