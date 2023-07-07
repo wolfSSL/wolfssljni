@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.Security;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -36,6 +37,8 @@ import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.util.List;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -785,6 +788,36 @@ class WolfSSLTestFactory {
         if (System.getProperty("java.runtime.name").contains("Android")) {
             return true;
         }
+        return false;
+    }
+
+    /**
+     * Check if Security property contains a specific value.
+     *
+     * @param prop System Security property to check
+     * @param needle String value to search for in Security property
+     *
+     * @return true if found, otherwise false
+     */
+    protected static boolean securityPropContains(String prop, String needle) {
+
+        String secProp = null;
+        List propList = null;
+
+        if (prop == null || needle == null) {
+            return false;
+        }
+
+        /* make sure protocol has not been disabled at system level */
+        secProp = Security.getProperty(prop);
+        /* Remove spaces after commas, split into List */
+        secProp = secProp.replaceAll(", ",",");
+        propList = Arrays.asList(secProp.split(","));
+
+        if (propList.contains(needle)) {
+            return true;
+        }
+
         return false;
     }
 }

@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
 import com.wolfssl.WolfSSLSession;
@@ -38,9 +39,11 @@ public class WolfSSLContextTest {
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
-    public static String cliCert = "examples/certs/client-cert.pem";
-    public static String cliKey  = "examples/certs/client-key.pem";
-    public static String caCert  = "examples/certs/ca-cert.pem";
+    public static String cliCert    = "examples/certs/client-cert.pem";
+    public static String cliKey     = "examples/certs/client-key.pem";
+    public static String svrCertEcc = "examples/certs/server-ecc.pem";
+    public static String caCert     = "examples/certs/ca-cert.pem";
+    public static String dhParams   = "examples/certs/dh2048.pem";
     public final static String bogusFile = "/dev/null";
 
     WolfSSLContext ctx;
@@ -62,8 +65,9 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_setPskServerCb();
         test_WolfSSLContext_usePskIdentityHint();
         test_WolfSSLContext_useSecureRenegotiation();
+        test_WolfSSLContext_setMinRSAKeySize();
+        test_WolfSSLContext_setMinECCKeySize();
         test_WolfSSLContext_free();
-
     }
 
     public void test_WolfSSLContext_new(long method) {
@@ -343,6 +347,177 @@ public class WolfSSLContextTest {
             e.printStackTrace();
         }
         System.out.println("\t... passed");
+    }
+
+    public void test_WolfSSLContext_setMinRSAKeySize() {
+
+        int ret = 0;
+
+        System.out.print("\tsetMinKeyRSASize()");
+
+        try {
+            /* negative size key length should fail */
+            ret = ctx.setMinRSAKeySize(-1);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize should fail with negative key size");
+            }
+
+            /* key length not % 8 should fail */
+            ret = ctx.setMinRSAKeySize(1023);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize should fail with non % 8 size");
+            }
+
+            /* valid key length should succeed */
+            ret = ctx.setMinRSAKeySize(1024);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize did not pass as expected");
+            }
+
+            /* loading of key larger than set size should pass */
+            ret = ctx.useCertificateFile(cliCert, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize did not pass as expected (1024 limit)");
+            }
+
+            /* set min key size to something very large for next test */
+            ret = ctx.setMinRSAKeySize(8192);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize did not pass as expected for 8192");
+            }
+
+            /* loading of key smaller than set size should fail */
+            ret = ctx.useCertificateFile(cliCert, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinRSAKeySize did not fail as expected with limit");
+            }
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLContext_setMinECCKeySize() {
+
+        int ret = 0;
+
+        System.out.print("\tsetMinECCKeySize()");
+
+        try {
+            /* negative size key length should fail */
+            ret = ctx.setMinECCKeySize(-1);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize should fail with negative key size");
+            }
+
+            /* key length not % 8 should fail */
+            ret = ctx.setMinECCKeySize(255);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize should fail with non % 8 size");
+            }
+
+            /* valid key length should succeed */
+            ret = ctx.setMinECCKeySize(128);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize did not pass as expected");
+            }
+
+            /* loading of key larger than set size should pass */
+            ret = ctx.useCertificateFile(svrCertEcc, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize did not pass as expected (128 limit)");
+            }
+
+            /* set min key size to something very large for next test */
+            ret = ctx.setMinECCKeySize(512);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize did not pass as expected for 521");
+            }
+
+            /* loading of key smaller than set size should fail */
+            ret = ctx.useCertificateFile(svrCertEcc, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinECCKeySize did not fail as expected with limit");
+            }
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSLContext_setMinDHKeySize() {
+
+        int ret = 0;
+
+        System.out.print("\tsetMinDHKeySize()");
+
+        try {
+            /* key length > 16000 fail */
+            ret = ctx.setMinDHKeySize(17000);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize should fail with key size too large");
+            }
+
+            /* key length not % 8 should fail */
+            ret = ctx.setMinECCKeySize(1023);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize should fail with non % 8 size");
+            }
+
+            /* valid key length should succeed */
+            ret = ctx.setMinDHKeySize(1024);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize did not pass as expected");
+            }
+
+            /* loading params larger than min size should pass */
+            ret = ctx.setTmpDHFile(dhParams, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize did not pass as expected (1024 limit)");
+            }
+
+            /* set min key size to something very large for next test */
+            ret = ctx.setMinECCKeySize(8192);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize did not pass as expected for 8192");
+            }
+
+            /* loading of key smaller than set size should fail */
+            ret = ctx.setTmpDHFile(dhParams, WolfSSL.SSL_FILETYPE_PEM);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("setMinDHKeySize did not fail as expected with limit");
+            }
+
+        } catch (IllegalStateException | WolfSSLJNIException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+        }
+
+        System.out.println("\t\t... passed");
     }
 
     public void test_WolfSSLContext_free() {

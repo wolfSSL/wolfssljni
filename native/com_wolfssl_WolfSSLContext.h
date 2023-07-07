@@ -17,6 +17,22 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLContext_newContext
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setTmpDH
+ * Signature: (J[BI[BI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDH
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jbyteArray, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setTmpDHFile
+ * Signature: (JLjava/lang/String;I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDHFile
+  (JNIEnv *, jobject, jlong, jstring, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    useCertificateFile
  * Signature: (JLjava/lang/String;I)I
  */
@@ -358,6 +374,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
   (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setMinDhKeySz
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinDhKeySz
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setMinRsaKeySz
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinRsaKeySz
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setMinEccKeySz
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinEccKeySz
+  (JNIEnv *, jobject, jlong, jint);
 
 #ifdef __cplusplus
 }

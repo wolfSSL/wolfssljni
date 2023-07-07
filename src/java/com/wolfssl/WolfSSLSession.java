@@ -285,6 +285,7 @@ public class WolfSSLSession {
     private native int useALPN(long ssl, String protocols, int options);
     private native int useSecureRenegotiation(long ssl);
     private native int rehandshake(long ssl);
+    private native int set1SigAlgsList(long ssl, String list);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -1111,10 +1112,10 @@ public class WolfSSLSession {
      *
      * @param list  null-terminated text string and colon-delimited list
      *              of cipher suites to use with the specified SSL
-     *              context.
+     *              session.
      * @return      <code>SSL_SUCCESS</code> upon success. <code>
      *              SSL_FAILURE</code> upon failure.
-     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws IllegalStateException WolfSSLSession has been freed
      * @see    WolfSSLContext#setCipherList(String)
      */
     public int setCipherList(String list) throws IllegalStateException {
@@ -1124,6 +1125,58 @@ public class WolfSSLSession {
         return setCipherList(getSessionPtr(), list);
     }
 
+    /**
+     * Sets the supported signature algorithms for the given SSL session.
+     * By default, without calling this method, native wolfSSL will add the
+     * signature-hash algorithms automatically to the ClientHello message
+     * based on which algorithms and modes are compiled into the native library.
+     *
+     * Calling this function will override the defualt list with the specified
+     * list.
+     *
+     * The signature algorithm list, <b>list</b>, is a null-terminated text
+     * String, and colon delimited list. Each list item is a combination of
+     * public key algorithm and MAC algorithm, concatenated with a plus
+     * sign (+).
+     *
+     * Possible public key algorithms include the following, but are dependent
+     * on which algorithms are compiled into the native library:
+     *
+     *    "RSA"     - available if NO_RSA is not defined
+     *    "RSA-PSS" - available if !NO_RSA and WC_RSA_PSS
+     *    "PSS"     - available if !NO_RSA and WC_RSA_PSS
+     *    "ECDSA"   - available if HAVE_ECC
+     *    "ED25519" - available if HAVE_ED25519
+     *    "ED448"   - available if HAVE_ED448
+     *    "DSA"     - available if !NO_DSA
+     *
+     * Possible MAC/hash algorithms include the following, but are also
+     * dependent on which algorithms are compiled into the native library:
+     *
+     *    "SHA1"    - available if !NO_SHA and (!NO_OLD_TLS or WOLFSSL_ALLOW_TLS_SHA1)
+     *    "SHA224"  - available if WOLFSSL_SHA224
+     *    "SHA256"  - available if WOLFSSL_SHA256
+     *    "SHA384"  - available if WOLFSSL_SHA384
+     *    "SHA512"  - available if WOLFSSL_SHA512
+     *
+     * When put together as list items these would look similar to:
+     *
+     *    "RSA+SHA256:ECDSA+SHA256"
+     *
+     * @param list  null-terminated text string and colon-delimited list
+     *              of signature algorithms to use with the specified SSL
+     *              session.
+     * @return      <code>SSL_SUCCESS</code> upon success. <code>
+     *              SSL_FAILURE</code> upon failure.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int setSignatureAlgorithms(String list)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return set1SigAlgsList(getSessionPtr(), list);
+    }
 
     /* ---------------- Nonblocking DTLS helper functions  -------------- */
 

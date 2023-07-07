@@ -24,11 +24,13 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLSession;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
+import java.security.Security;
 
 /**
  * This is a helper function to account for similar methods between SSLSocket
@@ -142,21 +144,24 @@ public class WolfSSLEngineHelper {
     }
 
     /**
-     * Get all supported cipher suites in native wolfSSL library
+     * Get all supported cipher suites in native wolfSSL library, which
+     * are also allowed by "wolfjsse.enabledCipherSuites" system Security
+     * property, if set.
      *
      * @return String array of all supported cipher suites
      */
     protected String[] getAllCiphers() {
-        return WolfSSL.getCiphersIana();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
     /**
-     * Get all enabled cipher suites
+     * Get all enabled cipher suites, and allowed via
+     * wolfjsse.enabledCipherSuites system Security property (if set).
      *
      * @return String array of all enabled cipher suites
      */
     protected String[] getCiphers() {
-        return this.params.getCipherSuites();
+        return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
     }
 
     /**
@@ -189,7 +194,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setCipherSuites(suites);
+        this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites));
     }
 
     /**
@@ -221,7 +226,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setProtocols(p);
+        this.params.setProtocols(WolfSSLUtil.sanitizeProtocols(p));
     }
 
     /**
@@ -230,16 +235,18 @@ public class WolfSSLEngineHelper {
      * @return String array of enabled SSL/TLS protocols
      */
     protected String[] getProtocols() {
-        return this.params.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(this.params.getProtocols());
     }
 
     /**
-     * Get all supported SSL/TLS protocols in native wolfSSL library
+     * Get all supported SSL/TLS protocols in native wolfSSL library,
+     * which are also allowed by 'jdk.tls.client.protocols' or
+     * 'jdk.tls.server.protocols' if set.
      *
      * @return String array of supported protocols
      */
     protected String[] getAllProtocols() {
-        return WolfSSL.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
     }
 
     /**
@@ -417,7 +424,9 @@ public class WolfSSLEngineHelper {
     }
 
     /* sets the protocol to use with WOLFSSL connections */
-    private void setLocalProtocol(String[] p) {
+    private void setLocalProtocol(String[] p)
+        throws SSLException {
+
         int i;
         long mask = 0;
         boolean[] set = new boolean[5];
@@ -426,6 +435,10 @@ public class WolfSSLEngineHelper {
         if (p == null) {
             /* if null then just use wolfSSL default */
             return;
+        }
+
+        if (p.length == 0) {
+            throw new SSLException("No protocols enabled or available");
         }
 
         for (i = 0; i < p.length; i++) {
@@ -655,14 +668,42 @@ public class WolfSSLEngineHelper {
         }
     }
 
-    private void setLocalParams() {
-        this.setLocalCiphers(this.params.getCipherSuites());
-        this.setLocalProtocol(this.params.getProtocols());
+    private void setLocalSigAlgorithms() {
+
+        int ret = 0;
+
+        if (this.clientMode) {
+            /* Get restricted signature algorithms for ClientHello if set by
+             * user in "wolfjsse.enabledSigAlgorithms" Security property */
+            String sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
+
+            if (sigAlgos != null) {
+                ret = this.ssl.setSignatureAlgorithms(sigAlgos);
+                if (ret != WolfSSL.SSL_SUCCESS &&
+                    ret != WolfSSL.NOT_COMPILED_IN) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "error restricting signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                } else if (ret == WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "restricted signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                }
+            }
+        }
+    }
+
+    private void setLocalParams() throws SSLException {
+        this.setLocalCiphers(
+            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
+        this.setLocalProtocol(
+            WolfSSLUtil.sanitizeProtocols(this.params.getProtocols()));
         this.setLocalAuth();
         this.setLocalServerNames();
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
         this.setLocalSecureRenegotiation();
+        this.setLocalSigAlgorithms();
     }
 
     /**

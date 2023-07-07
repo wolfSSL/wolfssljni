@@ -396,6 +396,50 @@ public class WolfSSLSocketTest {
                 System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledProtocols() failed");
             }
+
+            /* test that removing protocols with jdk.tls.disabledAlgorithms
+             * behaves as expected */
+            String originalProperty =
+                Security.getProperty("jdk.tls.disabledAlgorithms");
+
+            try {
+                Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1");
+                s.setEnabledProtocols(new String[] {"TLSv1"});
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
+                /* expected */
+            }
+
+            try {
+                Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1.1");
+                s.setEnabledProtocols(new String[] {"TLSv1.1"});
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
+                /* expected */
+            }
+
+            try {
+                Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1.2");
+                s.setEnabledProtocols(new String[] {"TLSv1.2"});
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
+                /* expected */
+            }
+
+            try {
+                Security.setProperty("jdk.tls.disabledAlgorithms", "TLSv1.3");
+                s.setEnabledProtocols(new String[] {"TLSv1.3"});
+                System.out.println("\t\t... failed");
+                fail("SSLSocket.setEnabledProtocols() failed");
+            } catch (IllegalArgumentException e) {
+                /* expected */
+            }
+
+            /* restore original property value */
+            System.setProperty("jdk.tls.disabledAlgorithms", originalProperty);
         }
 
         System.out.println("\t... passed");
@@ -1206,7 +1250,9 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.0 connection test");
 
         /* skip if TLS 1.0 is not compiled in at native level */
-        if (WolfSSL.TLSv1Enabled() == false) {
+        if (WolfSSL.TLSv1Enabled() == false ||
+            WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLS")) {
             System.out.println("\t\t... skipped");
             return;
         }
@@ -1220,7 +1266,9 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.1 connection test");
 
         /* skip if TLS 1.1 is not compiled in at native level */
-        if (WolfSSL.TLSv11Enabled() == false) {
+        if (WolfSSL.TLSv11Enabled() == false ||
+            WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLSv1.1")) {
             System.out.println("\t\t... skipped");
             return;
         }
@@ -1234,7 +1282,9 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.2 connection test");
 
         /* skip if TLS 1.2 is not compiled in at native level */
-        if (WolfSSL.TLSv12Enabled() == false) {
+        if (WolfSSL.TLSv12Enabled() == false ||
+            WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLSv1.2")) {
             System.out.println("\t\t... skipped");
             return;
         }
@@ -1248,7 +1298,9 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.3 connection test");
 
         /* skip if TLS 1.3 is not compiled in at native level */
-        if (WolfSSL.TLSv13Enabled() == false) {
+        if (WolfSSL.TLSv13Enabled() == false ||
+            WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLSv1.3")) {
             System.out.println("\t\t... skipped");
             return;
         }
@@ -1299,6 +1351,60 @@ public class WolfSSLSocketTest {
         ss.close();
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testConnectionWithDisabledAlgorithms() throws Exception {
+
+        System.out.print("\tConnect with disabled algos");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* save current system property value */
+        String originalProperty =
+            Security.getProperty("jdk.tls.disabledAlgorithms");
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            /* skip generic "TLS" */
+            if (enabledProtocols.get(i).equals("TLS")) {
+                continue;
+            }
+
+            /* create SSLServerSocket first to get ephemeral port */
+            SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            /* restrict to single protocol that is being disabled */
+            cs.setEnabledProtocols(new String[] {enabledProtocols.get(i)});
+
+            /* disable protocol after socket setup, should fail connection */
+            Security.setProperty("jdk.tls.disabledAlgorithms",
+                    enabledProtocols.get(i));
+
+            /* don't need server since should throw exception before */
+            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+            try {
+                cs.startHandshake();
+                System.out.println("\t... failed");
+                fail();
+
+            } catch (SSLException e) {
+                /* expected, should fail with
+                 * "No protocols enabled or available" */
+            }
+
+            cs.close();
+            ss.close();
+        }
+
+        /* restore system property */
+        Security.setProperty("jdk.tls.disabledAlgorithms", originalProperty);
+
+        System.out.println("\t... passed");
     }
 
     @Test
