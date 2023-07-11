@@ -673,6 +673,7 @@ public class WolfSSLEngine extends SSLEngine {
             int ofst, int length) throws SSLException {
         int i, ret = 0, sz = 0;
         int inPosition = 0;
+        int inRemaining = 0;
         int consumed = 0;
         int produced = 0;
         byte[] tmp;
@@ -693,6 +694,7 @@ public class WolfSSLEngine extends SSLEngine {
         synchronized (netDataLock) {
             this.netData = in;
             inPosition = in.position();
+            inRemaining = in.remaining();
         }
 
         if (extraDebugEnabled) {
@@ -760,21 +762,33 @@ public class WolfSSLEngine extends SSLEngine {
                 ret = DoHandshake();
             }
             else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "receiving application data");
-                ret = RecvAppData(out, ofst, length);
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "received application data: " + ret + " bytes (from RecvAppData)");
-                if (ret > 0) {
-                    produced += ret;
+                /* If we have input data, make sure output buffer length is
+                 * greater than zero, otherwise ask app to expand out buffer.
+                 * There may be edge cases where this could be tightened up,
+                 * but this will err on the side of giving us more output
+                 * space than we need. */
+                if (inRemaining > 0 &&
+                    getTotalOutputSize(out, ofst, length) == 0) {
+                    status = SSLEngineResult.Status.BUFFER_OVERFLOW;
                 }
                 else {
-                    synchronized (netDataLock) {
-                        if (ret == 0 && in.remaining() > 0 &&
-                            getTotalOutputSize(out, ofst, length) == 0) {
-                            /* We have more data to read, but no more
-                             * out space left in ByteBuffer[], ask for more */
-                            status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "receiving application data");
+                    ret = RecvAppData(out, ofst, length);
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "received application data: " + ret +
+                        " bytes (from RecvAppData)");
+                    if (ret > 0) {
+                        produced += ret;
+                    }
+                    else {
+                        synchronized (netDataLock) {
+                            if (ret == 0 && in.remaining() > 0 &&
+                                getTotalOutputSize(out, ofst, length) == 0) {
+                                /* We have more data to read, but no more out
+                                 * space left in ByteBuffer[], ask for more */
+                                status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                            }
                         }
                     }
                 }
