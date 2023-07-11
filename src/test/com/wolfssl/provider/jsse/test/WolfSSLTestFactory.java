@@ -544,7 +544,6 @@ class WolfSSLTestFactory {
                 cliToSer.compact();
                 serToCli.compact();
 
-
                 if (extraDebug) {
                     s = client.getHandshakeStatus();
                     System.out.println("client status = " + s.toString());
@@ -656,6 +655,7 @@ class WolfSSLTestFactory {
 
         /* server unwraps client close_notify */
         result = server.unwrap(cliToSer, empty);
+        cliToSer.compact();
         if (extraDebug) {
             System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
                         " produced = " + result.bytesProduced() +
@@ -679,6 +679,7 @@ class WolfSSLTestFactory {
 
         /* server wraps its own close_notify */
         result = server.wrap(empty, serToCli);
+        serToCli.flip();
         if (extraDebug) {
             System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
                         " produced = " + result.bytesProduced() +
@@ -700,8 +701,8 @@ class WolfSSLTestFactory {
         }
 
         /* client unwraps server close_notify */
-        serToCli.flip();
         result = client.unwrap(serToCli, empty);
+        serToCli.compact();
         if (extraDebug) {
             System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
                         " produced = " + result.bytesProduced() +
