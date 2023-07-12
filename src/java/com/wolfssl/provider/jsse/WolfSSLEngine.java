@@ -96,6 +96,11 @@ public class WolfSSLEngine extends SSLEngine {
     /** Turn on extra/verbose SSLEngine debug logging */
     public boolean extraDebugEnabled = false;
 
+    /** Turn on Send/Recv callback debug to print out bytes sent/received.
+     * WARNING: enabling this will slow down sending and receiving data,
+     * enough so that app may run into timeouts. Enable with caution. */
+    public boolean ioDebugEnabled = false;
+
     /**
      * Turns on additional debugging based on system properties set.
      */
@@ -105,6 +110,19 @@ public class WolfSSLEngine extends SSLEngine {
         String engineDebug  = System.getProperty("wolfsslengine.debug");
         if ((engineDebug != null) && (engineDebug.equalsIgnoreCase("true"))) {
             this.extraDebugEnabled = true;
+        }
+    }
+
+    /**
+     * Turns on additional debugging of I/O data based on system properties set.
+     */
+    private void enableIODebug() {
+        /* turn on verbose extra debugging of bytes sent and received if
+         * 'wolfsslengine.io.debug' system property is set */
+        String engineIODebug = System.getProperty("wolfsslengine.io.debug");
+        if ((engineIODebug != null) &&
+            (engineIODebug.equalsIgnoreCase("true"))) {
+            this.ioDebugEnabled = true;
         }
     }
 
@@ -190,6 +208,7 @@ public class WolfSSLEngine extends SSLEngine {
         ssl.setIOWriteCtx(this);
 
         enableExtraDebug();
+        enableIODebug();
     }
 
     /**
@@ -1190,7 +1209,7 @@ public class WolfSSLEngine extends SSLEngine {
             this.toSend = tmp;
         }
 
-        if (extraDebugEnabled == true) {
+        if (ioDebugEnabled == true) {
             WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
                                 "CB Write", in, sz);
         }
@@ -1213,7 +1232,7 @@ public class WolfSSLEngine extends SSLEngine {
         int max = 0;
 
         synchronized (netDataLock) {
-            if (extraDebugEnabled == true) {
+            if (ioDebugEnabled == true) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "CB Read: requesting " + sz + " bytes");
                 if (this.netData != null) {
@@ -1224,7 +1243,7 @@ public class WolfSSLEngine extends SSLEngine {
             }
 
             if (this.netData == null || this.netData.remaining() == 0) {
-                if (extraDebugEnabled == true) {
+                if (ioDebugEnabled == true) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "CB Read: returning WOLFSSL_CBIO_ERR_WANT_READ");
                 }
@@ -1234,7 +1253,7 @@ public class WolfSSLEngine extends SSLEngine {
             max = (sz < this.netData.remaining()) ? sz : this.netData.remaining();
             this.netData.get(toRead, 0, max);
 
-            if (extraDebugEnabled == true) {
+            if (ioDebugEnabled == true) {
                 WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
                                     "CB Read", toRead, max);
             }
