@@ -105,7 +105,7 @@ public class WolfSSLDebug {
             System.out.print("[wolfJSSE " + tag + ": TID " + tid + ": " +
                              clName + "] " + label + " [" + sz + "]: ");
             for (i = 0; i < printSz; i++) {
-                if ((i % 8) == 0) {
+                if ((i % 16) == 0) {
                     System.out.printf("\n[wolfJSSE " + tag + ": TID " +
                                       tid + ": " + clName + "] %06X", j * 8);
                     j++;

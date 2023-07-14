@@ -111,23 +111,34 @@ directory and given one argument which is the path to a wolfSSL certs directory.
 
 ## Debugging
 
-wolfJSSE debug logging can be enabled by using `-Dwolfjsse.debug=true` at
-runtime.
+wolfSSL JNI/JSSE supports several System properties for enabling debug
+logging. The table below describes the currently-supported debug properties
+and what each enables.
 
-wolfSSL native debug logging can be enabled by using `-Dwolfssl.debug=true` at
-runtime, if native wolfSSL has been compiled with `--enable-debug`.
+| System Property | Default | To Enable | Description |
+| --- | --- | --- | --- |
+| wolfssl.debug | "false" | "true" | Enables native wolfSSL debug logging |
+| wolfjsse.debug | "false" | "true | Enables wolfJSSE debug logging |
+| wolfsslengine.debug | "false" | "true" | Enables SSLEngine debug logging |
+| wolfsslengine.io.debug | "false" | "true" | Enables SSLEngine I/O bytes log |
 
-More verbose SSLEngine debug logs can be enabled by using the
-`-Dwolfsslengine.debug=true` system property.
+Native wolfSSL logging (`wolfssl.debug`) will only output messages if
+native wolfSSL has been configured with `--enable-debug`.
 
-JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
+These System properties can be defined at runtime, ie:
 
-These system properties can also be set programmatically at runtime:
+```
+java -Dwolfjsse.debug=true App
+```
+
+Or these system properties can also be set programmatically at runtime, ie:
 
 ```
 System.setProperty("wolfjsse.debug", "true");
 System.setProperty("wolfsslengine.debug", "true);
 ```
+
+JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
 
 ## Building for Android
 
