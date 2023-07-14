@@ -67,8 +67,8 @@ public class WolfSSLSession {
     private WolfSSLIORecvCallback internRecvSSLCb;
     private WolfSSLIOSendCallback internSendSSLCb;
 
-    /* have session tickets been enabled for this session? */
-    private boolean sessionTicketsEnabled = true;
+    /* have session tickets been enabled for this session? Default to false. */
+    private boolean sessionTicketsEnabled = false;
 
     /* is this context active, or has it been freed? */
     private boolean active = false;
@@ -207,6 +207,8 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private native long get1Session(long ssl);
+    private static native void freeNativeSession(long session);
     private native byte[] getSessionID(long session);
     private native int setTimeout(long ssl, long t);
     private native long getTimeout(long ssl);
@@ -973,6 +975,11 @@ public class WolfSSLSession {
      * At this point, the application may call <code>connect()</code> and
      * wolfSSL will try to resume the session.
      *
+     * The pointer (WOLFSSL_SESSION) returned by this method needs to be freed
+     * when the application is finished with it, by calling
+     * <code>freeSession(long)</code>. This will release the underlying
+     * native memory associated with this WOLFSSL_SESSION.
+     *
      * @throws IllegalStateException WolfSSLContext has been freed
      * @return      a pointer to the current SSL session object on success.
      *              <code>null</code> if <b>ssl</b> is <code>null</code>,
@@ -984,7 +991,17 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        return getSession(getSessionPtr());
+        return get1Session(getSessionPtr());
+    }
+
+    public static synchronized void freeSession(long session) {
+        /* No need to call confirmObjectIsActive() because the
+         * WOLFSSL_SESSION pointer being passed in here is not associated
+         * with this WOLFSSL object or WolfSSLSession. */
+
+        if (session != 0) {
+            freeNativeSession(session);
+        }
     }
 
     /**
@@ -999,9 +1016,10 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        long sess = getSession();
+        long sess = getSession(getSessionPtr());
         if (sess != 0) {
-            return getSessionID(sess);
+            /* returns new byte[] independent of sess ptr */
+             return getSessionID(sess);
         } else {
             return new byte[0];
         }
@@ -1061,7 +1079,7 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        return getSessTimeout(this.getSession());
+        return getSessTimeout(this.getSession(getSessionPtr()));
     }
 
     /**

@@ -274,9 +274,9 @@ public class WolfSSLEngine extends SSLEngine {
     private synchronized int ClosingConnection() {
         int ret;
 
-        if (this.getUseClientMode()) {
-            EngineHelper.saveSession();
-        }
+        /* Save session into WolfSSLAuthStore cache, saves session
+         * pointer for resumption if on client side */
+        EngineHelper.saveSession();
 
         /* get current close_notify state */
         UpdateCloseNotifyStatus();
@@ -317,6 +317,13 @@ public class WolfSSLEngine extends SSLEngine {
                     "ssl.accept() ret:err = " + ret + " : " +
                     ssl.getError(ret));
             }
+
+            /* Once handshake is finished, save session for resumption in
+             * case caller does not explicitly close connection. Saves
+             * session in WolfSSLAuthStore cache, and gets/saves session
+             * pointer for resumption if on client side. */
+            EngineHelper.saveSession();
+
         } catch (SocketTimeoutException e) {
             throw new SSLException(e);
         }
