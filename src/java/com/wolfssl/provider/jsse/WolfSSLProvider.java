@@ -150,5 +150,35 @@ public final class WolfSSLProvider extends Provider {
         put("TrustManagerFactory.SunX509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
     }
+
+    /**
+     * Set the native wolfSSL crypto callback devId for SSLContext
+     * objects. Currently requires custom integration work
+     * at native JNI level to write/register crypto callback.
+     *
+     * @param devId crypto callback device ID. Default is
+     *        WolfSSL.INVALID_DEVID which will cause software crypto
+     *        to be used
+     *
+     * @throws WolfSSLException if error registering native crypto callback
+     *         function
+     */
+    public void setDevId(int devId) throws WolfSSLException {
+        int ret = 0;
+
+        /* Store devId into static WolfSSL variable, used by
+         * WolfSSLContext (SSLContext) */
+        sslLib.devId = devId;
+
+        /* Call native JNI entry point to register native wolfSSL
+         * CryptoDevice callback function. See native JNI function in
+         * native/com_wolfssl_WolfSSL.c */
+        ret = sslLib.cryptoCbRegisterDevice(devId);
+        if (ret != 0) {
+            throw new WolfSSLException(
+                "Error registering native wolfSSL crypto callback, " +
+                "ret = " + ret);
+        }
+    }
 }
 

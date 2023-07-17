@@ -465,6 +465,18 @@ public class WolfSSL {
     /** FFDHE 8192 */
     public static final int WOLFSSL_FFDHE_8192    = 260;
 
+    /* -------------------- Crypto Callback DevID ----------------------- */
+    /** Invalid DevID value, when used as devId software crypto is used */
+    public static final int INVALID_DEVID = -2;
+
+    /** Crypto callback devId to be used by wolfSSL for WOLFSSL and
+     * WOLFSSL_CTX. This static devId will be used by wolfJSSE and set for all
+     * WolfSSLContext objects, if set to something besides
+     * WolfSSL.INVALID_DEVID. Applications can set this in wolfJSSE via
+     * WolfSSLProvider.setDevId(), or on a per SSLContext and SSLSession
+     * level with WolfSSLContext.setDevId() and WolfSSLSession.setDevId() */
+    public static int devId = WolfSSL.INVALID_DEVID;
+
     /* ---------------------------- locks ------------------------------- */
 
     /* lock for cleanup */
@@ -524,6 +536,13 @@ public class WolfSSL {
     static native String getEnabledCipherSuites();
     static native String getEnabledCipherSuitesIana();
     static native String getAvailableCipherSuitesIana(int version);
+
+    /** Native wrapper to set wolfSSL crypto callback, only passing in devId
+     * and allowing native code to set up and manage callback and context */
+    private static native int wc_CryptoCb_RegisterDevice(int devId);
+
+    /** Native wrapper to unregister wolfSSL crypto callback */
+    private static native void wc_CryptoCb_UnRegisterDevice(int devId);
 
     /* ------------------------- Java methods --------------------------- */
 
@@ -1185,6 +1204,39 @@ public class WolfSSL {
             return null;
 
         return cipherSuites.split(":");
+    }
+
+    /**
+     * Register native wolfSSL crypto callback function. Currently requires
+     * modification to native JNI code to write/implement correct native
+     * crypto callback function implementation.
+     *
+     * Note that this API only allows one devId to be set. Users who need
+     * support for multiple devId's and callbacks, please contact
+     * support@wolfssl.com to open a feature request.
+     *
+     * See native/com_wolfssl_WolfSSL.c
+     *
+     * @param devId device ID to register crypto callback for
+     *
+     * @return 0 on success, negative on error
+     */
+    public static int cryptoCbRegisterDevice(int devId) {
+
+        return wc_CryptoCb_RegisterDevice(devId);
+    }
+
+    /**
+     * Unregister native wolfSSL crypto callback function.
+     * @param devId device ID to unregister
+     *
+     * @return 0 on success, negative on error.
+     */
+    public static int cryptoCbUnRegisterDevice(int devId) {
+
+        wc_CryptoCb_UnRegisterDevice(devId);
+
+        return 0;
     }
 
     /* ------------------------- isEnabled methods -------------------------- */

@@ -309,6 +309,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_WOLFSSL_FFDHE_6144 259L
 #undef com_wolfssl_WolfSSL_WOLFSSL_FFDHE_8192
 #define com_wolfssl_WolfSSL_WOLFSSL_FFDHE_8192 260L
+#undef com_wolfssl_WolfSSL_INVALID_DEVID
+#define com_wolfssl_WolfSSL_INVALID_DEVID -2L
 /*
  * Class:     com_wolfssl_WolfSSL
  * Method:    init
@@ -435,6 +437,22 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
  * Signature: (I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    wc_CryptoCb_RegisterDevice
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    wc_CryptoCb_UnRegisterDevice
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1UnRegisterDevice
   (JNIEnv *, jclass, jint);
 
 /*
