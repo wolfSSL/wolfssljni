@@ -48,21 +48,23 @@ import javax.net.ssl.X509KeyManager;
  */
 @SuppressWarnings("deprecation")
 public class WolfSSLImplementSSLSession implements SSLSession {
-    private WolfSSLSession ssl;
+    private WolfSSLSession ssl = null;
     private final WolfSSLAuthStore authStore;
     private WolfSSLSessionContext ctx = null;
-    private boolean valid;
+    private boolean valid = false;
     private final HashMap<String, Object> binding;
     private final int port;
     private final String host;
-    Date creation;
-    Date accessed; /* when new connection was made using session */
+    Date creation = null;
+    Date accessed = null; /* when new connection was made using session */
     byte[] pseudoSessionID = null; /* used with TLS 1.3*/
     private int side = 0;
 
     /** Has this session been registered */
     protected boolean fromTable = false;
 
+    /** Native pointer to WOLFSSL_SESSION structure. Obtained via
+     * wolfSSL_get1_session(), so needs to be freed */
     private long sesPtr = 0;
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
@@ -506,8 +508,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * @param in WOLFSSL session to set resume in
      */
     protected synchronized void resume(WolfSSLSession in) {
+        /* Set session (WOLFSSL_SESSION) into native WOLFSSL, makes
+         * a copy of the session so this object can free sesPtr when ready */
+        in.setSession(this.sesPtr);
         ssl = in;
-        ssl.setSession(this.sesPtr);
     }
 
 
@@ -516,6 +520,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected synchronized void setResume() {
         if (ssl != null) {
+            if (this.sesPtr != 0) {
+                WolfSSLSession.freeSession(this.sesPtr);
+            }
             this.sesPtr = ssl.getSession();
         }
     }
@@ -554,5 +561,17 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected int getSide() {
         return this.side;
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable
+    {
+        if (this.sesPtr != 0) {
+            WolfSSLSession.freeSession(this.sesPtr);
+            this.sesPtr = 0;
+        }
+
+        super.finalize();
     }
 }

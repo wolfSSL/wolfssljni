@@ -384,7 +384,11 @@ public class WolfSSLContextTest {
                 fail("setMinRSAKeySize did not pass as expected (1024 limit)");
             }
 
-            /* set min key size to something very large for next test */
+            /* set min key size to something very large for next test. Below
+             * we test ctx.useCertificateFile(), but that API will only fail
+             * based on key size limitations when peer verification is
+             * enabled, set SSL_VERIFY_PEER here. */
+            ctx.setVerify(WolfSSL.SSL_VERIFY_PEER, null);
             ret = ctx.setMinRSAKeySize(8192);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 System.out.println("\t\t... failed");

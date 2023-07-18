@@ -260,7 +260,7 @@ public class WolfSSLEngineHelper {
     protected void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
-        if (ssl.handshakeDone()) {
+        if (this.ssl.handshakeDone()) {
             throw new IllegalArgumentException("setUseClientMode() not " +
                 "allowed after handshake is completed");
         }
@@ -365,7 +365,7 @@ public class WolfSSLEngineHelper {
      *         handshake has not finished
      */
     protected byte[] getAlpnSelectedProtocol() {
-        if (ssl.handshakeDone()) {
+        if (this.ssl.handshakeDone()) {
             return ssl.getAlpnSelected();
         }
         return null;
@@ -378,7 +378,7 @@ public class WolfSSLEngineHelper {
      *         if handshake has not finished
      */
     protected String getAlpnSelectedProtocolString() {
-        if (ssl.handshakeDone()) {
+        if (this.ssl.handshakeDone()) {
             String proto = ssl.getAlpnSelectedString();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -746,12 +746,6 @@ public class WolfSSLEngineHelper {
 
                 throw new SSLHandshakeException("Session creation not allowed");
             }
-
-            if (this.sessionCreation) {
-                /* can only add new sessions to the resumption table if session
-                 * creation is allowed */
-                this.authStore.addSession(this.session);
-            }
         }
 
         this.setLocalParams();
@@ -828,6 +822,17 @@ public class WolfSSLEngineHelper {
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
+        if (this.sessionCreation && ret == WolfSSL.SSL_SUCCESS) {
+            /* can only add new sessions to the resumption table if session
+             * creation is allowed */
+            if (this.clientMode) {
+                /* Only need to set resume on client side, server-side
+                 * maintains session cache at native level. */
+                this.session.setResume();
+            }
+            this.authStore.addSession(this.session);
+        }
+
         return ret;
     }
 
@@ -836,7 +841,12 @@ public class WolfSSLEngineHelper {
      */
     protected void saveSession() {
         if (this.session != null && this.session.isValid()) {
-            this.session.setResume();
+            if (this.clientMode) {
+                /* Only need to set resume on client side, server-side
+                 * maintains session cache at native level. */
+                this.session.setResume();
+            }
+            this.authStore.addSession(this.session);
         }
     }
 }
