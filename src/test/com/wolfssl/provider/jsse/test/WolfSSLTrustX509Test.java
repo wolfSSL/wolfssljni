@@ -1207,6 +1207,210 @@ public class WolfSSLTrustX509Test {
         pass("\t... passed");
     }
 
+    @Test
+    public void testCheckServerTrustedWithDuplicatedRootInChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        int rootCount = 0;
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        WolfSSLTrustX509 wolfX509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        List<X509Certificate> retChain = null;
+
+        System.out.print("\tcheckServerTrusted() dup root");
+
+        /* RSA chain, including root (which is already in caJKS) */
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaRootCert = "examples/certs/ca-cert.pem";
+
+        /* ECC chain, including root (which is already in caJKS) */
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccRootCert = "examples/certs/ca-ecc-cert.pem";
+
+        if (tf.isAndroid()) {
+            rsaServerCert = "/sdcard/" + rsaServerCert;
+            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
+            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaRootCert = "/sdcard/" + rsaRootCert;
+
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt1Cert = "/sdcard/" + eccInt1Cert;
+            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccRootCert = "/sdcard/" + eccRootCert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+
+        /* checkServerTrusted() that returns List<X509Certificate> is non
+         * standard, must call directly from WolfSSLTrustX509. Called by
+         * okhttp on Android. */
+        wolfX509tm = (WolfSSLTrustX509)x509tm;
+
+        /* ---------- RSA Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[4];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(rsaServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(rsaInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(rsaInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[3]: root CA */
+        fis = new FileInputStream(rsaRootCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[3] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
+        try {
+            /* hostname cert pinning not supported yet by wolfJSSE */
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                                                     "RSA", "localhost");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of RSA chain with intermediates");
+        }
+
+        if (retChain == null) {
+            error("\t... failed");
+            fail("checkServerTrusted() did not return expected List of certs");
+        }
+
+        /* cert chain returned should include peer, ints, and root, but
+         * not a duplicate of root if in both TrustStore and chain */
+        if (retChain.size() != 4) {
+            error("\t... failed");
+            fail("checkServerTrusted() didn't return expected number of certs");
+        }
+
+        /* make sure root is not in chain twice */
+        rootCount = 0;
+        for (X509Certificate x509Cert : retChain) {
+            if (x509Cert.equals(cert)) {
+                rootCount++;
+            }
+        }
+        if (rootCount != 1) {
+            error("\t... failed");
+            fail("checkServerTrusted() contained more than one copy of root");
+        }
+
+        /* ---------- ECC Cert Chain ---------- */
+
+        /* build up X509Certificate[] chain, out of order intermediates */
+        certArray = new X509Certificate[4];
+
+        /* certArray[0]: server/peer cert */
+        fis = new FileInputStream(eccServerCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[0] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: intermediate CA 1 */
+        fis = new FileInputStream(eccInt1Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[1] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: intermediate CA 2 */
+        fis = new FileInputStream(eccInt2Cert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[2] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* certArray[3]: root CA */
+        fis = new FileInputStream(eccRootCert);
+        bis = new BufferedInputStream(fis);
+        cert = cf.generateCertificate(bis);
+        certArray[3] = (X509Certificate)cert;
+        bis.close();
+        fis.close();
+
+        /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
+        try {
+            /* hostname cert pinning not supported yet by wolfJSSE */
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                                                     "ECC", "localhost");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed verify of ECC chain with intermediates");
+        }
+
+        if (retChain == null) {
+            error("\t... failed");
+            fail("checkServerTrusted() did not return expected List of certs");
+        }
+
+        /* cert chain returned should include peer, ints, and root, but
+         * not a duplicate of root if in both TrustStore and chain */
+        if (retChain.size() != 4) {
+            error("\t... failed");
+            fail("checkServerTrusted() didn't return expected number of certs");
+        }
+
+        /* make sure root is not in chain twice */
+        rootCount = 0;
+        for (X509Certificate x509Cert : retChain) {
+            if (x509Cert.equals(cert)) {
+                rootCount++;
+            }
+        }
+        if (rootCount != 1) {
+            error("\t... failed");
+            fail("checkServerTrusted() contained more than one copy of root");
+        }
+
+        pass("\t... passed");
+    }
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }

@@ -403,7 +403,9 @@ public class WolfSSLTrustX509 implements X509TrustManager {
 
             fullChain = new ArrayList<X509Certificate>();
             fullChain.addAll(Arrays.asList(sortedCerts));
-            fullChain.add(rootCA);
+            if (!fullChain.contains(rootCA)) {
+                fullChain.add(rootCA);
+            }
         }
 
         return fullChain;
