@@ -1247,13 +1247,34 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    WOLFSSL_SESSION* sess = NULL;
+    WOLFSSL_SESSION* dup = NULL;
+    /* tmpBuf is only 1 byte since wolfSSL_peek() doesn't need to read
+     * any app data, only session ticket internally */
+    char tmpBuf[1];
     (void)jenv;
     (void)jcl;
 
+    /* Use wolfSSL_get_session() only as an indicator if we need to call
+     * wolfSSL_peek() for TLS 1.3 connections to potentially get the
+     * session ticket message. */
+    sess = wolfSSL_get_session(ssl);
+    if (sess == NULL) {
+        /* session not available yet (TLS 1.3), try peeking to get ticket */
+        wolfSSL_peek(ssl, tmpBuf, (int)sizeof(tmpBuf));
+
+        sess = wolfSSL_get_session(ssl);
+    }
+
     /* wolfSSL checks ssl for NULL, returns pointer to new WOLFSSL_SESSION,
-     * instead of pointer into WOLFSSL like wolfSSL_get_session(). Needs to
-     * be freed with wolfSSL_SESSION_free() when finished with pointer. */
-    return (jlong)(uintptr_t)wolfSSL_get1_session(ssl);
+     * Returns new duplicated WOLFSSL_SESSION. Needs to be freed with
+     * wolfSSL_SESSION_free() when finished with pointer. */
+    if (sess != NULL) {
+        /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
+        dup = wolfSSL_SESSION_dup(sess);
+    }
+
+    return (jlong)(uintptr_t)dup;
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
