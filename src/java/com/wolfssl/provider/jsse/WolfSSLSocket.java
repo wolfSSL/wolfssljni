@@ -41,6 +41,7 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLException;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
@@ -1438,6 +1439,32 @@ public class WolfSSLSocket extends SSLSocket {
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
+    }
+
+    /**
+     * Has the underlying WOLFSSL / WolfSSLSession been resumed / reused.
+     * This calls down to native wolfSSL_session_reused()
+     *
+     * NON-STANDARD API, not part of JSSE. Must cast SSLSocket back
+     * to WolfSSLSocke to use.
+     *
+     * @return true if session has been resumed, otherwise false
+     * @throws SSLException if native JNI call fails or underlying
+     *         WolfSSLSession has been freed
+     */
+    public boolean sessionResumed() throws SSLException {
+        if (this.ssl != null) {
+            try {
+                int resume = this.ssl.sessionReused();
+                if (resume == 1) {
+                    return true;
+                }
+            } catch (IllegalStateException | WolfSSLJNIException e) {
+                throw new SSLException(e);
+            }
+        }
+
+        return false;
     }
 
     /**
