@@ -153,12 +153,12 @@ public final class WolfSSLProvider extends Provider {
 
     /**
      * Set the native wolfSSL crypto callback devId for SSLContext
-     * objects. Currently requires custom integration work
-     * at native JNI level to write/register crypto callback.
+     * objects.
      *
      * @param devId crypto callback device ID. Default is
      *        WolfSSL.INVALID_DEVID which will cause software crypto
-     *        to be used
+     *        to be used. To reset global device ID, pass in
+     *        WolfSSL.INVALID_DEVID.
      *
      * @throws WolfSSLException if error registering native crypto callback
      *         function
@@ -170,6 +170,27 @@ public final class WolfSSLProvider extends Provider {
          * WolfSSLContext (SSLContext) */
         sslLib.devId = devId;
 
+    }
+
+    /**
+     * Registers native crypto callback device ID for given devID.
+     *
+     * This currently requires custom modifications to native JNI code.
+     * Please contact support@wolfssl.com to discuss your use case and
+     * get help modifying native code if needed.
+     *
+     * Once this API has been called to register the crypto callback device,
+     * WolfSSLProvider.setDevId() or WolfSSLContext.setDevId() should be
+     * called to set the device ID to be used for new SSLContext objects.
+     *
+     * @param devId crypto callback device ID.
+     *
+     * @throws WolfSSLException if error registering native crypto callback
+     *         function
+     */
+    public void registerDevId(int devId) throws WolfSSLException {
+        int ret = 0;
+
         /* Call native JNI entry point to register native wolfSSL
          * CryptoDevice callback function. See native JNI function in
          * native/com_wolfssl_WolfSSL.c */
@@ -177,6 +198,31 @@ public final class WolfSSLProvider extends Provider {
         if (ret != 0) {
             throw new WolfSSLException(
                 "Error registering native wolfSSL crypto callback, " +
+                "ret = " + ret);
+        }
+    }
+
+    /**
+     * Un-registers native crypto callback device ID for given devID.
+     *
+     * This API can be called after WolfSSLProvider.registerDevId(int devId)
+     * to unregister the native crypto callback device ID for the given devId.
+     *
+     * @param devId crypto callback device ID to unregister device for
+     *
+     * @throws WolfSSLException if error registering native crypto callback
+     *         function
+     */
+    public void unRegisterDevId(int devId) throws WolfSSLException {
+        int ret = 0;
+
+        /* Call native JNI entry point to unregister native wolfSSL
+         * CryptoDevice callback function. See native JNI function in
+         * native/com_wolfssl_WolfSSL.c */
+        ret = sslLib.cryptoCbUnRegisterDevice(devId);
+        if (ret != 0) {
+            throw new WolfSSLException(
+                "Error unregistering native wolfSSL crypto callback, " +
                 "ret = " + ret);
         }
     }
