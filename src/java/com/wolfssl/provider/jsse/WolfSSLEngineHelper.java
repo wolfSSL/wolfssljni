@@ -805,6 +805,7 @@ public class WolfSSLEngineHelper {
         throws SSLException, SocketTimeoutException {
 
         int ret, err;
+        byte[] serverId = null;
 
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -833,6 +834,19 @@ public class WolfSSLEngineHelper {
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }
             this.session = this.authStore.getSession(ssl);
+        }
+
+        if (this.clientMode) {
+            /* Associate host:port as serverID for client session cache,
+             * helps native wolfSSL for TLS 1.3 sessions with no session ID.
+             * Setting newSession to 1 for setServerID since we are controlling
+             * get/set session from Java */
+            serverId = this.hostname.concat(
+                Integer.toString(this.port)).getBytes();
+            ret = this.ssl.setServerID(serverId, 1);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                return WolfSSL.SSL_HANDSHAKE_FAILURE;
+            }
         }
 
         do {

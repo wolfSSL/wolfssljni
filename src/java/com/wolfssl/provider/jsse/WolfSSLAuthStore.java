@@ -75,7 +75,10 @@ public class WolfSSLAuthStore {
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
-            int defaultCacheSize = 10;
+
+            /* default session cache size of 33 to match native wolfSSL
+             * default cache size */
+            int defaultCacheSize = 33;
 
         if (version == TLS_VERSION.INVALID) {
             throw new IllegalArgumentException("Invalid SSL/TLS version");

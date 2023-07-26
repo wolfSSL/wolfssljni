@@ -1341,6 +1341,49 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getTimeout
     return wolfSSL_get_timeout(ssl);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray id, jint len, jint newSess)
+{
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE)
+    int ret = WOLFSSL_SUCCESS;
+    byte* idBuf = NULL;
+    int idBufSz = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL || id == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    idBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, id, NULL);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+    idBufSz = (*jenv)->GetArrayLength(jenv, id);
+
+    if (idBuf == NULL || idBufSz <= 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_SetServerID(ssl, idBuf, idBufSz, (int)newSess);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, id, (jbyte*)idBuf, JNI_ABORT);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)id;
+    (void)len;
+    (void)newSess;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
   (JNIEnv* jenv, jobject jcl, jlong sessionPtr, jlong sz)
 {
