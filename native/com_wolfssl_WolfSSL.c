@@ -1358,7 +1358,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
 #ifdef WOLFSSLJNI_USE_NATIVE_CRYPTOCB
 /**
  * Default native wolfSSL crypto callback function.
- * This is called by default when wolfJSSE's WolfSSLProvider.setDevId()
+ * This is called by default when wolfJSSE's WolfSSLProvider.registerDevId()
  * is called, and is called by the native JNI API below.
  *
  * This function should be directly edited here to meet required
@@ -1387,8 +1387,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
     #ifdef WOLFSSLJNI_USE_NATIVE_CRYPTOCB
         return wc_CryptoCb_RegisterDevice((int)devId,
                     DefaultNativeCryptoDevCb, NULL);
-    #else
-        /* could add additional elif blocks for ports / known callbacks */
+    #else /* Lookup the devId and see if it matches a known implementation */
+        #if defined(HAVE_CCBVAULTIC) && defined(WOLF_CRYPTO_CB_CMD)
+        #include "ccb_vaultic.h"
+        if(devId == CCBVAULTIC420_DEVID) {
+            return wc_CryptoCb_RegisterDevice((int)devId,
+                                              ccbVaultIc_CryptoDevCb, NULL);
+        }
+        #endif
+
+         /* could add additional elif blocks for ports / known callbacks */
+
+        /* No matching callback.  Maybe return CRYPTOCB_UNAVAILABLE? */
+
         return 0;
     #endif
 #else
