@@ -391,4 +391,37 @@ ant test-win32-release-fips
 ant test-win64-debug-fips
 ant test-win64-release-fips
 ```
+# Running Examples
+
+Windows batch scripts have been included to easily run some of the provided
+examples from the Windows command line.
+
+After the above steps have been followed to compile native wolfSSL and
+wolfSSL JNI/JSSE, open a Command Prompt and navigate to the wolfSSL JNI/JSSE
+directory root (ie: wolfssljni).
+
+Compile the examples:
+
+```
+ant examples
+```
+
+Edit the Windows configuration batch script to set the appropriate paths
+for native wolfSSL and wolfSSL JNI DLL locations. This can change between
+build types (ex: normal wolfSSL, FIPS 140-2, etc):
+
+**Edit examples\WindowsConfig.bat**
+
+From the root wolfssljni directory, run the desired .bat file. For example,
+to run the ProviderTest:
+
+```
+examples\provider\ProviderTest.bat
+```
+
+Or to run the X509v3 certificate generation example:
+
+```
+examples\X509v3CertificateGeneration.bat
+```
 
