@@ -30,6 +30,12 @@ public class WolfSSLX509StoreCtx {
     private boolean active = false;
     private long ctxPtr = 0;
 
+    /* lock around active state */
+    private final Object stateLock = new Object();
+
+    /* lock around native WOLFSSL_X509_STORE_CTX pointer use */
+    private final Object ctxLock = new Object();
+
     static native byte[][] X509_STORE_CTX_getDerCerts(long ctxPtr);
 
     /**
@@ -49,27 +55,46 @@ public class WolfSSLX509StoreCtx {
     }
 
     /**
+     * Verifies that the current WolfSSLX509StoreCtx object is active.
+     *
+     * @throws IllegalStateException if object has been freed
+     */
+    private synchronized void confirmObjectIsActive()
+        throws IllegalStateException {
+
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new IllegalStateException(
+                    "WolfSSLX509StoreCtx object has been freed");
+            }
+        }
+    }
+
+    /**
      * Get certificates in WOLFSSL_X509_STORE_CTX as an array of
      * WolfSSLCertificate objects.
      *
      * @return array of certificates
      * @throws WolfSSLException on error
+     * @throws IllegalStateException if object has been freed
      */
-    public WolfSSLCertificate[] getCerts() throws WolfSSLException {
+    public WolfSSLCertificate[] getCerts()
+        throws WolfSSLException, IllegalStateException {
 
         WolfSSLCertificate[] certs = null;
 
-        if (this.active == false)
-            throw new IllegalStateException("Object is not active");
+        confirmObjectIsActive();
 
-        byte[][] derCerts = X509_STORE_CTX_getDerCerts(this.ctxPtr);
+        synchronized (ctxLock) {
+            byte[][] derCerts = X509_STORE_CTX_getDerCerts(this.ctxPtr);
 
-        if (derCerts != null) {
-            certs = new WolfSSLCertificate[derCerts.length];
+            if (derCerts != null) {
+                certs = new WolfSSLCertificate[derCerts.length];
 
-            for (int i = 0; i < derCerts.length; i++) {
-                byte[] derCert = derCerts[i];
-                certs[i] = new WolfSSLCertificate(derCert);
+                for (int i = 0; i < derCerts.length; i++) {
+                    byte[] derCert = derCerts[i];
+                    certs[i] = new WolfSSLCertificate(derCert);
+                }
             }
         }
 
