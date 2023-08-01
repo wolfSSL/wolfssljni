@@ -69,6 +69,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
 
+    /* Lock around access to WOLFSSL_SESSION pointer */
+    private final Object sesPtrLock = new Object();
+
     /**
      * Create new WolfSSLImplementSSLSession
      *
@@ -510,8 +513,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     protected synchronized void resume(WolfSSLSession in) {
         /* Set session (WOLFSSL_SESSION) into native WOLFSSL, makes
          * a copy of the session so this object can free sesPtr when ready */
-        in.setSession(this.sesPtr);
-        ssl = in;
+        synchronized (sesPtrLock) {
+            in.setSession(this.sesPtr);
+            ssl = in;
+        }
     }
 
 
@@ -520,10 +525,12 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected synchronized void setResume() {
         if (ssl != null) {
-            if (this.sesPtr != 0) {
-                WolfSSLSession.freeSession(this.sesPtr);
+            synchronized (sesPtrLock) {
+                if (this.sesPtr != 0) {
+                    WolfSSLSession.freeSession(this.sesPtr);
+                }
+                this.sesPtr = ssl.getSession();
             }
-            this.sesPtr = ssl.getSession();
         }
     }
 
@@ -567,9 +574,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     @Override
     protected void finalize() throws Throwable
     {
-        if (this.sesPtr != 0) {
-            WolfSSLSession.freeSession(this.sesPtr);
-            this.sesPtr = 0;
+        synchronized (sesPtrLock) {
+            if (this.sesPtr != 0) {
+                WolfSSLSession.freeSession(this.sesPtr);
+                this.sesPtr = 0;
+            }
         }
 
         super.finalize();
