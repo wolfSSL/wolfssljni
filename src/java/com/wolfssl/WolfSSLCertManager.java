@@ -40,6 +40,12 @@ public class WolfSSLCertManager {
     private boolean active = false;
     private long cmPtr = 0;
 
+    /* lock around active state */
+    private final Object stateLock = new Object();
+
+    /* lock around native WOLFSSL_CERT_MANAGER pointer use */
+    private final Object cmLock = new Object();
+
     static native long CertManagerNew();
     static native void CertManagerFree(long cm);
     static native int CertManagerLoadCA(long cm, String f, String d);
@@ -63,18 +69,38 @@ public class WolfSSLCertManager {
     }
 
     /**
+     * Verifies that the current WolfSSLCertManager object is active.
+     *
+     * @throws IllegalStateException if object has been freed
+     */
+    private synchronized void confirmObjectIsActive()
+        throws IllegalStateException {
+
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new IllegalStateException(
+                    "WolfSSLCertManager object has been freed");
+            }
+        }
+    }
+
+    /**
      * Load CA into CertManager
      *
      * @param f X.509 certificate file to load
      * @param d directory of X.509 certs to load, or null
      *
      * @return WolfSSL.SSL_SUCESS on success, negative on error
+     * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public synchronized int CertManagerLoadCA(String f, String d) {
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+    public synchronized int CertManagerLoadCA(String f, String d)
+        throws IllegalStateException {
 
-        return CertManagerLoadCA(this.cmPtr, f, d);
+        confirmObjectIsActive();
+
+        synchronized (cmLock) {
+            return CertManagerLoadCA(this.cmPtr, f, d);
+        }
     }
 
     /**
@@ -87,33 +113,34 @@ public class WolfSSLCertManager {
      *               WolfSSL.SSL_FILETYPE_ASN1 (ASN.1/DER).
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     * @throws IllegalStateException WolfSSLContext has been freed
      */
     public synchronized int CertManagerLoadCABuffer(
-        byte[] in, long sz, int format) {
+        byte[] in, long sz, int format) throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
-        return CertManagerLoadCABuffer(this.cmPtr, in, sz, format);
+        synchronized (cmLock) {
+            return CertManagerLoadCABuffer(this.cmPtr, in, sz, format);
+        }
     }
 
     /**
      * Loads KeyStore certificates into WolfSSLCertManager object.
      *
      * @param  ks - input KeyStore from which to load CA certs
-     * @throws WolfSSLException on exception working with KeyStore
      * @return WolfSSL.SSL_SUCCESS if at least one cert was loaded
      *         successfully, otherwise WolfSSL.SSL_FAILURE.
+     * @throws WolfSSLException on exception working with KeyStore
+     * @throws IllegalStateException WolfSSLContext has been freed
      */
     public synchronized int CertManagerLoadCAKeyStore(KeyStore ks)
-        throws WolfSSLException {
+        throws WolfSSLException, IllegalStateException {
 
         int ret = 0;
         int loadedCerts = 0;
 
-        if (this.active == false) {
-            throw new IllegalStateException("Object has been freed");
-        }
+        confirmObjectIsActive();
 
         if (ks == null) {
             throw new WolfSSLException("Input KeyStore is null");
@@ -159,13 +186,16 @@ public class WolfSSLCertManager {
      * Unload any CAs that have been loaded into WolfSSLCertManager object.
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error.
+     * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public synchronized int CertManagerUnloadCAs() {
-        if (this.active == false) {
-            throw new IllegalStateException("Object has been freed");
-        }
+    public synchronized int CertManagerUnloadCAs()
+        throws IllegalStateException {
 
-        return CertManagerUnloadCAs(this.cmPtr);
+        confirmObjectIsActive();
+
+        synchronized (cmLock) {
+            return CertManagerUnloadCAs(this.cmPtr);
+        }
     }
 
     /**
@@ -179,33 +209,39 @@ public class WolfSSLCertManager {
      *
      * @return WolfSSL.SSL_SUCCESS on successful verification, otherwise
      *         negative on error.
+     * @throws IllegalStateException WolfSSLContext has been freed
      */
     public synchronized int CertManagerVerifyBuffer(
-        byte[] in, long sz, int format) {
+        byte[] in, long sz, int format) throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        confirmObjectIsActive();
 
-        return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
+        synchronized (cmLock) {
+            return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
+        }
     }
 
     /**
      * Frees CertManager object
-     *
-     * @throws IllegalStateException WolfSSLContext has been freed
-     * @see         WolfSSLSession#freeSSL()
+     * @see WolfSSLSession#freeSSL()
      */
     public synchronized void free() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        synchronized (stateLock) {
+            if (this.active == false) {
+                /* already freed, just return */
+                return;
+            }
 
-        /* free native resources */
-        CertManagerFree(this.cmPtr);
+            synchronized (cmLock) {
+                /* free native resources */
+                CertManagerFree(this.cmPtr);
 
-        /* free Java resources */
-        this.active = false;
-        this.cmPtr = 0;
+                /* free Java resources */
+                this.active = false;
+                this.cmPtr = 0;
+            }
+        }
     }
 
     @SuppressWarnings("deprecation")
