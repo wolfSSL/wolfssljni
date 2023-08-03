@@ -228,10 +228,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDH
         ret = wolfSSL_CTX_SetTmpDH(ctx, pBuf, pSz, gBuf, gSz);
     }
 
-    XMEMSET(pBuf, 0, (int)pSz);
-    XMEMSET(gBuf, 0, (int)gSz);
-    XFREE(pBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(gBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pBuf != NULL) {
+        XMEMSET(pBuf, 0, (int)pSz);
+        XFREE(pBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (gBuf != NULL) {
+        XMEMSET(gBuf, 0, (int)gSz);
+        XFREE(gBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return (jint)ret;
 #else

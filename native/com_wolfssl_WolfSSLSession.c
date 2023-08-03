@@ -3979,6 +3979,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
     int ret = 0;
     const char* sigAlgList = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
 
     if (jenv == NULL || ssl == NULL || list == NULL) {
         return SSL_FAILURE;
@@ -3989,14 +3990,38 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
     ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
 
     (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+
+    return (jint)ret;
 #else
     (void)jenv;
     (void)ssl;
     (void)list;
-    return NOT_COMPILED_IN;
+    return (jint)NOT_COMPILED_IN;
 #endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSupportedCurve
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint name)
+{
+#ifdef HAVE_SUPPORTED_CURVES
+    int ret = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return (jint)SSL_FAILURE;
+    }
+
+    ret = wolfSSL_UseSupportedCurve(ssl, (word16)name);
+
     return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)name;
+    return (jint)NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv

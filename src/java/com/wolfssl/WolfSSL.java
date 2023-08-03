@@ -349,6 +349,45 @@ public class WolfSSL {
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
 
+    /* -------------- Named Groups (from enum in ssl.h) ----------------- */
+    public static final int WOLFSSL_NAMED_GROUP_INVALID = 0;
+    public static final int WOLFSSL_ECC_SECT163K1 = 1;
+    public static final int WOLFSSL_ECC_SECT163R1 = 2;
+    public static final int WOLFSSL_ECC_SECT163R2 = 3;
+    public static final int WOLFSSL_ECC_SECT193R1 = 4;
+    public static final int WOLFSSL_ECC_SECT193R2 = 5;
+    public static final int WOLFSSL_ECC_SECT233K1 = 6;
+    public static final int WOLFSSL_ECC_SECT233R1 = 7;
+    public static final int WOLFSSL_ECC_SECT239K1 = 8;
+    public static final int WOLFSSL_ECC_SECT283K1 = 9;
+    public static final int WOLFSSL_ECC_SECT283R1 = 10;
+    public static final int WOLFSSL_ECC_SECT409K1 = 11;
+    public static final int WOLFSSL_ECC_SECT409R1 = 12;
+    public static final int WOLFSSL_ECC_SECT571K1 = 13;
+    public static final int WOLFSSL_ECC_SECT571R1 = 14;
+    public static final int WOLFSSL_ECC_SECP160K1 = 15;
+    public static final int WOLFSSL_ECC_SECP160R1 = 16;
+    public static final int WOLFSSL_ECC_SECP160R2 = 17;
+    public static final int WOLFSSL_ECC_SECP192K1 = 18;
+    public static final int WOLFSSL_ECC_SECP192R1 = 19;
+    public static final int WOLFSSL_ECC_SECP224K1 = 20;
+    public static final int WOLFSSL_ECC_SECP224R1 = 21;
+    public static final int WOLFSSL_ECC_SECP256K1 = 22;
+    public static final int WOLFSSL_ECC_SECP256R1 = 23;
+    public static final int WOLFSSL_ECC_SECP384R1 = 24;
+    public static final int WOLFSSL_ECC_SECP521R1 = 25;
+    public static final int WOLFSSL_ECC_BRAINPOOLP256R1 = 26;
+    public static final int WOLFSSL_ECC_BRAINPOOLP384R1 = 27;
+    public static final int WOLFSSL_ECC_BRAINPOOLP512R1 = 28;
+    public static final int WOLFSSL_ECC_X25519    = 29;
+    public static final int WOLFSSL_ECC_X448      = 30;
+    public static final int WOLFSSL_ECC_SM2P256V1 = 41;
+    public static final int WOLFSSL_FFDHE_2048    = 256;
+    public static final int WOLFSSL_FFDHE_3072    = 257;
+    public static final int WOLFSSL_FFDHE_4096    = 258;
+    public static final int WOLFSSL_FFDHE_6144    = 259;
+    public static final int WOLFSSL_FFDHE_8192    = 260;
+
     /* ---------------------------- locks ------------------------------- */
 
     /* lock for cleanup */
@@ -1119,6 +1158,100 @@ public class WolfSSL {
      * @return an array of Strings for supported protocols
      */
     public static native String[] getProtocolsMask(long mask);
+
+    /**
+     * Gets the internal wolfSSL named group enum matching provided string.
+     *
+     * Returned enum values are in Named Groups section above and come from
+     * native ssl.h "Named Groups" enum.
+     *
+     * @param curveName String representation of ECC curve
+     * @return Native wolfSSL Named Groups enum value which maps to input
+     *         String, or WolfSSL.WOLFSSL_NAMED_GROUP_INVALID if curve
+     *         String not supported.
+     */
+    protected static int getNamedGroupFromString(String curveName) {
+
+        switch (curveName) {
+            case "sect163k1":
+                return WolfSSL.WOLFSSL_ECC_SECT163K1;
+            case "sect163r1":
+                return WolfSSL.WOLFSSL_ECC_SECT163R1;
+            case "sect163r2":
+                return WolfSSL.WOLFSSL_ECC_SECT163R2;
+            case "sect193r1":
+                return WolfSSL.WOLFSSL_ECC_SECT193R1;
+            case "sect193r2":
+                return WolfSSL.WOLFSSL_ECC_SECT193R2;
+            case "sect233k1":
+                return WolfSSL.WOLFSSL_ECC_SECT233K1;
+            case "sect233r1":
+                return WolfSSL.WOLFSSL_ECC_SECT233R1;
+            case "sect239k1":
+                return WolfSSL.WOLFSSL_ECC_SECT239K1;
+            case "sect283k1":
+                return WolfSSL.WOLFSSL_ECC_SECT283K1;
+            case "sect283r1":
+                return WolfSSL.WOLFSSL_ECC_SECT283R1;
+            case "sect409k1":
+                return WolfSSL.WOLFSSL_ECC_SECT409K1;
+            case "sect409r1":
+                return WolfSSL.WOLFSSL_ECC_SECT409R1;
+            case "sect571k1":
+                return WolfSSL.WOLFSSL_ECC_SECT571K1;
+            case "sect571r1":
+                return WolfSSL.WOLFSSL_ECC_SECT571R1;
+            case "secp160k1":
+                return WolfSSL.WOLFSSL_ECC_SECP160K1;
+            case "secp160r1":
+                return WolfSSL.WOLFSSL_ECC_SECP160R1;
+            case "secp160r2":
+                return WolfSSL.WOLFSSL_ECC_SECP160R2;
+            case "secp192k1":
+                return WolfSSL.WOLFSSL_ECC_SECP192K1;
+            case "secp192r1":
+                return WolfSSL.WOLFSSL_ECC_SECP192R1;
+            case "secp224k1":
+                return WolfSSL.WOLFSSL_ECC_SECP224K1;
+            case "secp224r1":
+                return WolfSSL.WOLFSSL_ECC_SECP224R1;
+            case "secp256k1":
+                return WolfSSL.WOLFSSL_ECC_SECP256K1;
+            case "secp256r1":
+                return WolfSSL.WOLFSSL_ECC_SECP256R1;
+            case "secp384r1":
+                return WolfSSL.WOLFSSL_ECC_SECP384R1;
+            case "secp521r1":
+                return WolfSSL.WOLFSSL_ECC_SECP521R1;
+            case "brainpoolP256r1":
+                return WolfSSL.WOLFSSL_ECC_BRAINPOOLP256R1;
+            case "brainpoolP384r1":
+                return WolfSSL.WOLFSSL_ECC_BRAINPOOLP384R1;
+            case "brainpoolP512r1":
+                return WolfSSL.WOLFSSL_ECC_BRAINPOOLP512R1;
+            case "X25519":
+            case "x25519":
+                return WolfSSL.WOLFSSL_ECC_X25519;
+            case "X448":
+            case "x448":
+                return WolfSSL.WOLFSSL_ECC_X448;
+            case "sm2P256v1":
+                return WolfSSL.WOLFSSL_ECC_SM2P256V1;
+            case "ffdhe2048":
+                return WolfSSL.WOLFSSL_FFDHE_2048;
+            case "ffdhe3072":
+                return WolfSSL.WOLFSSL_FFDHE_3072;
+            case "ffdhe4096":
+                return WolfSSL.WOLFSSL_FFDHE_4096;
+            case "ffdhe6144":
+                return WolfSSL.WOLFSSL_FFDHE_6144;
+            case "ffdhe8192":
+                return WolfSSL.WOLFSSL_FFDHE_8192;
+            default:
+                return WolfSSL.WOLFSSL_NAMED_GROUP_INVALID;
+
+        }
+    }
 
     @SuppressWarnings("deprecation")
     @Override
