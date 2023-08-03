@@ -693,6 +693,39 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalSupportedCurves() throws SSLException {
+
+        int ret = 0;
+
+        if (this.clientMode) {
+            /* Get restricted supported curves for ClientHello if set by
+             * user in "wolfjsse.enabledSupportedCurves" Security property */
+            String[] curves = WolfSSLUtil.getSupportedCurves();
+
+            if (curves != null) {
+                ret = this.ssl.useSupportedCurves(curves);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    if (ret == WolfSSL.NOT_COMPILED_IN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Unable to set requested TLS Supported Curves, " +
+                            "native support not compiled in.");
+                    }
+                    else {
+                        throw new SSLException(
+                            "Error setting TLS Supported Curves based on " +
+                            "wolfjsse.enabledSupportedCurves property, ret = " +
+                            ret + ", curves: " + Arrays.toString(curves));
+                    }
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "set TLS Supported Curves based on " +
+                        "wolfjsse.enabledSupportedCurves property");
+                }
+            }
+        }
+    }
+
     private void setLocalParams() throws SSLException {
         this.setLocalCiphers(
             WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
@@ -704,6 +737,7 @@ public class WolfSSLEngineHelper {
         this.setLocalAlpnProtocols();
         this.setLocalSecureRenegotiation();
         this.setLocalSigAlgorithms();
+        this.setLocalSupportedCurves();
     }
 
     /**

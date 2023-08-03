@@ -299,6 +299,7 @@ public class WolfSSLSession {
     private native int useSecureRenegotiation(long ssl);
     private native int rehandshake(long ssl);
     private native int set1SigAlgsList(long ssl, String list);
+    private native int useSupportedCurve(long ssl, int name);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -1264,6 +1265,44 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             return set1SigAlgsList(getSessionPtr(), list);
         }
+    }
+
+    /**
+     * Sets the TLS Supported Curves to be used in the ClientHello
+     * extension if enabled in native wolfSSL.
+     *
+     * @param curveNames String array of ECC curve names to set into the
+     *        Supported Curve extension. String values should match names from
+     *        the following list:
+     *            "sect163k1", "sect163r1", "sect163r2", "sect193r1",
+     *            "sect193r2", "sect233k1", "sect233r1", "sect239k1",
+     *            "sect283k1", "sect283r1", "sect409k1", "sect409r1",
+     *            "sect571k1", "sect571r1", "secp160k1", "secp160r1",
+     *            "secp160r2", "secp192k1", "secp192r1", "secp224k1",
+     *            "secp224r1", "secp256k1", "secp256r1", "secp384r1",
+     *            "secp521r1", "brainpoolP256r1", "brainpoolP384r1",
+     *            "brainpoolP512r1", "x25519", "x448", "sm2P256v1",
+     *            "ffdhe2048", "ffdhe3072", "ffdhe4096", "ffdhe6144",
+     *            "ffdhe8192"
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise
+     *         negative on error.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int useSupportedCurves(String[] curveNames)
+        throws IllegalStateException  {
+
+        int ret = 0;
+        int curveEnum = 0;
+
+        for (String curve : curveNames) {
+            curveEnum = WolfSSL.getNamedGroupFromString(curve);
+            synchronized (sslLock) {
+                ret = useSupportedCurve(getSessionPtr(), curveEnum);
+            }
+        }
+
+        return ret;
     }
 
     /* ---------------- Nonblocking DTLS helper functions  -------------- */

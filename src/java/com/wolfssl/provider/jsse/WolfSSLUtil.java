@@ -187,6 +187,33 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return TLS Supported Curves allowed if set in
+     * wolfjsse.enabledSupportedCurves system Security property.
+     *
+     * @return String array of Supported Curves to be set into the
+     *         TLS ClientHello.
+     */
+    protected static String[] getSupportedCurves() {
+
+        String curves =
+            Security.getProperty("wolfjsse.enabledSupportedCurves");
+
+        if (curves == null || curves.isEmpty()) {
+            return null;
+        }
+
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "restricting enabled ClientHello supported curves");
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            "wolfjsse.enabledSupportedCurves: " + curves);
+
+        /* Remove spaces between commas if present */
+        curves = curves.replaceAll(", ", ",");
+
+        return curves.split(",");
+    }
+
+    /**
      * Return maximum key size allowed if minimum is set in
      * jdk.tls.disabledAlgorithms security property for specified algorithm.
      *

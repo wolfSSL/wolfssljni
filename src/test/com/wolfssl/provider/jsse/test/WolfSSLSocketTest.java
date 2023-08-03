@@ -446,6 +446,194 @@ public class WolfSSLSocketTest {
     }
 
     @Test
+    public void testEnabledSupportedCurvesProperty() throws Exception {
+
+        SSLServerSocket ss = null;
+        TestServer server = null;
+        TestClient client = null;
+        Exception srvException = null;
+        Exception cliException = null;
+
+        System.out.print("\twolfjsse.enabledSupportedCurves");
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* Save existing Security property before setting */
+        String originalProperty =
+            Security.getProperty("wolfjsse.enabledSupportedCurves");
+
+        /* Test with empty property */
+        {
+            Security.setProperty("wolfjsse.enabledSupportedCurves", "");
+
+            /* create SSLServerSocket first to get ephemeral port */
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            server = new TestServer(this, ss);
+            server.start();
+            client = new TestClient(this, ss.getLocalPort());
+            client.start();
+
+            srvException = server.getException();
+            if (srvException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw srvException;
+            }
+
+            cliException = client.getException();
+            if (cliException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw cliException;
+            }
+
+            try {
+                client.join(1000);
+                server.join(1000);
+
+            } catch (InterruptedException e) {
+                System.out.println("interrupt happened");
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                fail("Threaded client/server test failed");
+            }
+        }
+
+        /* Test with single property entry */
+        {
+            Security.setProperty("wolfjsse.enabledSupportedCurves",
+                "secp256r1");
+
+            /* create SSLServerSocket first to get ephemeral port */
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            server = new TestServer(this, ss);
+            server.start();
+            client = new TestClient(this, ss.getLocalPort());
+            client.start();
+
+            srvException = server.getException();
+            if (srvException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw srvException;
+            }
+
+            cliException = client.getException();
+            if (cliException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw cliException;
+            }
+
+            try {
+                client.join(1000);
+                server.join(1000);
+
+            } catch (InterruptedException e) {
+                System.out.println("interrupt happened");
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                fail("Threaded client/server test failed");
+            }
+        }
+
+        /* Test with multiple property entries */
+        {
+            Security.setProperty("wolfjsse.enabledSupportedCurves",
+                "secp256r1, secp521r1");
+
+            /* create SSLServerSocket first to get ephemeral port */
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            server = new TestServer(this, ss);
+            server.start();
+            client = new TestClient(this, ss.getLocalPort());
+            client.start();
+
+            srvException = server.getException();
+            if (srvException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw srvException;
+            }
+
+            cliException = client.getException();
+            if (cliException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw cliException;
+            }
+
+            try {
+                client.join(1000);
+                server.join(1000);
+
+            } catch (InterruptedException e) {
+                System.out.println("interrupt happened");
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                fail("Threaded client/server test failed");
+            }
+        }
+
+        /* Test with invalid property entries */
+        {
+            Security.setProperty("wolfjsse.enabledSupportedCurves",
+                "badone, badtwo");
+
+            /* create SSLServerSocket first to get ephemeral port */
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            server = new TestServer(this, ss);
+            server.start();
+            client = new TestClient(this, ss.getLocalPort());
+            client.start();
+
+            srvException = server.getException();
+            if (srvException != null) {
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                throw srvException;
+            }
+
+            cliException = client.getException();
+            if (cliException != null) {
+                /* expected Exception here, bad Supported Curve values */
+            }
+
+            try {
+                client.join(1000);
+                server.join(1000);
+
+            } catch (InterruptedException e) {
+                System.out.println("interrupt happened");
+                Security.setProperty("wolfjsse.enabledSupportedCurves",
+                    originalProperty);
+                fail("Threaded client/server test failed");
+            }
+        }
+
+
+        /* restore original property value */
+        if (originalProperty == null) {
+            /* set property to empty if original was not set */
+            Security.setProperty("wolfjsse.enabledSupportedCurves", "");
+        } else {
+            Security.setProperty("wolfjsse.enabledSupportedCurves",
+                originalProperty);
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
     public void testClientServerThreaded() throws Exception {
 
         System.out.print("\tTesting basic client/server");
@@ -1913,8 +2101,6 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
-                Logger.getLogger(WolfSSLSocketTest.class.getName())
-                    .log(Level.SEVERE, null, e);
             }
         }
 
@@ -1951,8 +2137,6 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
-                Logger.getLogger(WolfSSLSocketTest.class.getName())
-                    .log(Level.SEVERE, null, e);
             }
         }
 
