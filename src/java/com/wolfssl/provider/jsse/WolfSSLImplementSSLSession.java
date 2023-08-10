@@ -148,7 +148,14 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             else {
                 return this.ssl.getSessionID();
             }
-        } catch (IllegalStateException | WolfSSLJNIException e) {
+
+        } catch (IllegalStateException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "In getId(), WolfSSLSession has been freed, returning null");
+            return null;
+
+        } catch (WolfSSLJNIException e) {
+            /* print stack trace of native JNI error for debugging */
             e.printStackTrace();
             return null;
         }

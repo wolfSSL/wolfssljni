@@ -657,9 +657,12 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        synchronized (sslLock) {
-            return write(getSessionPtr(), data, length, 0);
-        }
+        /* not synchronizing on sslLock here since JNI write() locks
+         * session mutex around native wolfSSL_write() call. If sslLock
+         * is locked here, since we call select() inside native JNI we
+         * could timeout waiting for corresponding read() operation to
+         * occur if needed */
+        return write(getSessionPtr(), data, length, 0);
     }
 
     /**
@@ -703,9 +706,12 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        synchronized (sslLock) {
-            ret = write(getSessionPtr(), data, length, timeout);
-        }
+        /* not synchronizing on sslLock here since JNI write() locks
+         * session mutex around native wolfSSL_write() call. If sslLock
+         * is locked here, since we call select() inside native JNI we
+         * could timeout waiting for corresponding read() operation to
+         * occur if needed */
+        ret = write(getSessionPtr(), data, length, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket write timeout");
@@ -752,9 +758,12 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        synchronized (sslLock) {
-            return read(getSessionPtr(), data, sz, 0);
-        }
+        /* not synchronizing on sslLock here since JNI read() locks
+         * session mutex around native wolfSSL_read() call. If sslLock
+         * is locked here, since we call select() inside native JNI we
+         * could timeout waiting for corresponding write() operation to
+         * occur if needed */
+        return read(getSessionPtr(), data, sz, 0);
     }
 
     /**
@@ -800,9 +809,12 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        synchronized (sslLock) {
-            ret = read(getSessionPtr(), data, sz, timeout);
-        }
+        /* not synchronizing on sslLock here since JNI read() locks
+         * session mutex around native wolfSSL_read() call. If sslLock
+         * is locked here, since we call select() inside native JNI we
+         * could timeout waiting for corresponding write() operation to
+         * occur if needed */
+        ret = read(getSessionPtr(), data, sz, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket read timeout");
