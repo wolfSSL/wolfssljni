@@ -75,8 +75,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
 
-    /* Lock around access to WOLFSSL_SESSION pointer */
-    private final Object sesPtrLock = new Object();
+    /* Lock around access to WOLFSSL_SESSION pointer. Static since there could
+     * be multiple WolfSSLSocket refering to the same WOLFSSL_SESSION pointer
+     * in resumption cases. */
+    private static final Object sesPtrLock = new Object();
 
     /**
      * Create new WolfSSLImplementSSLSession
@@ -94,6 +96,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -114,6 +117,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -131,6 +135,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -548,12 +553,30 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * Should be called on shutdown to save the session pointer
      */
     protected synchronized void setResume() {
+
         if (ssl != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered setResume(), trying to get sesPtrLock");
+
             synchronized (sesPtrLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "got sesPtrLock: this.sesPtr = " + this.sesPtr);
+
                 if (this.sesPtr != 0) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                       "calling WolfSSLSession.freeSession(this.sesPtr)");
+
                     WolfSSLSession.freeSession(this.sesPtr);
+                    /* reset this.sesPtr to 0 in case ssl.getSession() below
+                     * blocks on WOLFSSL lock */
+                    this.sesPtr = 0;
                 }
+
+                /* Get new WOLFSSL_SESSION pointer for updated WOLFSSL */
                 this.sesPtr = ssl.getSession();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "called ssl.getSession(), new this.sesPtr = " +
+                    this.sesPtr);
             }
         }
     }
@@ -598,8 +621,14 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     @Override
     protected void finalize() throws Throwable
     {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered finalize(): this.sesPtr = " + this.sesPtr);
         synchronized (sesPtrLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "got sesPtrLock: " + this.sesPtr);
             if (this.sesPtr != 0) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                   "calling WolfSSLSession.freeSession(this.sesPtr)");
                 WolfSSLSession.freeSession(this.sesPtr);
                 this.sesPtr = 0;
             }

@@ -1516,6 +1516,9 @@ public class WolfSSLSocket extends SSLSocket {
                         EngineHelper.saveSession();
                     }
 
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "thread trying to get ioLock (shutdown)");
+
                     synchronized (ioLock) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                          "thread got ioLock (shutdown)");
@@ -1532,7 +1535,12 @@ public class WolfSSLSocket extends SSLSocket {
                                          "thread exiting ioLock (shutdown)");
                     }
 
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "thread trying to get handshakeLock");
+
                     synchronized (handshakeLock) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "thread got handshakeLock");
                         this.connectionClosed = true;
 
                         /* Connection is closed, free native WOLFSSL session
@@ -1542,8 +1550,12 @@ public class WolfSSLSocket extends SSLSocket {
                         if (readCtx != null &&
                             readCtx instanceof ConsumedRecvCtx) {
                             ConsumedRecvCtx rctx = (ConsumedRecvCtx)readCtx;
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "calling ConsumedRecvCtx.closeDataStreams()");
                             rctx.closeDataStreams();
                         }
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "calling this.ssl.freeSSL()");
                         this.ssl.freeSSL();
                         this.ssl = null;
                     }
