@@ -1223,19 +1223,25 @@ public class WolfSSLEngine extends SSLEngine {
      */
     protected synchronized int internalSendCb(byte[] in, int sz) {
         int totalSz = sz, idx = 0;
-        byte[] tmp;
+        byte[] prevToSend = null;
 
         synchronized (toSendLock) {
+            /* Make copy of existing toSend array before expanding */
             if (this.toSend != null) {
+                prevToSend = this.toSend.clone();
                 totalSz += this.toSend.length;
             }
-            tmp = new byte[totalSz];
-            if (this.toSend != null) {
-                System.arraycopy(this.toSend, 0, tmp, idx, this.toSend.length);
-                idx += this.toSend.length;
+
+            /* Allocate new array to hold data to be sent */
+            this.toSend = new byte[totalSz];
+
+            /* Copy existing toSend data over */
+            if (prevToSend != null) {
+                System.arraycopy(prevToSend, 0, this.toSend, idx,
+                                 prevToSend.length);
+                idx += prevToSend.length;
             }
-            System.arraycopy(in, 0, tmp, idx, in.length);
-            this.toSend = tmp;
+            System.arraycopy(in, 0, this.toSend, idx, sz);
         }
 
         if (ioDebugEnabled == true) {
