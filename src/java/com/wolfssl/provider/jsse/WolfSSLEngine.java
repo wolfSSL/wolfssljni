@@ -165,7 +165,7 @@ public class WolfSSLEngine extends SSLEngine {
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore auth, WolfSSLParameters params, String host,
             int port) throws WolfSSLException {
-        super();
+        super(host, port);
         this.ctx = ctx;
         this.authStore = auth;
         this.params = params.copy();
@@ -318,11 +318,13 @@ public class WolfSSLEngine extends SSLEngine {
                     ssl.getError(ret));
             }
 
-            /* Once handshake is finished, save session for resumption in
-             * case caller does not explicitly close connection. Saves
-             * session in WolfSSLAuthStore cache, and gets/saves session
-             * pointer for resumption if on client side. */
-            EngineHelper.saveSession();
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Once handshake is finished, save session for resumption in
+                 * case caller does not explicitly close connection. Saves
+                 * session in WolfSSLAuthStore cache, and gets/saves session
+                 * pointer for resumption if on client side. */
+                EngineHelper.saveSession();
+            }
 
         } catch (SocketTimeoutException e) {
             throw new SSLException(e);
@@ -714,7 +716,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         if (!this.clientModeSet) {
             throw new IllegalStateException(
-                    "setUseClientMode() has not been called on this SSLEngine");
+                "setUseClientMode() has not been called on this SSLEngine");
         }
 
         synchronized (netDataLock) {
@@ -733,7 +735,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.position());
+                "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "out["+i+"].remaining(): " + out[i].remaining());
@@ -769,83 +771,97 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
-        if (needInit) {
-            EngineHelper.initHandshake();
-            needInit = false;
-            closed = false;
-        }
-
-        if (outBoundOpen == false) {
-            if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
-                status = SSLEngineResult.Status.CLOSED;
-            }
+        if (getUseClientMode() && needInit) {
+            /* If unwrap() is called before handshake has started, return
+             * WANT_WRAP since we'll need to send a ClientHello first */
+            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
         }
         else {
-            if (this.handshakeFinished == false) {
 
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "starting or continuing handshake");
-                ret = DoHandshake();
+            if (needInit) {
+                EngineHelper.initHandshake();
+                needInit = false;
+                closed = false;
+            }
+
+            if (outBoundOpen == false) {
+                if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                    status = SSLEngineResult.Status.CLOSED;
+                }
             }
             else {
-                /* If we have input data, make sure output buffer length is
-                 * greater than zero, otherwise ask app to expand out buffer.
-                 * There may be edge cases where this could be tightened up,
-                 * but this will err on the side of giving us more output
-                 * space than we need. */
-                if (inRemaining > 0 &&
-                    getTotalOutputSize(out, ofst, length) == 0) {
-                    status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+
+                if (this.handshakeFinished == false) {
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "starting or continuing handshake");
+                    ret = DoHandshake();
                 }
                 else {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "receiving application data");
-                    ret = RecvAppData(out, ofst, length);
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "received application data: " + ret +
-                        " bytes (from RecvAppData)");
-                    if (ret > 0) {
-                        produced += ret;
+                    /* If we have input data, make sure output buffer length is
+                     * greater than zero, otherwise ask app to expand out buffer.
+                     * There may be edge cases where this could be tightened up,
+                     * but this will err on the side of giving us more output
+                     * space than we need. */
+                    if (inRemaining > 0 &&
+                        getTotalOutputSize(out, ofst, length) == 0) {
+                        status = SSLEngineResult.Status.BUFFER_OVERFLOW;
                     }
                     else {
-                        synchronized (netDataLock) {
-                            if (ret == 0 && in.remaining() > 0 &&
-                                getTotalOutputSize(out, ofst, length) == 0) {
-                                /* We have more data to read, but no more out
-                                 * space left in ByteBuffer[], ask for more */
-                                status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "receiving application data");
+                        ret = RecvAppData(out, ofst, length);
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "received application data: " + ret +
+                            " bytes (from RecvAppData)");
+                        if (ret > 0) {
+                            produced += ret;
+                        }
+                        else {
+                            synchronized (netDataLock) {
+                                if (ret == 0 && in.remaining() > 0 &&
+                                    getTotalOutputSize(out, ofst,
+                                        length) == 0) {
+                                    /* We have more data to read, but no more
+                                     * out space left in ByteBuffer[], ask for
+                                     * more */
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
                             }
+                        }
+                    }
+                }
+
+                if (outBoundOpen == false) {
+                    status = SSLEngineResult.Status.CLOSED;
+                }
+
+                int err = ssl.getError(ret);
+                if (ret < 0 &&
+                    (err != WolfSSL.SSL_ERROR_WANT_READ) &&
+                    (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+                    throw new SSLException(
+                        "wolfSSL error, ret:err = " + ret + " : " + err);
+                }
+
+                synchronized (toSendLock) {
+                    synchronized (netDataLock) {
+                        if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
+                            in.remaining() == 0 && (this.toSend == null ||
+                            (this.toSend != null && this.toSend.length == 0))) {
+                            /* Need more data */
+                            status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
                         }
                     }
                 }
             }
 
-            if (outBoundOpen == false) {
-                status = SSLEngineResult.Status.CLOSED;
+            synchronized (netDataLock) {
+                consumed += in.position() - inPosition;
             }
-
-            int err = ssl.getError(ret);
-            if (ret < 0 &&
-                (err != WolfSSL.SSL_ERROR_WANT_READ) &&
-                (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
-                throw new SSLException(
-                    "wolfSSL error, ret:err = " + ret + " : " + err);
-            }
-
-            synchronized (toSendLock) {
-                synchronized (netDataLock) {
-                    if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
-                        in.remaining() == 0 && (this.toSend == null ||
-                        (this.toSend != null && this.toSend.length == 0))) {
-                        /* Need more data */
-                        status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
-                    }
-                }
-            }
+            SetHandshakeStatus(ret);
         }
-
-        consumed += in.position() - inPosition;
-        SetHandshakeStatus(ret);
 
         if (extraDebugEnabled == true) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -857,7 +873,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.position());
+                "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "out["+i+"].remaining(): " + out[i].remaining());
@@ -1246,6 +1262,12 @@ public class WolfSSLEngine extends SSLEngine {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "CB Read: netData.remaining() = " +
                         this.netData.remaining());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "CB Read: netData.position() = " +
+                        this.netData.position());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "CB Read: netData.limit() = " +
+                        this.netData.limit());
                 }
             }
 
