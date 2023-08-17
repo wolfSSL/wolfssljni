@@ -257,7 +257,14 @@ public class WolfSSLEngine extends SSLEngine {
             this.closeNotifySent = true;
             this.closeNotifyReceived = true;
             this.inBoundOpen = false;
-            this.outBoundOpen = false;
+            if (this.toSend == null || this.toSend.length == 0) {
+                /* Don't close outbound if we have a close_notify alert
+                 * send back to peer. Native wolfSSL may have already generated
+                 * it and is reflected in SSL_SENT_SHUTDOWN flag, but we
+                 * might have it cached in our Java SSLEngine object still to
+                 * be sent. */
+                this.outBoundOpen = false;
+            }
             closed = true;
         } else if (ret == WolfSSL.SSL_RECEIVED_SHUTDOWN) {
             this.closeNotifyReceived = true;
@@ -460,7 +467,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -491,8 +498,12 @@ public class WolfSSLEngine extends SSLEngine {
         /* Copy buffered data to be sent into output buffer */
         produced = CopyOutPacket(out);
 
-        /* check if closing down connection */
-        if (produced >= 0 && !outBoundOpen) {
+        /* Closing down connection if buffered data has been sent and:
+         * 1. Outbound has been closed (!outBoundOpen)
+         * 2. Inbound is closed and close_notify has been sent
+         */
+        if (produced >= 0 &&
+            (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
             status = SSLEngineResult.Status.CLOSED;
             ClosingConnection();
             produced += CopyOutPacket(out);
@@ -550,7 +561,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -758,7 +769,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -839,7 +850,7 @@ public class WolfSSLEngine extends SSLEngine {
                     }
                 }
 
-                if (outBoundOpen == false) {
+                if (outBoundOpen == false || this.closeNotifySent) {
                     status = SSLEngineResult.Status.CLOSED;
                 }
 
@@ -904,7 +915,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -945,7 +956,14 @@ public class WolfSSLEngine extends SSLEngine {
                 /* close_notify sent, need to read peer's */
                 else if (this.closeNotifySent == true &&
                          this.closeNotifyReceived == false) {
-                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    /* Receiving close_notify is optional after we have sent
+                     * one. Denote that with NOT_HANDSHAKING here */
+                    hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+                }
+                else if (!this.outBoundOpen && !this.closeNotifySent) {
+                    /* We just closed outBound, NEED_WRAP to generate and
+                     * send close_notify */
+                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                 }
                 else {
                     hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
@@ -1031,6 +1049,15 @@ public class WolfSSLEngine extends SSLEngine {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered closeOutbound, outBoundOpen = false");
         outBoundOpen = false;
+
+        /* If handshake has not started yet, close inBound as well */
+        if (needInit) {
+            inBoundOpen = true;
+        }
+
+        /* Update status based on internal state. Some calling applications
+         * loop around getHandshakeStatus(), it needs to be up to date. */
+        SetHandshakeStatus(0);
     }
 
     @Override

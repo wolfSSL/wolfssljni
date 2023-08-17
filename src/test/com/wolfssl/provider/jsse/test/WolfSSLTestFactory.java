@@ -600,8 +600,13 @@ class WolfSSLTestFactory {
         boolean passed;
         Runnable run;
 
+        /* Close outBound to begin process of sending close_notify alert */
         client.closeOutbound();
+        if (client.getHandshakeStatus() != HandshakeStatus.NEED_WRAP) {
+            throw new SSLException("closeOutbound should result in NEED_WRAP");
+        }
 
+        /* Generate close_notify alert */
         result = client.wrap(empty, cliToSer);
         if (extraDebug) {
             System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
@@ -621,9 +626,11 @@ class WolfSSLTestFactory {
         if (result.bytesProduced() <= 0) {
             throw new SSLException("Client wrap consumed/produced error");
         }
-        if (!s.toString().equals("NEED_UNWRAP") ||
+        /* HandshakeStatus should be NOT_HANDSHAKING since receipt of
+         * peer close_notify is optional after client sends one */
+        if (!s.toString().equals("NOT_HANDSHAKING") ||
                 !result.getStatus().name().equals("CLOSED") ) {
-            throw new SSLException("Bad status");
+            throw new SSLException("Status should be NOT_HANDSHAKING/CLOSED");
         }
         cliToSer.flip();
 
@@ -637,7 +644,8 @@ class WolfSSLTestFactory {
                 passed = true;
             }
             if (!passed) {
-                throw new SSLException("Expected to fail on early close inbound");
+                throw new SSLException(
+                    "Expected to fail on early close inbound");
             }
 
             try {
@@ -648,7 +656,8 @@ class WolfSSLTestFactory {
                 passed = true;
             }
             if (!passed) {
-                throw new SSLException("Expected to fail on early close inbound");
+                throw new SSLException(
+                    "Expected to fail on early close inbound");
             }
             return 0;
         }
