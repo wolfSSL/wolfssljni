@@ -56,11 +56,11 @@ import java.net.SocketTimeoutException;
  */
 public class WolfSSLEngine extends SSLEngine {
 
-    private WolfSSLEngineHelper EngineHelper;
-    private WolfSSLSession ssl;
-    private com.wolfssl.WolfSSLContext ctx;
-    private WolfSSLAuthStore authStore;
-    private WolfSSLParameters params;
+    private WolfSSLEngineHelper EngineHelper = null;
+    private WolfSSLSession ssl = null;
+    private com.wolfssl.WolfSSLContext ctx = null;
+    private WolfSSLAuthStore authStore = null;
+    private WolfSSLParameters params = null;
     private byte[] toSend = null; /* encrypted packet to send */
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
 
@@ -180,8 +180,18 @@ public class WolfSSLEngine extends SSLEngine {
                 this.params, port, host);
     }
 
-    /* use singleton pattern on callbacks */
-    private void setCallbacks() throws WolfSSLJNIException {
+    /**
+     * Register I/O callbacks and contexts with WolfSSLSession and native
+     * wolfSSL. Uses singleton pattern on callbacks.
+     *
+     * Call unsetSSLCallbacks to unset/unregister these. Since the I/O
+     * context is set as the current SSLEngine object, this can prevent
+     * garbage collection of this SSLEngine object unless the context
+     * is unset from the WolfSSLSession.
+     *
+     * @throws WolfSSLJNIException on native JNI error
+     */
+    private void setSSLCallbacks() throws WolfSSLJNIException {
         if (sendCb == null) {
             sendCb = new SendCB();
         }
@@ -190,6 +200,23 @@ public class WolfSSLEngine extends SSLEngine {
         }
         ssl.setIORecv(recvCb);
         ssl.setIOSend(sendCb);
+        ssl.setIOReadCtx(this);
+        ssl.setIOWriteCtx(this);
+    }
+
+    /**
+     * Unregister I/O callbacks and contexts with WolfSSLSession and
+     * native wolfSSL.
+     *
+     * Call setSSLCallbacks() to re-register these.
+     *
+     * @throws WolfSSLJNIException on native JNI error
+     */
+    private void unsetSSLCallbacks() throws WolfSSLJNIException {
+        ssl.setIORecv(null);
+        ssl.setIOSend(null);
+        ssl.setIOReadCtx(null);
+        ssl.setIOWriteCtx(null);
     }
 
     private void initSSL() throws WolfSSLException, WolfSSLJNIException {
@@ -202,10 +229,6 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* will throw WolfSSLException if issue creating WOLFSSL */
         ssl = new WolfSSLSession(ctx);
-
-        setCallbacks();
-        ssl.setIOReadCtx(this);
-        ssl.setIOWriteCtx(this);
 
         enableExtraDebug();
         enableIODebug();
@@ -480,6 +503,13 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
+        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
+        }
+
         if (needInit) {
             EngineHelper.initHandshake();
             needInit = false;
@@ -574,6 +604,15 @@ public class WolfSSLEngine extends SSLEngine {
                 "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
+        }
+
+        try {
+            /* Don't hold references to this SSLEngine object in WolfSSLSession,
+             * can prevent proper garbage collection */
+            unsetSSLCallbacks();
+
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
         return new SSLEngineResult(status, hs, consumed, produced);
@@ -782,6 +821,13 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
+        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
+        }
+
         if (getUseClientMode() && needInit) {
             /* If unwrap() is called before handshake has started, return
              * WANT_WRAP since we'll need to send a ClientHello first */
@@ -928,6 +974,15 @@ public class WolfSSLEngine extends SSLEngine {
                 "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
+        }
+
+        try {
+            /* Don't hold references to this SSLEngine object in WolfSSLSession,
+             * can prevent proper garbage collection */
+            unsetSSLCallbacks();
+
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
         return new SSLEngineResult(status, hs, consumed, produced);
@@ -1132,6 +1187,12 @@ public class WolfSSLEngine extends SSLEngine {
             this.netData = null;
         }
 
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
+        }
+
         if (needInit == true) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
@@ -1148,6 +1209,17 @@ public class WolfSSLEngine extends SSLEngine {
         } catch (SocketTimeoutException e) {
             e.printStackTrace();
             throw new SSLException(e);
+
+        } finally {
+
+            try {
+                /* Don't hold references to this SSLEngine object in WolfSSLSession,
+                 * can prevent proper garbage collection */
+                unsetSSLCallbacks();
+
+            } catch (WolfSSLJNIException e) {
+                throw new SSLException(e);
+            }
         }
     }
 
@@ -1355,4 +1427,16 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
     }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+        if (this.ssl != null) {
+            this.ssl.freeSSL();
+            this.ssl = null;
+        }
+        EngineHelper = null;
+        super.finalize();
+    }
 }
+
