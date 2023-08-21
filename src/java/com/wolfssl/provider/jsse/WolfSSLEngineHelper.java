@@ -42,9 +42,9 @@ import java.security.Security;
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
-    private final WolfSSLSession ssl;
+    private volatile WolfSSLSession ssl = null;
     private WolfSSLImplementSSLSession session = null;
-    private WolfSSLParameters params;
+    private WolfSSLParameters params = null;
     private int port;
     private String hostname = null;  /* used for session lookup and SNI */
     private WolfSSLAuthStore authStore = null;
@@ -896,6 +896,21 @@ public class WolfSSLEngineHelper {
             }
             this.authStore.addSession(this.session);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+
+        /* Reset this.ssl to null, but don't explicitly free. This object
+         * may be used by wrapper object to WolfSSLEngineHelper and should
+         * be freed there */
+        this.ssl = null;
+
+        this.session = null;
+        this.params = null;
+        this.authStore = null;
+        super.finalize();
     }
 }
 
