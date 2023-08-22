@@ -25,6 +25,7 @@ IDE/WIN/DLL Debug
 IDE/WIN/DLL Debug FIPS
 IDE/WIN/DLL Release
 IDE/WIN/DLL Release FIPS
+examples/certs/generated
 
 # RPM package files
 rpm/spec

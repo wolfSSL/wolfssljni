@@ -52,6 +52,7 @@ public class WolfSSLTest {
         test_WolfSSL_new(lib);
         test_WolfSSL_protocol();
         test_WolfSSL_Method_Allocators(lib);
+        test_WolfSSL_getLibVersionHex();
         testGetCiphersAvailableIana();
     }
 
@@ -127,6 +128,18 @@ public class WolfSSLTest {
         }
 
         System.out.println("\t... passed");
+    }
+
+    public void test_WolfSSL_getLibVersionHex() {
+        System.out.print("\tgetLibVersionHex()");
+
+        long verHex = WolfSSL.getLibVersionHex();
+        if (verHex == 0 || verHex < 0) {
+            System.out.println("\t\t... failed");
+            fail("getting library version hex failed");
+        }
+
+        System.out.println("\t\t... passed");
     }
 }
 

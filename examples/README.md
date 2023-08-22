@@ -41,6 +41,28 @@ argument:
 $ ./examples/server.sh --help
 ```
 
+## X509v3 Certificate Generation Example
+
+An example is included which will generate self-signed and CA-signed
+X.509v3 certificates using the wolfSSL JNI library `WolfSSLCertificate`
+class.
+
+**X509v3CertificateGeneration.java** - Certificate generation example
+
+This example is compiled when the `ant examples` target is executed, and can
+be run afterwards with the provided bash script:
+
+```
+$ cd <wolfssljni_root>
+$ ./examples/X509v3CertificateGeneration.sh
+```
+
+This will write out generated certificates to the following directory:
+
+```
+examples/certs/generated/
+```
+
 ## Support
 
 Please contact the wolfSSL support team at support@wolfssl.com with any

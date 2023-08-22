@@ -1147,6 +1147,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
     return WC_MAX_DIGEST_SIZE;
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_getLibVersionHex
+  (JNIEnv* jenv, jclass jcl)
+{
+    return (jlong)wolfSSL_lib_version_hex();
+}
+
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuites
   (JNIEnv* jenv, jclass jcl)
 {

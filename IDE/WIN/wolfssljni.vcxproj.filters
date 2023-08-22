@@ -42,6 +42,9 @@
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLX509StoreCtx.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\native\com_wolfssl_WolfSSLX509Name.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\native\com_wolfssl_globals.h">
@@ -75,6 +78,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLX509StoreCtx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\native\com_wolfssl_WolfSSLX509Name.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

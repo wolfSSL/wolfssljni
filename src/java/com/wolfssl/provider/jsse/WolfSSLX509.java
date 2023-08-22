@@ -45,6 +45,7 @@ import java.util.Collection;
 
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 /**
  * wolfSSL implementation of X509Certificate
@@ -334,11 +335,17 @@ public class WolfSSLX509 extends X509Certificate {
         if (this.cert == null) {
             return null;
         }
-        byte[] ret = this.cert.getDer();
-        if (ret == null) {
-            throw new CertificateEncodingException();
+
+        try {
+            byte[] ret = this.cert.getDer();
+            if (ret == null) {
+                throw new CertificateEncodingException();
+            }
+            return ret;
+
+        } catch (WolfSSLJNIException e) {
+            throw new CertificateEncodingException(e);
         }
-        return ret;
     }
 
     @Override

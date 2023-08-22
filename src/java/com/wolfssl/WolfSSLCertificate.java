@@ -23,7 +23,9 @@ package com.wolfssl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -33,9 +35,16 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.security.PublicKey;
+import java.security.PrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.ECPrivateKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateEncodingException;
 
 /**
  * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
@@ -52,10 +61,19 @@ public class WolfSSLCertificate {
     /* lock around active state */
     private final Object stateLock = new Object();
 
+    /* lock around native WOLFSSL_X509 pointer use */
+    private final Object x509Lock = new Object();
+
     /* cache alt names once retrieved once */
     private Collection<List<?>> altNames = null;
 
+    /* Public key types used for certificate generation, mirrored from
+     * native enum in wolfssl/openssl/evp.h */
+    private static final int EVP_PKEY_RSA = 16;
+    private static final int EVP_PKEY_EC  = 18;
+
     static native byte[] X509_get_der(long x509);
+    static native byte[] X509_get_pem(long x509);
     static native byte[] X509_get_tbs(long x509);
     static native void X509_free(long x509);
     static native int X509_get_serial_number(long x509, byte[] out);
@@ -69,6 +87,7 @@ public class WolfSSLCertificate {
     static native int X509_get_isCA(long x509);
     static native String X509_get_subject_name(long x509);
     static native String X509_get_issuer_name(long x509);
+    static native long X509_get_issuer_name_ptr(long x509);
     static native byte[] X509_get_pubkey(long x509);
     static native String X509_get_pubkey_type(long x509);
     static native int X509_get_pathLength(long x509);
@@ -79,6 +98,45 @@ public class WolfSSLCertificate {
     static native String X509_get_next_altname(long x509);
     static native long X509_load_certificate_buffer(byte[] buf, int format);
     static native long X509_load_certificate_file(String path, int format);
+
+    /* native functions used for X509v3 certificate generation */
+    static native long X509_new();
+    static native int X509_set_subject_name(long x509Ptr, long x509NamePtr);
+    static native int X509_set_issuer_name(long x509Ptr, long x509NamePtr);
+    static native int X509_set_issuer_name_from_der(long x509Ptr, byte[] certDer);
+    static native int X509_set_pubkey_native_open(long x509Ptr, int keyType,
+        byte[] fileBytes, int format);
+    static native int X509_add_altname(long x509Ptr, String name, int type);
+    static native int X509_add_ext_via_nconf_nid(long x509Ptr, int nid,
+        String extValue, boolean isCritical);
+    static native int X509_add_ext_via_set_object_boolean(long x509Ptr,
+        int nid, boolean extValue, boolean isCritical);
+    static native int X509_set_notBefore(long x509Ptr, long timeSecs);
+    static native int X509_set_notAfter(long x509Ptr, long timeSecs);
+    static native int X509_set_serialNumber(long x509Ptr, byte[] serialBytes);
+    static native int X509_sign(long x509Ptr, int evpKeyType, byte[] keyBytes,
+        int format, String digestAlg);
+
+    /**
+     * Create new empty WolfSSLCertificate object, for use with X509v3
+     * certificate generation.
+     *
+     * @throws WolfSSLException if native API call fails.
+     */
+    public WolfSSLCertificate() throws WolfSSLException {
+
+        x509Ptr = X509_new();
+        if (x509Ptr == 0) {
+            throw new WolfSSLException("Failed to create WolfSSLCertificate");
+        }
+
+        /* x509Ptr has been allocated natively, mark as owned */
+        this.weOwnX509Ptr = true;
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
+    }
 
     /**
      * Create new WolfSSLCertificate from DER-encoded byte array.
@@ -237,59 +295,760 @@ public class WolfSSLCertificate {
     }
 
     /**
+     * Verifies that the current WolfSSLCertificate object is active.
+     *
+     * @throws IllegalStateException if object has been freed
+     */
+    private void confirmObjectIsActive()
+        throws IllegalStateException {
+
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new IllegalStateException(
+                    "WolfSSLCertificate object has been freed");
+            }
+        }
+    }
+
+    /**
+     * Protected method to be used by objects of this class to get
+     * internal WOLFSSL_X509 pointer.
+     *
+     * @return internal WOLFSSL_X509 pointer value
+     * @throws IllegalStateException if object has been freed
+     */
+    protected long getX509Ptr() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return this.x509Ptr;
+    }
+
+    /**
+     * Set the Subject Name to be used with this WolfSSLCertificate.
+     * Note that the WolfSSLX509Name object should be completely set up
+     * before calling this method. This method copies/duplicates the contents
+     * of the WOLFSSL_X509_NAME (WolfSSLX509Name) into the native
+     * WOLFSSL_X509 structure.
+     *
+     * @param name Initialized and populated WolfSSLX509 name to be set into
+     *        Subject Name of WolfSSLCertificate for cert generation.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     */
+    public void setSubjectName(WolfSSLX509Name name)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            /* TODO somehow lock WolfSSLX509Name object while using pointer? */
+            ret = X509_set_subject_name(this.x509Ptr,
+                    name.getNativeX509NamePtr());
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Error setting subject name " +
+                                       "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Set the Issuer Name to be used with this WolfSSLCertificate.
+     * Note that the WolfSSLX509Name object should be completely set up
+     * before calling this method. This method copies/duplicates the contents
+     * of the WOLFSSL_X509_NAME (WolfSSLX509Name) into the native
+     * WOLFSSL_X509 structure.
+     *
+     * @param name Initialized and populated WolfSSLX509 name to be set into
+     *        Issuer Name of WolfSSLCertificate for cert generation.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     */
+    public void setIssuerName(WolfSSLX509Name name)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            /* TODO somehow lock WolfSSLX509Name object while using pointer? */
+            ret = X509_set_issuer_name(this.x509Ptr,
+                    name.getNativeX509NamePtr());
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Error setting issuer name " +
+                                       "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Set the Issuer Name to be used with this WolfSSLCertificate.
+     * This method copies the issuer name from the existing populated
+     * WolfSSLCertificate object, which would commonly be initialized
+     * from a CA certificate file or byte array.
+     *
+     * @param cert Initialized and populated WolfSSLCertificate to be set into
+     *        Issuer Name of this WolfSSLCertificate for cert generation.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     */
+    public void setIssuerName(WolfSSLCertificate cert)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret;
+        long x509CertPtr = 0;
+        long x509NamePtr = 0;
+
+        confirmObjectIsActive();
+
+        x509NamePtr = X509_get_issuer_name_ptr(cert.getX509Ptr());
+        if (x509NamePtr == 0) {
+            throw new WolfSSLException("Error getting issuer name from " +
+                "WolfSSLCertificate");
+        }
+
+        synchronized (x509Lock) {
+            /* TODO somehow lock WolfSSLX509Name object while using pointer? */
+            ret = X509_set_issuer_name(this.x509Ptr, x509NamePtr);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Error setting issuer name " +
+                                       "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Set the Issuer Name to be used with this WolfSSLCertificate.
+     * This method copies the issuer name from the existing populated
+     * X509Certificate object.
+     *
+     * @param cert Initialized and populated X509Certificate to be used to set
+     *        Issuer Name of this WolfSSLCertificate for cert generation.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     * @throws CertificateEncodingException if error occurs while parsing
+     *         X509Certificate
+     */
+    public void setIssuerName(X509Certificate cert)
+        throws IllegalStateException, WolfSSLException,
+               CertificateEncodingException {
+
+        int ret;
+        byte[] certDer = null;
+
+        confirmObjectIsActive();
+
+        /* Get DER encoding of certificate */
+        certDer = cert.getEncoded();
+
+        synchronized (x509Lock) {
+            ret = X509_set_issuer_name_from_der(this.x509Ptr, certDer);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException("Error setting issuer name " +
+                                       "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Set public key for this WolfSSLCertificate, used when generating
+     * X509v3 certificates.
+     *
+     * @param filePath Path to public key file
+     * @param keyType Type of public key algorithm, options are:
+     *                WolfSSL.RSAk
+     *                WolfSSL.ECDSAk
+     * @param format Format of public key file, options are:
+     *                WolfSSL.SSL_FILETYPE_ASN1 (DER formatted)
+     *                WolfSSL.SSL_FILETYPE_PEM  (PEM formatted)
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws IOException on error opening input file
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setPublicKey(String filePath, int keyType, int format)
+        throws IllegalStateException, IOException, WolfSSLException {
+
+        int ret = 0;
+        File keyFile = null;
+
+        confirmObjectIsActive();
+
+        if (filePath == null || filePath.isEmpty()) {
+            throw new WolfSSLException("File path is null or empty");
+        }
+
+        keyFile = new File(filePath);
+        if (!keyFile.exists()) {
+            throw new WolfSSLException("Input file does not exist: " +
+                filePath);
+        }
+
+        setPublicKey(Files.readAllBytes(keyFile.toPath()), keyType, format);
+    }
+
+    /**
+     * Set public key for this WolfSSLCertificate, used when generating
+     * X509v3 certificates.
+     *
+     * @param key Byte array containing public key
+     * @param keyType Type of public key algorithm, options are:
+     *                WolfSSL.RSAk
+     *                WolfSSL.ECDSAk
+     * @param format Format of public key file, options are:
+     *                WolfSSL.SSL_FILETYPE_ASN1 (DER formatted)
+     *                WolfSSL.SSL_FILETYPE_PEM  (PEM formatted)
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws IOException on error opening input file
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setPublicKey(byte[] key, int keyType, int format)
+        throws IllegalStateException, IOException, WolfSSLException {
+
+        int ret = 0;
+        int evpKeyType;
+
+        confirmObjectIsActive();
+
+        if (key == null || key.length == 0) {
+            throw new WolfSSLException("Key array is null or empty");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Invalid key format, must be PEM or DER");
+        }
+
+        switch (keyType) {
+            case WolfSSL.RSAk:
+                evpKeyType = EVP_PKEY_RSA;
+                break;
+            case WolfSSL.ECDSAk:
+                evpKeyType = EVP_PKEY_EC;
+                break;
+            default:
+                throw new WolfSSLException("Unsupported public key type");
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_set_pubkey_native_open(this.x509Ptr, evpKeyType,
+                    key, format);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting public key into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Set public key for this WolfSSLCertificate, used when generating
+     * X509v3 certificates.
+     *
+     * @param key PublicKey object containing public key to be used when
+     *            generating X509v3 certificate.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     * @throws IOException on error opening/reading public key
+     */
+    public void setPublicKey(PublicKey key)
+        throws IllegalStateException, IOException, WolfSSLException {
+
+        int keyType;
+        byte[] encodedKey = null;
+
+        confirmObjectIsActive();
+
+        if (key instanceof RSAPublicKey) {
+            keyType = WolfSSL.RSAk;
+        }
+        else if (key instanceof ECPublicKey) {
+            keyType = WolfSSL.ECDSAk;
+        }
+        else {
+            throw new WolfSSLException(
+                "PublicKey must be of type RSAPublicKey or ECPublicKey");
+        }
+
+        /* Get DER encoded key */
+        encodedKey = key.getEncoded();
+        if (encodedKey == null) {
+            throw new WolfSSLException(
+                "Error getting encoded (DER) format of PublicKey");
+        }
+
+        setPublicKey(encodedKey, keyType, WolfSSL.SSL_FILETYPE_ASN1);
+    }
+
+    /**
+     * Sets the serial number for this WolfSSLCertificate, used when
+     * generating X509v3 certificates.
+     *
+     * @param serial BigInteger holding serial number for generated cert
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setSerialNumber(BigInteger serial)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+        byte[] serialBytes = null;
+
+        confirmObjectIsActive();
+
+        if (serial == null) {
+            throw new WolfSSLException("Input BigInteger is null");
+        }
+
+        serialBytes = serial.toByteArray();
+        if (serialBytes == null || serialBytes.length == 0) {
+            throw new WolfSSLException("BigInteger.toByteArray() " +
+                "is null or 0 length");
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_set_serialNumber(this.x509Ptr, serialBytes);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting serial number into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the notBefore date for this WolfSSLCertificate, used when
+     * generating X509v3 certificates.
+     *
+     * @param notBefore Date object representing notBefore date/time to set
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setNotBefore(Date notBefore)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            ret = X509_set_notBefore(this.x509Ptr, notBefore.getTime() / 1000);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting notBefore date into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the notAfter date for this WolfSSLCertificate, used when
+     * generating X509v3 certificates.
+     *
+     * @param notAfter Date object representing notAfter date/time to set
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setNotAfter(Date notAfter)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            ret = X509_set_notAfter(this.x509Ptr, notAfter.getTime() / 1000);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting notAfter date into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Add subject alternative name for this WolfSSLCertificate, used when
+     * generating X509v3 certificates.
+     *
+     * @param name String value of subject alternative name to set
+     * @param type Type of subject alt name entry, must be one of:
+     *        WolfSSL.ASN_OTHER_TYPE, WolfSSL.ASN_RFC822_TYPE,
+     *        WolfSSL.ASN_DNS_TYPE, WolfSSL.ASN_DIR_TYPE, WolfSSL.ASN_URI_TYPE,
+     *        WolfSSL.ASN_IP_TYPE
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void addAltName(String name, int type)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            ret = X509_add_altname(this.x509Ptr, name, type);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting altName into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Add an extension to a WOLFSSL_X509 given the NID and extension
+     * value String.
+     *
+     * This method supports the following extensions:
+     *    - Key Usage (WolfSSL.NID_key_usage)
+     *    - Extended Key Usage (WolfSSL.NID_ext_key_usage)
+     *    - Subject Alt Name (WolfSSL.NED_subject_alt_name)
+     *
+     * @param nid NID of extension to add. Must be one of:
+     *        WolfSSL.NID_key_usage
+     *        WolfSSL.NID_subject_alt_name
+     * @param value String value of extension to set
+     * @param isCritical Boolean flag indicating if this extension is
+     *        critical
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void addExtension(int nid, String value, boolean isCritical)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (nid != WolfSSL.NID_key_usage &&
+            nid != WolfSSL.NID_subject_alt_name &&
+            nid != WolfSSL.NID_ext_key_usage) {
+            throw new WolfSSLException(
+                "Unsupported X509v3 extension NID: " + nid);
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_add_ext_via_nconf_nid(this.x509Ptr, nid, value,
+                    isCritical);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            if ((WolfSSL.getLibVersionHex() <= 0x05006003) &&
+                (nid == WolfSSL.NID_key_usage ||
+                 nid == WolfSSL.NID_ext_key_usage)) {
+
+                /* wolfSSL versions 5.6.3 and earlier did not include code
+                 * fixes to native wolfSSL allowing this extension support to
+                 * work. Use a version > 5.6.3 or apply patch from wolfSSL
+                 * PR 6585 for correct support */
+                throw new WolfSSLException(
+                    "Error setting extension into native WOLFSSL_X509 " +
+                    "(ret: " + ret + ").\nNeed to use wolfSSL version " +
+                    "greater than 5.6.3 for extension support (PR 6585).");
+            }
+
+            throw new WolfSSLException(
+                "Error setting extension into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Add an extension to a WOLFSSL_X509 given the NID and extension
+     * value true/false value.
+     *
+     * This method supports the following extensions:
+     *    - Basic Constraints (WolfSSL.NID_basic_constraints)
+     *
+     * @param nid NID of extension to add. Must be one of:
+     *            WolfSSL.NID_key_usage
+     *            WolfSSL.NID_subject_alt_name
+     * @param value Boolean value of extension (true/false)
+     * @param isCritical Boolean flag indicating if this extension is
+     *        critical
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void addExtension(int nid, boolean value, boolean isCritical)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (nid != WolfSSL.NID_basic_constraints) {
+            throw new WolfSSLException(
+                "Unsupported X509v3 extension NID: " + nid);
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_add_ext_via_set_object_boolean(
+                    this.x509Ptr, nid, value, isCritical);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting extension into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sign certificate with private key from file.
+     *
+     * @param filePath Path to private key file
+     * @param keyType Type of public key algorithm, options are:
+     *            WolfSSL.RSAk
+     *            WolfSSL.ECDSAk
+     * @param format Format of private key file, options are:
+     *            WolfSSL.SSL_FILETYPE_ASN1 (DER formatted)
+     *            WolfSSL.SSL_FILETYPE_PEM  (PEM formatted)
+     * @param digestAlg Message digest algorithm to use for signature
+     *        generation. Options include the following, but native algorithm
+     *        must be compiled into wolfSSL to be available:
+     *            "MD4", "MD5", "SHA1", "SHA224", "SHA256", "SHA384",
+     *            "SHA512", "SHA3_224", "SHA3_256", "SHA3_384", "SHA3_512"
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws IOException on error opening input file
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void signCert(String filePath, int keyType, int format,
+        String digestAlg) throws IllegalStateException, IOException,
+                              WolfSSLException {
+
+        int ret = 0;
+        File keyFile = null;
+
+        confirmObjectIsActive();
+
+        if (filePath == null || filePath.isEmpty()) {
+            throw new WolfSSLException("File path is null or empty");
+        }
+
+        keyFile = new File(filePath);
+        if (!keyFile.exists()) {
+            throw new WolfSSLException("Input file does not exist: " +
+                filePath);
+        }
+
+        signCert(Files.readAllBytes(keyFile.toPath()), keyType, format,
+                 digestAlg);
+    }
+
+    /**
+     * Sign certificate with private key from buffer.
+     *
+     * @param key Byte array containing private key
+     * @param keyType Type of public key algorithm, options are:
+     *            WolfSSL.RSAk
+     *            WolfSSL.ECDSAk
+     * @param format Format of private key file, options are:
+     *            WolfSSL.SSL_FILETYPE_ASN1 (DER formatted)
+     *            WolfSSL.SSL_FILETYPE_PEM  (PEM formatted)
+     * @param digestAlg Message digest algorithm to use for signature
+     *        generation. Options include the following, but native algorithm
+     *        must be compiled into wolfSSL to be available:
+     *            "MD4", "MD5", "SHA1", "SHA224", "SHA256", "SHA384",
+     *            "SHA512", "SHA3_224", "SHA3_256", "SHA3_384", "SHA3_512"
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void signCert(byte[] key, int keyType, int format,
+        String digestAlg) throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+        int evpKeyType;
+
+        confirmObjectIsActive();
+
+        if (key == null || key.length == 0) {
+            throw new WolfSSLException("Key array is null or empty");
+        }
+
+        if (format != WolfSSL.SSL_FILETYPE_ASN1 &&
+            format != WolfSSL.SSL_FILETYPE_PEM) {
+            throw new WolfSSLException(
+                "Invalid key format, must be PEM or DER");
+        }
+
+        switch (keyType) {
+            case WolfSSL.RSAk:
+                evpKeyType = EVP_PKEY_RSA;
+                break;
+            case WolfSSL.ECDSAk:
+                evpKeyType = EVP_PKEY_EC;
+                break;
+            default:
+                throw new WolfSSLException("Unsupported private key type");
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_sign(this.x509Ptr, evpKeyType, key, format, digestAlg);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error signing native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sign certificate with private key from PrivateKey object.
+     *
+     * @param key java.security.PrivateKey object containing private key,
+     *        must be of type RSAPrivateKey or ECPrivateKey
+     * @param digestAlg Message digest algorithm to use for signature
+     *        generation. Options include the following, but native algorithm
+     *        must be compiled into wolfSSL to be available:
+     *            "MD4", "MD5", "SHA1", "SHA224", "SHA256", "SHA384",
+     *            "SHA512", "SHA3_224", "SHA3_256", "SHA3_384", "SHA3_512"
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void signCert(PrivateKey key, String digestAlg)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+        int evpKeyType;
+        byte[] encodedKey = null;
+
+        confirmObjectIsActive();
+
+        if (key == null) {
+            throw new WolfSSLException("Key object is null");
+        }
+
+        if (key instanceof RSAPrivateKey) {
+            evpKeyType = EVP_PKEY_RSA;
+        }
+        else if (key instanceof ECPrivateKey) {
+            evpKeyType = EVP_PKEY_EC;
+        }
+        else {
+            throw new WolfSSLException(
+                "PrivateKey must be of type RSAPrivateKey or ECPrivateKey");
+        }
+
+        /* Get DER encoded key */
+        encodedKey = key.getEncoded();
+        if (encodedKey == null) {
+            throw new WolfSSLException("PrivateKey does not support encoding");
+        }
+
+        synchronized (x509Lock) {
+            ret = X509_sign(this.x509Ptr, evpKeyType, encodedKey,
+                WolfSSL.SSL_FILETYPE_ASN1, digestAlg);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error signing native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
      * Get ASN.1/DER encoding of this X.509 certificate
      *
      * @return DER encoded array of certificate or null if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLJNIException if native JNI operation fails
      */
-    public byte[] getDer() {
+    public byte[] getDer() throws IllegalStateException, WolfSSLJNIException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_der(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_der(this.x509Ptr);
         }
+    }
 
-        return null;
+    /**
+     * Get PEM encoding of this X.509 certificate
+     *
+     * @return PEM encoded array of certificate or null if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLJNIException if native JNI operation fails
+     */
+    public byte[] getPem() throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_pem(this.x509Ptr);
+        }
     }
 
     /**
      * Get buffer that is To Be Signed (Tbs)
      *
      * @return byte array to be signed
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public byte[] getTbs() {
+    public byte[] getTbs() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_tbs(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_tbs(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get X.509 serial number as BigInteger
      *
      * @return serial number as BigInteger, or null if not available
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public BigInteger getSerial() {
+    public BigInteger getSerial() throws IllegalStateException {
+
         byte[] out = new byte[32];
         int sz;
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                return null;
-            }
+        confirmObjectIsActive();
 
-            sz = X509_get_serial_number(this.x509Ptr, out);
-            if (sz <= 0) {
-                return null;
-            }
-            else {
-                byte[] serial = Arrays.copyOf(out, sz);
-                return new BigInteger(serial);
-            }
+        synchronized (x509Lock) {
+        sz = X509_get_serial_number(this.x509Ptr, out);
+        }
+        if (sz <= 0) {
+            return null;
+        }
+        else {
+            byte[] serial = Arrays.copyOf(out, sz);
+            return new BigInteger(serial);
         }
     }
 
@@ -297,26 +1056,28 @@ public class WolfSSLCertificate {
      * Get X.509 validity notBefore date
      *
      * @return notBefore date as Date object, or null if not available
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public Date notBefore() {
+    public Date notBefore() throws IllegalStateException {
+
         String nb;
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                return null;
-            }
+        confirmObjectIsActive();
 
+        synchronized (x509Lock) {
             nb  = X509_notBefore(this.x509Ptr);
-            if (nb != null) {
-                SimpleDateFormat format =
-                        new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
-                try {
-                    return format.parse(nb);
-                } catch (ParseException ex) {
-                    /* error case parsing date */
-                }
+        }
+        if (nb != null) {
+            SimpleDateFormat format =
+                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            try {
+                return format.parse(nb);
+            } catch (ParseException ex) {
+                /* error case parsing date */
             }
         }
+
         return null;
     }
 
@@ -324,26 +1085,28 @@ public class WolfSSLCertificate {
      * Get X.509 validity notAfter date
      *
      * @return notAfter date as Date object, or null if not available
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public Date notAfter() {
+    public Date notAfter() throws IllegalStateException {
+
         String nb;
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                return null;
-            }
+        confirmObjectIsActive();
 
+        synchronized (x509Lock) {
             nb = X509_notAfter(this.x509Ptr);
-            if (nb != null) {
-                SimpleDateFormat format =
-                        new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
-                try {
-                    return format.parse(nb);
-                } catch (ParseException ex) {
-                    /* error case parsing date */
-                }
+        }
+        if (nb != null) {
+            SimpleDateFormat format =
+                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            try {
+                return format.parse(nb);
+            } catch (ParseException ex) {
+                /* error case parsing date */
             }
         }
+
         return null;
     }
 
@@ -351,160 +1114,160 @@ public class WolfSSLCertificate {
      * Get X.509 version
      *
      * @return version of X.509 certificate
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public int getVersion() {
+    public int getVersion() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_version(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_version(this.x509Ptr);
         }
-
-        return 0;
     }
 
     /**
      * Get signature from X.509 certificate
      *
      * @return byte array with signature from X.509 certificate, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public byte[] getSignature() {
+    public byte[] getSignature() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_signature(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_signature(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get signature type from X.509 certificate
      *
      * @return signature type String, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public String getSignatureType() {
+    public String getSignatureType() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_signature_type(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_signature_type(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get X.509 signature algorithm OID
      *
      * @return algorithm OID of signature, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public String getSignatureOID() {
+    public String getSignatureOID() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_signature_OID(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_signature_OID(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get public key from X.509 certificate
      *
      * @return certificate public key, byte array. Or null.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public byte[] getPubkey() {
+    public byte[] getPubkey() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_pubkey(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_pubkey(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get public key type of certificate
      *
      * @return public key type String, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public String getPubkeyType() {
+    public String getPubkeyType() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_pubkey_type(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_pubkey_type(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get certificate isCA value
      *
      * @return X.509 isCA value
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public int isCA() {
+    public int isCA() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_isCA(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_isCA(this.x509Ptr);
         }
-
-        return 0;
     }
 
     /**
      * Get certificate path length
      *
      * @return path length, or -1 if not set
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public int getPathLen() {
+    public int getPathLen() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_pathLength(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_pathLength(this.x509Ptr);
         }
-
-        return 0;
     }
 
     /**
      * Get certificate Subject
      *
      * @return X.509 Subject String, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public String getSubject() {
+    public String getSubject() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_subject_name(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_subject_name(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
      * Get certificate Issuer
      *
      * @return X.509 Issuer String, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public String getIssuer() {
+    public String getIssuer() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_issuer_name(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_issuer_name(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
@@ -514,19 +1277,21 @@ public class WolfSSLCertificate {
      * @param pubKeySz size of public key array, bytes
      *
      * @return true if verified, otherwise false
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public boolean verify(byte[] pubKey, int pubKeySz) {
+    public boolean verify(byte[] pubKey, int pubKeySz)
+        throws IllegalStateException {
+
         int ret;
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                return false;
-            }
+        confirmObjectIsActive();
 
+        synchronized (x509Lock) {
             ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
-            if (ret == WolfSSL.SSL_SUCCESS) {
-                return true;
-            }
+        }
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            return true;
         }
 
         return false;
@@ -547,16 +1312,16 @@ public class WolfSSLCertificate {
      *    [8] = KEYUSE_DECIPHER_ONLY
      *
      * @return arrray of key usages set for certificate, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public boolean[] getKeyUsage() {
+    public boolean[] getKeyUsage() throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == true) {
-                return X509_get_key_usage(this.x509Ptr);
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            return X509_get_key_usage(this.x509Ptr);
         }
-
-        return null;
     }
 
     /**
@@ -565,13 +1330,18 @@ public class WolfSSLCertificate {
      * @param oid OID value of extension to retreive value for
      *
      * @return DER encoded extension value, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public byte[] getExtension(String oid) {
+    public byte[] getExtension(String oid) throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (oid == null || this.active == false) {
-                return null;
-            }
+        confirmObjectIsActive();
+
+        if (oid == null) {
+            return null;
+        }
+
+        synchronized (x509Lock) {
             return X509_get_extension(this.x509Ptr, oid);
         }
     }
@@ -585,13 +1355,14 @@ public class WolfSSLCertificate {
      *         2 if extension OID is set and is critical,
      *         0 if not set,
      *         otherwise negative value on error
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public int getExtensionSet(String oid) {
+    public int getExtensionSet(String oid) throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                return 0;
-            }
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
             return X509_is_extension_set(this.x509Ptr, oid);
         }
     }
@@ -608,21 +1379,22 @@ public class WolfSSLCertificate {
      * second list element being a String.
      *
      * @return immutable Collection of subject alternative names, or null
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
-    public Collection<List<?>> getSubjectAltNames() {
+    public Collection<List<?>> getSubjectAltNames()
+        throws IllegalStateException {
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                throw new IllegalStateException("Object has been freed");
-            }
+        confirmObjectIsActive();
 
-            if (this.altNames != null) {
-                /* already gathered, return cached version */
-                return this.altNames;
-            }
+        if (this.altNames != null) {
+            /* already gathered, return cached version */
+            return this.altNames;
+        }
 
-            Collection<List<?>> names = new ArrayList<List<?>>();
+        Collection<List<?>> names = new ArrayList<List<?>>();
 
+        synchronized (x509Lock) {
             String nextAltName = X509_get_next_altname(this.x509Ptr);
             while (nextAltName != null) {
                 Object[] entry = new Object[2];
@@ -633,44 +1405,43 @@ public class WolfSSLCertificate {
                 names.add(Collections.unmodifiableList(entryList));
                 nextAltName = X509_get_next_altname(this.x509Ptr);
             }
-
-            /* cache altNames collection for later use */
-            this.altNames = Collections.unmodifiableCollection(names);
-
-            return this.altNames;
         }
+
+        /* cache altNames collection for later use */
+        this.altNames = Collections.unmodifiableCollection(names);
+
+        return this.altNames;
     }
 
     /**
      * Returns X509Certificate object based on this certificate.
      *
      * @return X509Certificate object
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
      * @throws CertificateException on error
      * @throws IOException on error closing ByteArrayInputStream
+     * @throws WolfSSLJNIException if native JNI error occurs
      */
     public X509Certificate getX509Certificate()
-        throws CertificateException, IOException {
+        throws IllegalStateException, CertificateException, IOException,
+               WolfSSLJNIException {
 
         X509Certificate cert = null;
         InputStream in = null;
-
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                throw new CertificateException("Object has been freed");
-            }
+        confirmObjectIsActive();
 
-            try {
-                in = new ByteArrayInputStream(this.getDer());
-                cert = (X509Certificate)cf.generateCertificate(in);
+        try {
+            in = new ByteArrayInputStream(this.getDer());
+            cert = (X509Certificate)cf.generateCertificate(in);
+            in.close();
+
+        } catch (Exception e) {
+            if (in != null) {
                 in.close();
-
-            } catch (Exception e) {
-                if (in != null) {
-                    in.close();
-                    throw e;
-                }
+                throw e;
             }
         }
 
@@ -687,7 +1458,9 @@ public class WolfSSLCertificate {
                 return super.toString();
             }
 
-            x509Text = X509_print(this.x509Ptr);
+            synchronized (x509Lock) {
+                x509Text = X509_print(this.x509Ptr);
+            }
             if (x509Text != null) {
                 /* let Java do the modified UTF-8 conversion */
                 return new String(x509Text, Charset.forName("UTF-8"));
@@ -698,11 +1471,9 @@ public class WolfSSLCertificate {
     }
 
     /**
-     * Frees an X509.
-     *
-     * @throws IllegalStateException WolfSSLCertificate has been freed
+     * Frees WolfSSLCertificate native resources.
      */
-    public synchronized void free() throws IllegalStateException {
+    public synchronized void free() {
 
         synchronized (stateLock) {
             if (this.active == false) {
@@ -713,15 +1484,17 @@ public class WolfSSLCertificate {
             /* set this.altNames to null so GC can free */
             this.altNames = null;
 
-            /* only free native resources if we own pointer */
-            if (this.weOwnX509Ptr == true) {
-                /* free native resources */
-                X509_free(this.x509Ptr);
-            }
+            synchronized (x509Lock) {
+                /* only free native resources if we own pointer */
+                if (this.weOwnX509Ptr == true) {
+                    /* free native resources */
+                    X509_free(this.x509Ptr);
+                }
 
-            /* free Java resources */
-            this.active = false;
-            this.x509Ptr = 0;
+                /* free Java resources */
+                this.active = false;
+                this.x509Ptr = 0;
+            }
         }
     }
 
@@ -733,3 +1506,4 @@ public class WolfSSLCertificate {
         super.finalize();
     }
 }
+

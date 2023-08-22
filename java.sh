@@ -116,8 +116,9 @@ gcc -Wall -c $fpic $cflags ./native/com_wolfssl_wolfcrypt_ECC.c -o ./native/com_
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_wolfcrypt_EccKey.c -o ./native/com_wolfssl_wolfcrypt_EccKey.o $javaIncludes
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLCertManager.c -o ./native/com_wolfssl_WolfSSLCertManager.o $javaIncludes
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLCertificate.c -o ./native/com_wolfssl_WolfSSLCertificate.o $javaIncludes
+gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLX509Name.c -o ./native/com_wolfssl_WolfSSLX509Name.o $javaIncludes
 gcc -Wall -c $fpic $cflags ./native/com_wolfssl_WolfSSLX509StoreCtx.c -o ./native/com_wolfssl_WolfSSLX509StoreCtx.o $javaIncludes
-gcc -Wall $javaLibs $cflags -o ./lib/$jniLibName ./native/com_wolfssl_WolfSSL.o ./native/com_wolfssl_WolfSSLSession.o ./native/com_wolfssl_WolfSSLContext.o ./native/com_wolfssl_wolfcrypt_RSA.o ./native/com_wolfssl_wolfcrypt_ECC.o ./native/com_wolfssl_wolfcrypt_EccKey.o ./native/com_wolfssl_WolfSSLCertManager.o ./native/com_wolfssl_WolfSSLCertificate.o ./native/com_wolfssl_WolfSSLX509StoreCtx.o -L$WOLFSSL_INSTALL_DIR/lib -L$WOLFSSL_INSTALL_DIR/lib64 -l$WOLFSSL_LIBNAME
+gcc -Wall $javaLibs $cflags -o ./lib/$jniLibName ./native/com_wolfssl_WolfSSL.o ./native/com_wolfssl_WolfSSLSession.o ./native/com_wolfssl_WolfSSLContext.o ./native/com_wolfssl_wolfcrypt_RSA.o ./native/com_wolfssl_wolfcrypt_ECC.o ./native/com_wolfssl_wolfcrypt_EccKey.o ./native/com_wolfssl_WolfSSLCertManager.o ./native/com_wolfssl_WolfSSLCertificate.o ./native/com_wolfssl_WolfSSLX509Name.o ./native/com_wolfssl_WolfSSLX509StoreCtx.o -L$WOLFSSL_INSTALL_DIR/lib -L$WOLFSSL_INSTALL_DIR/lib64 -l$WOLFSSL_LIBNAME
 if [ $? != 0 ]; then
     echo "Error creating native JNI library"
     exit 1
