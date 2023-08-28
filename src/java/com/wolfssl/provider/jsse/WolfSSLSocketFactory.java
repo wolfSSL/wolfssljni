@@ -295,8 +295,9 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         boolean autoClose) throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered createSocket(Socket s, host: " + host + ", port: " +
-            port + ", autoClose: " + String.valueOf(autoClose) + ")");
+            "entered createSocket(Socket: " + s.getClass() + ", host: " +
+            host + ", port: " + port + ", autoClose: " +
+            String.valueOf(autoClose) + ")");
 
         try {
             initDefaultContext();
@@ -327,7 +328,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         boolean autoClose) throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered createSocket(Socket s, InputStream consumed, autoClose: "
+            "entered createSocket(Socket: " + s.getClass() +
+            ", InputStream consumed, autoClose: "
             + String.valueOf(autoClose) + ")");
 
         try {

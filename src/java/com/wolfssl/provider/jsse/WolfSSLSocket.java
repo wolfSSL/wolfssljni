@@ -44,6 +44,7 @@ import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
@@ -867,6 +868,41 @@ public class WolfSSLSocket extends SSLSocket {
                 "created new native WOLFSSL");
     }
 
+    /**
+     * Register I/O callbacks with native wolfSSL which use
+     * Input/OutputStream of the wrapped Socket object.
+     *
+     * Called by setFd() if ssl.setFd() fails to find or set the internal
+     * SocketImpl file descriptor.
+     *
+     * @throws WolfSSLException if this.socket is null or setting I/O
+     *                          callbacks or ctx fails
+     */
+    private void setIOCallbacks() throws WolfSSLException {
+
+        if (this.socket == null) {
+            throw new WolfSSLException(
+                "Internal Socket is null, unable to set I/O callbacks");
+        }
+
+        try {
+            /* Register send callback and context */
+            SocketSendCallback sendCb = new SocketSendCallback();
+            this.ssl.setIOSend(sendCb);
+            SocketSendCtx writeCtx = new SocketSendCtx(this.socket);
+            this.ssl.setIOWriteCtx(writeCtx);
+
+            /* Register recv callback and context */
+            SocketRecvCallback recvCb = new SocketRecvCallback();
+            this.ssl.setIORecv(recvCb);
+            SocketRecvCtx readCtx = new SocketRecvCtx(this.socket);
+            this.ssl.setIOReadCtx(readCtx);
+
+        } catch (WolfSSLJNIException e) {
+            throw new WolfSSLException(e);
+        }
+    }
+
     private void setFd() throws IllegalArgumentException, WolfSSLException {
 
         int ret;
@@ -886,10 +922,19 @@ public class WolfSSLSocket extends SSLSocket {
         } else {
             ret = ssl.setFd(this.socket);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new WolfSSLException("Failed to set native Socket fd");
+                /* Failed to find/set internal SocketImpl file descriptor.
+                 * Try using I/O callbacks instead with Input/OutputStream */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Failed to set native SocketImpl fd, trying I/O callbacks");
+
+                setIOCallbacks();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "registered underlying Socket with wolfSSL I/O callbacks");
             }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "registered Socket with native wolfSSL");
+            }
         }
     }
 
@@ -1677,6 +1722,157 @@ public class WolfSSLSocket extends SSLSocket {
         super.finalize();
     }
 
+    /**
+     * wolfSSL send callback context, used with SocketSendCallback to
+     * gain access to the underlying Socket object.
+     */
+    class SocketSendCtx {
+        private Socket sock = null;
+
+        public SocketSendCtx(Socket s) {
+            this.sock = s;
+        }
+
+        public Socket getSocket() {
+            return this.sock;
+        }
+    }
+
+    /**
+     * wolfSSL receive callback context, used with SocketRecvCallback to
+     * gain access to the underlying Socket object.
+     */
+    class SocketRecvCtx {
+        private Socket sock = null;
+
+        public SocketRecvCtx(Socket s) {
+            this.sock = s;
+        }
+
+        public Socket getSocket() {
+            return this.sock;
+        }
+    }
+
+    /**
+     * wolfSSL send callback used when WolfSSLSocket is created
+     * based on an existing Java Socket object, where that Socket is not
+     * of type java.net.Socket.
+     *
+     * This is needed in non java.net.Socket cases since not all those
+     * subclasses contain an internal file descriptor (fd), or alternatively
+     * expect the calling application to do I/O using the InputStream and
+     * OutputStream of the Socket */
+    class SocketSendCallback implements WolfSSLIOSendCallback {
+
+        /**
+         * I/O send callback method.
+         * This method acts as the I/O send callback to be used with wolfSSL.
+         *
+         * @param ssl  the current SSL session object from which the callback
+         *             was initiated.
+         * @param buf  buffer containing data to be sent to the peer.
+         * @param sz   size of data in buffer "<b>buf</b>"
+         * @param ctx  I/O context to be used.
+         * @return     the number of bytes sent, or an error.
+         */
+        public int sendCallback(WolfSSLSession ssl,
+            byte[] buf, int sz, Object ctx) {
+
+            SocketSendCtx sendCtx = (SocketSendCtx)ctx;
+            Socket sock = sendCtx.getSocket();
+            OutputStream outStream = null;
+
+            if (sock == null) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            try {
+                outStream = sock.getOutputStream();
+                outStream.write(buf, 0, sz);
+
+            } catch (IOException e) {
+                if (sock.isClosed()) {
+                    return WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE;
+                }
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+
+            } catch (NullPointerException |
+                     IndexOutOfBoundsException e) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "sent " + sz + " bytes");
+            return sz;
+        }
+    }
+
+    /**
+     * wolfSSL receive callback used when WolfSSLSocket is created
+     * based on an existing Java Socket object, where that Socket is not
+     * of type java.net.Socket.
+     *
+     * This is needed in non java.net.Socket cases since not all those
+     * subclasses contain an internal file descriptor (fd), or alternatively
+     * expect the calling application to do I/O using the InputStream and
+     * OutputStream of the Socket */
+    class SocketRecvCallback implements WolfSSLIORecvCallback {
+
+        /**
+         * I/O receive callback method.
+         * This method acts as the I/O receive callback to be used with wolfSSL.
+         *
+         * @param ssl  the current SSL session object from which the callback
+         *             was initiated.
+         * @param buf  buffer in which the application should place data which
+         *             has been received from the peer.
+         * @param sz   size of buffer, <b>buf</b>
+         * @param ctx  I/O context to be used.
+         * @return     the number of bytes read, or an error.
+         */
+        public int receiveCallback(WolfSSLSession ssl,
+            byte[] buf, int sz, Object ctx) {
+
+            int ret = 0;
+            SocketRecvCtx recvCtx = (SocketRecvCtx)ctx;
+            Socket sock = recvCtx.getSocket();
+            InputStream inStream = null;
+
+            if (sock == null) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            try {
+                /* Try reading from stream, returns -1 on end of stream.
+                 * Blocks until data is available, end of stream is reached,
+                 * or an exception is thrown. */
+                inStream = sock.getInputStream();
+                ret = inStream.read(buf, 0, sz);
+                if (ret == -1) {
+                    return WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE;
+                }
+
+            } catch (IOException e) {
+                if (sock.isClosed()) {
+                    return WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE;
+                }
+
+            } catch (NullPointerException |
+                     IndexOutOfBoundsException e) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "received " + ret + " bytes");
+            return ret;
+        }
+    }
+
+    /**
+     * wolfSSL receive callback context, used with ConsumedRecvCallback to
+     * gain access to underlying Socket and InputStream objects.
+     */
     class ConsumedRecvCtx {
         private Socket s = null;
         private DataInputStream consumed = null;
@@ -1717,6 +1913,13 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
+    /**
+     * wolfSSL receive callback used when WolfSSLSocket is created based
+     * on an existing Socket and existing InputStream with data to read.
+     *
+     * This callback will read all data from the pre-existing/populated
+     * InputStream first, then start reading from the Socket proper.
+     */
     class ConsumedRecvCallback implements WolfSSLIORecvCallback {
 
         public int receiveCallback(WolfSSLSession ssl, byte[] buf,
