@@ -1392,7 +1392,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
         #include "ccb_vaultic.h"
         if(devId == CCBVAULTIC420_DEVID) {
             return wc_CryptoCb_RegisterDevice((int)devId,
-                                              ccbVaultIc_CryptoDevCb, NULL);
+                                              ccbVaultIc_CryptoCb, NULL);
         }
         #endif
 
