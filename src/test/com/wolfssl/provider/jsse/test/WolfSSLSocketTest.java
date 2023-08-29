@@ -42,6 +42,8 @@ import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
 import java.net.Socket;
 import java.net.ServerSocket;
+import java.net.SocketAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.net.ConnectException;
 import javax.net.SocketFactory;
@@ -1446,6 +1448,9 @@ public class WolfSSLSocketTest {
         }
 
         protocolConnectionTest("TLSv1");
+
+        System.out.print("\tTLS 1.0 extended Socket test");
+        protocolConnectionTestExtendedSocket("TLSv1.0");
     }
 
     @Test
@@ -1462,6 +1467,9 @@ public class WolfSSLSocketTest {
         }
 
         protocolConnectionTest("TLSv1.1");
+
+        System.out.print("\tTLS 1.1 extended Socket test");
+        protocolConnectionTestExtendedSocket("TLSv1.1");
     }
 
     @Test
@@ -1478,6 +1486,9 @@ public class WolfSSLSocketTest {
         }
 
         protocolConnectionTest("TLSv1.2");
+
+        System.out.print("\tTLS 1.2 extended Socket test");
+        protocolConnectionTestExtendedSocket("TLSv1.2");
     }
 
     @Test
@@ -1494,6 +1505,9 @@ public class WolfSSLSocketTest {
         }
 
         protocolConnectionTest("TLSv1.3");
+
+        System.out.print("\tTLS 1.3 extended Socket test");
+        protocolConnectionTestExtendedSocket("TLSv1.3");
     }
 
     private void protocolConnectionTest(String protocol) throws Exception {
@@ -1539,6 +1553,137 @@ public class WolfSSLSocketTest {
         ss.close();
 
         System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Class that extends java.net.Socket, used for testing scenarios
+     * where WolfSSLSession.setFd() is unable to find the internal
+     * file descriptor or the internal descriptor is null. This can happen
+     * in cases where applications use a subclass of java.net.Socket that
+     * behaves differently and does not instantiate the internal file
+     * descriptor.
+     *
+     * This class takes in a pre-connected Socket, and does not call the
+     * super(), thus not setting up the file descriptor inside the
+     * parent's SocketImpl class.
+     */
+    private class ExtendedSocket extends Socket {
+
+        private Socket internalSock = null;
+
+        public ExtendedSocket(Socket s) {
+            internalSock = s;
+        }
+
+        @Override
+        public InputStream getInputStream() throws IOException {
+            return internalSock.getInputStream();
+        }
+
+        @Override
+        public OutputStream getOutputStream() throws IOException {
+            return internalSock.getOutputStream();
+        }
+
+        @Override
+        public InetAddress getLocalAddress() {
+            return internalSock.getLocalAddress();
+        }
+
+        @Override
+        public int getLocalPort() {
+            return internalSock.getLocalPort();
+        }
+
+        @Override
+        public SocketAddress getLocalSocketAddress() {
+            return internalSock.getLocalSocketAddress();
+        }
+
+        @Override
+        public int getPort() {
+            return internalSock.getPort();
+        }
+
+        @Override
+        public int getSoTimeout() throws SocketException {
+            return internalSock.getSoTimeout();
+        }
+
+        @Override
+        public boolean isClosed() {
+            return internalSock.isClosed();
+        }
+
+        @Override
+        public boolean isConnected() {
+            return internalSock.isConnected();
+        }
+
+        @Override
+        public String toString() {
+            return internalSock.toString();
+        }
+
+        @Override
+        public void close() throws IOException {
+            internalSock.close();
+        }
+    }
+
+    private void protocolConnectionTestExtendedSocket(String protocol)
+        throws Exception {
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        /* create Socket to wrap inside our ExtendedSocket */
+        Socket sock1 = new Socket();
+        sock1.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        /* create ExtendedSocket, tests non-Socket inside WolfSSLSocket */
+        ExtendedSocket sock = new ExtendedSocket(sock1);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory()
+            .createSocket(sock, ss.getInetAddress().getHostAddress(),
+                ss.getLocalPort(), true);
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t... passed");
     }
 
     @Test
