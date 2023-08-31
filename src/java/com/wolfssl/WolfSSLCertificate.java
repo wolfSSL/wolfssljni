@@ -730,7 +730,32 @@ public class WolfSSLCertificate {
      * @param nid NID of extension to add. Must be one of:
      *        WolfSSL.NID_key_usage
      *        WolfSSL.NID_subject_alt_name
-     * @param value String value of extension to set
+     *        WolfSSL.NID_subject_alt_name
+     * @param value String value of extension to set. For keyUsage and
+     *              extKeyUsage this should be a comma-delimited list.
+     *              For subjectAltName, this is a single value. Possible
+     *              values for keyUsage and extKeyUsage are:
+     *
+     *              NID_key_usage:
+     *                  digitalSignature
+     *                  nonRepudiation
+     *                  contentCommitment
+     *                  keyEncipherment
+     *                  dataEncipherment
+     *                  keyAgreement
+     *                  keyCertSign
+     *                  cRLSign
+     *                  encipherOnly
+     *                  decipherOnly
+     *
+     *              NID_ext_key_usage:
+     *                  serverAuth
+     *                  clientAuth
+     *                  codeSigning
+     *                  emailProtection
+     *                  timeStamping
+     *                  OCSPSigning
+     *
      * @param isCritical Boolean flag indicating if this extension is
      *        critical
      *
@@ -785,8 +810,7 @@ public class WolfSSLCertificate {
      *    - Basic Constraints (WolfSSL.NID_basic_constraints)
      *
      * @param nid NID of extension to add. Must be one of:
-     *            WolfSSL.NID_key_usage
-     *            WolfSSL.NID_subject_alt_name
+     *            WolfSSL.NID_basic_constraints
      * @param value Boolean value of extension (true/false)
      * @param isCritical Boolean flag indicating if this extension is
      *        critical

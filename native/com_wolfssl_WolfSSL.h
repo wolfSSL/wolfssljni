@@ -211,6 +211,20 @@ extern "C" {
 #define com_wolfssl_WolfSSL_ASN_URI_TYPE 6L
 #undef com_wolfssl_WolfSSL_ASN_IP_TYPE
 #define com_wolfssl_WolfSSL_ASN_IP_TYPE 7L
+#undef com_wolfssl_WolfSSL_NID_surname
+#define com_wolfssl_WolfSSL_NID_surname 4L
+#undef com_wolfssl_WolfSSL_NID_serialNumber
+#define com_wolfssl_WolfSSL_NID_serialNumber 5L
+#undef com_wolfssl_WolfSSL_NID_pkcs9_unstructuredName
+#define com_wolfssl_WolfSSL_NID_pkcs9_unstructuredName 49L
+#undef com_wolfssl_WolfSSL_NID_pkcs9_contentType
+#define com_wolfssl_WolfSSL_NID_pkcs9_contentType 50L
+#undef com_wolfssl_WolfSSL_NID_pkcs9_challengePassword
+#define com_wolfssl_WolfSSL_NID_pkcs9_challengePassword 54L
+#undef com_wolfssl_WolfSSL_NID_givenName
+#define com_wolfssl_WolfSSL_NID_givenName 100L
+#undef com_wolfssl_WolfSSL_NID_initials
+#define com_wolfssl_WolfSSL_NID_initials 101L
 #undef com_wolfssl_WolfSSL_NID_key_usage
 #define com_wolfssl_WolfSSL_NID_key_usage 129L
 #undef com_wolfssl_WolfSSL_NID_subject_alt_name
@@ -219,6 +233,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_NID_basic_constraints 133L
 #undef com_wolfssl_WolfSSL_NID_ext_key_usage
 #define com_wolfssl_WolfSSL_NID_ext_key_usage 151L
+#undef com_wolfssl_WolfSSL_NID_dnQualifier
+#define com_wolfssl_WolfSSL_NID_dnQualifier 174L
 #undef com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID
 #define com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID 0L
 #undef com_wolfssl_WolfSSL_WOLFSSL_ECC_SECT163K1
@@ -475,6 +491,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_FileSystemEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    certReqEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_certReqEnabled
   (JNIEnv *, jclass);
 
 /*

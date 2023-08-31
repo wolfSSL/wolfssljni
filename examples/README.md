@@ -63,6 +63,27 @@ This will write out generated certificates to the following directory:
 examples/certs/generated/
 ```
 
+## Certificate Signing Request (CSR) Generation Example
+
+An example is included which will generate Certificate Signing Requests (CSR)
+using the wolfSSL JNI library `WolfSSLCertRequest` class.
+
+**X509CertRequest.java** - CSR generation example
+
+This example is compiled when the `ant examples` target is executed, and can
+be run afterwards with the provided bash script:
+
+```
+$ cd <wolfssljni_root>
+$ ./examples/X509CertRequest.sh
+```
+
+This will write out generated CSRs to the following directory:
+
+```
+examples/certs/generated/
+```
+
 ## Support
 
 Please contact the wolfSSL support team at support@wolfssl.com with any
