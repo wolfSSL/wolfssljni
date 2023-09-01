@@ -593,12 +593,13 @@ public class WolfSSLEngineTest {
         System.out.print("\tTesting ExtendedThreadingUse");
 
         /* Start up simple TLS test server */
+        CountDownLatch serverOpenLatch = new CountDownLatch(1);
         InternalMultiThreadedSSLSocketServer server =
-            new InternalMultiThreadedSSLSocketServer(svrPort);
+            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch);
         server.start();
 
-        /* Sleep 1 second to allow time for server thread to start up */
-        Thread.sleep(1000);
+        /* Wait for server thread to start up before connecting clients */
+        serverOpenLatch.await();
 
         /* Start up client threads */
         for (int i = 0; i < numThreads; i++) {
@@ -858,9 +859,12 @@ public class WolfSSLEngineTest {
     protected class InternalMultiThreadedSSLSocketServer extends Thread
     {
         private int serverPort;
+        private CountDownLatch serverOpenLatch = null;
 
-        public InternalMultiThreadedSSLSocketServer(int port) {
+        public InternalMultiThreadedSSLSocketServer(
+            int port, CountDownLatch openLatch) {
             this.serverPort = port;
+            serverOpenLatch = openLatch;
         }
 
         @Override
@@ -871,6 +875,7 @@ public class WolfSSLEngineTest {
                     .getServerSocketFactory().createServerSocket(serverPort);
 
                 while (true) {
+                    serverOpenLatch.countDown();
                     SSLSocket sock = (SSLSocket)ss.accept();
                     ClientHandler client = new ClientHandler(sock);
                     client.start();
