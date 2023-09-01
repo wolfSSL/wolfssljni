@@ -99,6 +99,11 @@ public class WolfSSLContext {
 
     /* ------------------- private/protected methods -------------------- */
 
+    /**
+     * Return native WOLFSSL_CTX pointer.
+     *
+     * @return pointer to native WOLFSSL_CTX structure for this object
+     */
     protected synchronized long getContextPtr() {
         return sslCtxPtr;
     }

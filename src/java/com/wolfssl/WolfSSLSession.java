@@ -1053,6 +1053,11 @@ public class WolfSSLSession {
         }
     }
 
+    /**
+     * Free the native WOLFSSL_SESSION structure pointed to be session.
+     *
+     * @param session native WOLFSSL_SESSION pointer to free
+     */
     public static synchronized void freeSession(long session) {
         /* No need to call confirmObjectIsActive() because the
          * WOLFSSL_SESSION pointer being passed in here is not associated

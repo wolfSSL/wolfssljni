@@ -347,59 +347,106 @@ public class WolfSSL {
     public static final int ED25519k = 256;
 
     /* GeneralName types. Match native values in asn.h */
+    /** ASN other type */
     public static final int ASN_OTHER_TYPE  = 0x00;
+    /** ASN RFC822 type */
     public static final int ASN_RFC822_TYPE = 0x01;
+    /** ASN DNS type */
     public static final int ASN_DNS_TYPE    = 0x02;
+    /** ASN DIR/directory type */
     public static final int ASN_DIR_TYPE    = 0x04;
+    /** ASN URI type */
     public static final int ASN_URI_TYPE    = 0x06;
+    /** ASN IP type */
     public static final int ASN_IP_TYPE     = 0x07;
 
     /* NIDs, from native asn.h */
+    /** Key Usage NID */
     public static final int NID_key_usage         = 129;
+    /** Subject Alternative Name NID */
     public static final int NID_subject_alt_name  = 131;
+    /** Basic Constraints NID */
     public static final int NID_basic_constraints = 133;
+    /** Extended Key Usage NID */
     public static final int NID_ext_key_usage     = 151;
 
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
 
     /* -------------- Named Groups (from enum in ssl.h) ----------------- */
+    /** Invalid named group */
     public static final int WOLFSSL_NAMED_GROUP_INVALID = 0;
+    /** ECC SECT163K1 */
     public static final int WOLFSSL_ECC_SECT163K1 = 1;
+    /** ECC SECT163R1 */
     public static final int WOLFSSL_ECC_SECT163R1 = 2;
+    /** ECC SECT163R2 */
     public static final int WOLFSSL_ECC_SECT163R2 = 3;
+    /** ECC SECT193R1 */
     public static final int WOLFSSL_ECC_SECT193R1 = 4;
+    /** ECC SECT193R2 */
     public static final int WOLFSSL_ECC_SECT193R2 = 5;
+    /** ECC SECT233K1 */
     public static final int WOLFSSL_ECC_SECT233K1 = 6;
+    /** ECC SECT233R1 */
     public static final int WOLFSSL_ECC_SECT233R1 = 7;
+    /** ECC SECT239K1 */
     public static final int WOLFSSL_ECC_SECT239K1 = 8;
+    /** ECC SECT283K1 */
     public static final int WOLFSSL_ECC_SECT283K1 = 9;
+    /** ECC SECT283R1 */
     public static final int WOLFSSL_ECC_SECT283R1 = 10;
+    /** ECC SECT409K1 */
     public static final int WOLFSSL_ECC_SECT409K1 = 11;
+    /** ECC SECT409R1 */
     public static final int WOLFSSL_ECC_SECT409R1 = 12;
+    /** ECC SECT571K1 */
     public static final int WOLFSSL_ECC_SECT571K1 = 13;
+    /** ECC SECT571R1 */
     public static final int WOLFSSL_ECC_SECT571R1 = 14;
+    /** ECC SECP160K1 */
     public static final int WOLFSSL_ECC_SECP160K1 = 15;
+    /** ECC SECP160R1 */
     public static final int WOLFSSL_ECC_SECP160R1 = 16;
+    /** ECC SECP160R2 */
     public static final int WOLFSSL_ECC_SECP160R2 = 17;
+    /** ECC SECP192K1 */
     public static final int WOLFSSL_ECC_SECP192K1 = 18;
+    /** ECC SECP192R1 */
     public static final int WOLFSSL_ECC_SECP192R1 = 19;
+    /** ECC SECP224K1 */
     public static final int WOLFSSL_ECC_SECP224K1 = 20;
+    /** ECC SECP224R1 */
     public static final int WOLFSSL_ECC_SECP224R1 = 21;
+    /** ECC SECP256K1 */
     public static final int WOLFSSL_ECC_SECP256K1 = 22;
+    /** ECC SECP256R1 */
     public static final int WOLFSSL_ECC_SECP256R1 = 23;
+    /** ECC SECP384R1 */
     public static final int WOLFSSL_ECC_SECP384R1 = 24;
+    /** ECC SECP521R1 */
     public static final int WOLFSSL_ECC_SECP521R1 = 25;
+    /** ECC BRAINPOOLP256R1 */
     public static final int WOLFSSL_ECC_BRAINPOOLP256R1 = 26;
+    /** ECC BRAINPOOLP384R1 */
     public static final int WOLFSSL_ECC_BRAINPOOLP384R1 = 27;
+    /** ECC BRAINPOOLP512R1 */
     public static final int WOLFSSL_ECC_BRAINPOOLP512R1 = 28;
+    /** ECC X25519 */
     public static final int WOLFSSL_ECC_X25519    = 29;
+    /** ECC X448 */
     public static final int WOLFSSL_ECC_X448      = 30;
+    /** ECC SM2P256V1 */
     public static final int WOLFSSL_ECC_SM2P256V1 = 41;
+    /** FFDHE 2048 */
     public static final int WOLFSSL_FFDHE_2048    = 256;
+    /** FFDHE 3072 */
     public static final int WOLFSSL_FFDHE_3072    = 257;
+    /** FFDHE 4096 */
     public static final int WOLFSSL_FFDHE_4096    = 258;
+    /** FFDHE 6144 */
     public static final int WOLFSSL_FFDHE_6144    = 259;
+    /** FFDHE 8192 */
     public static final int WOLFSSL_FFDHE_8192    = 260;
 
     /* ---------------------------- locks ------------------------------- */
