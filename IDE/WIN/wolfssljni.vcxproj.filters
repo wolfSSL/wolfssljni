@@ -33,6 +33,9 @@
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCertManager.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCertRequest.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLContext.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -69,6 +72,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCertManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCertRequest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLContext.h">

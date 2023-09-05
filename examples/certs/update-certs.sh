@@ -41,6 +41,7 @@ certList=(
     "client-key.der"
     "client-keyPub.der"
     "dh2048.pem"
+    "ecc-client-key.der"
     "ecc-client-key.pem"
     "ecc-key.pem"
     "server-cert.pem"

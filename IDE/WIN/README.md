@@ -419,9 +419,10 @@ to run the ProviderTest:
 examples\provider\ProviderTest.bat
 ```
 
-Or to run the X509v3 certificate generation example:
+Or to run the X509v3 certificate or CSR generation example:
 
 ```
 examples\X509v3CertificateGeneration.bat
+examples\X509CertRequest.bat
 ```
 

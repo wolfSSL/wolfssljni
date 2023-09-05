@@ -361,14 +361,30 @@ public class WolfSSL {
     public static final int ASN_IP_TYPE     = 0x07;
 
     /* NIDs, from native asn.h */
+    /** Surname NID */
+    public static final int NID_surname                 = 4;
+    /** Serial number NID */
+    public static final int NID_serialNumber            = 5;
+    /** PKCS9 Unstructured name NID */
+    public static final int NID_pkcs9_unstructuredName  = 49;
+    /** PKCS9 contentType NID */
+    public static final int NID_pkcs9_contentType       = 50;
+    /** PKCS9 challenge password NID */
+    public static final int NID_pkcs9_challengePassword = 54;
+    /** Given name NID */
+    public static final int NID_givenName               = 100;
+    /** Initials NID */
+    public static final int NID_initials                = 101;
     /** Key Usage NID */
-    public static final int NID_key_usage         = 129;
+    public static final int NID_key_usage               = 129;
     /** Subject Alternative Name NID */
-    public static final int NID_subject_alt_name  = 131;
+    public static final int NID_subject_alt_name        = 131;
     /** Basic Constraints NID */
-    public static final int NID_basic_constraints = 133;
+    public static final int NID_basic_constraints       = 133;
     /** Extended Key Usage NID */
-    public static final int NID_ext_key_usage     = 151;
+    public static final int NID_ext_key_usage           = 151;
+    /** Domain name qualifier NID */
+    public static final int NID_dnQualifier             = 174;
 
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
@@ -590,51 +606,60 @@ public class WolfSSL {
      * TLS 1.0 is disabled by default in native wolfSSL, unless the user
      * has configured wolfSSL with "--enable-tls10".
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean TLSv1Enabled();
 
     /**
      * Tests if TLS 1.1 has been compiled into the native wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean TLSv11Enabled();
 
     /**
      * Tests if TLS 1.2 has been compiled into the native wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean TLSv12Enabled();
 
     /**
      * Tests if TLS 1.3 has been compiled into the native wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean TLSv13Enabled();
 
     /**
      * Tests if ECC support has been compiled into the native wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean EccEnabled();
 
     /**
      * Tests if RSA support has been compiled into the native wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if not compiled in.
+     * @return true if enabled, otherwise false if not compiled in.
      */
     public static native boolean RsaEnabled();
 
     /**
      * Tests if filesystem support has been compiled into the wolfSSL library.
      *
-     * @return 1 if enabled, otherwise 0 if NO_FILESYSTEM has been defined.
+     * @return true if enabled, otherwise false if NO_FILESYSTEM has been
+     *         defined.
      */
     public static native boolean FileSystemEnabled();
+
+    /**
+     * Tests if Certificate Signing Request (CSR) support has been compiled
+     * into the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if WOLFSSL_CERT_EXT not defined.
+     */
+    public static native boolean certReqEnabled();
 
     /* ---------------- native SSL/TLS version functions ---------------- */
 
