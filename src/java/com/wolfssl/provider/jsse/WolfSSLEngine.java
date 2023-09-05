@@ -189,19 +189,25 @@ public class WolfSSLEngine extends SSLEngine {
      * garbage collection of this SSLEngine object unless the context
      * is unset from the WolfSSLSession.
      *
+     * Protected by ioLock since all I/O operations are dependent on using
+     * these underlying I/O callbacks.
+     *
      * @throws WolfSSLJNIException on native JNI error
      */
     private void setSSLCallbacks() throws WolfSSLJNIException {
-        if (sendCb == null) {
-            sendCb = new SendCB();
+
+        synchronized (ioLock) {
+            if (sendCb == null) {
+                sendCb = new SendCB();
+            }
+            if (recvCb == null) {
+                recvCb = new RecvCB();
+            }
+            ssl.setIORecv(recvCb);
+            ssl.setIOSend(sendCb);
+            ssl.setIOReadCtx(this);
+            ssl.setIOWriteCtx(this);
         }
-        if (recvCb == null) {
-            recvCb = new RecvCB();
-        }
-        ssl.setIORecv(recvCb);
-        ssl.setIOSend(sendCb);
-        ssl.setIOReadCtx(this);
-        ssl.setIOWriteCtx(this);
     }
 
     /**
@@ -210,13 +216,19 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * Call setSSLCallbacks() to re-register these.
      *
+     * Protected with ioLock since all I/O operations are dependent on
+     * using these underlying I/O callbacks.
+     *
      * @throws WolfSSLJNIException on native JNI error
      */
     private void unsetSSLCallbacks() throws WolfSSLJNIException {
-        ssl.setIORecv(null);
-        ssl.setIOSend(null);
-        ssl.setIOReadCtx(null);
-        ssl.setIOWriteCtx(null);
+
+        synchronized (ioLock) {
+            ssl.setIORecv(null);
+            ssl.setIOSend(null);
+            ssl.setIOReadCtx(null);
+            ssl.setIOWriteCtx(null);
+        }
     }
 
     private void initSSL() throws WolfSSLException, WolfSSLJNIException {
@@ -305,8 +317,11 @@ public class WolfSSLEngine extends SSLEngine {
         int ret;
 
         /* Save session into WolfSSLAuthStore cache, saves session
-         * pointer for resumption if on client side */
-        EngineHelper.saveSession();
+         * pointer for resumption if on client side. Protected with ioLock
+         * since underlying get1Session can use I/O with peek. */
+        synchronized (ioLock) {
+            EngineHelper.saveSession();
+        }
 
         /* get current close_notify state */
         UpdateCloseNotifyStatus();
@@ -352,8 +367,11 @@ public class WolfSSLEngine extends SSLEngine {
                 /* Once handshake is finished, save session for resumption in
                  * case caller does not explicitly close connection. Saves
                  * session in WolfSSLAuthStore cache, and gets/saves session
-                 * pointer for resumption if on client side. */
-                EngineHelper.saveSession();
+                 * pointer for resumption if on client side. Protected with
+                 * ioLock since underlying get1Session can use I/O for peek. */
+                synchronized (ioLock) {
+                    EngineHelper.saveSession();
+                }
             }
 
         } catch (SocketTimeoutException e) {
