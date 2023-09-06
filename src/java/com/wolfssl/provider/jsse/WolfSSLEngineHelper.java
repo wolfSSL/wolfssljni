@@ -769,7 +769,7 @@ public class WolfSSLEngineHelper {
                 this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
             }
 
-            if (this.sessionCreation == false && !this.session.fromTable) {
+            if (this.sessionCreation == false && !this.session.isFromTable) {
                 /* new handshakes can not be made in this case. */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "session creation not allowed");
@@ -811,7 +811,7 @@ public class WolfSSLEngineHelper {
             throw new SSLException("setUseClientMode has not been called");
         }
 
-        if (this.sessionCreation == false && !this.session.fromTable) {
+        if (this.sessionCreation == false && !this.session.isFromTable) {
             /* new handshakes can not be made in this case. */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "session creation not allowed");

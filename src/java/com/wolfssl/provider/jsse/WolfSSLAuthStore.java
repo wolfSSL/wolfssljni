@@ -332,10 +332,17 @@ public class WolfSSLAuthStore {
                 /* not found in stored sessions create a new one */
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
                 ses.setValid(true); /* new sessions marked as valid */
+                ses.isFromTable = false;
                 ses.setPseudoSessionId(
                     Integer.toString(ssl.hashCode()).getBytes());
             }
             else {
+                /* Make copy/clone of session object so multiple threads
+                 * don't try to use the same cache entry. Cache entry will
+                 * be overwritten when new session with same key is stored */
+                ses = new WolfSSLImplementSSLSession(ses);
+                ses.isFromTable = true;
+
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "session found in cache, trying to resume");
                 ses.resume(ssl);
@@ -358,6 +365,7 @@ public class WolfSSLAuthStore {
             new WolfSSLImplementSSLSession(ssl, this);
 
         ses.setValid(true);
+        ses.isFromTable = false;
         ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
 
         return ses;
@@ -412,7 +420,6 @@ public class WolfSSLAuthStore {
         synchronized (storeLock) {
             if (session.getPeerHost() != null) {
                 /* Generate key for storing into session table (host:port) */
-                session.fromTable = true;
                 toHash = session.getPeerHost().concat(Integer.toString(
                          session.getPeerPort()));
                 hashCode = toHash.hashCode();
@@ -438,6 +445,7 @@ public class WolfSSLAuthStore {
                         "hashCode = " + hashCode + " side = " +
                         session.getSide());
                 store.put(hashCode, session);
+                session.isInTable = true;
             }
         }
 
