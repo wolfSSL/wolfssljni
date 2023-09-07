@@ -60,8 +60,31 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     byte[] pseudoSessionID = null; /* used with TLS 1.3*/
     private int side = 0;
 
-    /** Has this session been registered */
-    protected boolean fromTable = false;
+    /* Cache peer certificates after received. Applications assume that
+     * SSLSocket.getSession().getPeerCertificates() will return the peer
+     * certificate even on a resumed connection where the cert has not been
+     * sent during the handshake. */
+    private Certificate[] peerCerts = null;
+
+    /**
+     * Is this object currently inside the WolfSSLAuthStore session cache table?
+     *
+     * Used to mark when and where native WOLFSSL_SESSION pointers are freed.
+     * Sessions inside the table always have their sesPtr freed by the finalizer
+     * upon garbage collection. Otherwise, if sessions are taken out of the
+     * table and sesPtr is updated afterwards sesPtrUpdateAfterTable is set to
+     * true and the sesPtr is then freed by that object either during
+     * setResume() or finalization.
+     */
+    protected boolean isInTable = false;
+    protected boolean sesPtrUpdatedAfterTable = false;
+
+    /**
+     * Indicates if this session was retrieved out of the WolfSSLAuthStore
+     * session table/store. This is used by WolfSSLEngineHelper to help
+     * determine if session creation is allowed. See Javadocs for
+     * SSLEngine/SSLSocket setEnableSessionCreation() */
+    protected boolean isFromTable = false;
 
     /** Native pointer to WOLFSSL_SESSION structure. Obtained via
      * wolfSSL_get1_session(), so needs to be freed */
@@ -69,8 +92,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private String nullCipher = "SSL_NULL_WITH_NULL_NULL";
     private String nullProtocol = "NONE";
 
-    /* Lock around access to WOLFSSL_SESSION pointer */
-    private final Object sesPtrLock = new Object();
+    /* Lock around access to WOLFSSL_SESSION pointer. Static since there could
+     * be multiple WolfSSLSocket refering to the same WOLFSSL_SESSION pointer
+     * in resumption cases. */
+    private static final Object sesPtrLock = new Object();
 
     /**
      * Create new WolfSSLImplementSSLSession
@@ -87,6 +112,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = host;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
+        this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -106,6 +133,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = null;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
+        this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -122,10 +151,68 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = null;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
+        this.peerCerts = null;
+        this.sesPtr = 0;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
         accessed = new Date();
+    }
+
+    /**
+     * Create new WolfSSLImplementSSLSession based on an exisitng one.
+     *
+     * This constructor is a Copy Constructor and is useful when we want to
+     * use a "clone"-like functionality for the original object.
+     *
+     * WolfSSLImplementSSLSession objects are stored in the WolfSSLAuthStore
+     * Java session cache. When we get an object out of that store, we need
+     * to make a copy/clone of it instead of using the original object.
+     * Otherwise, mutliple threads can be using the same
+     * WolfSSLImplementSSLSession object, which does not work well since we
+     * wrap a WolfSSLSession inside each of these objects.
+     *
+     * @param orig Existing WolfSSLImplementSSLSession object to copy/clone
+     *             into newly returned object.
+     */
+    public WolfSSLImplementSSLSession (WolfSSLImplementSSLSession orig) {
+        /* Shallow copy WolfSSLSession, caller should reset when needed */
+        this.ssl = orig.ssl;
+
+        /* Shallow copy WolfSSLAuthStore, same as primary constructors */
+        this.authStore = orig.authStore;
+
+        this.ctx = orig.ctx;
+        this.valid = orig.valid;
+        this.port = orig.port;
+        this.host = orig.host;
+        if (orig.creation != null) {
+            this.creation = new Date(orig.creation.getTime());
+        }
+        if (orig.accessed != null) {
+            this.accessed = new Date(orig.accessed.getTime());
+        }
+        if (orig.pseudoSessionID != null) {
+            this.pseudoSessionID = orig.pseudoSessionID.clone();
+        }
+        this.side = orig.side;
+        if (orig.peerCerts != null) {
+            this.peerCerts = orig.peerCerts.clone();
+        }
+        /* This session has been copied and is therefore not inside the
+         * WolfSSLAuthStore session cache table currently */
+        this.isInTable = false;
+
+        /* WOLFSSL_SESSION pointer is copied over into this new object,
+         * but mark that it has not been updated post-table so we know not to
+         * free sesPtr in this new object unless we overwrite it later on.
+         * Original sesPtr will be freed by object in the cache table upon
+         * garbage collection or manual purge */
+        this.sesPtr = orig.sesPtr;
+        this.sesPtrUpdatedAfterTable = false;
+
+        /* Not copying binding, not needed */
+        this.binding = null;
     }
 
     /**
@@ -148,7 +235,14 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             else {
                 return this.ssl.getSessionID();
             }
-        } catch (IllegalStateException | WolfSSLJNIException e) {
+
+        } catch (IllegalStateException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "In getId(), WolfSSLSession has been freed, returning null");
+            return null;
+
+        } catch (WolfSSLJNIException e) {
+            /* print stack trace of native JNI error for debugging */
             e.printStackTrace();
             return null;
         }
@@ -310,6 +404,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             throw new SSLPeerUnverifiedException("handshake not complete");
         }
 
+        /* If peer cert is already cached, just return that */
+        if (this.peerCerts != null) {
+            return this.peerCerts.clone();
+        }
+
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
@@ -359,7 +458,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         /* release native memory */
         cert.free();
 
-        return new Certificate[] { exportCert };
+        /* cache peer cert for use by app in resumed session */
+        this.peerCerts = new Certificate[] { exportCert };
+
+        return this.peerCerts.clone();
     }
 
     @Override
@@ -524,12 +626,47 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * Should be called on shutdown to save the session pointer
      */
     protected synchronized void setResume() {
+
         if (ssl != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered setResume(), trying to get sesPtrLock");
+
             synchronized (sesPtrLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "got sesPtrLock: this.sesPtr = " + this.sesPtr);
+
+                /* Only free existing WOLFSSL_SESSION pointer if this
+                 * object is in the WolfSSLAuthStore cache table (store),
+                 * or it is NOT in the store but has been updated after it
+                 * was pulled out of the store. The original WOLFSSL_SESSION
+                 * pointer is freed when that original object is garbage
+                 * collected during finalization or manually freed */
                 if (this.sesPtr != 0) {
-                    WolfSSLSession.freeSession(this.sesPtr);
+                    if (this.isInTable ||
+                        (!this.isInTable && this.sesPtrUpdatedAfterTable)) {
+
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                           "calling WolfSSLSession.freeSession(this.sesPtr)");
+
+                        WolfSSLSession.freeSession(this.sesPtr);
+                        /* reset this.sesPtr to 0 in case ssl.getSession() below
+                         * blocks on WOLFSSL lock */
+                        this.sesPtr = 0;
+                    }
                 }
+
+                /* Get new WOLFSSL_SESSION pointer for updated WOLFSSL */
                 this.sesPtr = ssl.getSession();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "called ssl.getSession(), new this.sesPtr = " +
+                    this.sesPtr);
+
+                /* If this object is not in the WolfSSLAuthStore store,
+                 * mark that we have updated the sesPtr in order to
+                 * correctly free later on */
+                if (!this.isInTable) {
+                    this.sesPtrUpdatedAfterTable = true;
+                }
             }
         }
     }
@@ -574,10 +711,30 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     @Override
     protected void finalize() throws Throwable
     {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered finalize(): this.sesPtr = " + this.sesPtr);
+
         synchronized (sesPtrLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "got sesPtrLock: " + this.sesPtr);
+
+            /* Our internal WOLFSSL_SESSION pointer should be freed in
+             * the following scenarios:
+             *
+             * 1. This object is currently in the WolfSSLAuthStore session
+             *    cache table (store), OR
+             * 2. This object is NOT in the WolfSSLAuthStore session cache
+             *    table AND the sesPtr has been updated after we copied
+             *    the object out of the cache table.
+             */
             if (this.sesPtr != 0) {
-                WolfSSLSession.freeSession(this.sesPtr);
-                this.sesPtr = 0;
+                if (this.isInTable ||
+                    (!this.isInTable && this.sesPtrUpdatedAfterTable)) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                       "calling WolfSSLSession.freeSession(this.sesPtr)");
+                    WolfSSLSession.freeSession(this.sesPtr);
+                    this.sesPtr = 0;
+                }
             }
         }
 

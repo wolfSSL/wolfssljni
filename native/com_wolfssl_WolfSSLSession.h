@@ -177,6 +177,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setServerID
+ * Signature: (J[BII)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setTimeout
  * Signature: (JJ)I
  */

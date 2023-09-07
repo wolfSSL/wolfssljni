@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -585,20 +586,21 @@ public class WolfSSLEngineTest {
         boolean returnWithoutTimeout = true;
 
         /* Keep track of failure and success count */
-        final int[] failures = new int[1];
-        final int[] success = new int[1];
-        failures[0] = 0;
-        success[0] = 0;
+        final AtomicIntegerArray failures = new AtomicIntegerArray(1);
+        final AtomicIntegerArray success = new AtomicIntegerArray(1);
+        failures.set(0, 0);
+        success.set(0, 0);
 
         System.out.print("\tTesting ExtendedThreadingUse");
 
         /* Start up simple TLS test server */
+        CountDownLatch serverOpenLatch = new CountDownLatch(1);
         InternalMultiThreadedSSLSocketServer server =
-            new InternalMultiThreadedSSLSocketServer(svrPort);
+            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch);
         server.start();
 
-        /* Sleep 1 second to allow time for server thread to start up */
-        Thread.sleep(1000);
+        /* Wait for server thread to start up before connecting clients */
+        serverOpenLatch.await();
 
         /* Start up client threads */
         for (int i = 0; i < numThreads; i++) {
@@ -610,9 +612,9 @@ public class WolfSSLEngineTest {
                         client.connect();
                     } catch (Exception e) {
                         e.printStackTrace();
-                        failures[0] = failures[0] + 1;
+                        failures.incrementAndGet(0);
                     }
-                    success[0] = success[0] + 1;
+                    success.incrementAndGet(0);
 
                     latch.countDown();
                 }
@@ -624,11 +626,14 @@ public class WolfSSLEngineTest {
         server.join(1000);
 
         /* check failure count and success count against thread count */
-        if (failures[0] == 0 && success[0] == numThreads) {
+        if (failures.get(0) == 0 && success.get(0) == numThreads) {
             pass("\t... passed");
         } else {
             if (returnWithoutTimeout == true) {
-                fail("SSLEngine threading error");
+                fail("SSLEngine threading error: " +
+                     failures.get(0) + " failures, " +
+                     success.get(0) + " success, " +
+                     numThreads + " num threads total");
             } else {
                 fail("SSLEngine threading error, threads timed out");
             }
@@ -858,9 +863,12 @@ public class WolfSSLEngineTest {
     protected class InternalMultiThreadedSSLSocketServer extends Thread
     {
         private int serverPort;
+        private CountDownLatch serverOpenLatch = null;
 
-        public InternalMultiThreadedSSLSocketServer(int port) {
+        public InternalMultiThreadedSSLSocketServer(
+            int port, CountDownLatch openLatch) {
             this.serverPort = port;
+            serverOpenLatch = openLatch;
         }
 
         @Override
@@ -871,6 +879,7 @@ public class WolfSSLEngineTest {
                     .getServerSocketFactory().createServerSocket(serverPort);
 
                 while (true) {
+                    serverOpenLatch.countDown();
                     SSLSocket sock = (SSLSocket)ss.accept();
                     ClientHandler client = new ClientHandler(sock);
                     client.start();

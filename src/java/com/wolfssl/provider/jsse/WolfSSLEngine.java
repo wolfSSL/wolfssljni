@@ -56,11 +56,11 @@ import java.net.SocketTimeoutException;
  */
 public class WolfSSLEngine extends SSLEngine {
 
-    private WolfSSLEngineHelper EngineHelper;
-    private WolfSSLSession ssl;
-    private com.wolfssl.WolfSSLContext ctx;
-    private WolfSSLAuthStore authStore;
-    private WolfSSLParameters params;
+    private WolfSSLEngineHelper EngineHelper = null;
+    private WolfSSLSession ssl = null;
+    private com.wolfssl.WolfSSLContext ctx = null;
+    private WolfSSLAuthStore authStore = null;
+    private WolfSSLParameters params = null;
     private byte[] toSend = null; /* encrypted packet to send */
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
 
@@ -165,7 +165,7 @@ public class WolfSSLEngine extends SSLEngine {
     protected WolfSSLEngine(com.wolfssl.WolfSSLContext ctx,
             WolfSSLAuthStore auth, WolfSSLParameters params, String host,
             int port) throws WolfSSLException {
-        super();
+        super(host, port);
         this.ctx = ctx;
         this.authStore = auth;
         this.params = params.copy();
@@ -180,16 +180,55 @@ public class WolfSSLEngine extends SSLEngine {
                 this.params, port, host);
     }
 
-    /* use singleton pattern on callbacks */
-    private void setCallbacks() throws WolfSSLJNIException {
-        if (sendCb == null) {
-            sendCb = new SendCB();
+    /**
+     * Register I/O callbacks and contexts with WolfSSLSession and native
+     * wolfSSL. Uses singleton pattern on callbacks.
+     *
+     * Call unsetSSLCallbacks to unset/unregister these. Since the I/O
+     * context is set as the current SSLEngine object, this can prevent
+     * garbage collection of this SSLEngine object unless the context
+     * is unset from the WolfSSLSession.
+     *
+     * Protected by ioLock since all I/O operations are dependent on using
+     * these underlying I/O callbacks.
+     *
+     * @throws WolfSSLJNIException on native JNI error
+     */
+    private void setSSLCallbacks() throws WolfSSLJNIException {
+
+        synchronized (ioLock) {
+            if (sendCb == null) {
+                sendCb = new SendCB();
+            }
+            if (recvCb == null) {
+                recvCb = new RecvCB();
+            }
+            ssl.setIORecv(recvCb);
+            ssl.setIOSend(sendCb);
+            ssl.setIOReadCtx(this);
+            ssl.setIOWriteCtx(this);
         }
-        if (recvCb == null) {
-            recvCb = new RecvCB();
+    }
+
+    /**
+     * Unregister I/O callbacks and contexts with WolfSSLSession and
+     * native wolfSSL.
+     *
+     * Call setSSLCallbacks() to re-register these.
+     *
+     * Protected with ioLock since all I/O operations are dependent on
+     * using these underlying I/O callbacks.
+     *
+     * @throws WolfSSLJNIException on native JNI error
+     */
+    private void unsetSSLCallbacks() throws WolfSSLJNIException {
+
+        synchronized (ioLock) {
+            ssl.setIORecv(null);
+            ssl.setIOSend(null);
+            ssl.setIOReadCtx(null);
+            ssl.setIOWriteCtx(null);
         }
-        ssl.setIORecv(recvCb);
-        ssl.setIOSend(sendCb);
     }
 
     private void initSSL() throws WolfSSLException, WolfSSLJNIException {
@@ -202,10 +241,6 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* will throw WolfSSLException if issue creating WOLFSSL */
         ssl = new WolfSSLSession(ctx);
-
-        setCallbacks();
-        ssl.setIOReadCtx(this);
-        ssl.setIOWriteCtx(this);
 
         enableExtraDebug();
         enableIODebug();
@@ -257,7 +292,14 @@ public class WolfSSLEngine extends SSLEngine {
             this.closeNotifySent = true;
             this.closeNotifyReceived = true;
             this.inBoundOpen = false;
-            this.outBoundOpen = false;
+            if (this.toSend == null || this.toSend.length == 0) {
+                /* Don't close outbound if we have a close_notify alert
+                 * send back to peer. Native wolfSSL may have already generated
+                 * it and is reflected in SSL_SENT_SHUTDOWN flag, but we
+                 * might have it cached in our Java SSLEngine object still to
+                 * be sent. */
+                this.outBoundOpen = false;
+            }
             closed = true;
         } else if (ret == WolfSSL.SSL_RECEIVED_SHUTDOWN) {
             this.closeNotifyReceived = true;
@@ -275,8 +317,11 @@ public class WolfSSLEngine extends SSLEngine {
         int ret;
 
         /* Save session into WolfSSLAuthStore cache, saves session
-         * pointer for resumption if on client side */
-        EngineHelper.saveSession();
+         * pointer for resumption if on client side. Protected with ioLock
+         * since underlying get1Session can use I/O with peek. */
+        synchronized (ioLock) {
+            EngineHelper.saveSession();
+        }
 
         /* get current close_notify state */
         UpdateCloseNotifyStatus();
@@ -318,11 +363,16 @@ public class WolfSSLEngine extends SSLEngine {
                     ssl.getError(ret));
             }
 
-            /* Once handshake is finished, save session for resumption in
-             * case caller does not explicitly close connection. Saves
-             * session in WolfSSLAuthStore cache, and gets/saves session
-             * pointer for resumption if on client side. */
-            EngineHelper.saveSession();
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Once handshake is finished, save session for resumption in
+                 * case caller does not explicitly close connection. Saves
+                 * session in WolfSSLAuthStore cache, and gets/saves session
+                 * pointer for resumption if on client side. Protected with
+                 * ioLock since underlying get1Session can use I/O for peek. */
+                synchronized (ioLock) {
+                    EngineHelper.saveSession();
+                }
+            }
 
         } catch (SocketTimeoutException e) {
             throw new SSLException(e);
@@ -458,7 +508,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -469,6 +519,13 @@ public class WolfSSLEngine extends SSLEngine {
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
+        }
+
+        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
         if (needInit) {
@@ -489,8 +546,12 @@ public class WolfSSLEngine extends SSLEngine {
         /* Copy buffered data to be sent into output buffer */
         produced = CopyOutPacket(out);
 
-        /* check if closing down connection */
-        if (produced >= 0 && !outBoundOpen) {
+        /* Closing down connection if buffered data has been sent and:
+         * 1. Outbound has been closed (!outBoundOpen)
+         * 2. Inbound is closed and close_notify has been sent
+         */
+        if (produced >= 0 &&
+            (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
             status = SSLEngineResult.Status.CLOSED;
             ClosingConnection();
             produced += CopyOutPacket(out);
@@ -548,7 +609,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -561,6 +622,15 @@ public class WolfSSLEngine extends SSLEngine {
                 "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
+        }
+
+        try {
+            /* Don't hold references to this SSLEngine object in WolfSSLSession,
+             * can prevent proper garbage collection */
+            unsetSSLCallbacks();
+
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
         return new SSLEngineResult(status, hs, consumed, produced);
@@ -714,7 +784,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         if (!this.clientModeSet) {
             throw new IllegalStateException(
-                    "setUseClientMode() has not been called on this SSLEngine");
+                "setUseClientMode() has not been called on this SSLEngine");
         }
 
         synchronized (netDataLock) {
@@ -733,7 +803,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.position());
+                "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "out["+i+"].remaining(): " + out[i].remaining());
@@ -756,7 +826,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -769,83 +839,110 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
-        if (needInit) {
-            EngineHelper.initHandshake();
-            needInit = false;
-            closed = false;
+        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
-        if (outBoundOpen == false) {
-            if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
-                status = SSLEngineResult.Status.CLOSED;
-            }
+        if (getUseClientMode() && needInit) {
+            /* If unwrap() is called before handshake has started, return
+             * WANT_WRAP since we'll need to send a ClientHello first */
+            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+        }
+        else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
+                 this.toSend.length > 0) {
+            /* Already have data buffered to send and in NEED_WRAP state,
+             * just return so wrap() can be called */
+            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
         }
         else {
-            if (this.handshakeFinished == false) {
 
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "starting or continuing handshake");
-                ret = DoHandshake();
+            if (needInit) {
+                EngineHelper.initHandshake();
+                needInit = false;
+                closed = false;
+            }
+
+            if (outBoundOpen == false) {
+                if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                    status = SSLEngineResult.Status.CLOSED;
+                }
             }
             else {
-                /* If we have input data, make sure output buffer length is
-                 * greater than zero, otherwise ask app to expand out buffer.
-                 * There may be edge cases where this could be tightened up,
-                 * but this will err on the side of giving us more output
-                 * space than we need. */
-                if (inRemaining > 0 &&
-                    getTotalOutputSize(out, ofst, length) == 0) {
-                    status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+
+                if (this.handshakeFinished == false) {
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "starting or continuing handshake");
+                    ret = DoHandshake();
                 }
                 else {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "receiving application data");
-                    ret = RecvAppData(out, ofst, length);
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "received application data: " + ret +
-                        " bytes (from RecvAppData)");
-                    if (ret > 0) {
-                        produced += ret;
+                    /* If we have input data, make sure output buffer length is
+                     * greater than zero, otherwise ask app to expand out buffer.
+                     * There may be edge cases where this could be tightened up,
+                     * but this will err on the side of giving us more output
+                     * space than we need. */
+                    if (inRemaining > 0 &&
+                        getTotalOutputSize(out, ofst, length) == 0) {
+                        status = SSLEngineResult.Status.BUFFER_OVERFLOW;
                     }
                     else {
-                        synchronized (netDataLock) {
-                            if (ret == 0 && in.remaining() > 0 &&
-                                getTotalOutputSize(out, ofst, length) == 0) {
-                                /* We have more data to read, but no more out
-                                 * space left in ByteBuffer[], ask for more */
-                                status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "receiving application data");
+                        ret = RecvAppData(out, ofst, length);
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "received application data: " + ret +
+                            " bytes (from RecvAppData)");
+                        if (ret > 0) {
+                            produced += ret;
+                        }
+                        else {
+                            synchronized (netDataLock) {
+                                if (ret == 0 && in.remaining() > 0 &&
+                                    getTotalOutputSize(out, ofst,
+                                        length) == 0) {
+                                    /* We have more data to read, but no more
+                                     * out space left in ByteBuffer[], ask for
+                                     * more */
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
                             }
+                        }
+                    }
+                }
+
+                if (outBoundOpen == false || this.closeNotifySent) {
+                    status = SSLEngineResult.Status.CLOSED;
+                }
+
+                int err = ssl.getError(ret);
+                if (ret < 0 &&
+                    (err != WolfSSL.SSL_ERROR_WANT_READ) &&
+                    (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+                    throw new SSLException(
+                        "wolfSSL error, ret:err = " + ret + " : " + err);
+                }
+
+                synchronized (toSendLock) {
+                    synchronized (netDataLock) {
+                        if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
+                            in.remaining() == 0 && (this.toSend == null ||
+                            (this.toSend != null && this.toSend.length == 0))) {
+                            /* Need more data */
+                            status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
                         }
                     }
                 }
             }
 
-            if (outBoundOpen == false) {
-                status = SSLEngineResult.Status.CLOSED;
+            synchronized (netDataLock) {
+                consumed += in.position() - inPosition;
             }
-
-            int err = ssl.getError(ret);
-            if (ret < 0 &&
-                (err != WolfSSL.SSL_ERROR_WANT_READ) &&
-                (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
-                throw new SSLException(
-                    "wolfSSL error, ret:err = " + ret + " : " + err);
-            }
-
-            synchronized (toSendLock) {
-                synchronized (netDataLock) {
-                    if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
-                        in.remaining() == 0 && (this.toSend == null ||
-                        (this.toSend != null && this.toSend.length == 0))) {
-                        /* Need more data */
-                        status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
-                    }
-                }
-            }
+            SetHandshakeStatus(ret);
         }
-
-        consumed += in.position() - inPosition;
-        SetHandshakeStatus(ret);
 
         if (extraDebugEnabled == true) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -857,7 +954,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.position());
+                "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "out["+i+"].remaining(): " + out[i].remaining());
@@ -882,7 +979,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.outBoundOpen);
+                "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -895,6 +992,15 @@ public class WolfSSLEngine extends SSLEngine {
                 "produced: " + produced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
+        }
+
+        try {
+            /* Don't hold references to this SSLEngine object in WolfSSLSession,
+             * can prevent proper garbage collection */
+            unsetSSLCallbacks();
+
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
         }
 
         return new SSLEngineResult(status, hs, consumed, produced);
@@ -923,7 +1029,14 @@ public class WolfSSLEngine extends SSLEngine {
                 /* close_notify sent, need to read peer's */
                 else if (this.closeNotifySent == true &&
                          this.closeNotifyReceived == false) {
-                    hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
+                    /* Receiving close_notify is optional after we have sent
+                     * one. Denote that with NOT_HANDSHAKING here */
+                    hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+                }
+                else if (!this.outBoundOpen && !this.closeNotifySent) {
+                    /* We just closed outBound, NEED_WRAP to generate and
+                     * send close_notify */
+                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                 }
                 else {
                     hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
@@ -1009,6 +1122,15 @@ public class WolfSSLEngine extends SSLEngine {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered closeOutbound, outBoundOpen = false");
         outBoundOpen = false;
+
+        /* If handshake has not started yet, close inBound as well */
+        if (needInit) {
+            inBoundOpen = true;
+        }
+
+        /* Update status based on internal state. Some calling applications
+         * loop around getHandshakeStatus(), it needs to be up to date. */
+        SetHandshakeStatus(0);
     }
 
     @Override
@@ -1083,6 +1205,12 @@ public class WolfSSLEngine extends SSLEngine {
             this.netData = null;
         }
 
+        try {
+            setSSLCallbacks();
+        } catch (WolfSSLJNIException e) {
+            throw new SSLException(e);
+        }
+
         if (needInit == true) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
@@ -1099,6 +1227,17 @@ public class WolfSSLEngine extends SSLEngine {
         } catch (SocketTimeoutException e) {
             e.printStackTrace();
             throw new SSLException(e);
+
+        } finally {
+
+            try {
+                /* Don't hold references to this SSLEngine object in WolfSSLSession,
+                 * can prevent proper garbage collection */
+                unsetSSLCallbacks();
+
+            } catch (WolfSSLJNIException e) {
+                throw new SSLException(e);
+            }
         }
     }
 
@@ -1201,19 +1340,25 @@ public class WolfSSLEngine extends SSLEngine {
      */
     protected synchronized int internalSendCb(byte[] in, int sz) {
         int totalSz = sz, idx = 0;
-        byte[] tmp;
+        byte[] prevToSend = null;
 
         synchronized (toSendLock) {
+            /* Make copy of existing toSend array before expanding */
             if (this.toSend != null) {
+                prevToSend = this.toSend.clone();
                 totalSz += this.toSend.length;
             }
-            tmp = new byte[totalSz];
-            if (this.toSend != null) {
-                System.arraycopy(this.toSend, 0, tmp, idx, this.toSend.length);
-                idx += this.toSend.length;
+
+            /* Allocate new array to hold data to be sent */
+            this.toSend = new byte[totalSz];
+
+            /* Copy existing toSend data over */
+            if (prevToSend != null) {
+                System.arraycopy(prevToSend, 0, this.toSend, idx,
+                                 prevToSend.length);
+                idx += prevToSend.length;
             }
-            System.arraycopy(in, 0, tmp, idx, in.length);
-            this.toSend = tmp;
+            System.arraycopy(in, 0, this.toSend, idx, sz);
         }
 
         if (ioDebugEnabled == true) {
@@ -1246,6 +1391,12 @@ public class WolfSSLEngine extends SSLEngine {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "CB Read: netData.remaining() = " +
                         this.netData.remaining());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "CB Read: netData.position() = " +
+                        this.netData.position());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "CB Read: netData.limit() = " +
+                        this.netData.limit());
                 }
             }
 
@@ -1294,4 +1445,16 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
     }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+        if (this.ssl != null) {
+            this.ssl.freeSSL();
+            this.ssl = null;
+        }
+        EngineHelper = null;
+        super.finalize();
+    }
 }
+

@@ -61,7 +61,7 @@ public class WolfSSLAuthStore {
     private WolfSSLSessionContext clientCtx = null;
 
     private SessionStore<Integer, WolfSSLImplementSSLSession> store = null;
-    private final Object storeLock = new Object();
+    private static final Object storeLock = new Object();
 
     /**
      * Protected constructor to create new WolfSSLAuthStore
@@ -75,7 +75,10 @@ public class WolfSSLAuthStore {
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
         SecureRandom random, TLS_VERSION version)
         throws IllegalArgumentException, KeyManagementException {
-            int defaultCacheSize = 10;
+
+            /* default session cache size of 33 to match native wolfSSL
+             * default cache size */
+            int defaultCacheSize = 33;
 
         if (version == TLS_VERSION.INVALID) {
             throw new IllegalArgumentException("Invalid SSL/TLS version");
@@ -191,7 +194,6 @@ public class WolfSSLAuthStore {
         sr = random;
     }
 
-
     /**
      * Get X509KeyManager for this object
      * @return get the key manager used
@@ -258,7 +260,6 @@ public class WolfSSLAuthStore {
         return this.clientCtx;
     }
 
-
     /**
      * Reset the size of the array to cache sessions
      * @param sz new array size
@@ -275,59 +276,88 @@ public class WolfSSLAuthStore {
         }
     }
 
-    /** Returns either an existing session to use or creates a new session. Can
-     * return null on error case or the case where session could not be created.
-     * @param ssl WOLFSSL class to set in session
-     * @param port port number connecting to
-     * @param host host connecting to
-     * @param clientMode if is client side then true
-     * @return a new or reused SSLSession on success, null on failure
+    /**
+     * Get and return either an existing session from the Java session cache
+     * table, or create a new session if one does not exist.
+     *
+     * This method can return null if ether an error occurs getting a session,
+     * or a new session could not be created.
+     *
+     * If called on the server side (clientMode == false), a new
+     * WolfSSLImplementSSLSession will be created and returned, since the
+     * server-side session cache is managed and maintained interal to native
+     * wolfSSL.
+     *
+     * @param ssl WolfSSLSession (WOLFSSL) for which the returned session
+     *            is stored back into (ie: wolfSSL_set_session(ssl, session))
+     * @param port port number of peer being connected to
+     * @param host host of the peer being connected to
+     * @param clientMode if is client side then true, otherwise false
+     * @return an existing SSLSession from Java session cache, or a new
+     *         object if not in cache, called on server side, or host
+     *         is null
      */
-    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl,
-        int port, String host, boolean clientMode) {
+    protected synchronized WolfSSLImplementSSLSession getSession(
+        WolfSSLSession ssl, int port, String host, boolean clientMode) {
 
-        WolfSSLImplementSSLSession ses;
-        String toHash;
+        WolfSSLImplementSSLSession ses = null;
+        String toHash = null;
 
         if (ssl == null) {
             return null;
         }
 
-        /* server mode, or client mode with no host */
+        /* Return new session if in server mode, or if host is null */
         if (!clientMode || host == null) {
             return this.getSession(ssl);
         }
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "attempting to look up session (" +
                 "host: " + host + ", port: " + port + ")");
 
-        /* check if is in table */
-        toHash = host.concat(Integer.toString(port));
-
+        /* Lock on static/global storeLock, since Java session cache table
+         * is shared between all threads */
         synchronized (storeLock) {
+
+            /* generate cache key hash (host:port) */
+            toHash = host.concat(Integer.toString(port));
+
+            /* try getting session out of Java store */
             ses = store.get(toHash.hashCode());
+
+            if (ses == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "session not found in cache table, creating new");
+                /* not found in stored sessions create a new one */
+                ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+                ses.setValid(true); /* new sessions marked as valid */
+                ses.isFromTable = false;
+                ses.setPseudoSessionId(
+                    Integer.toString(ssl.hashCode()).getBytes());
+            }
+            else {
+                /* Make copy/clone of session object so multiple threads
+                 * don't try to use the same cache entry. Cache entry will
+                 * be overwritten when new session with same key is stored */
+                ses = new WolfSSLImplementSSLSession(ses);
+                ses.isFromTable = true;
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "session found in cache, trying to resume");
+                ses.resume(ssl);
+            }
+            return ses;
         }
-        if (ses == null) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session not found in cache table, creating new");
-            /* not found in stored sessions create a new one */
-            ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-            ses.setValid(true); /* new sessions marked as valid */
-            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
-        }
-        else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session found in cache, trying to resume");
-            ses.resume(ssl);
-        }
-        return ses;
     }
 
     /** Returns a new session, does not check/save for resumption
      * @param ssl WOLFSSL class to reference with new session
      * @return a new SSLSession on success
      */
-    protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
+    protected synchronized WolfSSLImplementSSLSession getSession(
+        WolfSSLSession ssl) {
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
 
@@ -335,6 +365,7 @@ public class WolfSSLAuthStore {
             new WolfSSLImplementSSLSession(ssl, this);
 
         ses.setValid(true);
+        ses.isFromTable = false;
         ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
 
         return ses;
@@ -364,45 +395,62 @@ public class WolfSSLAuthStore {
     }
 
     /**
-     * Add the session for possible resumption
-     * @param session the session to add to stored session map
+     * Add SSLSession into wolfJSSE Java session cache table, to be used
+     * for session resumption.
+     *
+     * Session is stored into the session table using a hash code as the key.
+     * If the peer host is not null, the hash code is based on a concatenation
+     * of the peer host and port. If the peer host is null, the hash code
+     * is based on the session ID (if ID is not null, and non-zero length).
+     * Otherwise, no hash code is generated and the session is not stored into
+     * the session cache table.
+     *
+     * This method synchronizes on the static/global storeLock object, since
+     * the session cache is global and shared amongst all threads.
+     *
+     * @param session SSLSession to be stored in Java session cache
      * @return SSL_SUCCESS on success
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
+
         String toHash;
         int    hashCode = 0;
 
-        if (session.getPeerHost() != null) {
-            /* register into session table for resumption */
-            session.fromTable = true;
-            toHash = session.getPeerHost().concat(Integer.toString(
-                     session.getPeerPort()));
-            hashCode = toHash.hashCode();
-        }
-        else {
-            /* if no peer host is available then create hash key from
-             * session ID if not null, not zero length, and not all zeros */
-            byte[] sessionId = session.getId();
-            if (sessionId != null && sessionId.length > 0 &&
-                (idAllZeros(sessionId) == false)) {
-                hashCode = Arrays.toString(session.getId()).hashCode();
-            }
-        }
-
+        /* Lock access to store while adding new session, store is global */
         synchronized (storeLock) {
-            if (hashCode != 0 && !store.containsKey(hashCode)) {
+            if (session.getPeerHost() != null) {
+                /* Generate key for storing into session table (host:port) */
+                toHash = session.getPeerHost().concat(Integer.toString(
+                         session.getPeerPort()));
+                hashCode = toHash.hashCode();
+            }
+            else {
+                /* If no peer host is available then create hash key from
+                 * session ID if not null, not zero length, and not all zeros */
+                byte[] sessionId = session.getId();
+                if (sessionId != null && sessionId.length > 0 &&
+                    (idAllZeros(sessionId) == false)) {
+                    hashCode = Arrays.toString(session.getId()).hashCode();
+                }
+            }
+
+            /* Always try to store session into cache table, as long as we
+             * have a hashCode. If session already exists for hashCode, it
+             * will be overwritten with new/refreshed version */
+            if (hashCode != 0) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "stored session in cache table (host: " +
                         session.getPeerHost() + ", port: " +
                         session.getPeerPort() + ") " +
                         "hashCode = " + hashCode + " side = " +
                         session.getSide());
-                    store.put(hashCode, session);
+                store.put(hashCode, session);
+                session.isInTable = true;
             }
         }
+
         return WolfSSL.SSL_SUCCESS;
     }
-
 
     /**
      * Internal function to return a list of all session ID's
@@ -420,10 +468,10 @@ public class WolfSSLAuthStore {
                     ret.add(current.getId());
                 }
             }
-        }
-        return Collections.enumeration(ret);
-    }
 
+            return Collections.enumeration(ret);
+        }
+    }
 
     /**
      * Getter function for session with session id 'ID'
@@ -444,10 +492,10 @@ public class WolfSSLAuthStore {
                     break;
                 }
             }
-        }
-        return ret;
-    }
 
+            return ret;
+        }
+    }
 
     /**
      * Goes through the list of sessions and checks for timeouts. If timed out
@@ -483,7 +531,6 @@ public class WolfSSLAuthStore {
         }
     }
 
-
     private class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**
          * user defined ID
@@ -502,6 +549,16 @@ public class WolfSSLAuthStore {
         protected boolean removeEldestEntry(Map.Entry<K, V> oldest) {
             return size() > maxSz;
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+        /* Clear LinkedHashMap and set to null to allow
+         * for garbage collection */
+        store.clear();
+        store = null;
+        super.finalize();
     }
 }
 

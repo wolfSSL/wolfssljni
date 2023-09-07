@@ -42,9 +42,9 @@ import java.security.Security;
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
-    private final WolfSSLSession ssl;
+    private volatile WolfSSLSession ssl = null;
     private WolfSSLImplementSSLSession session = null;
-    private WolfSSLParameters params;
+    private WolfSSLParameters params = null;
     private int port;
     private String hostname = null;  /* used for session lookup and SNI */
     private WolfSSLAuthStore authStore = null;
@@ -769,7 +769,7 @@ public class WolfSSLEngineHelper {
                 this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
             }
 
-            if (this.sessionCreation == false && !this.session.fromTable) {
+            if (this.sessionCreation == false && !this.session.isFromTable) {
                 /* new handshakes can not be made in this case. */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "session creation not allowed");
@@ -805,12 +805,13 @@ public class WolfSSLEngineHelper {
         throws SSLException, SocketTimeoutException {
 
         int ret, err;
+        byte[] serverId = null;
 
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
 
-        if (this.sessionCreation == false && !this.session.fromTable) {
+        if (this.sessionCreation == false && !this.session.isFromTable) {
             /* new handshakes can not be made in this case. */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "session creation not allowed");
@@ -833,6 +834,19 @@ public class WolfSSLEngineHelper {
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }
             this.session = this.authStore.getSession(ssl);
+        }
+
+        if (this.clientMode) {
+            /* Associate host:port as serverID for client session cache,
+             * helps native wolfSSL for TLS 1.3 sessions with no session ID.
+             * Setting newSession to 1 for setServerID since we are controlling
+             * get/set session from Java */
+            serverId = this.hostname.concat(
+                Integer.toString(this.port)).getBytes();
+            ret = this.ssl.setServerID(serverId, 1);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                return WolfSSL.SSL_HANDSHAKE_FAILURE;
+            }
         }
 
         do {
@@ -882,6 +896,21 @@ public class WolfSSLEngineHelper {
             }
             this.authStore.addSession(this.session);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+
+        /* Reset this.ssl to null, but don't explicitly free. This object
+         * may be used by wrapper object to WolfSSLEngineHelper and should
+         * be freed there */
+        this.ssl = null;
+
+        this.session = null;
+        this.params = null;
+        this.authStore = null;
+        super.finalize();
     }
 }
 

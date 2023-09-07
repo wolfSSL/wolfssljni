@@ -237,7 +237,7 @@ public class WolfSSLSessionContextTest {
         if (ctx.getProvider() == Security.getProvider("wolfJSSE")) {
             SSLSessionContext sesCtx = ses.getSessionContext();
 
-            if (sesCtx.getSessionCacheSize() != 10) {
+            if (sesCtx.getSessionCacheSize() != 33) {
                 error("\t\t... failed");
                 fail("session default cache size wrong");
             }
