@@ -21,6 +21,9 @@
 
 package com.wolfssl.provider.jsse;
 
+import java.util.Date;
+import java.sql.Timestamp;
+
 /**
  * Central location for all debugging messages
  *
@@ -73,7 +76,8 @@ public class WolfSSLDebug {
      */
     public static synchronized void log(Class cl, String tag, String string) {
         if (DEBUG) {
-            System.out.println("[wolfJSSE " + tag + ": TID " +
+            System.out.println(new Timestamp(new java.util.Date().getTime()) +
+                               " [wolfJSSE " + tag + ": TID " +
                                Thread.currentThread().getId() + ": " +
                                cl.getSimpleName() + "] " + string);
         }
