@@ -5529,3 +5529,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinEccKeySz
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setDevId
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jint devId)
+{
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    /* wolfSSL_CTX_SetDevId() checks ssl for NULL */
+    if (jenv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return (jint)wolfSSL_CTX_SetDevId(ctx, (int)devId);
+}
+

@@ -149,6 +149,9 @@ public class WolfSSLContext extends SSLContextSpi {
         /* Set minimum allowed RSA/DH/ECC key sizes */
         enforceKeySizeLimitations();
 
+        /* Set native wolfSSL device ID (devId) */
+        setGlobalCryptoCallbackDevId();
+
         /* Auto-populate enabled ciphersuites with supported ones. If suites
          * have been restricted with wolfjsse.enabledCipherSuites system
          * security property, the suite list will be filtered in
@@ -173,6 +176,33 @@ public class WolfSSLContext extends SSLContextSpi {
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
+        }
+    }
+
+    /**
+     * Set native wolfSSL crypto callback device ID (devId).
+     * The devId used defaults to WolfSSL.INVALID_DEVID but an app may
+     * have set this globally via WolfSSLProvider.setDevId(). If not set
+     * globally, applications may also set this via
+     * SSLContext.setDevId() and SSLSocket.setDevId()
+     *
+     * @throws IllegalStateException if underlying WOLFSSL has been freed
+     * @throws WolfSSLException if native wolfSSL/JNI error occurs
+     */
+    private void setGlobalCryptoCallbackDevId() throws WolfSSLException {
+        int ret = 0;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "setting wolfSSL devId: " + WolfSSL.devId);
+
+        try {
+            ret = this.ctx.setDevId(WolfSSL.devId);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLException(
+                    "Error setting native wolfSSL device ID, ret = " + ret);
+            }
+        } catch (IllegalStateException e) {
+            throw new WolfSSLException(e);
         }
     }
 

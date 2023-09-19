@@ -385,6 +385,7 @@ public class WolfSSLContext {
     private native int setMinDhKeySz(long ctx, int keySzBits);
     private native int setMinRsaKeySz(long ctx, int keySzBits);
     private native int setMinEccKeySz(long ctx, int keySzBits);
+    private native int setDevId(long ctx, int devId);
 
     /* ------------------- context-specific methods --------------------- */
 
@@ -1941,6 +1942,23 @@ public class WolfSSLContext {
         synchronized (ctxLock) {
             return setMinEccKeySz(getContextPtr(), minKeySizeBits);
         }
+    }
+
+    /**
+     * Set crypto callback devId to be used with this WOLFSSL_CTX.
+     *
+     * Called by com.wolfssl.provider.jsse.WolfSSLContext.
+     *
+     * @param devId devId to use with crypto callback implementation.
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int setDevId(int devId) throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return setDevId(getContextPtr(), devId);
     }
 
     @SuppressWarnings("deprecation")

@@ -1355,6 +1355,86 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     return retString;
 }
 
+#ifdef WOLFSSLJNI_USE_NATIVE_CRYPTOCB
+/**
+ * Default native wolfSSL crypto callback function.
+ * This is called by default when wolfJSSE's WolfSSLProvider.registerDevId()
+ * is called, and is called by the native JNI API below.
+ *
+ * This function should be directly edited here to meet required
+ * functionality, or re-implemented and the registration point in the following
+ * function below should be edited:
+ *
+ * Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice()
+ */
+int DefaultNativeCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    (void)devId;
+    (void)info;
+    (void)ctx;
+
+    /* Return CRYPTOCB_UNAVAILABLE to bypass HW and use SW. Edit function
+     * body here for your correct/expected functionality. */
+    return ret;
+}
+#endif /* WOLFSSLJNI_USE_NATIVE_CRYPTOCB */
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
+  (JNIEnv* jenv, jclass jcl, jint devId)
+{
+#ifdef WOLF_CRYPTO_CB
+
+    /* WOLFSSLJNI_USE_NATIVE_CRYPTOCB callback is mutually exclusive of other
+     * callback support below, and is intended to meet a specific use case
+     * where a single user-implemented native crypto callback needs to be
+     * written and registered in the stub function above */
+    #ifdef WOLFSSLJNI_USE_NATIVE_CRYPTOCB
+        return wc_CryptoCb_RegisterDevice((int)devId,
+                    DefaultNativeCryptoDevCb, NULL);
+    #else
+        /* Lookup the devId and see if it matches a known implementation.
+         * For future hardware crypto implementations, please consider adding
+         * directly to native wolfSSL if possible (ie: HW-specific code
+         * inside wolfcrypt/src/port directory). */
+
+        /* WISeKey VaultIC crypto callback implementation */
+        #if defined(HAVE_CCBVAULTIC) && defined(WOLF_CRYPTO_CB_CMD)
+            #include "ccb_vaultic.h"
+            if(devId == CCBVAULTIC420_DEVID) {
+                return wc_CryptoCb_RegisterDevice((int)devId,
+                                                  ccbVaultIc_CryptoCb, NULL);
+            }
+        #endif
+
+        /* could add additional elif blocks for ports / known callbacks */
+
+        /* No matching callback, return CRYPTOCB_UNAVAILABLE */
+        return CRYPTOCB_UNAVAILABLE;
+    #endif
+#else
+    /* no-op if crypto callbacks not compiled into native wolfSSL */
+    (void)jenv;
+    (void)jcl;
+    (void)devId;
+    return 0;
+#endif
+}
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1UnRegisterDevice
+  (JNIEnv* jenv, jclass jcl, jint devId)
+{
+#ifdef WOLF_CRYPTO_CB
+    wc_CryptoCb_UnRegisterDevice((int)devId);
+#else
+    /* no-op if crypto callbacks not compiled into native wolfSSL */
+    (void)jenv;
+    (void)jcl;
+    (void)devId;
+    return;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledCRL
   (JNIEnv* jenv, jclass jcl)
 {
