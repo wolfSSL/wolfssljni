@@ -40,6 +40,7 @@ import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
@@ -316,6 +317,10 @@ public class WolfSSLAuthStore {
                 "attempting to look up session (" +
                 "host: " + host + ", port: " + port + ")");
 
+        /* Print current size and contents of SessionStore / LinkedHashMap.
+         * Synchronizes on storeLock internally. */
+        printSessionStoreStatus();
+
         /* Lock on static/global storeLock, since Java session cache table
          * is shared between all threads */
         synchronized (storeLock) {
@@ -337,6 +342,13 @@ public class WolfSSLAuthStore {
                     Integer.toString(ssl.hashCode()).getBytes());
             }
             else {
+                /* Remove old entry from table. TLS 1.3 binder changes between
+                 * resumptions and stored session should only be used to
+                 * resume once. New session structure/object will be cached
+                 * after the resumed session completes the handshake, for
+                 * subsequent resumption attempts to use. */
+                store.remove(toHash.hashCode());
+
                 /* Make copy/clone of session object so multiple threads
                  * don't try to use the same cache entry. Cache entry will
                  * be overwritten when new session with same key is stored */
@@ -348,6 +360,33 @@ public class WolfSSLAuthStore {
                 ses.resume(ssl);
             }
             return ses;
+        }
+    }
+
+    /**
+     * Print summary of current SessionStore (LinkedHashMap) status.
+     * Prints out size of current SessionStore. If size is greater than zero,
+     * prins out host:port of all sessions stored in the store.
+     * Called by getSession(). */
+    private void printSessionStoreStatus() {
+        synchronized (storeLock) {
+            Collection<WolfSSLImplementSSLSession> values =
+                store.values();
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SessionStore Status : --------------------------");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "    size: " + store.size());
+            if (store.size() > 0) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "    values: ");
+                for (WolfSSLImplementSSLSession s : values) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "        " + s.getHost() + ": " + s.getPort());
+                }
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "------------------------------------------------");
         }
     }
 

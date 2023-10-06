@@ -707,6 +707,24 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         return this.side;
     }
 
+    /**
+     * Returns the hostname String associated with this session object.
+     *
+     * @return Hostname String associated with this session
+     */
+    protected String getHost() {
+        return this.host;
+    }
+
+    /**
+     * Returns the port associated with this session object.
+     *
+     * @return Port associated with this session
+     */
+    protected int getPort() {
+        return this.port;
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     protected void finalize() throws Throwable
