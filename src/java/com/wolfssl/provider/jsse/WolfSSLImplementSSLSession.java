@@ -77,6 +77,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * setResume() or finalization.
      */
     protected boolean isInTable = false;
+
+    /**
+     * Tracks if WOLFSSL_SESSION pointer has been updated after retreived from
+     * cache table.
+     */
     protected boolean sesPtrUpdatedAfterTable = false;
 
     /**

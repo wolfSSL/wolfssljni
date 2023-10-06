@@ -366,7 +366,7 @@ public class WolfSSLAuthStore {
     /**
      * Print summary of current SessionStore (LinkedHashMap) status.
      * Prints out size of current SessionStore. If size is greater than zero,
-     * prins out host:port of all sessions stored in the store.
+     * prints out host:port of all sessions stored in the store.
      * Called by getSession(). */
     private void printSessionStoreStatus() {
         synchronized (storeLock) {
