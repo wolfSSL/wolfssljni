@@ -31,10 +31,13 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -90,6 +93,7 @@ import com.wolfssl.WolfSSLException;
     public void testGetSupportedProtocols();
     public void testGetSetEnabledProtocols();
     public void testClientServerThreaded();
+    public void testExtendedThreadingUse();
     public void testPreConsumedSocket();
     public void testCreateSocketNullHost();
     public void testEnableSessionCreation();
@@ -674,6 +678,215 @@ public class WolfSSLSocketTest {
         }
 
         System.out.println("\t... passed");
+    }
+
+    /**
+     * Internal multi-threaded SSLSocket-based server.
+     * Used when testing concurrent threaded SSLSocket client connections
+     * in testExtendedThreadingUse().
+     */
+    protected class InternalMultiThreadedSSLSocketServer extends Thread
+    {
+        private int serverPort;
+        private CountDownLatch serverOpenLatch = null;
+
+        public InternalMultiThreadedSSLSocketServer(
+            int port, CountDownLatch openLatch) {
+            this.serverPort = port;
+            serverOpenLatch = openLatch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                SSLContext ctx = tf.createSSLContext("TLS", ctxProvider);
+                SSLServerSocket ss = (SSLServerSocket)ctx
+                    .getServerSocketFactory().createServerSocket(serverPort);
+
+                while (true) {
+                    serverOpenLatch.countDown();
+                    SSLSocket sock = (SSLSocket)ss.accept();
+                    ClientHandler client = new ClientHandler(sock);
+                    client.start();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        class ClientHandler extends Thread
+        {
+            SSLSocket sock;
+
+            public ClientHandler(SSLSocket s) {
+                sock = s;
+            }
+
+            public void run() {
+                byte[] response = new byte[80];
+                String msg = "I hear you fa shizzle, from Java!";
+
+                try {
+                    sock.startHandshake();
+                    sock.getInputStream().read(response);
+                    sock.getOutputStream().write(msg.getBytes());
+                    sock.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    } /* InternalMultiThreadedSSLSocketServer */
+
+    /**
+     * Internal protected class used by testExtendedThreadingUse(),
+     * encapsulates client-side functionality.
+     */
+    protected class SSLSocketClient
+    {
+        /* Server host and port to connect SSLSocket client to */
+        private int serverPort;
+        private String host;
+
+        /* SSLContext, created beforehand and passed via constructor */
+        private SSLContext ctx;
+
+        public SSLSocketClient(SSLContext ctx, String host, int port) {
+            this.ctx = ctx;
+            this.host = host;
+            this.serverPort = port;
+        }
+
+        /**
+         * After creating SSLSocketClient class, call connect() to
+         * connect client to server and send/receive simple test data.
+         */
+        public void connect() throws Exception {
+
+            byte[] inData = new byte[80];
+
+            SSLSocket sock = (SSLSocket)ctx.getSocketFactory().
+                createSocket();
+            sock.connect(new InetSocketAddress(serverPort));
+
+            /* Do TLS handshake */
+            sock.startHandshake();
+
+            /* Write app data */
+            sock.getOutputStream().write("Hello from wolfJSSE".getBytes());
+
+            /* Read response */
+            InputStream in = sock.getInputStream();
+            if (in == null) {
+                throw new Exception("InputStream was null");
+            }
+
+            int ret = in.read(inData);
+            if (ret <= 0) {
+                throw new Exception("InputStream.read() was <= 0");
+            }
+            sock.close();
+
+            try {
+                /* Try to read from InputStream after socket is closed.
+                 * We expect an exception to be thrown */
+                ret = in.read(inData);
+                throw new Exception("No exception thrown on read from " +
+                        "InputStream after SSLSocket.close()");
+
+            } catch (Exception e) {
+                /* expected */
+            }
+        }
+    }
+
+    /**
+     * Extended threading test of SSLSocket class.
+     * Launches a simple multi-threaded SSLSocket-based server, which
+     * creates a new thread for each incoming client thread. Then, launches
+     * "numThreads" concurrent SSLSocket clients which connect to that server.
+     *
+     * CountDownLatch is used with a 20 second timeout on latch.await(), so
+     * that this test will time out and return with error instead of
+     * infinitely block if SSLSocket threads end up in a bad state or
+     * deadlock and never return.
+     */
+    @Test
+    public void testExtendedThreadingUse()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               InterruptedException {
+
+        /* Number of SSLSocket client threads to start up */
+        int numThreads = 50;
+
+        /* Port of internal HTTPS server. Using 11120 since SSLEngine
+         * extended threading test uses 11119. If both tests end up running
+         * concurrently by JUnit ports could conflict. */
+        final int svrPort = 11120;
+
+        /* Create ExecutorService to launch client SSLSocket threads */
+        ExecutorService service = Executors.newFixedThreadPool(numThreads);
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+        final SSLContext localCtx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* Used to detect timeout of CountDownLatch, don't run infinitely
+         * if SSLSocket threads are stalled out or deadlocked */
+        boolean returnWithoutTimeout = true;
+
+        /* Keep track of failure and success count */
+        final AtomicIntegerArray failures = new AtomicIntegerArray(1);
+        final AtomicIntegerArray success = new AtomicIntegerArray(1);
+        failures.set(0, 0);
+        success.set(0, 0);
+
+        System.out.print("\tTesting ExtendedThreadingUse");
+
+        /* Start up simple TLS test server */
+        CountDownLatch serverOpenLatch = new CountDownLatch(1);
+        InternalMultiThreadedSSLSocketServer server =
+            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch);
+        server.start();
+
+        /* Wait for server thread to start up before connecting clients */
+        serverOpenLatch.await();
+
+        /* Start up client threads */
+        for (int i = 0; i < numThreads; i++) {
+            service.submit(new Runnable() {
+                @Override public void run() {
+                    SSLSocketClient client =
+                        new SSLSocketClient(localCtx, "localhost", svrPort);
+                    try {
+                        client.connect();
+                        success.incrementAndGet(0);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        failures.incrementAndGet(0);
+                    }
+
+                    latch.countDown();
+                }
+            });
+        }
+
+        /* Wait for all client threads to finish, else time out */
+        returnWithoutTimeout = latch.await(20, TimeUnit.SECONDS);
+        server.join(1000);
+
+        /* check failure count and success count against thread count */
+        if (failures.get(0) == 0 && success.get(0) == numThreads) {
+            System.out.println("\t... passed");
+        } else {
+            if (returnWithoutTimeout == true) {
+                fail("SSLSocket threading error: " +
+                     failures.get(0) + " failures, " +
+                     success.get(0) + " success, " +
+                     numThreads + " num threads total");
+            } else {
+                fail("SSLSocket threading error, threads timed out");
+            }
+        }
     }
 
     @Test
