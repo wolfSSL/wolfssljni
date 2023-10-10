@@ -77,6 +77,11 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * setResume() or finalization.
      */
     protected boolean isInTable = false;
+
+    /**
+     * Tracks if WOLFSSL_SESSION pointer has been updated after retreived from
+     * cache table.
+     */
     protected boolean sesPtrUpdatedAfterTable = false;
 
     /**
@@ -705,6 +710,24 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected int getSide() {
         return this.side;
+    }
+
+    /**
+     * Returns the hostname String associated with this session object.
+     *
+     * @return Hostname String associated with this session
+     */
+    protected String getHost() {
+        return this.host;
+    }
+
+    /**
+     * Returns the port associated with this session object.
+     *
+     * @return Port associated with this session
+     */
+    protected int getPort() {
+        return this.port;
     }
 
     @SuppressWarnings("deprecation")

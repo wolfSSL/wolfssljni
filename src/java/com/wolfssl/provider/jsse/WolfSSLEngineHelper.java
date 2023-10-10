@@ -887,7 +887,7 @@ public class WolfSSLEngineHelper {
     /**
      * Saves session on connection close for resumption
      */
-    protected void saveSession() {
+    protected synchronized void saveSession() {
         if (this.session != null && this.session.isValid()) {
             if (this.clientMode) {
                 /* Only need to set resume on client side, server-side
