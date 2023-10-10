@@ -992,6 +992,24 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Returns the most recent application protocol value negotiated
+     * during the SSL/TLS handshake by ALPN.
+     *
+     * Not marked at @Override since this API was added as of
+     * Java SE 8 Maintenance Release 3, and Java 7 SSLSocket will not
+     * have this.
+     *
+     * @return String representating the application protocol negotiated
+     */
+    public synchronized String getApplicationProtocol() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getApplicationProtocol()");
+
+        return EngineHelper.getAlpnSelectedProtocolString();
+    }
+
+    /**
      * Returns array of protocols supported by this SSLSocket.
      *
      * @return String array containing supported SSL/TLS protocols
