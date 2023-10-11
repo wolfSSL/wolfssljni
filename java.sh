@@ -74,7 +74,7 @@ if [ "$OS" == "Darwin" ] ; then
     fi
     javaIncludes="-I$javaHome/include -I$javaHome/include/darwin -I$WOLFSSL_INSTALL_DIR/include"
     javaLibs="-dynamiclib"
-    jniLibName="libwolfssljni.jnilib"
+    jniLibName="libwolfssljni.dylib"
     cflags=""
 elif [ "$OS" == "Linux" ] ; then
     echo "    Detected Linux host OS"

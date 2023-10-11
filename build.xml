@@ -92,7 +92,7 @@
 
     <target name="cleanjni">
         <delete>
-            <fileset dir="${lib.dir}" includes="*.jnilib"/>
+            <fileset dir="${lib.dir}" includes="*.dylib"/>
             <fileset dir="${lib.dir}" includes="*.so"/>
             <fileset dir="${native.dir}" includes="*.o"/>
         </delete>
