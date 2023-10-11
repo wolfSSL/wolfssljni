@@ -24,6 +24,7 @@ package com.wolfssl;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.DatagramSocket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.lang.StringBuilder;
 import java.nio.charset.StandardCharsets;
@@ -81,7 +82,8 @@ public class WolfSSLSession {
 
     /* return values from naitve socketSelect(), should match
      * ones in native/com_wolfssl_WolfSSLSession.c */
-    private int WOLFJNI_TIMEOUT = -11;
+    private int WOLFJNI_SELECT_FAIL = -10;
+    private int WOLFJNI_TIMEOUT     = -11;
 
     /**
      * Creates a new SSL/TLS session.
@@ -527,10 +529,10 @@ public class WolfSSLSession {
      * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
      * call to <code>connect()</code> when the underlying I/O is ready and
      * wolfSSL will pick up where it left off.
-     * <p>
+     * </p><p>
      * If the underlying I/O is blocking, <code>connect()</code> will only
      * return once the handshake has been finished or an error occurred.
-     * <p>
+     * </p><p>
      * wolfSSL takes a different approach to certificate verification than
      * OpenSSL does. The default policy for clients is to verify the server,
      * meaning that if the application doesn't load CA certificates to verify
@@ -538,18 +540,21 @@ public class WolfSSLSession {
      * the application wants to mimic OpenSSL behavior of having
      * <code>connect()</code> succeed even if verifying the server fails (and
      * reducing security), the application can do this by calling:
-     * <p>
+     * </p><p>
      * <code>WolfSSLContext#setVerify(ctx, SSL_VERIFY_NONE, 0);</code>
-     * <p>
+     * </p><p>
      * before calling <code>newSSL()</code>, though it's not recommended.
+     * </p>
      *
      * @return <code>SSL_SUCCESS</code> if successful, otherwise
      *         <code>SSL_FAILURE</code> if an error occurred. To get
      *         a more detailed error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if underlying socket timed out
+     * @throws SocketException Native socket select() failed
      */
-    public int connect() throws IllegalStateException, SocketTimeoutException {
+    public int connect()
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret = 0;
 
@@ -562,6 +567,10 @@ public class WolfSSLSession {
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException(
                     "Native socket timed out during SSL_connect()");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -604,9 +613,10 @@ public class WolfSSLSession {
      *         a more detailed error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select() failed
      */
     public int connect(int timeout)
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -618,6 +628,10 @@ public class WolfSSLSession {
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket connect timeout");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -644,17 +658,21 @@ public class WolfSSLSession {
      * @param data   data buffer which will be sent to peer
      * @param length size, in bytes, of data to send to the peer
      * @return       the number of bytes written upon success. <code>0
-     *               </code>will be returned upon failure. <code>
-     *               SSL_FATAL_ERROR</code>upon failure when either an
-     *               error occurred or, when using non-blocking sockets,
+     *               </code>or a negative value will be returned upon failure.
+     *               <code>SSL_FATAL_ERROR</code>return upon failure when either
+     *               an error occurred or, when using non-blocking sockets,
      *               the <b>SSL_ERROR_WANT_READ</b> or
      *               <b>SSL_ERROR_WANT_WRITE</b> error was received and the
      *               application needs to call <code>write()</code> again.
      *               <code>BAD_FUNC_ARC</code> when bad arguments are used.
      *               Use <code>getError</code> to get a specific error code.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketException Native socket select() failed
      */
-    public int write(byte[] data, int length) throws IllegalStateException {
+    public int write(byte[] data, int length)
+        throws IllegalStateException, SocketException {
+
+        int ret;
 
         confirmObjectIsActive();
 
@@ -663,7 +681,14 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
-        return write(getSessionPtr(), data, length, 0);
+        ret = write(getSessionPtr(), data, length, 0);
+
+        if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
+        }
+
+        return ret;
     }
 
     /**
@@ -699,9 +724,10 @@ public class WolfSSLSession {
      *               Use <code>getError</code> to get a specific error code.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select() failed
      */
     public int write(byte[] data, int length, int timeout)
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -716,6 +742,10 @@ public class WolfSSLSession {
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket write timeout");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -754,8 +784,12 @@ public class WolfSSLSession {
      *              get a specific error code.
      *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketException Native socket select() failed
      */
-    public int read(byte[] data, int sz) throws IllegalStateException {
+    public int read(byte[] data, int sz)
+        throws IllegalStateException, SocketException {
+
+        int ret;
 
         confirmObjectIsActive();
 
@@ -764,7 +798,14 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        return read(getSessionPtr(), data, sz, 0);
+        ret = read(getSessionPtr(), data, sz, 0);
+
+        if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
+        }
+
+        return ret;
     }
 
     /**
@@ -802,9 +843,10 @@ public class WolfSSLSession {
      *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select() failed
      */
     public int read(byte[] data, int sz, int timeout)
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -819,6 +861,10 @@ public class WolfSSLSession {
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket read timeout");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -848,11 +894,12 @@ public class WolfSSLSession {
      *         error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if underlying socket timed out
+     * @throws SocketException Native socket select() failed
      * @see    #getError(int)
      * @see    #connect()
      */
     public int accept()
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -865,6 +912,10 @@ public class WolfSSLSession {
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException(
                     "Native socket timed out during SSL_accept()");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -897,11 +948,12 @@ public class WolfSSLSession {
      *         error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if underlying socket timed out
+     * @throws SocketException Native socket select() failed
      * @see    #getError(int)
      * @see    #connect()
      */
     public int accept(int timeout)
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -914,6 +966,10 @@ public class WolfSSLSession {
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException(
                     "Native socket timed out during SSL_accept()");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;
@@ -972,17 +1028,28 @@ public class WolfSSLSession {
      *         <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
      *         getError()</code> for a more specific error code.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketException Native socket select() failed
      * @see    #shutdownSSL(int)
      * @see    #freeSSL(long)
      * @see    WolfSSLContext#free()
      */
-    public int shutdownSSL() throws IllegalStateException {
+    public int shutdownSSL()
+        throws IllegalStateException, SocketException {
+
+        int ret;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return shutdownSSL(getSessionPtr(), 0);
+            ret = shutdownSSL(getSessionPtr(), 0);
         }
+
+        if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
+        }
+
+        return ret;
     }
 
     /**
@@ -1013,11 +1080,12 @@ public class WolfSSLSession {
      *         getError()</code> for a more specific error code.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws SocketTimeoutException if read timeout occurs.
+     * @throws SocketException Native socket select() failed
      * @see    #freeSSL(long)
      * @see    WolfSSLContext#free()
      */
     public int shutdownSSL(int timeout)
-        throws IllegalStateException, SocketTimeoutException {
+        throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
 
@@ -1029,6 +1097,10 @@ public class WolfSSLSession {
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket read timeout");
+        }
+        else if (ret == WOLFJNI_SELECT_FAIL) {
+            throw new SocketException("Socket select() failed, errno = " +
+                WolfSSL.getErrno());
         }
 
         return ret;

@@ -879,6 +879,14 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
   (JNIEnv *, jclass, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getErrno
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getErrno
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

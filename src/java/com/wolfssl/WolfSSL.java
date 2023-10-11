@@ -1314,6 +1314,21 @@ public class WolfSSL {
      */
     public static native String[] getProtocolsMask(long mask);
 
+    /* ----------------------- native helper methods ------------------------ */
+
+    /**
+     * Return native system errno value.
+     *
+     * Some native system calls, such as select() will set errno when an
+     * error is encountered. This JNI method is a simple getter to retrive
+     * the current system errno value.
+     *
+     * If on Windows, this will return 0 (no errno support on Windows)
+     *
+     * @return System native errno value
+     */
+    public static native int getErrno();
+
     /**
      * Gets the internal wolfSSL named group enum matching provided string.
      *

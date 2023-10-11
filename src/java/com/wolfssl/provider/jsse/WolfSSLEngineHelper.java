@@ -26,6 +26,7 @@ import com.wolfssl.WolfSSLSession;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
@@ -752,7 +753,8 @@ public class WolfSSLEngineHelper {
      *
      * This should be called before doHandshake()
      *
-     * @throws SSLException if setUseClientMode() has not been called
+     * @throws SSLException if setUseClientMode() has not been called or
+     *                      on native socket error
      * @throws SSLHandshakeException session creation is not allowed
      *
      */
@@ -782,7 +784,11 @@ public class WolfSSLEngineHelper {
 
                 /* send CloseNotify */
                 /* TODO: SunJSSE sends a Handshake Failure alert instead here */
-                this.ssl.shutdownSSL();
+                try {
+                    this.ssl.shutdownSSL();
+                } catch (SocketException e) {
+                    throw new SSLException(e);
+                }
 
                 throw new SSLHandshakeException("Session creation not allowed");
             }
@@ -803,7 +809,8 @@ public class WolfSSLEngineHelper {
      * @return WolfSSL.SSL_SUCCESS on success or either WolfSSL.SSL_FAILURE
      *         or WolfSSL.SSL_HANDSHAKE_FAILURE on error
      *
-     * @throws SSLException if setUseClientMode() has not been called.
+     * @throws SSLException if setUseClientMode() has not been called or
+     *                      on native socket error
      * @throws SocketTimeoutException if socket timed out
      */
     protected int doHandshake(int isSSLEngine, int timeout)
@@ -821,9 +828,13 @@ public class WolfSSLEngineHelper {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "session creation not allowed");
 
-            /* send CloseNotify */
-            /* TODO: SunJSSE sends a Handshake Failure alert instead here */
-            this.ssl.shutdownSSL();
+            try {
+                /* send CloseNotify */
+                /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+                this.ssl.shutdownSSL();
+            } catch (SocketException e) {
+                throw new SSLException(e);
+            }
 
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
@@ -858,18 +869,25 @@ public class WolfSSLEngineHelper {
             /* call connect() or accept() to do handshake, looping on
              * WANT_READ/WANT_WRITE errors in case underlying Socket is
              * non-blocking */
-            if (this.clientMode) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "calling native wolfSSL_connect()");
-                /* may throw SocketTimeoutException on socket timeout */
-                ret = this.ssl.connect(timeout);
+            try {
+                if (this.clientMode) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "calling native wolfSSL_connect()");
+                    /* may throw SocketTimeoutException on socket timeout */
+                    ret = this.ssl.connect(timeout);
 
-            } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "calling native wolfSSL_accept()");
-                ret = this.ssl.accept(timeout);
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "calling native wolfSSL_accept()");
+                    ret = this.ssl.accept(timeout);
+                }
+                err = ssl.getError(ret);
+
+            } catch (SocketException e) {
+                /* SocketException may be thrown if native socket
+                 * select() fails. Propogate errno back inside exception. */
+                throw new SSLException(e);
             }
-            err = ssl.getError(ret);
 
         } while (ret != WolfSSL.SSL_SUCCESS && isSSLEngine == 0 &&
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||

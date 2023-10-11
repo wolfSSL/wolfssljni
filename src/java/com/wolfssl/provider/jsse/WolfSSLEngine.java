@@ -37,6 +37,7 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLParameters;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 /**
@@ -315,8 +316,10 @@ public class WolfSSLEngine extends SSLEngine {
 
     /**
      * Handles logic during shutdown
+     *
+     * @throws SocketException if ssl.shutdownSSL() encounters a socket error
      */
-    private synchronized int ClosingConnection() {
+    private synchronized int ClosingConnection() throws SocketException {
         int ret;
 
         /* Save session into WolfSSLAuthStore cache, saves session
@@ -386,7 +389,7 @@ public class WolfSSLEngine extends SSLEngine {
                 }
             }
 
-        } catch (SocketTimeoutException e) {
+        } catch (SocketTimeoutException | SocketException e) {
             throw new SSLException(e);
         }
 
@@ -399,8 +402,11 @@ public class WolfSSLEngine extends SSLEngine {
      * Only sends up to maximum app data chunk size
      * (SSLSession.getApplicationBufferSize()).
      *
-     * Return bytes sent on success, negative on error */
-    private synchronized int SendAppData(ByteBuffer[] in, int ofst, int len) {
+     * @throws SocketException if ssl.write() encounters a socket error
+     * @return bytes sent on success, negative on error
+     */
+    private synchronized int SendAppData(ByteBuffer[] in, int ofst, int len)
+        throws SocketException {
 
         int i = 0;
         int ret = 0;
@@ -565,7 +571,11 @@ public class WolfSSLEngine extends SSLEngine {
         if (produced >= 0 &&
             (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
             status = SSLEngineResult.Status.CLOSED;
-            ClosingConnection();
+            try {
+                ClosingConnection();
+            } catch (SocketException e) {
+                throw new SSLException(e);
+            }
             produced += CopyOutPacket(out);
         }
         else if (produced == 0) {
@@ -574,9 +584,13 @@ public class WolfSSLEngine extends SSLEngine {
                 ret = DoHandshake();
             }
             else {
-                ret = SendAppData(in, ofst, len);
-                if (ret > 0) {
-                    consumed += ret;
+                try {
+                    ret = SendAppData(in, ofst, len);
+                    if (ret > 0) {
+                        consumed += ret;
+                    }
+                } catch (SocketException e) {
+                    throw new SSLException(e);
                 }
             }
 
@@ -682,6 +696,7 @@ public class WolfSSLEngine extends SSLEngine {
      * @param ofst offset into out[] array to begin writing data
      * @param length length of out[] array
      *
+     * @throws SSLException if ssl.read() encounters socket error
      * @return number of plaintext bytes received, or negative on error.
      */
     private synchronized int RecvAppData(ByteBuffer[] out, int ofst, int length)
@@ -699,7 +714,11 @@ public class WolfSSLEngine extends SSLEngine {
         tmp = new byte[maxOutSz];
 
         synchronized (ioLock) {
-            ret = this.ssl.read(tmp, maxOutSz);
+            try {
+                ret = this.ssl.read(tmp, maxOutSz);
+            } catch (SocketException e) {
+                throw new SSLException(e);
+            }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "RecvAppData(), ssl.read() ret = " + ret);
         }
@@ -727,10 +746,15 @@ public class WolfSSLEngine extends SSLEngine {
                     synchronized (ioLock) {
                         if (ssl.getShutdown() ==
                                 WolfSSL.SSL_RECEIVED_SHUTDOWN) {
-                            ret = ClosingConnection();
-                            if (ret > 0) {
-                                /* Returns number of bytes read, 0, or err */
-                                ret = 0;
+                            try {
+                                ret = ClosingConnection();
+                                if (ret > 0) {
+                                    /* Returns number of bytes read,
+                                     * 0, or err */
+                                    ret = 0;
+                                }
+                            } catch (SocketException e) {
+                                throw new SSLException(e);
                             }
                             return ret;
                         }
@@ -878,8 +902,12 @@ public class WolfSSLEngine extends SSLEngine {
             }
 
             if (outBoundOpen == false) {
-                if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
-                    status = SSLEngineResult.Status.CLOSED;
+                try {
+                    if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                        status = SSLEngineResult.Status.CLOSED;
+                    }
+                } catch (SocketException e) {
+                    throw new SSLException(e);
                 }
             }
             else {
@@ -1260,8 +1288,8 @@ public class WolfSSLEngine extends SSLEngine {
         } finally {
 
             try {
-                /* Don't hold references to this SSLEngine object in WolfSSLSession,
-                 * can prevent proper garbage collection */
+                /* Don't hold references to this SSLEngine object in
+                 * WolfSSLSession, can prevent proper garbage collection */
                 unsetSSLCallbacks();
 
             } catch (WolfSSLJNIException e) {

@@ -53,6 +53,7 @@ public class WolfSSLTest {
         test_WolfSSL_protocol();
         test_WolfSSL_Method_Allocators(lib);
         test_WolfSSL_getLibVersionHex();
+        test_WolfSSL_getErrno();
         testGetCiphersAvailableIana();
     }
 
@@ -140,6 +141,15 @@ public class WolfSSLTest {
         }
 
         System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSL_getErrno() {
+        System.out.print("\tgetErrno()");
+
+        /* Just make sure we don't seg fault or crash here */
+        int errno = WolfSSL.getErrno();
+
+        System.out.println("\t\t\t... passed");
     }
 }
 
