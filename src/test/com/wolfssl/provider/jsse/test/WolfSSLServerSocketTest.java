@@ -154,7 +154,15 @@ public class WolfSSLServerSocketTest {
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
             SSLServerSocketFactory sf = ctx.getServerSocketFactory();
-            sockFactories.add(sf);
+
+            /* Only add SSLSocketFactory if it has enabled protocols. JDK
+             * configuration of 'jdk.tls.disabledAlgorithms' can turn off
+             * protocols such as 'TLS 1.1' leaving a factory with none
+             * available */
+            SSLServerSocket s = (SSLServerSocket)sf.createServerSocket(0);
+            if (s.getEnabledProtocols().length > 0) {
+                sockFactories.add(sf);
+            }
         }
     }
 
