@@ -22,6 +22,7 @@
 package com.wolfssl.test;
 
 import org.junit.Test;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
@@ -54,6 +55,15 @@ public class WolfSSLSessionTest {
 
     WolfSSLContext ctx;
     WolfSSLSession ssl;
+
+    @BeforeClass
+    public static void loadLibrary() {
+        try {
+            WolfSSL.loadLibrary();
+        } catch (UnsatisfiedLinkError ule) {
+            fail("failed to load native JNI library");
+        }
+    }
 
     @Test
     public void testWolfSSLSession() throws WolfSSLException {

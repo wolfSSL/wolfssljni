@@ -354,7 +354,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
 
     fdesc = (*jenv)->GetObjectField(jenv, impl, fid);
     if (fdesc == NULL) {
-        printf("Error: FileDescriptor fd object is NULL!\n");
+        printf("Info: FileDescriptor fd object is NULL!\n");
         return SSL_FAILURE;
     }
 

@@ -34,3 +34,5 @@ rpm/spec
 # infer RacerD
 infer-out/
 
+# Maven output directory
+target/

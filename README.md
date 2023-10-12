@@ -33,19 +33,6 @@ the manual.
 
 ## Building
 
-***Note 1)***
-The `java.sh` script uses a common location for the Java install location. If
-your Java install location is different, this could lead to an error when
-running `java.sh`. In this case, you should modify `java.sh` to match your
-environment.
-
-Build targets for ant are :
-* **ant build**     (only builds the jar necessary for an app to use)
-* **ant test**      (builds the jar and tests then runs the tests, requires JUNIT setup)
-* **ant examples**  (builds the jar and example cases)
-* **ant clean**     (cleans all Java artifacts)
-* **ant cleanjni**  (cleans native artifacts)
-
 wolfJSSE currently supports compilation on the following platforms:
 - Linux/Unix
 - Mac OSX
@@ -55,6 +42,11 @@ wolfJSSE currently supports compilation on the following platforms:
 
 To build wolfJSSE on Windows using Visual Studio, please reference the
 Windows [README.md](./IDE/WIN/README.md).
+
+## Building Native wolfSSL (Dependency)
+
+To compile the wolfSSL JNI wrapper and JSSE provider, first the native (C)
+wolfSSL library must be compiled and installed.
 
 To build wolfJSSE in Linux/Unix environments, first download, compile, and
 install wolfSSL. wolfSSL can be downloaded from the wolfSSL
@@ -69,7 +61,30 @@ $ make check
 $ sudo make install
 ```
 
-Then, to build wolfJSSE:
+If building a wolfSSL FIPS or FIPS Ready release bundle, additional
+configure options may be required. Reference the wolfSSL Manual and build
+documentation for exact build instructions.
+
+## Building with ant
+
+wolfSSL JNI/JSSE's ant build is the most stable and well-tested. Newer support
+for building with Maven has also been added. See section below for instructions
+on building with Maven.
+
+***Note 1)***
+The `java.sh` script uses a common location for the Java install location. If
+your Java install location is different, this could lead to an error when
+running `java.sh`. In this case, you should modify `java.sh` to match your
+environment.
+
+Build targets for ant are :
+* **ant build (ant)**     (only builds the jar necessary for an app to use)
+* **ant test**      (builds the jar and tests then runs the tests, requires JUNIT setup)
+* **ant examples**  (builds the jar and example cases)
+* **ant clean**     (cleans all Java artifacts)
+* **ant cleanjni**  (cleans native artifacts)
+
+To build wolfJSSE:
 
 ```
 $ cd wolfssljni
@@ -91,6 +106,91 @@ scripts:
 ```
 $ ./examples/provider/ServerJSSE.sh
 $ ./examples/provider/ClientJSSE.sh
+```
+
+## Building with Maven
+
+wolfJSSE supports building and packaging with Maven, for those projects that
+are already set up to use and consume Maven packages.
+
+wolfJSSE's Maven build configuration is defined in the included `pom.xml`.
+
+First, compile the native JNI shared library (libwolfssljni.so/dylib) same
+as above. This will create the native JNI shared library under the `./lib`
+directory:
+
+```
+$ ./java.sh
+```
+
+Compile the Java sources, where Maven will place the compiled `.class` files
+under the `./target/classes` directory:
+
+```
+$ mvn compile
+```
+
+Compile and run JUnit tests using:
+
+```
+$ mvn test
+```
+
+Package up the wolfSSL JNI/JSSE JAR file using the following command. This will
+run the JUnit tests then create a `.jar` file located under the `./target`
+directory, similar to `target/wolfssl-jsse-X.X.X-SNAPSHOT.jar`:
+
+```
+$ mvn package
+```
+
+To build the Javadoc API reference for wolfSSL JNI/JSSE run the following. This
+will generate Javadoc HTML under the `./docs/apidocs` directory:
+
+```
+$ mvn javadoc:javadoc
+```
+
+To install the wolfSSL JNI/JSSE JAR file, run the following. This will install
+the JAR into the local Maven repository:
+
+```
+$ mvn install
+```
+
+The local Maven repository installation location will be similar to:
+
+```
+~/.m2/repository/com/wolfssl/wolfssl-jsse/X.X.X-SNAPSHOT/wolfssl-jsse-X.X.X-SNAPSHOT.jar
+```
+
+The wolfSSL JNI shared library (`libwolfssljni.so/dylib`) created with the
+`java.sh` script will need to be "installed" by being placed on your native
+library search path. For example, copied into `/usr/local/lib`, `/usr/lib`,
+or other location. Alternatively, append the `./libs` directory to your native
+library search path by exporting `LD_LIBRARY_PATH` (Linux) or
+`DYLD_LIBRARY_PATH` (OSX):
+
+```
+$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/wolfssljni/lib
+```
+
+After wolfSSL JNI/JSSE has been installed into the local Maven repository,
+an application can include this as a dependency in the application's
+`pom.xml` file, similar to:
+
+```
+<project ...>
+    ...
+    <dependencies>
+        <dependency>
+            <groupId>com.wolfssl</groupId>
+            <artifactId>wolfssl-jsse</artifactId>
+            <version>1.12.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+    ...
+</project>
 ```
 
 ## Examples
