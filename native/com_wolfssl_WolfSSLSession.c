@@ -1249,11 +1249,32 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* dup = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
     /* tmpBuf is only 1 byte since wolfSSL_peek() doesn't need to read
      * any app data, only session ticket internally */
     char tmpBuf[1];
     (void)jenv;
     (void)jcl;
+
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        printf("Failed to get SSLAppData* in native get1Session()\n");
+        return (jlong)0;
+    }
+
+    jniSessLock = appData->jniSessLock;
+    if (jniSessLock == NULL) {
+        printf("SSLAppData* NULL in native get1Session()\n");
+        return (jlong)0;
+    }
+
+    /* get WOLFSSL session I/O lock */
+    if (wc_LockMutex(jniSessLock) != 0) {
+        printf("Failed to lock native jniSessLock in get1Session()");
+        return (jlong)0;
+    }
 
     /* Use wolfSSL_get_session() only as an indicator if we need to call
      * wolfSSL_peek() for TLS 1.3 connections to potentially get the
@@ -1272,6 +1293,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
     if (sess != NULL) {
         /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
         dup = wolfSSL_SESSION_dup(sess);
+    }
+
+    if (wc_UnLockMutex(jniSessLock) != 0) {
+        printf("Failed to unlock jniSessLock in get1Session()");
     }
 
     return (jlong)(uintptr_t)dup;
