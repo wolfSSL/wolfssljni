@@ -632,6 +632,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected synchronized void setResume() {
 
+        long tmpSesPtr = 0;
+
         if (ssl != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "entered setResume(), trying to get sesPtrLock");
@@ -659,12 +661,19 @@ public class WolfSSLImplementSSLSession implements SSLSession {
                         this.sesPtr = 0;
                     }
                 }
+            }
 
-                /* Get new WOLFSSL_SESSION pointer for updated WOLFSSL */
-                this.sesPtr = ssl.getSession();
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "called ssl.getSession(), new this.sesPtr = " +
-                    this.sesPtr);
+            /* Get new WOLFSSL_SESSION pointer for updated WOLFSSL locally
+             * instead inside of sesPtrLock to minimize blocking time inside
+             * that lock, then set class variable next inside lock once
+             * value has been retrieved. */
+            tmpSesPtr = ssl.getSession();
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "called ssl.getSession(), new this.sesPtr = " +
+                tmpSesPtr);
+
+            synchronized (sesPtrLock) {
+                this.sesPtr = tmpSesPtr;
 
                 /* If this object is not in the WolfSSLAuthStore store,
                  * mark that we have updated the sesPtr in order to
@@ -737,20 +746,22 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered finalize(): this.sesPtr = " + this.sesPtr);
 
-        synchronized (sesPtrLock) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "got sesPtrLock: " + this.sesPtr);
+        /* Only grab lock and free session if sesPtr not 0/null to prevent
+         * garbage collector from backing up unnecessarily waiting on lock */
+        if (this.sesPtr != 0) {
+            synchronized (sesPtrLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "got sesPtrLock: " + this.sesPtr);
 
-            /* Our internal WOLFSSL_SESSION pointer should be freed in
-             * the following scenarios:
-             *
-             * 1. This object is currently in the WolfSSLAuthStore session
-             *    cache table (store), OR
-             * 2. This object is NOT in the WolfSSLAuthStore session cache
-             *    table AND the sesPtr has been updated after we copied
-             *    the object out of the cache table.
-             */
-            if (this.sesPtr != 0) {
+                /* Our internal WOLFSSL_SESSION pointer should be freed in
+                 * the following scenarios:
+                 *
+                 * 1. This object is currently in the WolfSSLAuthStore session
+                 *    cache table (store), OR
+                 * 2. This object is NOT in the WolfSSLAuthStore session cache
+                 *    table AND the sesPtr has been updated after we copied
+                 *    the object out of the cache table.
+                 */
                 if (this.isInTable ||
                     (!this.isInTable && this.sesPtrUpdatedAfterTable)) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -759,8 +770,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
                     this.sesPtr = 0;
                 }
             }
-        }
+        } /* synchronized sesPtr */
 
         super.finalize();
     }
 }
+
