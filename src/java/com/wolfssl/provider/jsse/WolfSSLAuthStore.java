@@ -348,11 +348,6 @@ public class WolfSSLAuthStore {
                  * after the resumed session completes the handshake, for
                  * subsequent resumption attempts to use. */
                 store.remove(toHash.hashCode());
-
-                /* Make copy/clone of session object so multiple threads
-                 * don't try to use the same cache entry. Cache entry will
-                 * be overwritten when new session with same key is stored */
-                ses = new WolfSSLImplementSSLSession(ses);
                 ses.isFromTable = true;
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,

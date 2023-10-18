@@ -80,7 +80,6 @@ public class WolfSSLEngineHelper {
         this.ssl = ssl;
         this.params = params;
         this.authStore = store;
-        this.session = new WolfSSLImplementSSLSession(store);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper()");
@@ -107,7 +106,6 @@ public class WolfSSLEngineHelper {
         this.port = port;
         this.hostname = hostname;
         this.authStore = store;
-        this.session = new WolfSSLImplementSSLSession(store);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(port: " + port +
             ", hostname: " + hostname + ")");
@@ -140,7 +138,10 @@ public class WolfSSLEngineHelper {
      * @return WolfSSLImplementSession for this object
      */
     protected WolfSSLImplementSSLSession getSession() {
-        return session;
+        if (this.session == null) {
+            this.session = new WolfSSLImplementSSLSession(authStore);
+        }
+        return this.session;
     }
 
     /**
@@ -823,7 +824,7 @@ public class WolfSSLEngineHelper {
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
 
-        if (!this.session.isValid()) {
+        if ((this.session == null) || !this.session.isValid()) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "session is marked as invalid, try creating a new seesion");
             if (this.sessionCreation == false) {
