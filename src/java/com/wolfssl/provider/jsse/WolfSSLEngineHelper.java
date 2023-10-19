@@ -138,7 +138,12 @@ public class WolfSSLEngineHelper {
      * @return WolfSSLImplementSession for this object
      */
     protected WolfSSLImplementSSLSession getSession() {
+
         if (this.session == null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "this.session is null, creating new " +
+                "WolfSSLImplementSSLSession");
+
             this.session = new WolfSSLImplementSSLSession(authStore);
         }
         return this.session;
@@ -795,7 +800,6 @@ public class WolfSSLEngineHelper {
      *                    or not.
      * @param timeout socket timeout (milliseconds) for connect(), or 0 for
      *                infinite/no timeout.
-     *
      * @return WolfSSL.SSL_SUCCESS on success or either WolfSSL.SSL_FAILURE
      *         or WolfSSL.SSL_HANDSHAKE_FAILURE on error
      *
@@ -826,7 +830,7 @@ public class WolfSSLEngineHelper {
 
         if ((this.session == null) || !this.session.isValid()) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session is marked as invalid, try creating a new seesion");
+                    "session is marked as invalid, try creating a new session");
             if (this.sessionCreation == false) {
                 /* new handshakes can not be made in this case. */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -834,7 +838,7 @@ public class WolfSSLEngineHelper {
 
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }
-            this.session = this.authStore.getSession(ssl);
+            this.session = this.authStore.getSession(ssl, this.clientMode);
         }
 
         if (this.clientMode) {
@@ -863,7 +867,7 @@ public class WolfSSLEngineHelper {
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "calling native wolfSSL_accept()");
-                ret = this.ssl.accept();
+                ret = this.ssl.accept(timeout);
             }
             err = ssl.getError(ret);
 
@@ -871,32 +875,26 @@ public class WolfSSLEngineHelper {
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-        if (this.sessionCreation && ret == WolfSSL.SSL_SUCCESS) {
-            /* can only add new sessions to the resumption table if session
-             * creation is allowed */
-            if (this.clientMode) {
-                /* Only need to set resume on client side, server-side
-                 * maintains session cache at native level. */
-                this.session.setResume();
-            }
-            this.authStore.addSession(this.session);
-        }
-
         return ret;
     }
 
     /**
      * Saves session on connection close for resumption
+     *
+     * @return WolfSSL.SSL_SUCCESS if session was saved into cache, otherwise
+     *         WolfSSL.SSL_FAILURE
      */
-    protected synchronized void saveSession() {
+    protected synchronized int saveSession() {
         if (this.session != null && this.session.isValid()) {
             if (this.clientMode) {
                 /* Only need to set resume on client side, server-side
                  * maintains session cache at native level. */
                 this.session.setResume();
             }
-            this.authStore.addSession(this.session);
+            return this.authStore.addSession(this.session);
         }
+
+        return WolfSSL.SSL_FAILURE;
     }
 
     @SuppressWarnings("deprecation")
