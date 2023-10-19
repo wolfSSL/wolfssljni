@@ -23,6 +23,7 @@ package com.wolfssl.provider.jsse;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
+import com.wolfssl.WolfSSL;
 import java.security.Principal;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
@@ -312,6 +313,18 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected void setValid(boolean in) {
         this.valid = in;
+    }
+
+    /**
+     * Return status of internal session pointer (WOLFSSL_SESSION).
+     * @return true if this.sesPtr is set, otherwise false if 0 */
+    protected boolean sessionPointerSet() {
+        synchronized (sesPtrLock) {
+            if (this.sesPtr == 0) {
+                return false;
+            }
+            return true;
+        }
     }
 
     /**
@@ -616,19 +629,29 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     /**
      * Takes in a new WOLFSSL object and sets the stored session
      * @param in WOLFSSL session to set resume in
+     * @return WolfSSL.SSL_SUCCESS if wolfSSL_set_session() was successful,
+     *         otherwise WolfSSL.SSL_FAILURE.
      */
-    protected synchronized void resume(WolfSSLSession in) {
+    protected synchronized int resume(WolfSSLSession in) {
+
+        int ret = WolfSSL.SSL_FAILURE;
+
         /* Set session (WOLFSSL_SESSION) into native WOLFSSL, makes
          * a copy of the session so this object can free sesPtr when ready */
         synchronized (sesPtrLock) {
-            in.setSession(this.sesPtr);
+            if (this.sesPtr != 0) {
+                ret = in.setSession(this.sesPtr);
+            }
             ssl = in;
         }
+
+        return ret;
     }
 
 
     /**
-     * Should be called on shutdown to save the session pointer
+     * Should be called on shutdown or after handshake has completed to save
+     * the session pointer.
      */
     protected synchronized void setResume() {
 
@@ -675,6 +698,10 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             synchronized (sesPtrLock) {
                 this.sesPtr = tmpSesPtr;
 
+                if (this.sesPtr != 0) {
+                    this.valid = true;
+                }
+
                 /* If this object is not in the WolfSSLAuthStore store,
                  * mark that we have updated the sesPtr in order to
                  * correctly free later on */
@@ -719,6 +746,18 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected int getSide() {
         return this.side;
+    }
+
+    /**
+     * Return the side session is on (server/client) as a String
+     * @return "client" or "server" representing the side of this session
+     */
+    protected String getSideString() {
+        if (this.side == WolfSSL.WOLFSSL_CLIENT_END) {
+            return "client";
+        } else {
+            return "server";
+        }
     }
 
     /**

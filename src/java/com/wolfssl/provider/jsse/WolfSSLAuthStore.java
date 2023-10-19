@@ -93,7 +93,9 @@ public class WolfSSLAuthStore {
         initSecureRandom(random);
 
         this.currentVersion = version;
-        store = new SessionStore<>(defaultCacheSize);
+        if (store == null) {
+            store = new SessionStore<>(defaultCacheSize);
+        }
         this.serverCtx = new WolfSSLSessionContext(
                 this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
         this.clientCtx = new WolfSSLSessionContext(
@@ -267,8 +269,8 @@ public class WolfSSLAuthStore {
      * @param side server/client side for cache resize
      */
     protected void resizeCache(int sz, int side) {
-            SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
-                    new SessionStore<>(sz);
+        SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
+                new SessionStore<>(sz);
 
         //@TODO check for side server/client, currently a resize is for all
         synchronized (storeLock) {
@@ -310,7 +312,7 @@ public class WolfSSLAuthStore {
 
         /* Return new session if in server mode, or if host is null */
         if (!clientMode || host == null) {
-            return this.getSession(ssl);
+            return this.getSession(ssl, clientMode);
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -337,6 +339,7 @@ public class WolfSSLAuthStore {
                 /* not found in stored sessions create a new one */
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
                 ses.setValid(true); /* new sessions marked as valid */
+
                 ses.isFromTable = false;
                 ses.setPseudoSessionId(
                     Integer.toString(ssl.hashCode()).getBytes());
@@ -352,7 +355,19 @@ public class WolfSSLAuthStore {
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "session found in cache, trying to resume");
-                ses.resume(ssl);
+
+                if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "native wolfSSL_set_session() failed, " +
+                        "creating new session");
+
+                    ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+                    ses.setValid(true);
+                    ses.isFromTable = false;
+                    ses.setPseudoSessionId(
+                        Integer.toString(ssl.hashCode()).getBytes());
+
+                }
             }
             return ses;
         }
@@ -369,7 +384,7 @@ public class WolfSSLAuthStore {
                 store.values();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "SessionStore Status : --------------------------");
+                "SessionStore Status : (" + this + ") --------------------------");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "    size: " + store.size());
             if (store.size() > 0) {
@@ -387,10 +402,11 @@ public class WolfSSLAuthStore {
 
     /** Returns a new session, does not check/save for resumption
      * @param ssl WOLFSSL class to reference with new session
+     * @param clientMode true if on client side, false if server
      * @return a new SSLSession on success
      */
     protected synchronized WolfSSLImplementSSLSession getSession(
-        WolfSSLSession ssl) {
+        WolfSSLSession ssl, boolean clientMode) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
@@ -450,6 +466,16 @@ public class WolfSSLAuthStore {
         String toHash;
         int    hashCode = 0;
 
+        /* Don't store session if invalid (or not complete with sesPtr
+         * if on client side). Server-side still needs to store session
+         * for things like returning the session ID, even though sesPtr
+         * will be 0 since server manages session cache at native level. */
+        if (!session.isValid() ||
+            (session.getSide() == WolfSSL.WOLFSSL_CLIENT_END &&
+             !session.sessionPointerSet())) {
+            return WolfSSL.SSL_FAILURE;
+        }
+
         /* Lock access to store while adding new session, store is global */
         synchronized (storeLock) {
             if (session.getPeerHost() != null) {
@@ -477,7 +503,7 @@ public class WolfSSLAuthStore {
                         session.getPeerHost() + ", port: " +
                         session.getPeerPort() + ") " +
                         "hashCode = " + hashCode + " side = " +
-                        session.getSide());
+                        session.getSideString());
                 store.put(hashCode, session);
                 session.isInTable = true;
             }
