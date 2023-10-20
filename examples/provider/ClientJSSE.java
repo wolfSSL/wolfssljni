@@ -34,6 +34,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import java.security.Provider;
 import java.security.UnrecoverableKeyException;
@@ -64,6 +66,7 @@ public class ClientJSSE {
         int ret = 0, input;
         byte[] back = new byte[80];
         String msg  = "Too legit to quit";
+        String httpGetMsg = "GET /index.html HTTP/1.0\r\n\r\n";
         String provider = "wolfJSSE";
 
         KeyStore pKey, cert;
@@ -82,6 +85,7 @@ public class ClientJSSE {
         boolean listSuites = false;           /* list all supported cipher suites */
         boolean listEnabledProtocols = false; /* show enabled protocols */
         boolean putEnabledProtocols  = false; /* set enabled protocols */
+        boolean sendGET = false;              /* send HTTP GET */
 
         boolean resumeSession = false;        /* try one session resumption */
         byte[] firstSessionId = null;         /* sess ID of first session */
@@ -156,6 +160,9 @@ public class ClientJSSE {
             } else if (arg.equals("-d")) {
                 verifyPeer = false;
 
+            } else if (arg.equals("-g")) {
+                sendGET = true;
+
             } else if (arg.equals("-e")) {
                 listSuites = true;
 
@@ -190,11 +197,31 @@ public class ClientJSSE {
                 return;
         }
 
+        /* X509TrustManager that trusts all peer certificates. Used if peer
+         * authentication (-d) has been passed in */
+        TrustManager[] trustAllCerts = new TrustManager[] {
+            new X509TrustManager() {
+                public void checkClientTrusted(
+                    X509Certificate[] chain, String authType) {
+                }
+
+                public void checkServerTrusted(
+                    X509Certificate[] chain, String authType) {
+                }
+
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+            }
+        };
+
         /* trust manager (certificates) */
-        cert = KeyStore.getInstance("JKS");
-        cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
-        tm = TrustManagerFactory.getInstance("SunX509", provider);
-        tm.init(cert);
+        if (verifyPeer) {
+            cert = KeyStore.getInstance("JKS");
+            cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
+            tm = TrustManagerFactory.getInstance("SunX509", provider);
+            tm.init(cert);
+        }
 
         /* load private key */
         pKey = KeyStore.getInstance("JKS");
@@ -204,7 +231,13 @@ public class ClientJSSE {
 
         /* setup context with certificate and private key */
         ctx = SSLContext.getInstance(version, provider);
-        ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
+
+        if (verifyPeer) {
+            ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
+        }
+        else {
+            ctx.init(km.getKeyManagers(), trustAllCerts, null);
+        }
 
         if (listSuites) {
             String[] suites = ctx.getDefaultSSLParameters().getCipherSuites();
@@ -237,10 +270,6 @@ public class ClientJSSE {
         System.out.printf("Using SSLContext provider %s\n", ctx.getProvider().
                 getName());
 
-        if (!verifyPeer) {
-            sock.setNeedClientAuth(false);
-        }
-
         if (cipherList != null) {
             sock.setEnabledCipherSuites(cipherList.split(":"));
         }
@@ -248,7 +277,12 @@ public class ClientJSSE {
         sock.startHandshake();
         firstSessionId = sock.getSession().getId();
         showPeer(sock);
-        sock.getOutputStream().write(msg.getBytes());
+        if (sendGET) {
+            sock.getOutputStream().write(httpGetMsg.getBytes());
+        }
+        else {
+            sock.getOutputStream().write(msg.getBytes());
+        }
         sock.getInputStream().read(back);
         System.out.println("Server message : " + new String(back));
         sock.close();
@@ -263,10 +297,6 @@ public class ClientJSSE {
 
             System.out.printf("Using SSLContext provider %s\n", ctx.getProvider().
                     getName());
-
-            if (!verifyPeer) {
-                sock.setNeedClientAuth(false);
-            }
 
             if (cipherList != null) {
                 sock.setEnabledCipherSuites(cipherList.split(":"));
@@ -339,6 +369,7 @@ public class ClientJSSE {
                            "TLS1.3(4)), default 3 : use 'd' for downgrade");
         System.out.println("-l <str>\tCipher list");
         System.out.println("-d\t\tDisable peer checks");
+        System.out.println("-g\t\tSend server HTTP GET");
         System.out.println("-e\t\tGet all supported cipher suites");
         System.out.println("-getp\t\tGet enabled protocols");
         System.out.println("-setp <protocols> \tSet enabled protocols " +
