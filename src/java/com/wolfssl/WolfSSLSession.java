@@ -212,7 +212,7 @@ public class WolfSSLSession {
     private native int connect(long ssl, int timeout);
     private native int write(long ssl, byte[] data, int length, int timeout);
     private native int read(long ssl, byte[] data, int sz, int timeout);
-    private native int accept(long ssl);
+    private native int accept(long ssl, int timeout);
     private native void freeSSL(long ssl);
     private native int shutdownSSL(long ssl, int timeout);
     private native int getError(long ssl, int ret);
@@ -847,16 +847,76 @@ public class WolfSSLSession {
      *         </code> if an error occurred. To get a more detailed
      *         error code, call <code>getError()</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if underlying socket timed out
      * @see    #getError(int)
      * @see    #connect()
      */
-    public int accept() throws IllegalStateException {
+    public int accept()
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return accept(getSessionPtr());
+            ret = accept(getSessionPtr(), 0);
         }
+
+        if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException(
+                    "Native socket timed out during SSL_accept()");
+        }
+
+        return ret;
+    }
+
+    /**
+     * Waits for an SSL client to initiate the SSL/TLS handshake, using socket
+     * timeout value in milliseconds.
+     * This method is called on the server side. When it is called, the
+     * underlying communication channel has already been set up.
+     * <p>
+     * <code>accept()</code> works with both blocking and non-blocking I/O.
+     * When the underlying I/O is non-blocking, <code>accept()</code> will
+     * return when the underlying I/O could not satisfy the needs of
+     * <code>accept()</code> to continue the handshake. In this case, a call to
+     * <code>getError()</code> will yield either <b>SSL_ERROR_WANT_READ</b> or
+     * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
+     * call to <code>accept()</code> when data is available to be read and
+     * wolfSSL will pick up where it left off. When using a non-blocking
+     * socket, nothing needs to be done, but <code>select()</code> can be used
+     * to check for the required condition.
+     * <p>
+     * If the underlying I/O is blocking, <code>accept()</code> will only
+     * return once the handshake has been finished or an error occurred.
+     *
+     * @param timeout read timeout, milliseconds.
+     *
+     * @return <code>SSL_SUCCESS</code> on success. <code>SSL_FATAL_ERROR
+     *         </code> if an error occurred. To get a more detailed
+     *         error code, call <code>getError()</code>.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if underlying socket timed out
+     * @see    #getError(int)
+     * @see    #connect()
+     */
+    public int accept(int timeout)
+        throws IllegalStateException, SocketTimeoutException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            ret = accept(getSessionPtr(), timeout);
+        }
+
+        if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
+            throw new SocketTimeoutException(
+                    "Native socket timed out during SSL_accept()");
+        }
+
+        return ret;
     }
 
     /**
@@ -1038,7 +1098,7 @@ public class WolfSSLSession {
      * the connection without a new handshake.
      * <p>
      * For session resumption, before calling <code>shutdownSSL()</code>
-     * with your session object, an appliation should save the session ID
+     * with your session object, an application should save the session ID
      * from the object with a call to <code>getSession()</code>, which returns
      * a pointer to the session. Later, the application should create a new
      * SSL object and assign the saved session with <code>setSession</code>.

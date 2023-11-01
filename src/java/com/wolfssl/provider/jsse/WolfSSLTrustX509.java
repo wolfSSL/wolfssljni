@@ -483,7 +483,17 @@ public class WolfSSLTrustX509 implements X509TrustManager {
                     cert = (X509Certificate) store.getCertificate(name);
                 }
 
-                if (cert != null && cert.getBasicConstraints() >= 0) {
+                /* Add certificate entry as trusted if either:
+                 * 1. X509v3 Basic Constraint CA:TRUE is set, or
+                 * 2. Native wolfSSL has been compiled with
+                 *    WOLFSSL_TRUST_PEER_CERT defined.
+                 * SunJSSE implementation just adds all certificate entries
+                 * it finds in the provided KeyStore as trusted, so this
+                 * behavior does vary slightly from the default Sun
+                 * implementation. */
+                if (cert != null &&
+                    (cert.getBasicConstraints() >= 0) ||
+                    (WolfSSL.trustPeerCertEnabled())) {
                     CAs.add(cert);
                 }
             }

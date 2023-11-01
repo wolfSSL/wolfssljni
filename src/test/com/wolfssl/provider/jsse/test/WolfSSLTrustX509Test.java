@@ -88,9 +88,9 @@ public class WolfSSLTrustX509Test {
         X509TrustManager x509tm;
         X509Certificate cas[];
 
-        String OU[] = { "OU=Programming-2048", "OU=Support",
+        String OU[] = { "OU=ECC", "OU=Programming-2048", "OU=Support",
             "OU=Support_1024", "OU=Consulting", "OU=Development",
-            "OU=Fast", "OU=Consulting_1024", "OU=Programming-1024", "OU=ECC" };
+            "OU=Fast", "OU=Consulting_1024", "OU=Programming-1024" };
 
         int i = 0;
         int expected = OU.length;
@@ -105,7 +105,8 @@ public class WolfSSLTrustX509Test {
 
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
-        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+        if (this.provider != null && this.provider.equals("wolfJSSE") &&
+            !WolfSSL.trustPeerCertEnabled()) {
             /* one less than SunJSSE because of server-ecc */
             expected = expected - 1;
         }
@@ -126,7 +127,8 @@ public class WolfSSLTrustX509Test {
 
         if (cas.length != expected) {
             error("\t\t... failed");
-            fail("wrong number of CAs found");
+            fail("wrong number of CAs found: found " + cas.length +
+                 ", expected " + expected);
         }
 
         for (String x: OU) {
@@ -134,6 +136,9 @@ public class WolfSSLTrustX509Test {
                     provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
                 /* skip checking ECC certs, since not all Java versions
                  * support them */
+                if (WolfSSL.trustPeerCertEnabled()) {
+                    i++;
+                }
                 continue;
             }
 
@@ -216,7 +221,8 @@ public class WolfSSLTrustX509Test {
 
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
-        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+        if (this.provider != null && this.provider.equals("wolfJSSE") &&
+            !WolfSSL.trustPeerCertEnabled()) {
             /* one less than SunJSSE because of server-ecc */
             expected = expected - 1;
         }
@@ -237,7 +243,8 @@ public class WolfSSLTrustX509Test {
 
         if (cas.length != expected) {
             error("\t... failed");
-            fail("wrong number of CAs found");
+            fail("wrong number of CAs found: found " + cas.length +
+                 ", expected " + expected);
         }
 
         for (String x : OU) {
@@ -266,8 +273,8 @@ public class WolfSSLTrustX509Test {
         X509Certificate cas[];
 
         String OU[] = { "OU=Consulting", "OU=Programming-2048", "OU=Fast",
-            "OU=Support", "OU=Programming-1024", "OU=Consulting_1024",
-            "OU=Support_1024", "OU=ECC" };
+            "OU=Support", "OU=ECC", "OU=Programming-1024", "OU=Consulting_1024",
+            "OU=Support_1024" };
 
         int i = 0, j;
         int expected = OU.length;
@@ -281,7 +288,8 @@ public class WolfSSLTrustX509Test {
         }
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
-        if (this.provider != null && this.provider.equals("wolfJSSE")) {
+        if (this.provider != null && this.provider.equals("wolfJSSE") &&
+            !WolfSSL.trustPeerCertEnabled()) {
             /* one less than SunJSSE because of server-ecc */
             expected = expected - 1;
         }
@@ -302,7 +310,8 @@ public class WolfSSLTrustX509Test {
 
         if (cas.length != expected) {
             error("\t... failed");
-            fail("wrong number of CAs found");
+            fail("wrong number of CAs found: found " + cas.length +
+                 ", expected " + expected);
         }
 
         for (j = 0; j < OU.length && i < cas.length; j++) {
@@ -310,6 +319,9 @@ public class WolfSSLTrustX509Test {
                     provider.equals("wolfJSSE") && OU[j].equals("OU=ECC")) {
                 /* skip checking ECC certs, since not all Java versions
                  * support them */
+                if (WolfSSL.trustPeerCertEnabled()) {
+                    i++;
+                }
                 continue;
             }
 

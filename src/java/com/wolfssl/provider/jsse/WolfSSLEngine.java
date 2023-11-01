@@ -80,6 +80,9 @@ public class WolfSSLEngine extends SSLEngine {
     private boolean closeNotifySent = false;
     private boolean closeNotifyReceived = false;
 
+    /* session stored (WOLFSSL_SESSION), relevant on client side */
+    private boolean sessionStored = false;
+
     /* client/server mode has been set */
     private boolean clientModeSet = false;
 
@@ -319,8 +322,10 @@ public class WolfSSLEngine extends SSLEngine {
         /* Save session into WolfSSLAuthStore cache, saves session
          * pointer for resumption if on client side. Protected with ioLock
          * since underlying get1Session can use I/O with peek. */
-        synchronized (ioLock) {
-            EngineHelper.saveSession();
+        if (!this.sessionStored) {
+            synchronized (ioLock) {
+                EngineHelper.saveSession();
+            }
         }
 
         /* get current close_notify state */
@@ -370,7 +375,14 @@ public class WolfSSLEngine extends SSLEngine {
                  * pointer for resumption if on client side. Protected with
                  * ioLock since underlying get1Session can use I/O for peek. */
                 synchronized (ioLock) {
-                    EngineHelper.saveSession();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "calling EngineHelper.saveSession()");
+                    int ret2 = EngineHelper.saveSession();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "return from saveSession(), ret = " + ret2);
+                    if (ret2 == WolfSSL.SSL_SUCCESS) {
+                        this.sessionStored = true;
+                    }
                 }
             }
 
@@ -909,6 +921,23 @@ public class WolfSSLEngine extends SSLEngine {
                                     status =
                                         SSLEngineResult.Status.BUFFER_OVERFLOW;
                                 }
+                            }
+                        }
+                    }
+
+                    /* If we haven't stored session yet, try again. For TLS 1.3
+                     * we may need to wait for session ticket. We do try
+                     * right after wolfSSL_connect/accept() finishes, but
+                     * we might not have had session ticket at that time. */
+                    if (!this.sessionStored) {
+                        synchronized (ioLock) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "calling EngineHelper.saveSession()");
+                            int ret2 = EngineHelper.saveSession();
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "return from saveSession(), ret = " + ret2);
+                            if (ret2 == WolfSSL.SSL_SUCCESS) {
+                                this.sessionStored = true;
                             }
                         }
                     }

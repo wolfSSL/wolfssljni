@@ -106,10 +106,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    accept
- * Signature: (J)I
+ * Signature: (JI)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jobject, jlong, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

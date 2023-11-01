@@ -33,6 +33,11 @@
 #include <arpa/inet.h>
 #endif
 
+#ifndef WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT
+    /* Default wolfSSL_peek() timeout for wolfSSL_get_session(), ms */
+    #define WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT 2000
+#endif
+
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 
@@ -898,7 +903,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
-  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err, sockfd;
     wolfSSL_Mutex* jniSessLock = NULL;
@@ -954,7 +959,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
                 break;
             }
 
-            ret = socketSelect(sockfd, 0, 1);
+            ret = socketSelect(sockfd, (int)timeout, 1);
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
                 continue;
@@ -1221,26 +1226,82 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSession
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
+    int ret = 0;
     (void)jcl;
 
     if (jenv == NULL || ssl == NULL) {
         return SSL_FAILURE;
     }
 
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        printf("Failed to get SSLAppData* in native setSession()\n");
+        return (jlong)0;
+    }
+
+    jniSessLock = appData->jniSessLock;
+    if (jniSessLock == NULL) {
+        printf("SSLAppData* NULL in native setSession()\n");
+        return (jlong)0;
+    }
+
+    /* get WOLFSSL session I/O lock */
+    if (wc_LockMutex(jniSessLock) != 0) {
+        printf("Failed to lock native jniSessLock in setSession()");
+        return (jlong)0;
+    }
+
     /* wolfSSL checks session for NULL, but not ssl */
-    return wolfSSL_set_session(ssl, session);
+    ret = wolfSSL_set_session(ssl, session);
+
+    if (wc_UnLockMutex(jniSessLock) != 0) {
+        printf("Failed to unlock jniSessLock in setSession()");
+    }
+
+    return ret;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    WOLFSSL_SESSION* sess = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
     (void)jenv;
     (void)jcl;
 
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        printf("Failed to get SSLAppData* in native getSession()\n");
+        return (jlong)0;
+    }
+
+    jniSessLock = appData->jniSessLock;
+    if (jniSessLock == NULL) {
+        printf("SSLAppData* NULL in native getSession()\n");
+        return (jlong)0;
+    }
+
+    /* get WOLFSSL session I/O lock */
+    if (wc_LockMutex(jniSessLock) != 0) {
+        printf("Failed to lock native jniSessLock in getSession()");
+        return (jlong)0;
+    }
+
     /* wolfSSL checks ssl for NULL, returns pointer into WOLFSSL which is
      * freed when wolfSSL_free() is called. */
-    return (jlong)(uintptr_t)wolfSSL_get_session(ssl);
+    sess = wolfSSL_get_session(ssl);
+
+    if (wc_UnLockMutex(jniSessLock) != 0) {
+        printf("Failed to unlock jniSessLock in getSession()");
+    }
+
+    return (jlong)(uintptr_t)sess;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
@@ -1249,19 +1310,67 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* dup = NULL;
+    wolfSSL_Mutex* jniSessLock = NULL;
+    SSLAppData* appData = NULL;
     /* tmpBuf is only 1 byte since wolfSSL_peek() doesn't need to read
      * any app data, only session ticket internally */
     char tmpBuf[1];
+    int ret = 0;
+    int err = 0;
+    int sockfd = 0;
     (void)jenv;
     (void)jcl;
+
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        printf("Failed to get SSLAppData* in native get1Session()\n");
+        return (jlong)0;
+    }
+
+    jniSessLock = appData->jniSessLock;
+    if (jniSessLock == NULL) {
+        printf("SSLAppData* NULL in native get1Session()\n");
+        return (jlong)0;
+    }
+
+    /* get WOLFSSL session I/O lock */
+    if (wc_LockMutex(jniSessLock) != 0) {
+        printf("Failed to lock native jniSessLock in get1Session()");
+        return (jlong)0;
+    }
 
     /* Use wolfSSL_get_session() only as an indicator if we need to call
      * wolfSSL_peek() for TLS 1.3 connections to potentially get the
      * session ticket message. */
     sess = wolfSSL_get_session(ssl);
     if (sess == NULL) {
+
         /* session not available yet (TLS 1.3), try peeking to get ticket */
-        wolfSSL_peek(ssl, tmpBuf, (int)sizeof(tmpBuf));
+        do {
+            ret = wolfSSL_peek(ssl, tmpBuf, (int)sizeof(tmpBuf));
+            err = wolfSSL_get_error(ssl, ret);
+
+            if (ret <= 0 && (err == SSL_ERROR_WANT_READ)) {
+
+                sockfd = wolfSSL_get_fd(ssl);
+                if (sockfd == -1) {
+                    /* For I/O that does not use sockets, sockfd may be -1,
+                     * skip try to call select() */
+                    break;
+                }
+
+                ret = socketSelect(sockfd,
+                        (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1);
+                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                    /* I/O ready, continue handshake and try again */
+                    continue;
+                } else {
+                    /* other error, continue on */
+                    break;
+                }
+            }
+        } while (err == SSL_ERROR_WANT_READ);
 
         sess = wolfSSL_get_session(ssl);
     }
@@ -1272,6 +1381,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
     if (sess != NULL) {
         /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
         dup = wolfSSL_SESSION_dup(sess);
+    }
+
+    if (wc_UnLockMutex(jniSessLock) != 0) {
+        printf("Failed to unlock jniSessLock in get1Session()");
     }
 
     return (jlong)(uintptr_t)dup;

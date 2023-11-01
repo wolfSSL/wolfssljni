@@ -680,6 +680,14 @@ public class WolfSSL {
      */
     public static native boolean certReqEnabled();
 
+    /**
+     * Tests if native wolfSSL has been compiled with WOLFSSL_TRUST_PEER_CERT.
+     *
+     * @return true if enabled, otherwise false if WOLFSSL_TRUST_PEER_CERT
+     *         has not been defined.
+     */
+    public static native boolean trustPeerCertEnabled();
+
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
