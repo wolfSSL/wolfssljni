@@ -971,7 +971,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
 #else
     (void)jenv;
     (void)callback;
-    printf("Unable to set FIPS callback without wolfCrypt FIPS code\n");
 #endif
 
     return ret;
