@@ -35,6 +35,9 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
+#ifndef USE_WINDOWS_API
+    #include <sys/errno.h>
+#endif
 
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSL.h"
@@ -1644,4 +1647,14 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
     }
 #endif
     return ret;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getErrno
+  (JNIEnv* jenv, jclass jcl)
+{
+#ifndef USE_WINDOWS_API
+    return errno;
+#else
+    return 0;
+#endif
 }
