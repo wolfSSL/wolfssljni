@@ -295,8 +295,8 @@ public class ClientJSSE {
                     sock.setEnabledProtocols(protocols);
             }
 
-            System.out.printf("Using SSLContext provider %s\n", ctx.getProvider().
-                    getName());
+            System.out.printf("Using SSLContext provider %s\n",
+                ctx.getProvider().getName());
 
             if (cipherList != null) {
                 sock.setEnabledCipherSuites(cipherList.split(":"));
@@ -311,7 +311,13 @@ public class ClientJSSE {
             } else {
                 System.out.println("Session NOT resumed");
             }
-            sock.getOutputStream().write(msg.getBytes());
+
+            if (sendGET) {
+                sock.getOutputStream().write(httpGetMsg.getBytes());
+            }
+            else {
+                sock.getOutputStream().write(msg.getBytes());
+            }
             sock.getInputStream().read(back);
             System.out.println("Server message : " + new String(back));
             sock.close();
