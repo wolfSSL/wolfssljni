@@ -75,6 +75,7 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_setPskServerCb();
         test_WolfSSLContext_usePskIdentityHint();
         test_WolfSSLContext_useSecureRenegotiation();
+        test_WolfSSLContext_useSupportedCurves();
         test_WolfSSLContext_setMinRSAKeySize();
         test_WolfSSLContext_setMinECCKeySize();
         test_WolfSSLContext_free();
@@ -357,6 +358,57 @@ public class WolfSSLContextTest {
             e.printStackTrace();
         }
         System.out.println("\t... passed");
+    }
+
+    public void test_WolfSSLContext_useSupportedCurves() {
+
+        int ret;
+        String[] singleEccSecp256r1 = new String[] { "secp256r1" };
+        String[] allEccCurves =  new String[] {
+            "secp160k1", "secp160r1", "secp160r2", "secp192k1", "secp192r1",
+            "secp224k1", "secp224r1", "secp256k1", "secp256r1", "secp384r1",
+            "secp521r1"
+        };
+        String[] x25519Curve = new String[] { "x25519" };
+        String[] x448Curve = new String[] { "x448" };
+
+        System.out.print("\tuseSupportedCurves()");
+        try {
+            ret = ctx.useSupportedCurves(singleEccSecp256r1);
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... failed");
+                fail("useSupportedCurves(singleEccSecp256r1) failed");
+            }
+            ret = ctx.useSupportedCurves(allEccCurves);
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... failed");
+                fail("useSupportedCurves(allEccCurves) failed");
+            }
+            if (WolfSSL.Curve25519Enabled()) {
+                ret = ctx.useSupportedCurves(x25519Curve);
+                if (ret != WolfSSL.SSL_SUCCESS &&
+                    ret != WolfSSL.NOT_COMPILED_IN) {
+                    System.out.println("\t... failed");
+                    fail("useSupportedCurves(x25519Curve) failed");
+                }
+            }
+            if (WolfSSL.Curve448Enabled()) {
+                ret = ctx.useSupportedCurves(x448Curve);
+                if (ret != WolfSSL.SSL_SUCCESS &&
+                    ret != WolfSSL.NOT_COMPILED_IN) {
+                    System.out.println("\t... failed");
+                    fail("useSupportedCurves(x448Curve) failed");
+                }
+            }
+            System.out.println("\t...passed");
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t... failed");
+            fail("useSupportedCurves failed");
+            e.printStackTrace();
+        }
     }
 
     public void test_WolfSSLContext_setMinRSAKeySize() {

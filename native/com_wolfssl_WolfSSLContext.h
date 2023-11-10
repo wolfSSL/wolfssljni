@@ -369,6 +369,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    useSupportedCurve
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSupportedCurve
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    useSecureRenegotiation
  * Signature: (J)I
  */
