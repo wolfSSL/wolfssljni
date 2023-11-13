@@ -665,6 +665,22 @@ public class WolfSSL {
     public static native boolean RsaEnabled();
 
     /**
+     * Tests if Curve25519/X25519 support has been compiled into the native
+     * wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Curve25519Enabled();
+
+    /**
+     * Tests if Curve448/X448 support has been compiled into the native
+     * wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Curve448Enabled();
+
+    /**
      * Tests if filesystem support has been compiled into the wolfSSL library.
      *
      * @return true if enabled, otherwise false if NO_FILESYSTEM has been

@@ -5449,6 +5449,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSupportedCurve
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jint name)
+{
+#ifdef HAVE_SUPPORTED_CURVES
+    int ret = 0;
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ctx == NULL) {
+        return (jint)SSL_FAILURE;
+    }
+
+    ret = wolfSSL_CTX_UseSupportedCurve(ctx, (word16)name);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)name;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {
