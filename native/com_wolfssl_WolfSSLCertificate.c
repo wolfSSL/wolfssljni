@@ -760,6 +760,42 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1check_1host
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jstring chk, jlong flags, jlong peerNamePtr)
+{
+#ifndef NO_ASN
+    int ret = WOLFSSL_FAILURE;
+    const char* hostname = NULL;
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
+    (void)peerNamePtr;
+
+    if (jenv == NULL || chk == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    hostname = (*jenv)->GetStringUTFChars(jenv, chk, 0);
+    if (hostname != NULL) {
+        /* flags and peerNamePtr not used */
+        ret = wolfSSL_X509_check_host(x509, hostname,
+            XSTRLEN(hostname), (unsigned int)flags, NULL);
+    }
+
+    (*jenv)->ReleaseStringUTFChars(jenv, chk, hostname);
+
+    return (jint)ret;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)chk;
+    (void)flags;
+    (void)peerNamePtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {

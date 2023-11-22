@@ -547,7 +547,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (needInit) {
-            EngineHelper.initHandshake();
+            EngineHelper.initHandshake(this);
             needInit = false;
             closed = false; /* opened a connection */
         }
@@ -896,7 +896,7 @@ public class WolfSSLEngine extends SSLEngine {
         else {
 
             if (needInit) {
-                EngineHelper.initHandshake();
+                EngineHelper.initHandshake(this);
                 needInit = false;
                 closed = false;
             }
@@ -1246,6 +1246,32 @@ public class WolfSSLEngine extends SSLEngine {
         return EngineHelper.getSession();
     }
 
+    /**
+     * Has the underlying WOLFSSL / WolfSSLSession been resumed / reused.
+     * This calls down to native wolfSSL_session_reused()
+     *
+     * NON-STANDARD API, not part of JSSE. Must cast SSLEngine back
+     * to WolfSSLEngine to use.
+     *
+     * @return true if session has been resumed, otherwise false
+     * @throws SSLException if native JNI call fails or underlying
+     *         WolfSSLSession has been freed
+     */
+    public boolean sessionResumed() throws SSLException {
+        if (this.ssl != null) {
+            try {
+                int resume = this.ssl.sessionReused();
+                if (resume == 1) {
+                    return true;
+                }
+            } catch (IllegalStateException | WolfSSLJNIException e) {
+                throw new SSLException(e);
+            }
+        }
+
+        return false;
+    }
+
     public synchronized SSLSession getHandshakeSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeSession()");
@@ -1271,7 +1297,7 @@ public class WolfSSLEngine extends SSLEngine {
         if (needInit == true) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
-            EngineHelper.initHandshake();
+            EngineHelper.initHandshake(this);
             needInit = false;
         }
 
@@ -1374,9 +1400,9 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /**
-     * Set the SSLParameters for this SSLSocket.
+     * Set the SSLParameters for this SSLEngine.
      *
-     * @param params SSLParameters to set for this SSLSocket object
+     * @param params SSLParameters to set for this SSLEngine object
      */
     public synchronized void setSSLParameters(SSLParameters params) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1384,6 +1410,20 @@ public class WolfSSLEngine extends SSLEngine {
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
+    }
+
+    /**
+     * Gets the SSLParameters for this SSLEngine.
+     *
+     * @return SSLParameters for this SSLEngine object.
+     */
+    @Override
+    public synchronized SSLParameters getSSLParameters() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSSLParameters()");
+
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /**

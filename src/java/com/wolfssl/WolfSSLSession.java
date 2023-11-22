@@ -21,6 +21,7 @@
 
 package com.wolfssl;
 
+import java.util.Arrays;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.DatagramSocket;
@@ -84,6 +85,10 @@ public class WolfSSLSession {
      * ones in native/com_wolfssl_WolfSSLSession.c */
     private int WOLFJNI_SELECT_FAIL = -10;
     private int WOLFJNI_TIMEOUT     = -11;
+
+    /* SNI requested by this WolfSSLSession if client side and useSNI()
+     * was called successfully. */
+    private byte[] clientSNIRequested = null;
 
     /**
      * Creates a new SSL/TLS session.
@@ -294,6 +299,7 @@ public class WolfSSLSession {
     private native void setSSLIORecv(long ssl);
     private native void setSSLIOSend(long ssl);
     private native int useSNI(long ssl, byte type, byte[] data);
+    private native byte[] getSNIRequest(long ssl, byte type);
     private native int useSessionTicket(long ssl);
     private native int gotCloseNotify(long ssl);
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
@@ -3134,9 +3140,62 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             ret = useSNI(getSessionPtr(), type, data);
+
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Save SNI requested by client for use later if needed */
+                this.clientSNIRequested = Arrays.copyOf(data, data.length);
+            }
         }
 
         return ret;
+    }
+
+    /**
+     * Return copy of SNI name that this client set/requested. Used at JSSE
+     * level by Endpoint Identification hostname matching on client-side.
+     *
+     * @return client-requested SNI name as byte array, or null if not set
+     * @throws IllegalStateException if called when WolfSSLSession is not
+     *         active
+     */
+    public byte[] getClientSNIRequest() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        if (this.clientSNIRequested == null) {
+            return null;
+        }
+
+        return Arrays.copyOf(this.clientSNIRequested,
+            this.clientSNIRequested.length);
+    }
+
+    /**
+     * Get SNI request used for this session object.
+     *
+     * @param type SNI type. Currently supported type is
+     *             WolfSSL.WOLFSSL_SNI_HOST_NAME.
+     * @return String representing SNI name requested in this session, or
+     *         null if not available.
+     * @throws IllegalStateException if called when WolfSSLSession is not
+     *         active
+     */
+    public String getSNIRequest(byte type) throws IllegalStateException {
+
+        byte[] reqBytes = null;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            /* Returns a byte array representing SNI host name */
+            reqBytes = getSNIRequest(getSessionPtr(), type);
+        }
+
+        if (reqBytes != null) {
+            return reqBytes.toString();
+        }
+
+        return null;
     }
 
     /**

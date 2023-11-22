@@ -713,6 +713,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSNIRequest
+ * Signature: (JB)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSNIRequest
+  (JNIEnv *, jobject, jlong, jbyte);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    useSessionTicket
  * Signature: (J)I
  */

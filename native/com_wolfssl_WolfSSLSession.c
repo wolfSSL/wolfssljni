@@ -3964,7 +3964,52 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
 #endif /* HAVE_SNI */
 
     return (jint)ret;
+}
 
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSNIRequest
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyte type)
+{
+#ifdef HAVE_SNI
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    void* request = NULL;
+    jbyteArray sniRequest;
+    word16 ret = 0;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_SNI_GetRequest(ssl, (byte)type, &request);
+
+    if (ret > 0) {
+        sniRequest = (*jenv)->NewByteArray(jenv, ret);
+        if (sniRequest == NULL) {
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to create byte array in native getSNIRequest");
+            return NULL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, sniRequest, 0, ret,
+                                    (jbyte*)request);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return NULL;
+        }
+
+        return sniRequest;
+    }
+
+    return NULL;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)type;
+    return NULL;
+#endif /* HAVE_SNI */
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket

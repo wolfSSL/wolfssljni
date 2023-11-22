@@ -79,7 +79,7 @@ public class WolfSSLSocket extends SSLSocket {
     /** TLS handshake initialization called */
     protected volatile boolean handshakeInitCalled = false;
     /** TLS handshake has been started */
-    protected volatile boolean handshakeStarted = true;
+    protected volatile boolean handshakeStarted = false;
     /** TLS handshake has completed */
     protected volatile boolean handshakeComplete = false;
     /** Connection to peer has closed */
@@ -1130,6 +1130,29 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Returns the SSLSession being constructed during the SSL/TLS handshake.
+     *
+     * Unlike SSLSocket.getSession(), this does not start the handshake
+     * automatically if it has not been done yet.
+     *
+     * @return null if not handshaking yet or handshake is not far enough
+     *         to have a SSLSession. Otherwise, returns the SSLSession
+     *         being negotiated with peer.
+     */
+    @Override
+    public synchronized SSLSession getHandshakeSession() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeSession()");
+
+        if (this.handshakeStarted == false) {
+            return null;
+        }
+
+        return EngineHelper.getSession();
+    }
+
+    /**
      * Registers a HandshakeCompletedListener with this SSLSocket.
      *
      * The handshake completed listener will be notified when the SSL/TLS
@@ -1215,7 +1238,7 @@ public class WolfSSLSocket extends SSLSocket {
             if (handshakeInitCalled == false) {
                 /* will throw SSLHandshakeException if session creation is
                    not allowed */
-                EngineHelper.initHandshake();
+                EngineHelper.initHandshake(this);
                 handshakeInitCalled = true;
             }
 
@@ -1533,6 +1556,20 @@ public class WolfSSLSocket extends SSLSocket {
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
         }
+    }
+
+    /**
+     * Gets the SSLParameters for this SSLSocket.
+     *
+     * @return SSLParameters for this SSLSocket object.
+     */
+    @Override
+    public synchronized SSLParameters getSSLParameters() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSSLParameters()");
+
+        return WolfSSLParametersHelper.decoupleParams(this.params);
     }
 
     /**

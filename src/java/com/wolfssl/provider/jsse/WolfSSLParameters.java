@@ -43,7 +43,7 @@ final class WolfSSLParameters {
     private String[] protocols;
     private boolean wantClientAuth = false;
     private boolean needClientAuth = false;
-    private String endpointIdAlgorithm;
+    private String endpointIdAlgorithm = null;
     private List<WolfSSLSNIServerName> serverNames;
     private boolean useCipherSuiteOrder = true;
     String[] applicationProtocols = new String[0];
@@ -59,6 +59,7 @@ final class WolfSSLParameters {
         cp.needClientAuth = this.needClientAuth;
         cp.setServerNames(this.getServerNames());
         cp.useSessionTickets = this.useSessionTickets;
+        cp.endpointIdAlgorithm = this.endpointIdAlgorithm;
 
         /* TODO: duplicate other properties here when WolfSSLParameters
          * can handle them */
@@ -124,7 +125,7 @@ final class WolfSSLParameters {
         return this.endpointIdAlgorithm;
     }
 
-    void setEndPointIdentificationAlgorithm(String algorithm) {
+    void setEndpointIdentificationAlgorithm(String algorithm) {
         this.endpointIdAlgorithm = algorithm;
     }
 

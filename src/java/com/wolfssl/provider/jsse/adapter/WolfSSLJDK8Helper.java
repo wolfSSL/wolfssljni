@@ -62,7 +62,8 @@ public class WolfSSLJDK8Helper
         List<WolfSSLSNIServerName> wsni = in.getServerNames();
         if (wsni != null) {
             /* convert WolfSSLSNIServerName list to SNIServerName */
-            final ArrayList<SNIServerName> sni = new ArrayList<SNIServerName>(wsni.size());
+            final ArrayList<SNIServerName> sni =
+                new ArrayList<SNIServerName>(wsni.size());
             for (WolfSSLSNIServerName name : wsni) {
                 sni.add(new SNIHostName(name.getEncoded()));
             }
@@ -100,9 +101,11 @@ public class WolfSSLJDK8Helper
         List<SNIServerName> sni = in.getServerNames();
         if (sni != null) {
             /* convert SNIServerName list to WolfSSLSNIServerName */
-            final ArrayList<WolfSSLSNIServerName> wsni = new ArrayList<WolfSSLSNIServerName>(sni.size());
+            final ArrayList<WolfSSLSNIServerName> wsni =
+                new ArrayList<WolfSSLSNIServerName>(sni.size());
             for (SNIServerName name : sni) {
-                wsni.add(new WolfSSLGenericHostName(name.getType(), name.getEncoded()));
+                wsni.add(new WolfSSLGenericHostName(name.getType(),
+                         name.getEncoded()));
             }
 
             /* call WolfSSLParameters.setServerNames() */
@@ -127,12 +130,13 @@ public class WolfSSLJDK8Helper
         }
 
         final String[] appProtos = in.getApplicationProtocols();
+        final Object[] appProtoArr = {appProtos};
         if (appProtos != null) {
             /* call SSLParameters.setApplicationProtocols() */
             AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 public Object run() {
                     try {
-                        m.invoke(out, (Object[])appProtos);
+                        m.invoke(out, appProtoArr);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -162,6 +166,65 @@ public class WolfSSLJDK8Helper
         if (appProtos != null) {
             /* call WolfSSLParameters.setApplicationProtocols() */
             out.setApplicationProtocols(appProtos);
+        }
+    }
+
+    /**
+     * Call SSLParameters.setEndpointIdentificationAlgorithm() to set
+     * Endpoint Identification algo from WolfSSLParameters into
+     * SSLParameters.
+     *
+     * @param out output SSLParameters to store endpoint ID algo into
+     * @param m method to invoke to set endpoint ID algo
+     * @param in input WolfSSLParameters to read endpoint ID algo from
+     */
+    protected static void setEndpointIdentificationAlgorithm(
+        final SSLParameters out, final Method m, WolfSSLParameters in) {
+
+        if (out == null || m == null || in == null) {
+            throw new NullPointerException("input arguments to " +
+                "WolfSSLJDK8Helper.setEndpointIdentificationAlgorithm() " +
+                "cannot be null");
+        }
+
+        final String idAlgo = in.getEndpointIdentificationAlgorithm();
+        if (idAlgo != null) {
+            /* call SSLParameters.setEndpointIdentificationAlgorithm() */
+            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                public Object run() {
+                    try {
+                        m.invoke(out, idAlgo);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return null;
+                }
+            });
+        }
+    }
+
+    /**
+     * Call SSLParameters.getEndpointIdentificationAlgorithm() to get
+     * Endpoint Identification Algorithm from SSLParameters into
+     * WolfSSLParameters.
+     *
+     * @param in input SSLParameters to read Endpoint ID algo from
+     * @param out output WolfSSLParameters to store Endpoint ID algo into
+     */
+    protected static void getEndpointIdentificationAlgorithm(
+        final SSLParameters in, WolfSSLParameters out) {
+
+        if (out == null || in == null) {
+            throw new NullPointerException("input arguments to " +
+                "WolfSSLJDK8Helper.getEndpointIdentificationAlgorithm() " +
+                "cannot be null");
+        }
+
+        String idAlgo = in.getEndpointIdentificationAlgorithm();
+        if (idAlgo != null) {
+            /* call WolfSSLParameters.setEndpointIdentificationAlgorithm() */
+            out.setEndpointIdentificationAlgorithm(idAlgo);
         }
     }
 }

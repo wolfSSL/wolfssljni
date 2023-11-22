@@ -26,12 +26,15 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLTrustX509;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -42,12 +45,24 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.net.Socket;
+import java.net.InetSocketAddress;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -1423,11 +1438,966 @@ public class WolfSSLTrustX509Test {
         pass("\t... passed");
     }
 
+    @Test
+    public void testX509ExtendedTrustManagerInternal()
+        throws CertificateException, IOException, Exception {
+
+        System.out.print("\tX509ExtendedTrustManager int");
+
+        /* Basic SSLSocket success case, SNI matches server cert CN */
+        testX509ExtendedTrustManagerSSLSocketBasicSuccess();
+
+        /* Basic SSLSocket success case, SNI matches server cert CN,
+         * do not call startHandshake(), should still succeed */
+        testX509ExtendedTrustManagerSSLSocketNoStartHandshakeSuccess();
+        testX509ExtendedTrustManagerSSLSocketNoClientStartHandshakeSuccess();
+        testX509ExtendedTrustManagerSSLSocketNoServerStartHandshakeSuccess();
+
+        /* Basic SSLSocket fail case, SNI does not match server cert CN */
+        testX509ExtendedTrustManagerSSLSocketBasicFail();
+
+        /* SSLSocket should fail if trying to use bad endoint alg */
+        testX509ExtendedTrustManagerSSLSocketEndpointAlgFail();
+
+        /* Basic SSLEngine success case, SNI matches server cert CN */
+        testX509ExtendedTrustManagerSSLEngineBasicSuccess();
+
+        /* Basic SSLEngine fail case, SNI does not match server cert CN */
+        testX509ExtendedTrustManagerSSLEngineBasicFail();
+
+        /* SSLEngine should fail if trying to use bad endoint alg */
+        testX509ExtendedTrustManagerSSLEngineEndpointAlgFail();
+
+        pass("\t... passed");
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketBasicSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager basic test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketNoStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, false);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager no startHandshake() test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketNoClientStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, false);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager no startHandshake() test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketNoServerStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager no startHandshake() test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketBasicFail()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        /* Correct SNI is www.wolfssl.com, this should cause a failure */
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.invalid.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("X509ExtendedTrustManager basic test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+
+        if (srvException == null) {
+            throw new Exception("Expecting exception but did not get one");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketEndpointAlgFail()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        /* We only support "HTTPS" as an endpoint algorithm. Setting
+         * "LDAPS" should fail as unsupported */
+        TestArgs clientArgs = new TestArgs(
+            "LDAPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("X509ExtendedTrustManager basic test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+
+        if (srvException == null && cliException == null) {
+            throw new Exception("Expecting exception but did not get one");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineBasicSuccess()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        SSLContext ctx = tf.createSSLContext("TLS", provider);
+        server = ctx.createSSLEngine();
+        client = ctx.createSSLEngine("wolfSSL auth test", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+
+        /* Enable Endpoint Identification for hostname verification on client */
+        cliParams.setEndpointIdentificationAlgorithm("HTTPS");
+
+        /* Set SNI, used for hostname verification of server cert. Peer cert
+         * has altName set to "example.com". */
+        SNIHostName sniName = new SNIHostName("example.com");
+        List<SNIServerName> sniNames = new ArrayList<>(1);
+        sniNames.add(sniName);
+        cliParams.setServerNames(sniNames);
+
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret != 0) {
+            throw new Exception("Failed SSLEngine connection");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineBasicFail()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        SSLContext ctx = tf.createSSLContext("TLS", provider);
+        server = ctx.createSSLEngine();
+        client = ctx.createSSLEngine("wolfSSL auth test", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+
+        /* Enable Endpoint Identification for hostname verification on client */
+        cliParams.setEndpointIdentificationAlgorithm("HTTPS");
+
+        /* Set SNI, used for hostname verification of server cert. Peer cert
+         * has altName set to "example.com", so "www.invalid.com" should cause
+         * a failure. */
+        SNIHostName sniName = new SNIHostName("www.invalid.com");
+        List<SNIServerName> sniNames = new ArrayList<>(1);
+        sniNames.add(sniName);
+        cliParams.setServerNames(sniNames);
+
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception("Expected connection to fail, but did not");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineEndpointAlgFail()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        SSLContext ctx = tf.createSSLContext("TLS", provider);
+        server = ctx.createSSLEngine();
+        client = ctx.createSSLEngine("wolfSSL auth test", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+
+        /* Enable Endpoint Identification for hostname verification on client.
+         * We only support "HTTPS" so setting "LDAPS" here should cause a
+         * failure. */
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+
+        /* Set SNI, used for hostname verification of server cert. Peer cert
+         * has altName set to "example.com" */
+        SNIHostName sniName = new SNIHostName("example.com");
+        List<SNIServerName> sniNames = new ArrayList<>(1);
+        sniNames.add(sniName);
+        cliParams.setServerNames(sniNames);
+
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception("Expected connection to fail, but did not");
+        }
+    }
+
+    @Test
+    public void testX509ExtendedTrustManagerExternal()
+        throws CertificateException, IOException, Exception {
+
+        System.out.print("\tX509ExtendedTrustManager ext");
+
+        /* Basic SSLSocket success case, SNI matches server cert CN */
+        testX509ExtendedTrustManagerSSLSocketBasicExtSuccess();
+
+        /* Basic SSLSocket fail case, custom X509ExtendedTrustManager that
+         * verifies no certificates */
+        testX509ExtendedTrustManagerSSLSocketBasicExtFail();
+
+        /* Basic SSLSocket success case, SNI matches server cert CN,
+         * do not call startHandshake(), should still succeed. Custom
+         * X509ExtendedTrustManager used that verifies all certs. */
+        testX509ExtendedTrustManagerSSLSocketExtNoStartHandshakeSuccess();
+        testX509ExtendedTrustManagerSSLSocketExtNoClientStartHandshakeSuccess();
+        testX509ExtendedTrustManagerSSLSocketExtNoServerStartHandshakeSuccess();
+
+        pass("\t... passed");
+    }
+
+    /* TrustManager that trusts all certificates */
+    TrustManager[] trustAllCerts = {
+        new X509ExtendedTrustManager() {
+            public X509Certificate[] getAcceptedIssuers() {
+                return null;
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) {
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType, Socket socket) {
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType, SSLEngine engine) {
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) {
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType, Socket socket) {
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType, SSLEngine engine) {
+            }
+        }
+    };
+
+    /* TrustManager that trusts no certificates */
+    TrustManager[] trustNoCerts = {
+        new X509ExtendedTrustManager() {
+            public X509Certificate[] getAcceptedIssuers() {
+                return null;
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType, Socket socket) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType, SSLEngine engine) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType, Socket socket) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType, SSLEngine engine) throws CertificateException {
+                throw new CertificateException("fail on purpose / bad cert");
+            }
+        }
+    };
+
+    private void testX509ExtendedTrustManagerSSLSocketBasicExtSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager ext test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketBasicExtFail()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustNoCerts,
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustNoCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("X509ExtendedTrustManager basic external test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+
+        if (srvException == null) {
+            throw new Exception("Expecting exception but did not get one");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketExtNoStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, false);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager ext no startHandshake() " +
+                 "test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketExtNoClientStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, false);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager ext no client startHandshake() " +
+                 "test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketExtNoServerStartHandshakeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager ext no server startHandshake() " +
+                 "test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
 
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
+    }
+
+    /**
+     * Inner class used to hold configuration options for
+     * TestServer and TestClient classes.
+     */
+    protected class TestArgs
+    {
+        private String endpointIDAlg = null;
+        private String sniName = null;
+        private boolean wantClientAuth = true;
+        private boolean needClientAuth = true;
+        private boolean callStartHandshake = true;
+
+        public TestArgs() { }
+
+        public TestArgs(String endpointID, String sni,
+            boolean wantClientAuth, boolean needClientAuth,
+            boolean callStartHandshake) {
+
+            this.endpointIDAlg = endpointID;
+            this.sniName = sni;
+            this.wantClientAuth = wantClientAuth;
+            this.needClientAuth = needClientAuth;
+            this.callStartHandshake = callStartHandshake;
+        }
+
+        public void setEndpointIdentificationAlg(String alg) {
+            this.endpointIDAlg = alg;
+        }
+
+        public String getEndpointIdentificationAlg() {
+            return this.endpointIDAlg;
+        }
+
+        public void setSNIName(String sni) {
+            this.sniName = sni;
+        }
+
+        public String getSNIName() {
+            return this.sniName;
+        }
+
+        public void setWantClientAuth(boolean want) {
+            this.wantClientAuth = want;
+        }
+
+        public boolean getWantClientAuth() {
+            return this.wantClientAuth;
+        }
+
+        public void setNeedClientAuth(boolean need) {
+            this.needClientAuth = need;
+        }
+
+        public boolean getNeedClientAuth() {
+            return this.needClientAuth;
+        }
+
+        public void setCallStartHandshake(boolean call) {
+            this.callStartHandshake = call;
+        }
+
+        public boolean getCallStartHandshake() {
+            return this.callStartHandshake;
+        }
+    }
+
+    protected class TestSSLSocketServer extends Thread
+    {
+        private SSLContext ctx;
+        private int port;
+        private Exception exception = null;
+        private TestArgs args = null;
+        SSLServerSocket ss = null;
+
+        public TestSSLSocketServer(SSLContext ctx, SSLServerSocket ss,
+            TestArgs args) {
+
+            this.ctx = ctx;
+            this.ss = ss;
+            this.args = args;
+        }
+
+        @Override
+        public void run() {
+
+            try {
+                SSLSocket sock = (SSLSocket)ss.accept();
+                sock.setUseClientMode(false);
+
+                /* Not enabling endpoint identification algo here since
+                 * cert does not match client hostname */
+                SSLParameters params = sock.getSSLParameters();
+
+                /* Enable client auth */
+                params.setWantClientAuth(this.args.getWantClientAuth());
+                params.setNeedClientAuth(this.args.getNeedClientAuth());
+                sock.setSSLParameters(params);
+
+                if (this.args.getCallStartHandshake()) {
+                    sock.startHandshake();
+                }
+
+                int in = sock.getInputStream().read();
+                assertEquals(in, (int)'A');
+                sock.getOutputStream().write('B');
+                sock.close();
+
+            } catch (Exception e) {
+                this.exception = e;
+            }
+        }
+
+        public Exception getException() {
+            return this.exception;
+        }
+    }
+
+    protected class TestSSLSocketClient extends Thread
+    {
+        private SSLContext ctx;
+        private int srvPort;
+        private Exception exception = null;
+        private TestArgs args = null;
+
+        public TestSSLSocketClient(SSLContext ctx, int port, TestArgs args) {
+
+            this.ctx = ctx;
+            this.srvPort = port;
+            this.args = args;
+        }
+
+        @Override
+        public void run() {
+
+            try {
+                SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
+                    .createSocket();
+                sock.setUseClientMode(true);
+                sock.connect(new InetSocketAddress(srvPort));
+
+                SSLParameters params = sock.getSSLParameters();
+
+                /* Enable Endpoint Identification for hostname verification */
+                params.setEndpointIdentificationAlgorithm(
+                    this.args.getEndpointIdentificationAlg());
+
+                /* Set SNI, used for hostname verification of server cert */
+                SNIHostName sniName = new SNIHostName(
+                    this.args.getSNIName());
+                List<SNIServerName> sniNames = new ArrayList<>(1);
+                sniNames.add(sniName);
+                params.setServerNames(sniNames);
+
+                sock.setSSLParameters(params);
+
+                if (this.args.getCallStartHandshake()) {
+                    sock.startHandshake();
+                }
+
+                sock.getOutputStream().write('A');
+                int in = sock.getInputStream().read();
+                assertEquals(in, (int)'B');
+                sock.close();
+
+            } catch (Exception e) {
+                this.exception = e;
+            }
+        }
+
+        public Exception getException() {
+            return this.exception;
+        }
     }
 }
