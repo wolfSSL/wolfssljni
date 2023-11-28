@@ -1791,6 +1791,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper.setHostAndPort(
                 address.getAddress().getHostAddress(),
                 address.getPort());
+            EngineHelper.setPeerAddress(address.getAddress());
         }
 
         /* if user is calling after WolfSSLSession creation, register
@@ -1841,6 +1842,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper.setHostAndPort(
                 address.getAddress().getHostAddress(),
                 address.getPort());
+            EngineHelper.setPeerAddress(address.getAddress());
         }
 
         /* if user is calling after WolfSSLSession creation, register

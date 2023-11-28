@@ -176,8 +176,26 @@ public class WolfSSLEngineHelper {
      * @param port peer port number
      */
     protected void setHostAndPort(String hostname, int port) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setHostAndPort()");
+
         this.hostname = hostname;
         this.port = port;
+    }
+
+    /**
+     * Set peer InetAddress.
+     * Used by SSLSocket.connect() when InetAddress is passed in from user.
+     *
+     * @param peerAddr InetAddress of peer
+     */
+    protected void setPeerAddress(InetAddress peerAddr) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setPeerAddress()");
+
+        this.peerAddr = peerAddr;
     }
 
     /**
@@ -619,9 +637,12 @@ public class WolfSSLEngineHelper {
      * is defined by Oracle to be true.
      *
      * We first try to set SNI names from SSLParameters if set by the user.
-     * If not set in SSLParameters, use the hostname string if set when
-     * SSLSocket was created, and if not set using InetAddress.getHostName()
-     * ONLY if 'jdk.tls.trustNameService' is set to true.
+     * If not set in SSLParameters, try to set using InetAddress.getHostName()
+     * IFF 'jdk.tls.trustNameService` System property has been set to true.
+     * Otherwise fall back and set based on hostname String if not null.
+     * hostname String may be either IP address or fully qualified domain
+     * name depending on what createSocket() API the user has called and with
+     * what String.
      */
     private void setLocalServerNames() {
 
@@ -654,28 +675,31 @@ public class WolfSSLEngineHelper {
                 }
 
             } else {
-                if (this.hostname != null) {
+                if (this.peerAddr != null && trustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "setting SNI extension with hostname: " +
-                        this.hostname);
-                    this.ssl.useSNI((byte)0, this.hostname.getBytes());
+                        "setting SNI extension with " +
+                        "InetAddress.getHostName(): " +
+                        this.peerAddr.getHostName());
 
+                    this.ssl.useSNI((byte)0,
+                        this.peerAddr.getHostName().getBytes());
                 }
-                else if (this.peerAddr != null) {
-                    if (trustNameService) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "setting SNI extension with " +
-                            "InetAddress.getHostName(): " +
-                            this.peerAddr.getHostName());
-
-                        this.ssl.useSNI((byte)0,
-                            this.peerAddr.getHostName().getBytes());
-                    }
-                    else {
+                else if (this.hostname != null) {
+                    if (peerAddr != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "jdk.tls.trustNameService not set to true, " +
                             "not doing reverse DNS lookup to set SNI");
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "setting SNI extension with hostname: " +
+                            this.hostname);
                     }
+                    else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "peerAddr is null, setting SNI extension with " +
+                            "hostname: " + this.hostname);
+                    }
+                    this.ssl.useSNI((byte)0, this.hostname.getBytes());
+
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
