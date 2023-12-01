@@ -207,7 +207,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToPK
 
     ret = wc_EccPrivateKeyToPKCS8(key, result, &resultSz);
     if (ret <= 0) {
-        XFREE(result, (ecc_key*)eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         (*jenv)->ThrowNew(jenv, excClass,
                 "Native call to wc_EccPrivateKeyToDer failed");
         return NULL;
