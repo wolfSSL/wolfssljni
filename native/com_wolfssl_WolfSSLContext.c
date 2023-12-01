@@ -3407,7 +3407,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
             wc_ecc_free(&tmpKey);
-            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
             throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to export "
                 "eccSharedSecret public key to DER", needsDetach);
             return -1;
@@ -3420,7 +3420,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         if (!pubKeyDerBB) {
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
-            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
             throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
                 "eccSharedSecret publicKeyDer ByteBuffer", needsDetach);
             return -1;
@@ -3448,7 +3448,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
         (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
         if (side == WOLFSSL_SERVER_END)
-            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
             "eccSharedSecret array for publicKeyDerSz", needsDetach);
         return -1;
@@ -3463,7 +3463,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
         (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
         if (side == WOLFSSL_SERVER_END)
-            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
             "eccSharedSecret out ByteBuffer", needsDetach);
         return -1;
@@ -3479,7 +3479,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
         (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
         if (side == WOLFSSL_SERVER_END)
-            XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         throwWolfSSLJNIExceptionWithMsg(jenv, "Failed to create "
             "eccSharedSecret array for outSz", needsDetach);
         return -1;
@@ -3496,7 +3496,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
     (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
     if (side == WOLFSSL_SERVER_END) {
-        XFREE(tmpKeyDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (retval == 0) {
