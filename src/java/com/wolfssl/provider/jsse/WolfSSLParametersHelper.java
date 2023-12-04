@@ -35,6 +35,8 @@ public class WolfSSLParametersHelper
     private static Method setServerNames = null;
     private static Method getApplicationProtocols = null;
     private static Method setApplicationProtocols = null;
+    private static Method getEndpointIdentificationAlgorithm = null;
+    private static Method setEndpointIdentificationAlgorithm = null;
 
     /** Default WolfSSLParametersHelper constructor */
     public WolfSSLParametersHelper() { }
@@ -64,6 +66,12 @@ public class WolfSSLParametersHelper
                                     continue;
                                 case "setApplicationProtocols":
                                     setApplicationProtocols = m;
+                                    continue;
+                                case "getEndpointIdentificationAlgorithm":
+                                    getEndpointIdentificationAlgorithm = m;
+                                    continue;
+                                case "setEndpointIdentificationAlgorithm":
+                                    setEndpointIdentificationAlgorithm = m;
                                     continue;
                                 default:
                                     continue;
@@ -107,7 +115,8 @@ public class WolfSSLParametersHelper
         /* Methods added as of JDK 1.8, older JDKs will not have them. Using
          * Java reflection to detect availability. */
 
-        if (setServerNames != null || setApplicationProtocols != null) {
+        if (setServerNames != null || setApplicationProtocols != null ||
+            setEndpointIdentificationAlgorithm != null) {
 
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
@@ -125,7 +134,11 @@ public class WolfSSLParametersHelper
                 }
                 if (setApplicationProtocols != null) {
                     mth = cls.getDeclaredMethod("setApplicationProtocols", paramList);
-                    mth.invoke(obj, ret, setServerNames, in);
+                    mth.invoke(obj, ret, setApplicationProtocols, in);
+                }
+                if (setEndpointIdentificationAlgorithm != null) {
+                    mth = cls.getDeclaredMethod("setEndpointIdentificationAlgorithm", paramList);
+                    mth.invoke(obj, ret, setEndpointIdentificationAlgorithm, in);
                 }
 
             } catch (Exception e) {
@@ -139,8 +152,6 @@ public class WolfSSLParametersHelper
          * conditionally to wolfJSSE when supported. */
         /*ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
         ret.setEnableRetransmissions(in.getEnableRetransmissions());
-        ret.setEndpointIdentificationAlgorithm(
-            in.getEndpointIdentificationAlgorithm());
         ret.setMaximumPacketSize(in.getMaximumPacketSize());
         ret.setSNIMatchers(in.getSNIMatchers());
         ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
@@ -183,7 +194,8 @@ public class WolfSSLParametersHelper
         /* Methods added as of JDK 1.8, older JDKs will not have them. Using
          * Java reflection to detect availability. */
 
-        if (getServerNames != null || getApplicationProtocols != null) {
+        if (getServerNames != null || getApplicationProtocols != null ||
+            getEndpointIdentificationAlgorithm != null) {
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
@@ -201,6 +213,10 @@ public class WolfSSLParametersHelper
                     mth = cls.getDeclaredMethod("getApplicationProtocols", paramList);
                     mth.invoke(obj, in, out);
                 }
+                if (getEndpointIdentificationAlgorithm != null) {
+                    mth = cls.getDeclaredMethod("getEndpointIdentificationAlgorithm", paramList);
+                    mth.invoke(obj, in, out);
+                }
 
             } catch (Exception e) {
                 /* ignore, class not found */
@@ -213,8 +229,6 @@ public class WolfSSLParametersHelper
          * conditionally to wolfJSSE when supported. */
         /*out.setAlgorithmConstraints(in.getAlgorithmConstraints());
         out.setEnableRetransmissions(in.getEnableRetransmissions());
-        out.setEndpointIdentificationAlgorithm(
-            in.getEndpointIdentificationAlgorithm());
         out.setMaximumPacketSize(in.getMaximumPacketSize());
         out.setSNIMatchers(in.getSNIMatchers());
         out.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());

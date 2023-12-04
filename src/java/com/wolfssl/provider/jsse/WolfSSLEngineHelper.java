@@ -29,6 +29,8 @@ import java.util.List;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
@@ -132,8 +134,8 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLEngineHelper(port: " + port +
-            ", hostname: " + hostname + ")");
+            "created new WolfSSLEngineHelper(peer port: " + port +
+            ", peer hostname: " + hostname + ")");
     }
 
     /**
@@ -162,8 +164,8 @@ public class WolfSSLEngineHelper {
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLEngineHelper(port: " + port +
-            ", IP: " + peerAddr.getHostAddress() + ")");
+            "created new WolfSSLEngineHelper(peer port: " + port +
+            ", peer IP: " + peerAddr.getHostAddress() + ")");
     }
 
     /**
@@ -174,8 +176,26 @@ public class WolfSSLEngineHelper {
      * @param port peer port number
      */
     protected void setHostAndPort(String hostname, int port) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setHostAndPort()");
+
         this.hostname = hostname;
         this.port = port;
+    }
+
+    /**
+     * Set peer InetAddress.
+     * Used by SSLSocket.connect() when InetAddress is passed in from user.
+     *
+     * @param peerAddr InetAddress of peer
+     */
+    protected void setPeerAddress(InetAddress peerAddr) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setPeerAddress()");
+
+        this.peerAddr = peerAddr;
     }
 
     /**
@@ -539,7 +559,7 @@ public class WolfSSLEngineHelper {
     }
 
     /* sets client auth on or off if needed / wanted */
-    private void setLocalAuth() {
+    private void setLocalAuth(SSLSocket socket, SSLEngine engine) {
         int mask = WolfSSL.SSL_VERIFY_NONE;
 
         /* default to client side authenticating the server connecting to */
@@ -556,13 +576,22 @@ public class WolfSSLEngineHelper {
         }
 
         X509TrustManager tm = authStore.getX509TrustManager();
+        wicb = new WolfSSLInternalVerifyCb(authStore.getX509TrustManager(),
+                                           this.clientMode, socket, engine);
+
         if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
             /* use internal peer verification logic */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "X509TrustManager is of type WolfSSLTrustX509");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Using native internal peer verification logic");
-            this.ssl.setVerify(mask, null);
+
+            /* Register Java verify callback for additional hostname
+             * verification when SSLParameters Endpoint Identification
+             * Algorithm has been set. To get this callback to be called,
+             * native wolfSSL should be compiled with the following define:
+             * WOLFSSL_ALWAYS_VERIFY_CB */
+            this.ssl.setVerify(mask, wicb);
 
         } else {
             /* not our own TrustManager, set up callback so JSSE can use
@@ -571,8 +600,6 @@ public class WolfSSLEngineHelper {
                 "X509TrustManager is not of type WolfSSLTrustX509");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Using checkClientTrusted/ServerTrusted() for verification");
-            wicb = new WolfSSLInternalVerifyCb(authStore.getX509TrustManager(),
-                                               this.clientMode);
             this.ssl.setVerify(WolfSSL.SSL_VERIFY_PEER, wicb);
         }
     }
@@ -610,9 +637,12 @@ public class WolfSSLEngineHelper {
      * is defined by Oracle to be true.
      *
      * We first try to set SNI names from SSLParameters if set by the user.
-     * If not set in SSLParameters, use the hostname string if set when
-     * SSLSocket was created, and if not set using InetAddress.getHostName()
-     * ONLY if 'jdk.tls.trustNameService' is set to true.
+     * If not set in SSLParameters, try to set using InetAddress.getHostName()
+     * IFF 'jdk.tls.trustNameService` System property has been set to true.
+     * Otherwise fall back and set based on hostname String if not null.
+     * hostname String may be either IP address or fully qualified domain
+     * name depending on what createSocket() API the user has called and with
+     * what String.
      */
     private void setLocalServerNames() {
 
@@ -645,28 +675,31 @@ public class WolfSSLEngineHelper {
                 }
 
             } else {
-                if (this.hostname != null) {
+                if (this.peerAddr != null && trustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "setting SNI extension with hostname: " +
-                        this.hostname);
-                    this.ssl.useSNI((byte)0, this.hostname.getBytes());
+                        "setting SNI extension with " +
+                        "InetAddress.getHostName(): " +
+                        this.peerAddr.getHostName());
 
+                    this.ssl.useSNI((byte)0,
+                        this.peerAddr.getHostName().getBytes());
                 }
-                else if (this.peerAddr != null) {
-                    if (trustNameService) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "setting SNI extension with " +
-                            "InetAddress.getHostName(): " +
-                            this.peerAddr.getHostName());
-
-                        this.ssl.useSNI((byte)0,
-                            this.peerAddr.getHostName().getBytes());
-                    }
-                    else {
+                else if (this.hostname != null) {
+                    if (peerAddr != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "jdk.tls.trustNameService not set to true, " +
                             "not doing reverse DNS lookup to set SNI");
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "setting SNI extension with hostname: " +
+                            this.hostname);
                     }
+                    else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "peerAddr is null, setting SNI extension with " +
+                            "hostname: " + this.hostname);
+                    }
+                    this.ssl.useSNI((byte)0, this.hostname.getBytes());
+
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -850,12 +883,14 @@ public class WolfSSLEngineHelper {
         }
     }
 
-    private void setLocalParams() throws SSLException {
+    private void setLocalParams(SSLSocket socket, SSLEngine engine)
+        throws SSLException {
+
         this.setLocalCiphers(
             WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
         this.setLocalProtocol(
             WolfSSLUtil.sanitizeProtocols(this.params.getProtocols()));
-        this.setLocalAuth();
+        this.setLocalAuth(socket, engine);
         this.setLocalServerNames();
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
@@ -866,16 +901,56 @@ public class WolfSSLEngineHelper {
 
     /**
      * Sets all parameters from WolfSSLParameters into native WOLFSSL object
-     * and creates session.
+     * and creates session. Accepts reference to SSLSocket which is calling
+     * this, to be used in ExtendedX509TrustManager hostname verification
+     * during handshake.
      *
      * This should be called before doHandshake()
+     *
+     * @param socket SSLSocket from which this method is being called.
      *
      * @throws SSLException if setUseClientMode() has not been called or
      *                      on native socket error
      * @throws SSLHandshakeException session creation is not allowed
      *
      */
-    protected void initHandshake() throws SSLException {
+    protected void initHandshake(SSLSocket socket) throws SSLException {
+        initHandshakeInternal(socket, null);
+    }
+
+    /**
+     * Sets all parameters from WolfSSLParameters into native WOLFSSL object
+     * and creates session. Accepts reference to SSLEngine which is calling
+     * this, to be used in ExtendedX509TrustManager hostname verification
+     * during handshake.
+     *
+     * This should be called before doHandshake()
+     *
+     * @param engine SSLEngine from which this method is being called.
+     *
+     * @throws SSLException if setUseClientMode() has not been called or
+     *                      on native socket error
+     * @throws SSLHandshakeException session creation is not allowed
+     *
+     */
+    protected void initHandshake(SSLEngine engine) throws SSLException {
+        initHandshakeInternal(null, engine);
+    }
+
+    /**
+     * Private internal method called by initHandshake() variants which
+     * accept either SSLSocket or SSLEngine.
+     *
+     * Only one or the other between SSLSocket or SSLEngien should be provided
+     * at one time, not both. The other should be set to null.
+     *
+     * @param socket SSLSocket from which this method is being called.
+     * @param engine SSLEngine from which this method is being called.
+     * @throws SSLHandshakeException session creation is not allowed
+     *
+     */
+    private void initHandshakeInternal(SSLSocket socket, SSLEngine engine)
+        throws SSLException {
 
         String sessCacheHostname = this.hostname;
 
@@ -922,7 +997,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.setLocalParams();
+        this.setLocalParams(socket, engine);
     }
 
     /**

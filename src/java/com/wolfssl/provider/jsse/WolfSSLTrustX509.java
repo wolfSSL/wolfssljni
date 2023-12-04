@@ -30,19 +30,33 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.net.Socket;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.ExtendedSSLSession;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.StandardConstants;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import javax.security.auth.x500.X500Principal;
 
+import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;
 import java.security.cert.Certificate;
 
 /**
- * wolfSSL implementation of X509TrustManager
+ * wolfSSL implementation of X509TrustManager, extends
+ * X509ExtendedTrustManager for additional hostname verification for HTTPS.
  *
  * @author wolfSSL
  */
-public class WolfSSLTrustX509 implements X509TrustManager {
+public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
+    implements X509TrustManager {
+
     private KeyStore store = null;
 
     /**
@@ -411,6 +425,259 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         return fullChain;
     }
 
+    /**
+     * Verify hostname using HTTPS verification method.
+     *
+     * This method does the following operations in an attempt to verify
+     * the HTTPS type hostname:
+     *
+     *   1. If SNI name has been received during TLS handshake, try to
+     *      first verify peer certificate against that. Skip this step when
+     *      on server side verifying the client, since server does not set
+     *      an SNI for the client.
+     *   2. Otherwise, try to verify certificate against SSLSocket
+     *      hostname (SSLSession.getHostName()).
+     *   3. If both of the above fail, fail hostname verification.
+     *
+     * @param cert peer certificate
+     * @param socket SSLSocket associated with connection to peer. Only one
+     *               of socket or engine params should be used. The other should
+     *               be set to null.
+     * @param engine SSLEngine associated with connection to peer. Either/or
+     *               between this and socket param. Other should be set to
+     *               null.
+     * @param isClient true if we are calling this from client side, otherwise
+     *               false if calling from server side.
+     * @throws CertificateException if hostname cannot be verified
+     */
+    private void verifyHTTPSHostname(X509Certificate cert, SSLSocket socket,
+        SSLEngine engine, boolean isClient) throws CertificateException {
+
+        String peerHost = null;
+        List<SNIServerName> sniNames = null;
+        String sniHostName = null;
+        SSLSession session = null;
+        WolfSSLCertificate peerCert = null;
+        int ret = WolfSSL.SSL_FAILURE;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "verifying HTTPS hostname");
+
+        /* Get session associated with SSLSocket or SSLEngine */
+        try {
+            if (socket != null) {
+                session = socket.getHandshakeSession();
+            }
+            else if (engine != null) {
+                session = engine.getHandshakeSession();
+            }
+        } catch (UnsupportedOperationException e) {
+            e.printStackTrace();
+            throw new CertificateException(e);
+        }
+
+        /* Get peer host from SSLSocket */
+        if (session != null) {
+            peerHost = session.getPeerHost();
+        }
+
+        /* Get SNI name if SSLSocket has received that from peer. Only check
+         * this when on the client side and verifying a server since SNI
+         * holding expected server name is available on client-side but not
+         * vice-versa */
+        if (session != null && isClient &&
+            (session instanceof ExtendedSSLSession)) {
+            sniNames = ((ExtendedSSLSession)session).getRequestedServerNames();
+
+            for (SNIServerName name : sniNames) {
+                if (name.getType() == StandardConstants.SNI_HOST_NAME) {
+                    SNIHostName tmpName = new SNIHostName(name.getEncoded());
+                    if (tmpName != null) {
+                        /* Get SNI name as ASCII string for comparison */
+                        sniHostName = tmpName.getAsciiName();
+                    }
+                }
+            }
+        }
+
+        /* Create new WolfSSLCertificate (WOLFSSL_X509) from
+         * DER encoding of peer certificate */
+        try {
+            peerCert = new WolfSSLCertificate(cert.getEncoded());
+            if (peerCert == null) {
+                throw new CertificateException(
+                    "Unable to create WolfSSLCertificate from peer cert");
+            }
+
+        } catch (WolfSSLException e) {
+            throw new CertificateException(e);
+        }
+
+        /* Try verifying hostname against SNI name */
+        if (isClient) {
+            if (sniHostName != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "trying hostname verification against SNI: " + sniHostName);
+
+                ret = peerCert.checkHost(sniHostName);
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    /* Hostname successfully verified against SNI name */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "successfully verified X509 hostname using SNI name");
+                    return;
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "hostname match with SNI failed");
+                }
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "no provided SNI name found");
+            }
+        }
+
+        /* Try verifying hostname against peerHost from SSLSocket/Engine */
+        if (peerHost != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "trying hostname verification against peer host: " +
+                peerHost);
+
+            ret = peerCert.checkHost(peerHost);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Hostname successfully verified against peer host name */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "successfully verified X509 hostname using SSLSession " +
+                    "getPeerHost()");
+                return;
+            }
+        }
+
+        if (isClient) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "hostname verification failed for server peer cert, " +
+                "tried SNI (" + sniHostName + "), peer host (" + peerHost +
+                ")\n" + peerCert);
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "hostname verification failed for client peer cert, " +
+                "tried peer host (" + peerHost + ")\n" + peerCert);
+        }
+
+        throw new CertificateException("Hostname verification failed");
+    }
+
+    /**
+     * Verify hostname of certificate.
+     *
+     * @param cert peer certificate
+     * @param socket SSLSocket associated with connection to peer. Only one
+     *               of socket or engine params should be used. The other should
+     *               be set to null.
+     * @param engine SSLEngine associated with connection to peer. Either/or
+     *               between this and socket param. Other should be set to
+     *               null.
+     * @param isClient true if we are calling this from client side, otherwise
+     *               false if calling from server side.
+     * @throws CertificateException if hostname cannot be verified
+     */
+    protected void verifyHostname(X509Certificate cert,
+        Socket socket, SSLEngine engine, boolean isClient)
+        throws CertificateException {
+
+        String endpointIdAlgo = null;
+        SSLParameters sslParams = null;
+        SSLSession session = null;
+
+        /* Hostname verification only done if Socket is of SSLSocket,
+         * not null, and connected */
+        if ((socket != null) && (socket instanceof SSLSocket) &&
+            (socket.isConnected())) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered verifyHostname, using SSLSocket for host info");
+
+            sslParams = ((SSLSocket)socket).getSSLParameters();
+            if (sslParams == null) {
+                throw new CertificateException(
+                    "SSLParameters in SSLSocket is null");
+            }
+            endpointIdAlgo = sslParams.getEndpointIdentificationAlgorithm();
+
+            /* If endpoint ID algo is null or empty, skips hostname verify */
+            if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
+                if (endpointIdAlgo.equals("HTTPS")) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "verifying hostname, endpoint identification " +
+                        "algorithm = HTTPS");
+                    verifyHTTPSHostname(cert, (SSLSocket)socket,
+                        null, isClient);
+                }
+                else {
+                    throw new CertificateException(
+                        "Unsupported Endpoint Identification Algorithm: " +
+                        endpointIdAlgo);
+                }
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "endpoint Identification algo is null or empty, " +
+                    "skipping hostname verification");
+            }
+        }
+        else if (engine != null) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "entered verifyHostname, using SSLEngine for host info");
+
+            sslParams = engine.getSSLParameters();
+            if (sslParams == null) {
+                throw new CertificateException(
+                    "SSLParameters in SSLEngine is null");
+            }
+            endpointIdAlgo = sslParams.getEndpointIdentificationAlgorithm();
+
+            /* If endpoint ID algo is null or empty, skips hostname verify */
+            if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
+                if (endpointIdAlgo.equals("HTTPS")) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "verifying hostname, endpoint identification " +
+                        "algorithm = HTTPS");
+                    verifyHTTPSHostname(cert, null, engine, isClient);
+                }
+                else {
+                    throw new CertificateException(
+                        "Unsupported Endpoint Identification Algorithm: " +
+                        endpointIdAlgo);
+                }
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "endpoint Identification algo is null or empty, " +
+                    "skipping hostname verification");
+            }
+        }
+        else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Socket is null, not connected, or not SSLSocket. " +
+                "SSLEngine is also null. " +
+                "Skipping hostname verification in ExtendedX509TrustManager");
+        }
+    }
+
+    /**
+     * Try to build and validate the client certificate chain based on the
+     * provided certificates and authentication type.
+     *
+     * Does not do hostname verification internally. Calling applications are
+     * responsible for checking hostname for accuracy if desired. To use
+     * internal hostname verification use X509ExtendedTrustManager APIs
+     * (for HTTPS verification).
+     *
+     * @param certs peer certificate chain
+     * @param type authentication type based on the client certificate
+     * @throws CertificateException if certificate chain is not trusted
+     */
     @Override
     public void checkClientTrusted(X509Certificate[] certs, String type)
             throws CertificateException {
@@ -418,9 +685,67 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkClientTrusted()");
 
+        /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
     }
 
+    /**
+     * Try to build and validate the client certificate chain based on the
+     * provided certificates and authentication type.
+     *
+     * Also does hostname verification internally if Endpoint Identification
+     * Algorithm has been set by application in SSLParameters, and that
+     * Algorithm matches "HTTPS". If that is set, hostname verification is
+     * done using SNI first then peer host value.
+     *
+     * Other Endpoint Identification Algorithms besides "HTTPS" are not
+     * currently supported.
+     *
+     * @param certs peer certificate chain
+     * @param type authentication type based on the client certificate
+     * @throws CertificateException if certificate chain is not trusted
+     */
+    @Override
+    public void checkClientTrusted(X509Certificate[] certs, String type,
+        Socket socket) throws CertificateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkClientTrusted() with Socket");
+
+        /* Verify cert chain, throw CertificateException if not valid */
+        certManagerVerify(certs, type, false);
+
+        /* Verify hostname if right criteria matches */
+        verifyHostname(certs[0], socket, null, false);
+    }
+
+    @Override
+    public void checkClientTrusted(X509Certificate[] certs, String type,
+        SSLEngine engine) throws CertificateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkClientTrusted() with SSLEngine");
+
+        /* Verify cert chain, throw CertificateException if not valid */
+        certManagerVerify(certs, type, false);
+
+        /* Verify hostname if right criteria matches */
+        verifyHostname(certs[0], null, engine, false);
+    }
+
+    /**
+     * Try to build and validate the server certificate chain based on the
+     * provided certificates and authentication type.
+     *
+     * Does not do hostname verification internally. Calling applications are
+     * responsible for checking hostname for accuracy if desired. To use
+     * internal hostname verification use X509ExtendedTrustManager APIs
+     * (for HTTPS verification).
+     *
+     * @param certs peer certificate chain
+     * @param type authentication type based on the client certificate
+     * @throws CertificateException if certificate chain is not trusted
+     */
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type)
         throws CertificateException {
@@ -428,7 +753,36 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkServerTrusted()");
 
+        /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
+    }
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] certs, String type,
+        Socket socket) throws CertificateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkServerTrusted() with Socket");
+
+        /* Verify cert chain, throw CertificateException if not valid */
+        certManagerVerify(certs, type, false);
+
+        /* Verify hostname if right criteria matches */
+        verifyHostname(certs[0], socket, null, true);
+    }
+
+    @Override
+    public void checkServerTrusted(X509Certificate[] certs, String type,
+        SSLEngine engine) throws CertificateException {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkServerTrusted() with SSLEngine");
+
+        /* Verify cert chain, throw CertificateException if not valid */
+        certManagerVerify(certs, type, false);
+
+        /* Verify hostname if right criteria matches */
+        verifyHostname(certs[0], null, engine, true);
     }
 
     /**
@@ -455,6 +809,13 @@ public class WolfSSLTrustX509 implements X509TrustManager {
         return certManagerVerify(certs, type, true);
     }
 
+    /**
+     * Returns an array of certificate authorities which are trusted for
+     * authenticating peers.
+     *
+     * @return array of X509Certificate objects representing trusted
+     *         CA certificates. May be empty (non-null).
+     */
     @Override
     public X509Certificate[] getAcceptedIssuers() {
 
