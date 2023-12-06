@@ -469,6 +469,15 @@ public class Server {
                     }
                 }
 
+                /* ALPN select callback */
+                MyALPNSelectCallback alpnSelectCb = new MyALPNSelectCallback();
+                ret = ssl.setAlpnSelectCb(alpnSelectCb, null);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("failed to set ALPN select callback, " +
+                        "ret = " + ret);
+                    System.exit(1);
+                }
+
                 if (useIOCallbacks || (doDTLS == 1)) {
                     /* register I/O callback user context */
                     MyIOCtx ioctx = new MyIOCtx(outstream, instream,

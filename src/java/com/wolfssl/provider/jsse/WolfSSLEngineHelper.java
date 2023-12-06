@@ -455,19 +455,22 @@ public class WolfSSLEngineHelper {
     /**
      * Get selected ALPN protocol string
      *
-     * @return String representation of selected ALPN protocol or null
-     *         if handshake has not finished
+     * @return String representation of selected ALPN protocol, null
+     *         if protocol is not available yet, or empty String if
+     *         ALPN will not be used for this connection.
      */
     protected String getAlpnSelectedProtocolString() {
-        if (this.ssl.handshakeDone()) {
-            String proto = ssl.getAlpnSelectedString();
+        String proto = ssl.getAlpnSelectedString();
 
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "selected ALPN protocol = " + proto);
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "selected ALPN protocol = " + proto);
 
-            return proto;
+        if (proto == null && this.ssl.handshakeDone()) {
+            /* ALPN not used if proto is null and handshake is done */
+            return "";
         }
-        return null;
+
+        return proto;
     }
 
     /********** Calls to transfer over parameter to wolfSSL before connection */
@@ -800,9 +803,9 @@ public class WolfSSLEngineHelper {
                     "\t" + i + ": " + applicationProtocols[i]);
             }
 
-            /* continue on mismatch */
+            /* fail on mismatch */
             this.ssl.useALPN(applicationProtocols,
-                             WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+                             WolfSSL.WOLFSSL_ALPN_FAILED_ON_MISMATCH);
         }
 
         if (alpnProtos == null && applicationProtocols == null) {

@@ -45,8 +45,14 @@
 #include "com_wolfssl_WolfSSL.h"
 
 /* custom I/O native fn prototypes */
-int  NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-int  NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+
+/* ALPN select native callback prototype */
+int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
+    unsigned char *outlen, const unsigned char *in,
+    unsigned int inlen, void *arg);
+
 #ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
@@ -4167,6 +4173,336 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
 
     return ret;
 }
+
+JNIEXPORT int JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(HAVE_ALPN) && (LIBWOLFSSL_VERSION_HEX >= 0x05006006)
+    /* wolfSSL_set_alpn_select_cb() added as of wolfSSL 5.6.6 */
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int ret = SSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* set ALPN select callback */
+    wolfSSL_set_alpn_select_cb(ssl, NativeALPNSelectCb, NULL);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+#ifdef HAVE_ALPN
+
+int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
+    unsigned char *outlen, const unsigned char *in,
+    unsigned int inlen, void *arg)
+{
+    JNIEnv* jenv;                   /* JNI environment */
+    jclass  excClass;               /* WolfSSLJNIException class */
+    int     needsDetach = 0;        /* Should we explicitly detach? */
+    jint    vmret = 0;
+
+    jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
+    jclass    sslClass;             /* WolfSSLSession class */
+    jmethodID alpnSelectMethodId;   /* internalAlpnSelectCallback ID */
+
+    int ret = 0;
+    int idx = 0;
+    int peerProtoCount = 0;
+    char* peerProtos = NULL;
+    char* peerProtosCopy = NULL;
+    word16 peerProtosSz = 0;
+    char* curr = NULL;
+    char* ptr = NULL;
+    jobjectArray peerProtosArr = NULL;
+    jobjectArray outProtoArr = NULL;
+    int outProtoArrSz = 0;
+    jstring selectedProto = NULL;
+    const char* selectedProtoCharArr = NULL;
+    int selectedProtoCharArrSz = 0;
+
+    if (g_vm == NULL || ssl == NULL || out == NULL || outlen == NULL ||
+        in == NULL) {
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+        needsDetach = 1;
+    }
+    else if (vmret != JNI_OK) {
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* get stored WolfSSLSession object */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession object reference in "
+            "NativeALPNSelectCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* lookup WolfSSLSession class from object */
+    sslClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (sslClass == NULL) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeALPNSelectCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* call internal ALPN select callback */
+    alpnSelectMethodId = (*jenv)->GetMethodID(jenv, sslClass,
+        "internalAlpnSelectCallback",
+        "(Lcom/wolfssl/WolfSSLSession;[Ljava/lang/String;[Ljava/lang/String;)I");
+    if (alpnSelectMethodId == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalAlpnSelectCallback method from JNI");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* Use wolfSSL_ALPN_GetPeerProtocol() here to get ALPN protocols sent
+     * by the peer instead of directly using in/inlen, since this API
+     * splits/formats into a comma-separated, null-terminated list */
+    ret = wolfSSL_ALPN_GetPeerProtocol(ssl, &peerProtos, &peerProtosSz);
+    if (ret != WOLFSSL_SUCCESS) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error in wolfSSL_ALPN_GetPeerProtocol()");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* Make a copy of peer protos since we have to scan through it first
+     * to get total number of tokens */
+    peerProtosCopy = (char*)XMALLOC(peerProtosSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (peerProtosCopy == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error allocating memory for peer protocols array");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+    XMEMCPY(peerProtosCopy, peerProtos, peerProtosSz);
+
+    /* get count of protocols, used to create Java array of proper size */
+    curr = XSTRTOK(peerProtosCopy, ",", &ptr);
+    while (curr != NULL) {
+        peerProtoCount++;
+        curr = XSTRTOK(NULL, ",", &ptr);
+    }
+    XFREE(peerProtosCopy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    peerProtosCopy = NULL;
+
+    if (peerProtoCount == 0) {
+        wolfSSL_ALPN_FreePeerProtocol(ssl, &peerProtos);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "ALPN peer protocol list size is 0");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* create Java String[] of size peerProtoCount */
+    peerProtosArr = (*jenv)->NewObjectArray(jenv, peerProtoCount,
+        (*jenv)->FindClass(jenv, "java/lang/String"), NULL);
+    if (peerProtosArr == NULL) {
+        wolfSSL_ALPN_FreePeerProtocol(ssl, &peerProtos);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create JNI String[] for ALPN protocols");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* add each char* to String[] for call to Java callback method */
+    curr = XSTRTOK(peerProtos, ",", &ptr);
+    while (curr != NULL) {
+        (*jenv)->SetObjectArrayElement(jenv, peerProtosArr, idx++,
+            (*jenv)->NewStringUTF(jenv, curr));
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+
+            wolfSSL_ALPN_FreePeerProtocol(ssl, &peerProtos);
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to add String to JNI String[] for ALPN protocols");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+
+        curr = XSTRTOK(NULL, ",", &ptr);
+    }
+
+    /* free native peer protocol list, no longer needed */
+    wolfSSL_ALPN_FreePeerProtocol(ssl, &peerProtos);
+
+    /* create new String[1] to let Java callback put output selection into
+     * first array offset, ie String[0] */
+    outProtoArr = (*jenv)->NewObjectArray(jenv, 1,
+        (*jenv)->FindClass(jenv, "java/lang/String"), NULL);
+    if (outProtoArr == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create JNI String[1] for output ALPN protocol");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    /* call Java callback */
+    ret = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+       alpnSelectMethodId, (jobject)(*g_cachedSSLObj), outProtoArr,
+       peerProtosArr);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Exception while calling internalAlpnSelectCallback()");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    if (ret == SSL_TLSEXT_ERR_OK) {
+        /* convert returned String[0] into char* */
+        outProtoArrSz = (*jenv)->GetArrayLength(jenv, outProtoArr);
+        if (outProtoArrSz != 1) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Output String[] for ALPN result not size 1");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+
+        /* get jstring from String[0] */
+        selectedProto = (jstring)(*jenv)->GetObjectArrayElement(
+            jenv, outProtoArr, 0);
+        if (selectedProto == NULL) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Selected ALPN protocol in String[] is NULL");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+
+        /* get char* from jstring */
+        selectedProtoCharArr = (*jenv)->GetStringUTFChars(jenv,
+            selectedProto, 0);
+        selectedProtoCharArrSz = XSTRLEN(selectedProtoCharArr);
+
+        /* see if selected ALPN protocol is in original sent list */
+        if (selectedProtoCharArr != NULL) {
+            for (idx = 0; idx < inlen; idx++) {
+                if (idx + selectedProtoCharArrSz > inlen) {
+                    /* No match found, fatal error. in not long enough for
+                     * search. Reset ret to error condition, match not set
+                     * correctly */
+                    ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+                    break;
+                }
+                if (XMEMCMP(in + idx, selectedProtoCharArr,
+                        selectedProtoCharArrSz) == 0) {
+                    /* Match found. Format of input array is length byte of
+                     * ALPN protocol, followed by ALPN protocol,
+                     * ie (LEN+ALPN|LEN+ALPN|...) We set *out to ALPN selected
+                     * protocol and *outlen to length of protocol (idx - 1) */
+                    *out = in + idx;
+                    *outlen = in[idx - 1];
+                    break;
+                }
+            }
+        }
+        else {
+            /* Not able to get selected ALPN protocol from Java, fatal error */
+            ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+    }
+
+   return ret;
+}
+
+#endif /* HAVE_ALPN */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ssl)

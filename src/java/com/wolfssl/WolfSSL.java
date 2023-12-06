@@ -174,6 +174,8 @@ public class WolfSSL {
     public static final int SSL_ERROR_SSL              = 85;
     /** Peer closed socket */
     public static final int SSL_ERROR_SOCKET_PEER_CLOSED = -397;
+    /** Unrecognized ALPN protocol name */
+    public static final int UNKNOWN_ALPN_PROTOCOL_NAME_E = -405;
 
     /* extra definitions from ssl.h */
     /** CertManager: check all cert CRLs */
@@ -301,6 +303,15 @@ public class WolfSSL {
     /* ------------------ TLS extension specific  ------------------------ */
     /** SNI Host name type, for UseSNI() */
     public static final int WOLFSSL_SNI_HOST_NAME = 0;
+
+    /** ALPN ERR OK, ALPN protocol match */
+    public static final int SSL_TLSEXT_ERR_OK = 0;
+
+    /** ALPN ERR NOACK, ALPN callback no match but not fatal */
+    public static final int SSL_TLSEXT_ERR_NOACK = 3;
+
+    /** ALPN ERR FATAL, ALPN callback no match and fatal */
+    public static final int SSL_TLSEXT_ERR_ALERT_FATAL = 2;
 
     /* ---------------------- wolfCrypt codes ---------------------------- */
 

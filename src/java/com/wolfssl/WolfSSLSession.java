@@ -55,6 +55,7 @@ public class WolfSSLSession {
     private Object rsaVerifyCtx;
     private Object rsaEncCtx;
     private Object rsaDecCtx;
+    private Object alpnSelectArg;
 
     /* reference to the associated WolfSSLContext */
     private WolfSSLContext ctx = null;
@@ -68,6 +69,10 @@ public class WolfSSLSession {
      * WolfSSLSession object */
     private WolfSSLIORecvCallback internRecvSSLCb;
     private WolfSSLIOSendCallback internSendSSLCb;
+
+    /* user-registered ALPN select callback, called by internal WolfSSLSession
+     * ALPN select callback */
+    private WolfSSLALPNSelectCallback internAlpnSelectCb;
 
     /* have session tickets been enabled for this session? Default to false. */
     private boolean sessionTicketsEnabled = false;
@@ -164,6 +169,31 @@ public class WolfSSLSession {
         return this.rsaDecCtx;
     }
 
+    /* these callbacks will be registered with native wolfSSL library */
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf,
+                                          int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internRecvSSLCb.receiveCallback(ssl, buf, sz,
+                    ssl.getIOReadCtx());
+
+        return ret;
+    }
+
+    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf,
+                                          int sz)
+    {
+        int ret;
+
+        /* call user-registered recv method */
+        ret = internSendSSLCb.sendCallback(ssl, buf, sz,
+                    ssl.getIOWriteCtx());
+
+        return ret;
+    }
+
     private long internalPskClientCallback(WolfSSLSession ssl, String hint,
             StringBuffer identity, long idMaxLen, byte[] key,
             long keyMaxLen)
@@ -185,6 +215,18 @@ public class WolfSSLSession {
         /* call user-registered PSK server callback method */
         ret = internPskServerCb.pskServerCallback(ssl, identity,
                 key, keyMaxLen);
+
+        return ret;
+    }
+
+    private int internalAlpnSelectCallback(WolfSSLSession ssl, String[] out,
+        String[] in)
+    {
+        int ret;
+
+        /* call user-registered ALPN select callback */
+        ret = internAlpnSelectCb.alpnSelectCallback(ssl, out, in,
+                this.alpnSelectArg);
 
         return ret;
     }
@@ -305,6 +347,7 @@ public class WolfSSLSession {
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
     private native byte[] sslGet0AlpnSelected(long ssl);
     private native int useALPN(long ssl, String protocols, int options);
+    private native int setALPNSelectCb(long ssl);
     private native int useSecureRenegotiation(long ssl);
     private native int rehandshake(long ssl);
     private native int set1SigAlgsList(long ssl, String list);
@@ -3338,6 +3381,43 @@ public class WolfSSLSession {
     }
 
     /**
+     * Registers ALPN select callback.
+     *
+     * This callback is called by native wolfSSL during the handshake
+     * on the server side after receiving the ALPN protocols by the client
+     * in the ClientHello message.
+     *
+     * @param cb callback to be registered with SSL session
+     * @param arg Object that will be passed back to user inside callback
+     * @return    <code>SSL_SUCCESS</code> upon success. <code>
+     *            NOT_COMPILED_IN</code> if wolfSSL was not compiled with
+     *            ALPN support, and other negative value representing other
+     *            error scenarios.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public int setAlpnSelectCb(WolfSSLALPNSelectCallback cb, Object arg)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            ret = setALPNSelectCb(getSessionPtr());
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* set ALPN select callback */
+                internAlpnSelectCb = cb;
+
+                /* set ALPN select arg Object, returned to user in callback */
+                this.alpnSelectArg = arg;
+            }
+        }
+
+        return ret;
+    }
+
+    /**
      * Enable use of secure renegotiation on this session. Calling this
      * API does not initiate secure renegotiation, but enables it. If enabled,
      * and peer requests secure renegotiation, this session will renegotiate.
@@ -3418,31 +3498,6 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             return getShutdown(getSessionPtr());
         }
-    }
-
-        /* this will be registered with native wolfSSL library */
-    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf,
-                                          int sz)
-    {
-        int ret;
-
-        /* call user-registered recv method */
-        ret = internRecvSSLCb.receiveCallback(ssl, buf, sz,
-                    ssl.getIOReadCtx());
-
-        return ret;
-    }
-
-    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf,
-                                          int sz)
-    {
-        int ret;
-
-        /* call user-registered recv method */
-        ret = internSendSSLCb.sendCallback(ssl, buf, sz,
-                    ssl.getIOWriteCtx());
-
-        return ret;
     }
 
     @SuppressWarnings("deprecation")
