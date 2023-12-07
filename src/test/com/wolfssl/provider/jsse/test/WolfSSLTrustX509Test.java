@@ -23,10 +23,12 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLContext;
 import com.wolfssl.provider.jsse.WolfSSLTrustX509;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.BufferedInputStream;
@@ -35,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.time.Instant;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -59,6 +62,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -1459,6 +1465,9 @@ public class WolfSSLTrustX509Test {
         /* SSLSocket should fail if trying to use bad endoint alg */
         testX509ExtendedTrustManagerSSLSocketEndpointAlgFail();
 
+        /* SSLSocket should succeed if server cert changes after resume */
+        testX509ExtendedTrustManagerSSLSocketCertChangeSuccess();
+
         /* Basic SSLEngine success case, SNI matches server cert CN */
         testX509ExtendedTrustManagerSSLEngineBasicSuccess();
 
@@ -1486,13 +1495,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, true);
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1538,13 +1547,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, false);
+            "HTTPS", "www.wolfssl.com", false, false, false, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1590,13 +1599,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, false);
+            "HTTPS", "www.wolfssl.com", false, false, false, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1642,13 +1651,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, true);
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1694,14 +1703,14 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         /* Correct SNI is www.wolfssl.com, this should cause a failure */
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.invalid.com", false, false, true);
+            "HTTPS", "www.invalid.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1739,15 +1748,15 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         /* We only support "HTTPS" as an endpoint algorithm. Setting
          * "LDAPS" should fail as unsupported */
         TestArgs clientArgs = new TestArgs(
-            "LDAPS", "www.wolfssl.com", false, false, true);
+            "LDAPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1881,6 +1890,221 @@ public class WolfSSLTrustX509Test {
         }
     }
 
+    /**
+     * Get expected peer certificate from this KeyStore, used to compare
+     * cert we get to what we expect.
+     *
+     * This method mimmics behavior inside our WolfSSLContext when we choose
+     * the client/server cert to load into native wolfSSL.
+     *
+     * @param jks path to Java KeyStore (.jks file) to get peer cert from
+     * @param pwd KeyStore password
+     * @return peer cert if found, or null if not or keystore is null/empty
+     */
+    private X509Certificate getPeerCertFromKeyStore(String jks, String pwd) {
+
+        if (jks == null | jks.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String javaVersion = System.getProperty("java.version");
+
+            FileInputStream stream = new FileInputStream(jks);
+            KeyStore store = KeyStore.getInstance("JKS");
+            store.load(stream, pwd.toCharArray());
+            stream.close();
+
+            KeyManagerFactory km = KeyManagerFactory.getInstance("SunX509");
+            km.init(store, pwd.toCharArray());
+
+            KeyManager[] kms = km.getKeyManagers();
+            if (!(kms[0] instanceof X509KeyManager)) {
+                return null;
+            }
+            X509KeyManager x509km = (X509KeyManager)kms[0];
+
+            ArrayList<String> keyAlgos = new ArrayList<String>();
+            if (WolfSSL.EccEnabled() &&
+                (!javaVersion.equals("1.7.0_201") &&
+                 !javaVersion.equals("1.7.0_171"))) {
+                keyAlgos.add("EC");
+            }
+            if (WolfSSL.RsaEnabled()) {
+                keyAlgos.add("RSA");
+            }
+
+            String[] keyStrings = new String[keyAlgos.size()];
+            keyStrings = keyAlgos.toArray(keyStrings);
+
+            String alias = x509km.chooseClientAlias(keyStrings, null, null);
+            X509Certificate[] cert = x509km.getCertificateChain(alias);
+            /* this is only set up to handle one cert currently for these
+             * test cases */
+            if (cert == null || cert.length == 0) {
+                return null;
+            }
+
+            return cert[0];
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLSocketCertChangeSuccess()
+        throws CertificateException, IOException, Exception {
+
+        int serverPort = 0;
+        Exception cliException = null;
+        Exception srvException = null;
+        TestSSLSocketClient client = null;
+        TestSSLSocketServer server = null;
+        TestArgs serverArgs = null;
+        TestArgs clientArgs = null;
+
+        /* Expected server certificates */
+        X509Certificate serverCertA = getPeerCertFromKeyStore(tf.serverJKS,
+                "wolfSSL test");
+        X509Certificate serverCertB = getPeerCertFromKeyStore(tf.clientJKS,
+                "wolfSSL test");
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+
+        /* Loading caJKS so client SSLContext can verify server both
+         * before and after cert changes */
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+                tf.createTrustManager("SunX509", tf.caJKS, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(serverPort);
+        serverPort = ss.getLocalPort();
+
+        serverArgs = new TestArgs(null, null, true, true, true, null);
+        server = new TestSSLSocketServer(srvCtx, ss, serverArgs, 2);
+        server.start();
+
+        /* FIRST client connection will do a full TLS handshake */
+        clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true, serverCertA);
+        client = new TestSSLSocketClient(cliCtx, serverPort, clientArgs);
+        client.start();
+        try {
+            client.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager cert change test failed");
+        }
+
+        /* We shouldn't have any exceptions at this point, if so error out */
+        cliException = client.getException();
+        if (cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+
+        /* SECOND client connection will do a TLS resumed handshake. Server
+         * should shut down after two client connections. */
+        clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true, serverCertA);
+        client = new TestSSLSocketClient(cliCtx, serverPort, clientArgs);
+        client.start();
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager cert change test failed");
+        }
+
+        /* We shouldn't have any exceptions at this point, if so error out */
+        srvException = server.getException();
+        cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+
+        /* Start up server, but with different certificate loaded. Here we just
+         * switch to loading the client cert, since we have that available.
+         * Also re-create the client SSLContext to make sure the client has the
+         * correct root CA loaded to correctly verify the new/updated server
+         * cert. */
+        ss.close();
+        srvCtx = tf.createSSLContext("TLSv1.2", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* Clear session cache on server side so we don't resume. We just
+         * create a new WolfSSLContext here since the native session cache
+         * is static and shared between WOLFSSL_CONTEXT objects. */
+        com.wolfssl.WolfSSLContext wctx =
+            new com.wolfssl.WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
+        wctx.flushSessions((int)(Instant.now().getEpochSecond() + 1000));
+        wctx.free();
+
+        ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(serverPort);
+
+        serverArgs = new TestArgs(null, null, true, true, true, null);
+        server = new TestSSLSocketServer(srvCtx, ss, serverArgs, 1);
+        server.start();
+
+        /* THIRD client connection will try to do a TLS resumed handshake,
+         * since we connect to the same host+port, but the server has
+         * been restarted and certificate has changed, so server will
+         * do a new full TLS session. Client should update the cached peer
+         * cert since session is not resumed, and connection + hostname
+         * verificaiton + validation should succeed. */
+        clientArgs = new TestArgs(
+            "HTTPS", "example.com", false, false, true, serverCertB);
+        client = new TestSSLSocketClient(cliCtx, serverPort, clientArgs);
+        client.start();
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("ExtendedX509TrustManager cert change test failed");
+        }
+
+        /* We shouldn't have any exceptions at this point, if so error out */
+        srvException = server.getException();
+        cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
+        }
+    }
+
     @Test
     public void testX509ExtendedTrustManagerExternal()
         throws CertificateException, IOException, Exception {
@@ -1979,13 +2203,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, true);
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -2031,13 +2255,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, true);
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -2075,13 +2299,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, false);
+            "HTTPS", "www.wolfssl.com", false, false, false, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -2128,13 +2352,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, true);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, false);
+            "HTTPS", "www.wolfssl.com", false, false, false, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -2181,13 +2405,13 @@ public class WolfSSLTrustX509Test {
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestArgs serverArgs = new TestArgs(null, null, true, true, false);
+        TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
-            srvCtx, ss, serverArgs);
+            srvCtx, ss, serverArgs, 1);
         server.start();
 
         TestArgs clientArgs = new TestArgs(
-            "HTTPS", "www.wolfssl.com", false, false, true);
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -2238,18 +2462,20 @@ public class WolfSSLTrustX509Test {
         private boolean wantClientAuth = true;
         private boolean needClientAuth = true;
         private boolean callStartHandshake = true;
+        private X509Certificate expectedPeerCert = null;
 
         public TestArgs() { }
 
         public TestArgs(String endpointID, String sni,
             boolean wantClientAuth, boolean needClientAuth,
-            boolean callStartHandshake) {
+            boolean callStartHandshake, X509Certificate expectedPeerCert) {
 
             this.endpointIDAlg = endpointID;
             this.sniName = sni;
             this.wantClientAuth = wantClientAuth;
             this.needClientAuth = needClientAuth;
             this.callStartHandshake = callStartHandshake;
+            this.expectedPeerCert = expectedPeerCert;
         }
 
         public void setEndpointIdentificationAlg(String alg) {
@@ -2272,6 +2498,10 @@ public class WolfSSLTrustX509Test {
             this.wantClientAuth = want;
         }
 
+        public void setExpectedPeerCert(X509Certificate cert) {
+            this.expectedPeerCert = cert;
+        }
+
         public boolean getWantClientAuth() {
             return this.wantClientAuth;
         }
@@ -2291,48 +2521,56 @@ public class WolfSSLTrustX509Test {
         public boolean getCallStartHandshake() {
             return this.callStartHandshake;
         }
+
+        public X509Certificate getExpectedPeerCert() {
+            return this.expectedPeerCert;
+        }
     }
 
     protected class TestSSLSocketServer extends Thread
     {
         private SSLContext ctx;
         private int port;
+        private int numConnections;
         private Exception exception = null;
         private TestArgs args = null;
         SSLServerSocket ss = null;
 
         public TestSSLSocketServer(SSLContext ctx, SSLServerSocket ss,
-            TestArgs args) {
+            TestArgs args, int numConnections) {
 
             this.ctx = ctx;
             this.ss = ss;
             this.args = args;
+            this.numConnections = numConnections;
         }
 
         @Override
         public void run() {
 
             try {
-                SSLSocket sock = (SSLSocket)ss.accept();
-                sock.setUseClientMode(false);
+                for (int i = 0; i < numConnections; i++) {
+                    SSLSocket sock = (SSLSocket)ss.accept();
+                    sock.setUseClientMode(false);
 
-                /* Not enabling endpoint identification algo here since
-                 * cert does not match client hostname */
-                SSLParameters params = sock.getSSLParameters();
+                    /* Not enabling endpoint identification algo here since
+                     * cert does not match client hostname */
+                    SSLParameters params = sock.getSSLParameters();
 
-                /* Enable client auth */
-                params.setWantClientAuth(this.args.getWantClientAuth());
-                params.setNeedClientAuth(this.args.getNeedClientAuth());
-                sock.setSSLParameters(params);
+                    /* Enable client auth */
+                    params.setWantClientAuth(this.args.getWantClientAuth());
+                    params.setNeedClientAuth(this.args.getNeedClientAuth());
+                    sock.setSSLParameters(params);
 
-                if (this.args.getCallStartHandshake()) {
-                    sock.startHandshake();
+                    if (this.args.getCallStartHandshake()) {
+                        sock.startHandshake();
+                    }
+
+                    int in = sock.getInputStream().read();
+                    assertEquals(in, (int)'A');
+                    sock.getOutputStream().write('B');
+                    sock.close();
                 }
-
-                int in = sock.getInputStream().read();
-                assertEquals(in, (int)'A');
-                sock.getOutputStream().write('B');
-                sock.close();
 
             } catch (Exception e) {
                 this.exception = e;
@@ -2389,6 +2627,40 @@ public class WolfSSLTrustX509Test {
                 sock.getOutputStream().write('A');
                 int in = sock.getInputStream().read();
                 assertEquals(in, (int)'B');
+
+                X509Certificate expectedPeerCert =
+                    this.args.getExpectedPeerCert();
+                if (expectedPeerCert != null) {
+                    SSLSession sess = sock.getSession();
+                    if (sess == null) {
+                        sock.close();
+                        throw new Exception(
+                            "SSLSocket.getSession() returned null");
+                    }
+                    Certificate[] certs = sess.getPeerCertificates();
+                    if (certs == null || certs.length == 0) {
+                        sock.close();
+                        throw new Exception(
+                            "SSLSession.getPeerCertificates() was null " +
+                            "or empty");
+                    }
+
+                    if (!(certs[0] instanceof X509Certificate)) {
+                        sock.close();
+                        throw new Exception(
+                            "Peer cert from SSLSession not of type " +
+                            "X509Certificate");
+                    }
+                    X509Certificate peerCert = (X509Certificate)certs[0];
+                    if (!peerCert.equals(expectedPeerCert)) {
+                        sock.close();
+                        throw new Exception(
+                            "Peer cert from SSLSession did not match " +
+                            "expected\nExpected:" + expectedPeerCert +
+                            "\nGot:" + peerCert);
+                    }
+               }
+
                 sock.close();
 
             } catch (Exception e) {

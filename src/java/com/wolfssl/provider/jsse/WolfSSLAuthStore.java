@@ -506,6 +506,7 @@ public class WolfSSLAuthStore {
                         session.getSideString());
                 store.put(hashCode, session);
                 session.isInTable = true;
+                printSessionStoreStatus();
             }
         }
 
