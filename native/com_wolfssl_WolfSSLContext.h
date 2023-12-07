@@ -415,6 +415,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinEccKeySz
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setDevId
   (JNIEnv *, jobject, jlong, jint);
 
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    flushSessions
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_flushSessions
+  (JNIEnv *, jobject, jlong, jint);
+
 #ifdef __cplusplus
 }
 #endif

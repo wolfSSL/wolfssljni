@@ -387,6 +387,7 @@ public class WolfSSLContext {
     private native int setMinRsaKeySz(long ctx, int keySzBits);
     private native int setMinEccKeySz(long ctx, int keySzBits);
     private native int setDevId(long ctx, int devId);
+    private native void flushSessions(long ctx, int tm);
 
     /* ------------------- context-specific methods --------------------- */
 
@@ -1998,6 +1999,22 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         return setDevId(getContextPtr(), devId);
+    }
+
+    /**
+     * Remove / flush expired sessions from the native wolfSSL session cache.
+     *
+     * @param tm the time used to determine the expiration date for sessions,
+     *           should be result of equivalent of native time(0), or
+     *           desired expiration time in seconds from the unix epoch
+     *           (Jan 1, 1970).
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public void flushSessions(int tm) throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        flushSessions(getContextPtr(), tm);
     }
 
     @SuppressWarnings("deprecation")

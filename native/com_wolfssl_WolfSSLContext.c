@@ -5567,3 +5567,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setDevId
     return (jint)wolfSSL_CTX_SetDevId(ctx, (int)devId);
 }
 
+void JNICALL Java_com_wolfssl_WolfSSLContext_flushSessions
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jint tm)
+{
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    wolfSSL_CTX_flush_sessions(ctx, (int)tm);
+}
+
