@@ -427,6 +427,14 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     /**
      * Get peer certificates for this session
      *
+     * This method first tries to call down to native wolfSSL with
+     * ssl.getPeerCertificate(). If that succeeds, it caches the peer
+     * certificate inside this object (this.peerCerts) so that in a resumed
+     * session when this method is called, the caller will still have access
+     * to the original certificate (matches SunJSSE behavior). If calling
+     * ssl.getPeerCertificate() fails, then we return the cached cert if
+     * we have it.
+     *
      * @return Certificate array of peer certs for session
      *
      * @throws SSLPeerUnverifiedException if handshake is not complete,
@@ -444,23 +452,31 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
             throw new SSLPeerUnverifiedException("handshake not complete");
         }
 
-        /* If peer cert is already cached, just return that */
-        if (this.peerCerts != null) {
-            return this.peerCerts.clone();
-        }
-
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
             Logger.getLogger(
                     WolfSSLImplementSSLSession.class.getName()).log(
                         Level.SEVERE, null, ex);
-            return null;
+            x509 = 0;
         }
 
         /* if no peer cert, throw SSLPeerUnverifiedException */
         if (x509 == 0) {
-            throw new SSLPeerUnverifiedException("No peer certificate");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ssl.getPeerCertificates() returned null, trying cached cert");
+
+            if (this.peerCerts != null) {
+                /* If peer cert is already cached, just return that */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "peer cert already cached, returning it");
+                return this.peerCerts.clone();
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "No peer cert sent and none cached");
+                throw new SSLPeerUnverifiedException("No peer certificate");
+            }
         }
 
         try {
