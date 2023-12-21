@@ -93,6 +93,8 @@ public class WolfSSLTest {
         tstMethod(lib.TLSv1_1_ClientMethod(), "TLSv1_1_ClientMethod()");
         tstMethod(lib.TLSv1_2_ServerMethod(), "TLSv1_2_ServerMethod()");
         tstMethod(lib.TLSv1_2_ClientMethod(), "TLSv1_2_ClientMethod()");
+        tstMethod(lib.TLSv1_3_ServerMethod(), "TLSv1_3_ServerMethod()");
+        tstMethod(lib.TLSv1_3_ClientMethod(), "TLSv1_3_ClientMethod()");
         tstMethod(lib.DTLSv1_ServerMethod(), "DTLSv1_ServerMethod()");
         tstMethod(lib.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
         tstMethod(lib.DTLSv1_2_ServerMethod(), "DTLSv1_2_ServerMethod()");
