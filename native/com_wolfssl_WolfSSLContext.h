@@ -377,6 +377,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSupportedCurve
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setGroups
+ * Signature: (J[I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
+  (JNIEnv *, jobject, jlong, jintArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    useSecureRenegotiation
  * Signature: (J)I
  */
