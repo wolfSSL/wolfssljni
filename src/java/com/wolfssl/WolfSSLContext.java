@@ -382,6 +382,7 @@ public class WolfSSLContext {
     private native void setPskServerCb(long ctx);
     private native int usePskIdentityHint(long ssl, String hint);
     private native int useSupportedCurve(long ctx, int name);
+    private native int setGroups(long ctx, int[] groups);
     private native int useSecureRenegotiation(long ctx);
     private native int setMinDhKeySz(long ctx, int keySzBits);
     private native int setMinRsaKeySz(long ctx, int keySzBits);
@@ -1886,7 +1887,7 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      */
     public int useSupportedCurves(String[] curveNames)
-        throws IllegalStateException  {
+        throws IllegalStateException {
 
         int ret = 0;
         int curveEnum = 0;
@@ -1899,6 +1900,63 @@ public class WolfSSLContext {
         }
 
         return ret;
+    }
+
+    /**
+     * Sets the key exchange groups in rank order on this WolfSSLContext.
+     *
+     * @param groups Array of key exchange groups to be set. Values should
+     *        come from com.wolfssl.WolfSSL section for Named Groups, for
+     *        example:
+     *                WOLFSSL_ECC_SECT163R1
+     *                WOLFSSL_ECC_SECT163R2
+     *                WOLFSSL_ECC_SECT193R1
+     *                WOLFSSL_ECC_SECT193R2
+     *                WOLFSSL_ECC_SECT233K1
+     *                WOLFSSL_ECC_SECT233R1
+     *                WOLFSSL_ECC_SECT239K1
+     *                WOLFSSL_ECC_SECT283K1
+     *                WOLFSSL_ECC_SECT283R1
+     *                WOLFSSL_ECC_SECT409K1
+     *                WOLFSSL_ECC_SECT409R1
+     *                WOLFSSL_ECC_SECT571K1
+     *                WOLFSSL_ECC_SECT571R1
+     *                WOLFSSL_ECC_SECP160K1
+     *                WOLFSSL_ECC_SECP160R1
+     *                WOLFSSL_ECC_SECP160R2
+     *                WOLFSSL_ECC_SECP192K1
+     *                WOLFSSL_ECC_SECP192R1
+     *                WOLFSSL_ECC_SECP224K1
+     *                WOLFSSL_ECC_SECP224R1
+     *                WOLFSSL_ECC_SECP256K1
+     *                WOLFSSL_ECC_SECP256R1
+     *                WOLFSSL_ECC_SECP384R1
+     *                WOLFSSL_ECC_SECP521R1
+     *                WOLFSSL_ECC_BRAINPOOLP256R1
+     *                WOLFSSL_ECC_BRAINPOOLP384R1
+     *                WOLFSSL_ECC_BRAINPOOLP512R1
+     *                WOLFSSL_ECC_X25519
+     *                WOLFSSL_ECC_X448
+     *                WOLFSSL_ECC_SM2P256V1
+     *                WOLFSSL_FFDHE_2048
+     *                WOLFSSL_FFDHE_3072
+     *                WOLFSSL_FFDHE_4096
+     *                WOLFSSL_FFDHE_6144
+     *                WOLFSSL_FFDHE_8192
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise negative
+     *         value on error. BAD_FUNC_ARG when groups is null, not using
+     *         TLS 1.3 or size is greater than WOLFSSL_MAX_GROUP_COUNT (which
+     *         defaults to 10, unless HAVE_PQC is defined then is 36.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int setGroups(int[] groups)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            return setGroups(getContextPtr(), groups);
+        }
     }
 
     /**

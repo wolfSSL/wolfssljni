@@ -5473,6 +5473,42 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSupportedCurve
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jintArray groups)
+{
+#ifdef HAVE_SUPPORTED_CURVES
+    int ret = WOLFSSL_FAILURE;
+    int groupsSz = 0;
+    int* jniGroups = NULL;
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ctx == NULL || groups == NULL) {
+        return (jint)SSL_FAILURE;
+    }
+
+    groupsSz = (*jenv)->GetArrayLength(jenv, groups);
+    jniGroups = (*jenv)->GetIntArrayElements(jenv, groups, NULL);
+
+    if (groupsSz == 0 || groupsSz > WOLFSSL_MAX_GROUP_COUNT ||
+        jniGroups == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CTX_set_groups(ctx, jniGroups, groupsSz);
+
+    (*jenv)->ReleaseIntArrayElements(jenv, groups, jniGroups, JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)groups;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {

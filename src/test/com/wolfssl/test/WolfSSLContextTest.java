@@ -76,6 +76,7 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_usePskIdentityHint();
         test_WolfSSLContext_useSecureRenegotiation();
         test_WolfSSLContext_useSupportedCurves();
+        test_WolfSSLContext_setGroups();
         test_WolfSSLContext_setMinRSAKeySize();
         test_WolfSSLContext_setMinECCKeySize();
         test_WolfSSLContext_free();
@@ -377,20 +378,20 @@ public class WolfSSLContextTest {
             ret = ctx.useSupportedCurves(singleEccSecp256r1);
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... failed");
+                System.out.println("\t\t... failed");
                 fail("useSupportedCurves(singleEccSecp256r1) failed");
             }
             ret = ctx.useSupportedCurves(allEccCurves);
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... failed");
+                System.out.println("\t\t... failed");
                 fail("useSupportedCurves(allEccCurves) failed");
             }
             if (WolfSSL.Curve25519Enabled()) {
                 ret = ctx.useSupportedCurves(x25519Curve);
                 if (ret != WolfSSL.SSL_SUCCESS &&
                     ret != WolfSSL.NOT_COMPILED_IN) {
-                    System.out.println("\t... failed");
+                    System.out.println("\t\t... failed");
                     fail("useSupportedCurves(x25519Curve) failed");
                 }
             }
@@ -398,15 +399,70 @@ public class WolfSSLContextTest {
                 ret = ctx.useSupportedCurves(x448Curve);
                 if (ret != WolfSSL.SSL_SUCCESS &&
                     ret != WolfSSL.NOT_COMPILED_IN) {
-                    System.out.println("\t... failed");
+                    System.out.println("\t\t... failed");
                     fail("useSupportedCurves(x448Curve) failed");
                 }
             }
-            System.out.println("\t...passed");
+            System.out.println("\t\t... passed");
 
         } catch (IllegalStateException e) {
-            System.out.println("\t... failed");
+            System.out.println("\t\t... failed");
             fail("useSupportedCurves failed");
+            e.printStackTrace();
+        }
+    }
+
+    public void test_WolfSSLContext_setGroups() {
+
+        int ret;
+        int[] singleItem = { WolfSSL.WOLFSSL_ECC_SECP256R1 };
+        int[] twoItems = {
+            WolfSSL.WOLFSSL_ECC_SECP256R1,
+            WolfSSL.WOLFSSL_ECC_SECP256R1
+        };
+        int[] tooLong = new int[50];
+        int[] badGroups = { (int)0xDEAD, (int)0xBEEF };
+
+        System.out.print("\tsetGroups()");
+        try {
+            ret = ctx.setGroups(null);
+            if (ret != WolfSSL.NOT_COMPILED_IN &&
+                ret == WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t\t... failed");
+                fail("setGroups() should fail with null arg");
+            }
+            if (WolfSSL.EccEnabled()) {
+                ret = ctx.setGroups(singleItem);
+                if (ret != WolfSSL.NOT_COMPILED_IN &&
+                    ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("\t\t\t... failed");
+                    fail("setGroups() failed with WOLFSSL_ECC_SECP256R1");
+                }
+                ret = ctx.setGroups(twoItems);
+                if (ret != WolfSSL.NOT_COMPILED_IN &&
+                    ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("\t\t\t... failed");
+                    fail("setGroups() failed with two entries");
+                }
+            }
+            ret = ctx.setGroups(tooLong);
+            if (ret != WolfSSL.NOT_COMPILED_IN &&
+                ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t\t... failed");
+                fail("setGroups() should fail with too long array");
+            }
+            ret = ctx.setGroups(badGroups);
+            if (ret != WolfSSL.NOT_COMPILED_IN &&
+                ret != WolfSSL.BAD_FUNC_ARG) {
+                System.out.println("\t\t\t... failed");
+                fail("setGroups() should fail with bad/invalid values");
+            }
+
+            System.out.println("\t\t\t... passed");
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t\t... failed");
+            fail("setGroups() failed");
             e.printStackTrace();
         }
     }
