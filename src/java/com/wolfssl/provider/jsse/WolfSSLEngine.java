@@ -371,24 +371,6 @@ public class WolfSSLEngine extends SSLEngine {
                     ssl.getError(ret));
             }
 
-            if (ret == WolfSSL.SSL_SUCCESS) {
-                /* Once handshake is finished, save session for resumption in
-                 * case caller does not explicitly close connection. Saves
-                 * session in WolfSSLAuthStore cache, and gets/saves session
-                 * pointer for resumption if on client side. Protected with
-                 * ioLock since underlying get1Session can use I/O for peek. */
-                synchronized (ioLock) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "calling EngineHelper.saveSession()");
-                    int ret2 = EngineHelper.saveSession();
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "return from saveSession(), ret = " + ret2);
-                    if (ret2 == WolfSSL.SSL_SUCCESS) {
-                        this.sessionStored = true;
-                    }
-                }
-            }
-
         } catch (SocketTimeoutException | SocketException e) {
             throw new SSLException(e);
         }
