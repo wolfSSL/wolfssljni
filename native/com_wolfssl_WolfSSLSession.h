@@ -761,6 +761,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setALPNSelectCb
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    useSecureRenegotiation
  * Signature: (J)I
  */

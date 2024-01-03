@@ -27,6 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -43,6 +44,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
@@ -65,6 +68,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 import java.security.Security;
 import java.security.Provider;
 import java.security.KeyStore;
@@ -79,6 +84,7 @@ import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -477,9 +483,11 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            server = new TestServer(this, ss);
+            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
+            TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
+            server = new TestServer(this.ctx, ss, sArgs, 1);
             server.start();
-            client = new TestClient(this, ss.getLocalPort());
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
             client.start();
 
             srvException = server.getException();
@@ -517,9 +525,11 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            server = new TestServer(this, ss);
+            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
+            TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
+            server = new TestServer(this.ctx, ss, sArgs, 1);
             server.start();
-            client = new TestClient(this, ss.getLocalPort());
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
             client.start();
 
             srvException = server.getException();
@@ -557,9 +567,11 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            server = new TestServer(this, ss);
+            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
+            TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
+            server = new TestServer(this.ctx, ss, sArgs, 1);
             server.start();
-            client = new TestClient(this, ss.getLocalPort());
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
             client.start();
 
             srvException = server.getException();
@@ -597,9 +609,11 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            server = new TestServer(this, ss);
+            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
+            TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
+            server = new TestServer(this.ctx, ss, sArgs, 1);
             server.start();
-            client = new TestClient(this, ss.getLocalPort());
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
             client.start();
 
             srvException = server.getException();
@@ -651,10 +665,13 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestServer server = new TestServer(this, ss);
+        TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
+        TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
         server.start();
 
-        TestClient client = new TestClient(this, ss.getLocalPort());
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
         client.start();
 
 
@@ -676,6 +693,129 @@ public class WolfSSLSocketTest {
             System.out.println("interrupt happened");
             fail("Threaded client/server test failed");
         }
+
+        System.out.println("\t... passed");
+    }
+
+    public void alpnClientServerRunner(TestArgs sArgs, TestArgs cArgs,
+        boolean expectingException) throws Exception {
+
+        if (sArgs == null || cArgs == null) {
+            throw new Exception("client/server TestArgs can not be null");
+        }
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
+        server.start();
+
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("Threaded client/server test failed");
+        }
+
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+
+        if (srvException != null || cliException != null) {
+            if (!expectingException) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                if (srvException != null) {
+                    srvException.printStackTrace(pw);
+                }
+                if (cliException != null) {
+                    cliException.printStackTrace(pw);
+                }
+                String traceString = sw.toString();
+                throw new Exception(traceString);
+            }
+        }
+        else if (expectingException) {
+            throw new Exception("Expecting exception but got none");
+        }
+    }
+
+    @Test
+    public void testClientServerThreadedAlpnSelectCallback() throws Exception {
+
+        TestArgs sArgs = null;
+        TestArgs cArgs = null;
+
+        System.out.print("\tTesting ALPN select callback");
+
+        /* wolfSSL_set_alpn_select_cb() added in wolfSSL 5.6.6 */
+        if (WolfSSL.getLibVersionHex() < 0x05006006) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* Successful test:
+         * Sanity check, no ALPN */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setExpectedAlpn("");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setExpectedAlpn("");
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Successful test:
+         * ALPN callback, server selects matching protocol from client list */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("h2");
+        sArgs.setExpectedAlpn("h2");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        cArgs.setExpectedAlpn("h2");
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Successful test:
+         * ALPN callback, server selects matching protocol from client list */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("http/1.1");
+        sArgs.setExpectedAlpn("http/1.1");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        cArgs.setExpectedAlpn("http/1.1");
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Successful test:
+         * ALPN callback, client list is empty so callback not called */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("h2");
+        sArgs.setExpectedAlpn("");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(null);
+        cArgs.setExpectedAlpn("");
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Successful test:
+         * ALPN set on client and server without callback */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnList(new String[] {"h2"});
+        sArgs.setExpectedAlpn("h2");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        cArgs.setExpectedAlpn("h2");
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Failure test:
+         * ALPN callback, server selects protocol not from client list */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("invalid");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        alpnClientServerRunner(sArgs, cArgs, true);
 
         System.out.println("\t... passed");
     }
@@ -2432,34 +2572,217 @@ public class WolfSSLSocketTest {
         System.out.println("\t... passed");
     }
 
+    /**
+     * Inner class used to hold configuration options for
+     * TestServer and TestClient classes.
+     */
+    protected class TestArgs
+    {
+        private String endpointIDAlg = null;
+        private String sniName = null;
+        private boolean wantClientAuth = true;
+        private boolean needClientAuth = true;
+        private boolean callStartHandshake = true;
+        private X509Certificate expectedPeerCert = null;
+        private String[] alpnList = null;
+        private String callbackAlpn = null;
+        private String expectedAlpn = null;
+
+        public TestArgs() { }
+
+        public TestArgs(String endpointID, String sni,
+            boolean wantClientAuth, boolean needClientAuth,
+            boolean callStartHandshake, X509Certificate expectedPeerCert) {
+
+            this.endpointIDAlg = endpointID;
+            this.sniName = sni;
+            this.wantClientAuth = wantClientAuth;
+            this.needClientAuth = needClientAuth;
+            this.callStartHandshake = callStartHandshake;
+            this.expectedPeerCert = expectedPeerCert;
+        }
+
+        public void setEndpointIdentificationAlg(String alg) {
+            this.endpointIDAlg = alg;
+        }
+
+        public String getEndpointIdentificationAlg() {
+            return this.endpointIDAlg;
+        }
+
+        public void setSNIName(String sni) {
+            this.sniName = sni;
+        }
+
+        public String getSNIName() {
+            return this.sniName;
+        }
+
+        public void setWantClientAuth(boolean want) {
+            this.wantClientAuth = want;
+        }
+
+        public boolean getWantClientAuth() {
+            return this.wantClientAuth;
+        }
+
+        public void setExpectedPeerCert(X509Certificate cert) {
+            this.expectedPeerCert = cert;
+        }
+
+        public X509Certificate getExpectedPeerCert() {
+            return this.expectedPeerCert;
+        }
+
+        public void setNeedClientAuth(boolean need) {
+            this.needClientAuth = need;
+        }
+
+        public boolean getNeedClientAuth() {
+            return this.needClientAuth;
+        }
+
+        public void setCallStartHandshake(boolean call) {
+            this.callStartHandshake = call;
+        }
+
+        public boolean getCallStartHandshake() {
+            return this.callStartHandshake;
+        }
+
+        public void setAlpnList(String[] alpns) {
+            this.alpnList = alpns;
+        }
+
+        public String[] getAlpnList() {
+            return this.alpnList;
+        }
+
+        public void setAlpnForCallback(String alpn) {
+            this.callbackAlpn = alpn;
+        }
+
+        public String getAlpnForCallback() {
+            return this.callbackAlpn;
+        }
+
+        public void setExpectedAlpn(String alpn) {
+            this.expectedAlpn = alpn;
+        }
+
+        public String getExpectedAlpn() {
+            return this.expectedAlpn;
+        }
+    }
+
     protected class TestServer extends Thread
     {
         private SSLContext ctx;
         private int port;
         private Exception exception = null;
+        private TestArgs args = null;
+        private int numConnections = 1;
         WolfSSLSocketTest wst;
         SSLServerSocket ss = null;
 
-        public TestServer(WolfSSLSocketTest in, SSLServerSocket ss) {
-            this.ctx = in.ctx;
-            this.wst = in;
+        public TestServer(SSLContext ctx, SSLServerSocket ss,
+            TestArgs args, int numConnections) {
+            this.ctx = ctx;
             this.ss = ss;
+            this.args = args;
+            this.numConnections = numConnections;
         }
+
 
         @Override
         public void run() {
 
             try {
-                SSLSocket sock = (SSLSocket)ss.accept();
-                sock.startHandshake();
-                int in = sock.getInputStream().read();
-                assertEquals(in, (int)'A');
-                sock.getOutputStream().write('B');
-                sock.close();
+                for (int i = 0; i < numConnections; i++) {
+                    SSLSocket sock = (SSLSocket)ss.accept();
+                    sock.setUseClientMode(false);
+
+                    SSLParameters params = sock.getSSLParameters();
+
+                    params.setWantClientAuth(this.args.getWantClientAuth());
+                    params.setNeedClientAuth(this.args.getNeedClientAuth());
+
+                    /* Set ALPN list of supported */
+                    if (this.args.getAlpnList() != null) {
+                        params.setApplicationProtocols(this.args.getAlpnList());
+                    }
+
+                    sock.setSSLParameters(params);
+
+                    if (sock.getHandshakeApplicationProtocol() != null) {
+                        throw new Exception(
+                            "getHandshakeApplicationProtocol() should be " +
+                            "null before handshake");
+                    }
+
+                    if (sock.getHandshakeApplicationProtocolSelector()
+                            != null) {
+                        throw new Exception(
+                            "getHandshakeApplicationProtocolSelector() " +
+                            "should be null before being set");
+                    }
+
+                    /* wolfSSL_set_alpn_select_cb() added in wolfSSL 5.6.6 */
+                    if (WolfSSL.getLibVersionHex() >= 0x05006006) {
+                        /* Set ALPN selector callback if needed, Calls
+                         * chooseAppProtocol during handshake to let server
+                         * pick desired ALPN value */
+                        if (this.args.getAlpnForCallback() != null) {
+                            sock.setHandshakeApplicationProtocolSelector(
+                                (serverSocket, clientProtocols) -> {
+                                SSLSession s =
+                                    serverSocket.getHandshakeSession();
+                                return chooseAppProtocol(
+                                    serverSocket,
+                                    clientProtocols,
+                                    s.getProtocol(),
+                                    s.getCipherSuite());
+                            });
+                        }
+                    }
+
+                    if (this.args.getCallStartHandshake()) {
+                        sock.startHandshake();
+                    }
+
+                    int in = sock.getInputStream().read();
+                    assertEquals(in, (int)'A');
+                    sock.getOutputStream().write('B');
+
+                    if (this.args.getExpectedAlpn() != null) {
+                        if (!sock.getApplicationProtocol().equals(
+                            this.args.getExpectedAlpn())) {
+                            throw new Exception(
+                                "Expected getApplicationProtocol() " +
+                                "did not match actual\n" +
+                                "expected: " + this.args.getExpectedAlpn() +
+                                "\nactual: " + sock.getApplicationProtocol());
+                        }
+                    }
+
+                    sock.close();
+                }
 
             } catch (Exception e) {
                 this.exception = e;
             }
+        }
+
+        public String chooseAppProtocol(SSLSocket serverSock,
+            List<String> clientProtocols, String protocol,
+            String cipherSuite) {
+
+            if (this.args.getAlpnForCallback() == null) {
+                /* empty string will ignore ALPN and continue handshake */
+                return "";
+            }
+
+            return this.args.getAlpnForCallback();
         }
 
         public Exception getException() {
@@ -2472,12 +2795,13 @@ public class WolfSSLSocketTest {
         private SSLContext ctx;
         private int srvPort;
         private Exception exception = null;
+        private TestArgs args = null;
         WolfSSLSocketTest wst;
 
-        public TestClient(WolfSSLSocketTest in, int port) {
-            this.ctx = in.ctx;
+        public TestClient(SSLContext ctx, int port, TestArgs args) {
+            this.ctx = ctx;
             this.srvPort = port;
-            this.wst = in;
+            this.args = args;
         }
 
         @Override
@@ -2486,11 +2810,58 @@ public class WolfSSLSocketTest {
             try {
                 SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
                     .createSocket();
+                sock.setUseClientMode(true);
                 sock.connect(new InetSocketAddress(srvPort));
-                sock.startHandshake();
+
+                SSLParameters params = sock.getSSLParameters();
+
+                /* Enable Endpoint Identification for hostname verification */
+                if (this.args.getEndpointIdentificationAlg() != null) {
+                    params.setEndpointIdentificationAlgorithm(
+                        this.args.getEndpointIdentificationAlg());
+                }
+
+                /* Set SNI, used for hostname verification of server cert */
+                if (this.args.getSNIName() != null) {
+                    SNIHostName sniName = new SNIHostName(
+                        this.args.getSNIName());
+                    List<SNIServerName> sniNames = new ArrayList<>(1);
+                    sniNames.add(sniName);
+                    params.setServerNames(sniNames);
+                }
+
+                /* Set client ALPN list to include in ClientHello */
+                if (this.args.getAlpnList() != null) {
+                    params.setApplicationProtocols(this.args.getAlpnList());
+                }
+
+                sock.setSSLParameters(params);
+
+                if (sock.getHandshakeApplicationProtocol() != null) {
+                    throw new Exception(
+                        "getHandshakeApplicationProtocol() should be " +
+                        "null before handshake");
+                }
+
+                if (this.args.getCallStartHandshake()) {
+                    sock.startHandshake();
+                }
+
                 sock.getOutputStream().write('A');
                 int in = sock.getInputStream().read();
                 assertEquals(in, (int)'B');
+
+                if (this.args.getExpectedAlpn() != null) {
+                    if (!sock.getApplicationProtocol().equals(
+                        this.args.getExpectedAlpn())) {
+                        throw new Exception(
+                            "Expected getApplicationProtocol() " +
+                            "did not match actual\n" +
+                            "expected: " + this.args.getExpectedAlpn() +
+                            "\nactual: " + sock.getApplicationProtocol());
+                    }
+                }
+
                 sock.close();
 
             } catch (Exception e) {

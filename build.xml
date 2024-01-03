@@ -161,8 +161,8 @@
         <property name="java.debuglevel" value="source,lines,vars"/>
         <property name="java.deprecation" value="true"/>
         <property name="java.optimize" value="false"/>
-        <property name="java.source" value="1.7"/>
-        <property name="java.target" value="1.7"/>
+        <property name="java.source" value="1.8"/>
+        <property name="java.target" value="1.8"/>
     </target>
 
     <target name="jar">

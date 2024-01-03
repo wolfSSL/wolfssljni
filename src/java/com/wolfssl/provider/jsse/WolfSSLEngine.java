@@ -27,7 +27,12 @@ import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
+import com.wolfssl.WolfSSLALPNSelectCallback;
 import java.nio.ByteBuffer;
+import java.util.function.BiFunction;
+import java.util.List;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLEngine;
@@ -35,6 +40,7 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLParameters;
 import java.net.SocketException;
@@ -96,6 +102,9 @@ public class WolfSSLEngine extends SSLEngine {
     /* Locks for synchronization */
     private final Object ioLock = new Object();
     private final Object toSendLock = new Object();
+
+    /* ALPN selector callback, if set */
+    protected BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
 
     /** Turn on extra/verbose SSLEngine debug logging */
     public boolean extraDebugEnabled = false;
@@ -961,8 +970,15 @@ public class WolfSSLEngine extends SSLEngine {
                 if (ret < 0 &&
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
                     (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
-                    throw new SSLException(
-                        "wolfSSL error, ret:err = " + ret + " : " + err);
+                    if (err == WolfSSL.UNKNOWN_ALPN_PROTOCOL_NAME_E) {
+                        throw new SSLHandshakeException(
+                            "Unrecognized protocol name error, ret:err = " +
+                            ret + " : " + err);
+                    }
+                    else {
+                        throw new SSLException(
+                            "wolfSSL error, ret:err = " + ret + " : " + err);
+                    }
                 }
 
                 synchronized (toSendLock) {
@@ -1380,6 +1396,160 @@ public class WolfSSLEngine extends SSLEngine {
             "entered getApplicationProtocol()");
         return EngineHelper.getAlpnSelectedProtocolString();
     }
+
+    /**
+     * Returns the application protocol value negotiated on a handshake
+     * currently in progress.
+     *
+     * After the handshake has finished, this will return null. To get the
+     * ALPN protocol negotiated during the handshake, after it has completed,
+     * call getApplicationProtocol().
+     *
+     * Not marked at @Override since this API was added as of
+     * Java SE 8 Maintenance Release 3, and Java 7 SSLSocket will not
+     * have this.
+     *
+     * @return String representating the application protocol negotiated
+     */
+    public synchronized String getHandshakeApplicationProtocol() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeApplicationProtocol()");
+
+        if (!this.needInit && !this.handshakeFinished) {
+            return EngineHelper.getAlpnSelectedProtocolString();
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the callback that selects an application protocol during the
+     * SSL/TLS handshake.
+     *
+     * @return the callback function, or null if no callback has been set
+     */
+    public synchronized BiFunction<SSLEngine,List<String>,String>
+        getHandshakeApplicationProtocolSelector() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeApplicationProtocolSelector()");
+
+        return this.alpnSelector;
+    }
+
+    /**
+     * Registers a callback function that selects an application protocol
+     * value for the SSL/TLS handshake.
+     *
+     * Usage of this callback will override any values set by
+     * SSLParameters.setApplicationProtocols().
+     *
+     * Callback argument descriptions:
+     *
+     *    SSLEngine - the current SSLEngine, allows for inspection by the
+     *                callback if needed
+     *    List&lt;String&gt; - List of Strings representing application protocol
+     *                   names sent by the peer
+     *    String - Result of the callback is an application protocol
+     *             name String, or null if none of the peer's protocols
+     *             are acceptable. If return value is an empty String,
+     *             ALPN will not be used.
+     *
+     * @param selector callback used to select ALPN protocol for handshake
+     */
+    public synchronized void setHandshakeApplicationProtocolSelector(
+        BiFunction<SSLEngine,List<String>,String> selector) {
+
+        int ret = 0;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setHandshakeApplicationProtocolSelector()");
+
+        if (selector != null) {
+            ALPNSelectCallback alpnCb = new ALPNSelectCallback();
+
+            try {
+                /* Pass in SSLSocket Object for use inside callback */
+                ret = this.ssl.setAlpnSelectCb(alpnCb, this);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Native setAlpnSelectCb() failed, ret = " + ret +
+                        ", not setting selector");
+                    return;
+                }
+
+                /* called from within ALPNSelectCallback during the handshake */
+                this.alpnSelector = selector;
+
+            } catch (WolfSSLJNIException e) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Exception while calling ssl.setAlpnSelectCb, not setting");
+            }
+        }
+    }
+
+    /**
+     * Inner class that implement the ALPN select callback which is registered
+     * with our com.wolfssl.WolfSSLSession when
+     * setHandshakeApplicationProtocolSelector() has been called.
+     */
+    class ALPNSelectCallback implements WolfSSLALPNSelectCallback
+    {
+        public int alpnSelectCallback(WolfSSLSession ssl, String[] out,
+            String[] in, Object arg) {
+
+            SSLEngine engine = (SSLEngine)arg;
+            List<String> peerProtos = new ArrayList<String>();
+            String selected = null;
+
+            if (alpnSelector == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "alpnSelector null inside ALPNSelectCallback");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            if (!(arg instanceof SSLEngine)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "alpnSelectCallback arg not type of SSLEngine");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            if (in.length == 0) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "peer protocol list is 0 inside alpnSelectCallback");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ALPN protos sent by peer: " + Arrays.toString(in));
+
+            for (String s: in) {
+                peerProtos.add(s);
+            }
+            selected = alpnSelector.apply(engine, peerProtos);
+
+            if (selected == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ALPN protocol string is null, no peer match");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+            else {
+                if (selected.isEmpty()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ALPN not being used, selected proto empty");
+                    return WolfSSL.SSL_TLSEXT_ERR_NOACK;
+                }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ALPN protocol selected by callback: " + selected);
+                out[0] = selected;
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+
+            }
+        }
+    }
+
 
     /**
      * Set the SSLParameters for this SSLEngine.

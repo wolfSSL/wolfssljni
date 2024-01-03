@@ -81,6 +81,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_ERROR_SSL 85L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED
 #define com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED -397L
+#undef com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E
+#define com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E -405L
 #undef com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL
 #define com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL 1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_OCSP_URL_OVERRIDE
@@ -167,6 +169,12 @@ extern "C" {
 #define com_wolfssl_WolfSSL_CACHE_MATCH_ERROR -280L
 #undef com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME
 #define com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME 0L
+#undef com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_OK
+#define com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_OK 0L
+#undef com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_NOACK
+#define com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_NOACK 3L
+#undef com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_ALERT_FATAL
+#define com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_ALERT_FATAL 2L
 #undef com_wolfssl_WolfSSL_MEMORY_E
 #define com_wolfssl_WolfSSL_MEMORY_E -125L
 #undef com_wolfssl_WolfSSL_BUFFER_E

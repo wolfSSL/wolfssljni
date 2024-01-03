@@ -32,6 +32,8 @@ import java.net.SocketException;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.function.BiFunction;
+import java.util.List;
 import java.util.Arrays;
 import java.nio.channels.SocketChannel;
 
@@ -47,6 +49,7 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
+import com.wolfssl.WolfSSLALPNSelectCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 
@@ -91,6 +94,9 @@ public class WolfSSLSocket extends SSLSocket {
     /* protect read/write/connect/accept from multiple threads simultaneously
      * accessing WolfSSLSession object / WOLFSSL struct */
     private final Object ioLock = new Object();
+
+    /* ALPN selector callback, if set */
+    protected BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
 
     /**
      * Create new WolfSSLSocket object
@@ -1016,6 +1022,159 @@ public class WolfSSLSocket extends SSLSocket {
             "entered getApplicationProtocol()");
 
         return EngineHelper.getAlpnSelectedProtocolString();
+    }
+
+    /**
+     * Returns the application protocol value negotiated on a handshake
+     * currently in progress.
+     *
+     * After the handshake has finished, this will return null. To get the
+     * ALPN protocol negotiated during the handshake, after it has completed,
+     * call getApplicationProtocol().
+     *
+     * Not marked at @Override since this API was added as of
+     * Java SE 8 Maintenance Release 3, and Java 7 SSLSocket will not
+     * have this.
+     *
+     * @return String representating the application protocol negotiated
+     */
+    public synchronized String getHandshakeApplicationProtocol() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeApplicationProtocol()");
+
+        if (this.handshakeStarted && !this.handshakeComplete) {
+            return EngineHelper.getAlpnSelectedProtocolString();
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the callback that selects an application protocol during the
+     * SSL/TLS handshake.
+     *
+     * @return the callback function, or null if no callback has been set
+     */
+    public synchronized BiFunction<SSLSocket,List<String>,String>
+        getHandshakeApplicationProtocolSelector() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getHandshakeApplicationProtocolSelector()");
+
+        return this.alpnSelector;
+    }
+
+    /**
+     * Registers a callback function that selects an application protocol
+     * value for the SSL/TLS handshake.
+     *
+     * Usage of this callback will override any values set by
+     * SSLParameters.setApplicationProtocols().
+     *
+     * Callback argument descriptions:
+     *
+     *    SSLSocket - the current SSLSocket, allows for inspection by the
+     *                callback if needed
+     *    List&lt;String&gt; - List of Strings representing application protocol
+     *                   names sent by the peer
+     *    String - Result of the callback is an application protocol
+     *             name String, or null if none of the peer's protocols
+     *             are acceptable. If return value is an empty String,
+     *             ALPN will not be used.
+     *
+     * @param selector callback used to select ALPN protocol for handshake
+     */
+    public synchronized void setHandshakeApplicationProtocolSelector(
+        BiFunction<SSLSocket,List<String>,String> selector) {
+
+        int ret = 0;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered setHandshakeApplicationProtocolSelector()");
+
+        if (selector != null) {
+            ALPNSelectCallback alpnCb = new ALPNSelectCallback();
+
+            try {
+                /* Pass in SSLSocket Object for use inside callback */
+                ret = this.ssl.setAlpnSelectCb(alpnCb, this);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Native setAlpnSelectCb() failed, ret = " + ret +
+                        ", not setting selector");
+                    return;
+                }
+
+                /* called from within ALPNSelectCallback during the handshake */
+                this.alpnSelector = selector;
+
+            } catch (WolfSSLJNIException e) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Exception while calling ssl.setAlpnSelectCb, not setting");
+            }
+        }
+    }
+
+    /**
+     * Inner class that implement the ALPN select callback which is registered
+     * with our com.wolfssl.WolfSSLSession when
+     * setHandshakeApplicationProtocolSelector() has been called.
+     */
+    class ALPNSelectCallback implements WolfSSLALPNSelectCallback
+    {
+        public int alpnSelectCallback(WolfSSLSession ssl, String[] out,
+            String[] in, Object arg) {
+
+            SSLSocket sock = (SSLSocket)arg;
+            List<String> peerProtos = new ArrayList<String>();
+            String selected = null;
+
+            if (alpnSelector == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "alpnSelector null inside ALPNSelectCallback");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            if (!(arg instanceof SSLSocket)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "alpnSelectCallback arg not type of SSLSocket");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            if (in.length == 0) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "peer protocol list is 0 inside alpnSelectCallback");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ALPN protos sent by peer: " + Arrays.toString(in));
+
+            for (String s: in) {
+                peerProtos.add(s);
+            }
+            selected = alpnSelector.apply(sock, peerProtos);
+
+            if (selected == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ALPN protocol string is null, no peer match");
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+            else {
+                if (selected.isEmpty()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ALPN not being used, selected proto empty");
+                    return WolfSSL.SSL_TLSEXT_ERR_NOACK;
+                }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ALPN protocol selected by callback: " + selected);
+                out[0] = selected;
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+
+            }
+        }
     }
 
     /**
