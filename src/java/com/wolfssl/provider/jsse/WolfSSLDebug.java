@@ -24,6 +24,9 @@ package com.wolfssl.provider.jsse;
 import java.util.Date;
 import java.sql.Timestamp;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLLoggingCallback;
+
 /**
  * Central location for all debugging messages
  *
@@ -47,6 +50,13 @@ public class WolfSSLDebug {
      * Info level debug message
      */
     public static final String INFO = "INFO";
+
+    /**
+     * Native wolfSSL logging callback.
+     * Used to print native wolfSSL debug logs when 'wolfssl.debug' System
+     * property is set to "true".
+     */
+    private static WolfSSLNativeLoggingCallback nativeLogCb = null;
 
     private static boolean checkProperty() {
 
@@ -118,6 +128,41 @@ public class WolfSSLDebug {
             }
             System.out.println("");
         }
+    }
+
+    /**
+     * Enable native wolfSSL debug logging based on value of the
+     * 'wolfssl.debug' System property.
+     *
+     * Native wolfSSL must ben compiled with "--enable-debug" or
+     * DEBUG_WOLFSSL defined in order for debug logs to print.
+     */
+    protected static synchronized void setNativeWolfSSLDebugging() {
+
+        String wolfsslDebug = System.getProperty("wolfssl.debug");
+
+        if ((wolfsslDebug != null) && (wolfsslDebug.equalsIgnoreCase("true"))) {
+
+            WolfSSL.debuggingON();
+        }
+
+        /* Register our default logging callback for native wolfSSL logs */
+        setDefaultNativeLoggingCallback();
+    }
+
+    /**
+     * Register default native wolfSSL logging callback.
+     * Default callback class is WolfSSLNativeLoggingCallback. This could be
+     * modified in the future to allow a custom user-registerable callback.
+     */
+    protected static synchronized void setDefaultNativeLoggingCallback() {
+
+        /* Only create one logging callback object */
+        if (nativeLogCb == null) {
+            nativeLogCb = new WolfSSLNativeLoggingCallback();
+        }
+
+        WolfSSL.setLoggingCb(nativeLogCb);
     }
 }
 

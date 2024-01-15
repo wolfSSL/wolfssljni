@@ -800,19 +800,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
 
         ret = wolfSSL_SetLoggingCb(NativeLoggingCallback);
     }
+    else {
+        /* reset back to null */
+        ret = wolfSSL_SetLoggingCb(NULL);
+    }
 
     return ret;
 }
 
 void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 {
-    JNIEnv*   jenv;
+    JNIEnv*   jenv = NULL;
     jint      vmret  = 0;
     jclass    excClass;
     jclass    logClass;
     jmethodID logMethod;
+    jstring   logMsg;
+    int       needsDetach = 0;  /* Should we explicitly detach? */
     jobjectRefType refcheck;
-    jstring logMsg;
 
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -822,11 +827,16 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 #else
         vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
 #endif
-        if (vmret) {
-            printf("Failed to attach JNIEnv to thread\n");
+        /* (*jenv) may be NULL if JVM is shutting down */
+        if ((vmret != JNI_OK) || (jenv == NULL) || (*jenv == NULL)) {
+            printf("Failed to attach to thread in NativeLoggingCallback\n");
+            return;
         }
+        needsDetach = 1;
+
     } else if (vmret != JNI_OK) {
-        printf("Unable to get JNIEnv from JavaVM\n");
+        printf("Unable to get JNIEnv from JavaVM in NativeLoggingCallback\n");
+        return;
     }
 
     /* find exception class */
@@ -834,6 +844,9 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        if (needsDetach == 1) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return;
     }
 
@@ -851,6 +864,10 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLLoggingCallback class reference");
+
+            if (needsDetach == 1) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return;
         }
 
@@ -864,6 +881,9 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
             }
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting loggingCallback method from JNI");
+            if (needsDetach == 1) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return;
         }
 
@@ -879,6 +899,9 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 
             (*jenv)->ThrowNew(jenv, excClass,
                     "Error calling logging callback from JNI");
+            if (needsDetach == 1) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return;
         }
 
@@ -890,6 +913,10 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeLoggingCallback");
+    }
+
+    if (needsDetach == 1) {
+        (*g_vm)->DetachCurrentThread(g_vm);
     }
 }
 

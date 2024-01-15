@@ -66,6 +66,12 @@ public class WolfSSLContext extends SSLContextSpi {
         long method;
         String[] ciphersIana = null;
 
+        /* Enable native wolfSSL debug logging if 'wolfssl.debug'
+         * System property is set. Also attempted in WolfSSLProvider
+         * but System property may not have been set by user yet at that
+         * point. */
+        WolfSSLDebug.setNativeWolfSSLDebugging();
+
         /* Get available wolfSSL cipher suites in IANA format */
         ciphersIana = WolfSSL.getCiphersAvailableIana(this.currentVersion);
 

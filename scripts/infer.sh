@@ -57,6 +57,7 @@ infer run -- javac \
     src/java/com/wolfssl/provider/jsse/WolfSSLInternalVerifyCb.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLKeyManager.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLKeyX509.java \
+    src/java/com/wolfssl/provider/jsse/WolfSSLNativeLoggingCallback.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLParametersHelper.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLParameters.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLProvider.java \
