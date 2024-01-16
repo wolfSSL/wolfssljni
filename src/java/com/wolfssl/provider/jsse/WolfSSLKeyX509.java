@@ -30,14 +30,20 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509KeyManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 
 /**
- * wolfSSL implementation of X509KeyManager
+ * wolfSSL implementation of X509KeyManager, extends X509ExtendedKeyManager
+ * for implementation of chooseEngineClientAlias() and
+ * chooseEngineServerAlias().
  *
  * @author wolfSSL
  */
-public class WolfSSLKeyX509 implements X509KeyManager{
+public class WolfSSLKeyX509 extends X509ExtendedKeyManager
+    implements X509KeyManager {
+
     private KeyStore store;
     private char[] password;
 
@@ -142,6 +148,7 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return ret.toArray(new String[0]);
     }
 
+    @Override
     public String[] getClientAliases(String type, Principal[] issuers) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -151,8 +158,10 @@ public class WolfSSLKeyX509 implements X509KeyManager{
     }
 
     /* Note: Socket argument not used by wolfJSSE to choose aliases */
+    @Override
     public String chooseClientAlias(String[] type, Principal[] issuers,
-                                    Socket sock) {
+        Socket sock) {
+
         int i;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -171,6 +180,30 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return null;
     }
 
+    /* Note: Engine argument not yet used by wolfJSSE to choose aliases */
+    @Override
+    public String chooseEngineClientAlias(String[] type, Principal[] issuers,
+        SSLEngine engine) {
+
+        int i;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered chooseEngineClientAlias()");
+
+        if (type == null) {
+            return null;
+        }
+
+        for (i = 0; i < type.length; i++) {
+            String[] all = getAliases(type[i], issuers);
+            if (all != null) {
+                return all[0];
+            }
+        }
+        return null;
+    }
+
+    @Override
     public String[] getServerAliases(String type, Principal[] issuers) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -179,14 +212,34 @@ public class WolfSSLKeyX509 implements X509KeyManager{
         return getAliases(type, issuers);
     }
 
+    @Override
     public String chooseServerAlias(String type, Principal[] issuers,
-                                    Socket sock) {
+        Socket sock) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered chooseServerAlias(), type: " + type);
 
-        /* for now using same behavior ad choose client alias */
-        return chooseClientAlias(new String[]{ type }, issuers, sock);
+        if (type == null || type.isEmpty()) {
+            return null;
+        }
+
+        /* For now using same behavior as chooseClientAlias() */
+        return chooseClientAlias(new String[] {type}, issuers, sock);
+    }
+
+    @Override
+    public String chooseEngineServerAlias(String type, Principal[] issuers,
+        SSLEngine engine) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered chooseEngineServerAlias(), type: " + type);
+
+        if (type == null || type.isEmpty()) {
+            return null;
+        }
+
+        /* For now, using same behavior as chooseEngineClientAlias() */
+        return chooseEngineClientAlias(new String[] {type}, issuers, engine);
     }
 
     @Override

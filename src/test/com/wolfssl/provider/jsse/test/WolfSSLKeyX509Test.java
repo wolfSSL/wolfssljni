@@ -32,6 +32,7 @@ import java.security.cert.X509Certificate;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,11 +48,11 @@ public class WolfSSLKeyX509Test {
 
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
-        throws NoSuchProviderException {
+        throws NoSuchProviderException, WolfSSLException {
 
         System.out.println("WolfSSLKeyX509 Class");
 
-        /* install wolfJSSE provider at runtime */
+        /* Install wolfJSSE provider at runtime */
         Security.insertProviderAt(new WolfSSLProvider(), 1);
 
         Provider p = Security.getProvider("wolfJSSE");
@@ -60,18 +61,20 @@ public class WolfSSLKeyX509Test {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+            throw e;
         }
     }
 
     @Test
-    public void testgetClientAliases() {
+    public void testGetClientAliases() {
+
         KeyManager[] list;
         X509KeyManager km;
         X509Certificate[] chain;
         String[] alias;
         String str;
+
         System.out.print("\tTesting getClientAliases");
 
         list = tf.createKeyManager("SunX509", tf.allJKS, provider);
@@ -104,7 +107,9 @@ public class WolfSSLKeyX509Test {
             return;
         }
 
-        alias = km.getClientAliases("RSA", new Principal[] { chain[0].getIssuerDN() });
+        alias = km.getClientAliases("RSA",
+            new Principal[] { chain[0].getIssuerDN() });
+
         if (alias == null || alias.length != 1) {
             error("\t... failed");
             fail("failed to get client aliases");
@@ -128,20 +133,143 @@ public class WolfSSLKeyX509Test {
             fail("unexpected number of alias found");
         }
 
-        str = km.chooseClientAlias(null, null, null);
-        if (str != null) {
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testChooseClientAlias() {
+
+        KeyManager[] km = null;
+        X509KeyManager x509km = null;
+        String alias = null;
+
+        System.out.print("\tTesting chooseClientAlias");
+
+        km = tf.createKeyManager("SunX509", tf.allJKS, provider);
+        if (km == null) {
             error("\t... failed");
-            fail("unexpected alias found");
+            fail("failed to create KeyManager[]");
+        }
+
+        if (!(km[0] instanceof X509KeyManager)) {
+            error("\t... failed");
+            fail("KeyManager[0] is not of type X509KeyManager");
+        }
+
+        x509km = (X509KeyManager) km[0];
+        if (x509km == null) {
+            error("\t... failed");
+            fail("failed to get X509KeyManager");
+        }
+
+        /* All null args, expect null return */
+        alias = x509km.chooseClientAlias(null, null, null);
+        if (alias != null) {
+            error("\t... failed");
+            fail("expected null alias with all null args, got: " + alias);
+        }
+
+        /* RSA type, null issuers and socket */
+        alias = x509km.chooseClientAlias(new String[] { "RSA" }, null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("client")) {
+                error("\t... failed");
+                fail("expected 'client' alias for RSA type from allJKS");
+            }
+        }
+
+        /* EC type, null issuers and socket */
+        alias = x509km.chooseClientAlias(new String[] { "EC" }, null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("server-ecc")) {
+                error("\t... failed");
+                fail("expected 'server-ecc' alias for EC type from allJKS");
+            }
         }
 
         pass("\t... passed");
     }
 
     @Test
-    public void testgetServerAliases() {
+    public void testEngineChooseClientAlias() {
+
+        KeyManager[] km = null;
+        X509ExtendedKeyManager x509km = null;
+        String alias = null;
+
+        System.out.print("\tTesting chooseEngineClientAlias");
+
+        km = tf.createKeyManager("SunX509", tf.allJKS, provider);
+        if (km == null) {
+            error("\t... failed");
+            fail("failed to create KeyManager[]");
+        }
+
+        if (!(km[0] instanceof X509ExtendedKeyManager)) {
+            error("\t... failed");
+            fail("KeyManager[0] is not of type X509ExtendedKeyManager");
+        }
+
+        x509km = (X509ExtendedKeyManager) km[0];
+        if (x509km == null) {
+            error("\t... failed");
+            fail("failed to get X509ExtendedKeyManager");
+        }
+
+        /* All null args, expect null return */
+        alias = x509km.chooseEngineClientAlias(null, null, null);
+        if (alias != null) {
+            error("\t... failed");
+            fail("expected null alias with all null args, got: " + alias);
+        }
+
+        /* RSA type, null issuers and socket */
+        alias = x509km.chooseEngineClientAlias(new String[] { "RSA" },
+                                               null, null);
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("client")) {
+                error("\t... failed");
+                fail("expected 'client' alias for RSA type from allJKS");
+            }
+        }
+
+        /* EC type, null issuers and socket */
+        alias = x509km.chooseEngineClientAlias(new String[] { "EC" },
+                                               null, null);
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("server-ecc")) {
+                error("\t... failed");
+                fail("expected 'server-ecc' alias for EC type from allJKS");
+            }
+        }
+
+        /* Currently SSLEngine argument is not used by wolfJSSE, if this
+         * behavior changes, add tests here */
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testGetServerAliases() {
+
         KeyManager[] list;
         X509KeyManager km;
         String[] alias;
+
         System.out.print("\tTesting getServerAliases");
 
         list = tf.createKeyManager("SunX509", tf.allJKS, provider);
@@ -178,6 +306,133 @@ public class WolfSSLKeyX509Test {
             error("\t... failed");
             fail("failed to get server aliases");
         }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testChooseServerAlias() {
+
+        KeyManager[] km = null;
+        X509KeyManager x509km = null;
+        String alias = null;
+
+        System.out.print("\tTesting chooseServerAlias");
+
+        km = tf.createKeyManager("SunX509", tf.allJKS, provider);
+        if (km == null) {
+            error("\t... failed");
+            fail("failed to create KeyManager[]");
+        }
+
+        if (!(km[0] instanceof X509KeyManager)) {
+            error("\t... failed");
+            fail("KeyManager[0] is not of type X509KeyManager");
+        }
+
+        x509km = (X509KeyManager) km[0];
+        if (x509km == null) {
+            error("\t... failed");
+            fail("failed to get X509KeyManager");
+        }
+
+        /* All null args, expect null return */
+        alias = x509km.chooseServerAlias(null, null, null);
+        if (alias != null) {
+            error("\t... failed");
+            fail("expected null alias with all null args, got: " + alias);
+        }
+
+        /* RSA type, null issuers and socket */
+        alias = x509km.chooseServerAlias("RSA", null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("client")) {
+                error("\t... failed");
+                fail("expected 'client' alias for RSA type from allJKS");
+            }
+        }
+
+        /* EC type, null issuers and socket */
+        alias = x509km.chooseServerAlias("EC", null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("server-ecc")) {
+                error("\t... failed");
+                fail("expected 'server-ecc' alias for EC type from allJKS");
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testChooseEngineServerAlias() {
+
+        KeyManager[] km = null;
+        X509ExtendedKeyManager x509km = null;
+        String alias = null;
+
+        System.out.print("\tTesting chooseEngineServerAlias");
+
+        km = tf.createKeyManager("SunX509", tf.allJKS, provider);
+        if (km == null) {
+            error("\t... failed");
+            fail("failed to create KeyManager[]");
+        }
+
+        if (!(km[0] instanceof X509ExtendedKeyManager)) {
+            error("\t... failed");
+            fail("KeyManager[0] is not of type X509ExtendedKeyManager");
+        }
+
+        x509km = (X509ExtendedKeyManager) km[0];
+        if (x509km == null) {
+            error("\t... failed");
+            fail("failed to get X509ExtendedKeyManager");
+        }
+
+        /* All null args, expect null return */
+        alias = x509km.chooseEngineServerAlias(null, null, null);
+        if (alias != null) {
+            error("\t... failed");
+            fail("expected null alias with all null args, got: " + alias);
+        }
+
+        /* RSA type, null issuers and socket */
+        alias = x509km.chooseEngineServerAlias("RSA", null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("client")) {
+                error("\t... failed");
+                fail("expected 'client' alias for RSA type from allJKS");
+            }
+        }
+
+        /* EC type, null issuers and socket */
+        alias = x509km.chooseEngineServerAlias("EC", null, null);
+
+        if (alias != null) {
+            /* Note: this is very dependent on the contents and ordering of
+             * all.jks. If that file is re-generated or changed, this test may
+             * need to be updated */
+            if (!alias.equals("server-ecc")) {
+                error("\t... failed");
+                fail("expected 'server-ecc' alias for EC type from allJKS");
+            }
+        }
+
+        /* Currently SSLSocket argument is not used by wolfJSSE, if this
+         * behavior changes, add tests here */
 
         pass("\t... passed");
     }
