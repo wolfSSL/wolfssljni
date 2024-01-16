@@ -28,9 +28,7 @@ import com.wolfssl.WolfSSLFIPSErrorCallback;
 
 /**
  * wolfSSL JSSE Provider implementation
- *
  * @author wolfSSL
- * @version 1.8
  */
 public final class WolfSSLProvider extends Provider {
 
@@ -103,12 +101,10 @@ public final class WolfSSLProvider extends Provider {
                 "Failed to initialize native wolfSSL library");
         }
 
-        /* enable native wolfSSL debug logging, native wolfSSL must be
-         * compiled with --enable-debug */
-        String wolfsslDebug = System.getProperty("wolfssl.debug");
-        if ((wolfsslDebug != null) && (wolfsslDebug.equalsIgnoreCase("true"))) {
-            WolfSSL.debuggingON();
-        }
+        /* Enable native wolfSSL debug logging if 'wolfssl.debug' System
+         * property has been set to "true" and native wolfSSL compiled with
+         * '--enable-debug' */
+        WolfSSLDebug.setNativeWolfSSLDebugging();
 
         /* Key Factory */
         put("KeyManagerFactory.PKIX",
