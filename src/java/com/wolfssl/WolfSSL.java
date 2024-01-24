@@ -750,6 +750,15 @@ public class WolfSSL {
      */
     public static native boolean trustPeerCertEnabled();
 
+    /**
+     * Tests if native session ticket support has been compiled into wolfSSL
+     * with HAVE_SESSION_TICKET.
+     *
+     * @return true if enabled, otherwise false if HAVE_SESSION_TICKET
+     *         has not been defined.
+     */
+    public static native boolean sessionTicketEnabled();
+
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**
