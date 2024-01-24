@@ -106,7 +106,7 @@ public class Server {
                     if (args.length < i+2)
                         printUsage();
                     sslVersion = Integer.parseInt(args[++i]);
-                    if (sslVersion < 0 || sslVersion > 3) {
+                    if (sslVersion < 0 || sslVersion > 4) {
                         printUsage();
                     }
 
@@ -237,6 +237,9 @@ public class Server {
                     break;
                 case 3:
                     method = WolfSSL.TLSv1_2_ServerMethod();
+                    break;
+                case 4:
+                    method = WolfSSL.TLSv1_3_ServerMethod();
                     break;
                 case -1:
                     method = WolfSSL.DTLSv1_ServerMethod();
@@ -649,7 +652,7 @@ public class Server {
         System.out.println("-?\t\tHelp, print this usage");
         System.out.println("-p <num>\tPort to connect to, default 11111");
         System.out.println("-v <num>\tSSL version [0-3], SSLv3(0) - " +
-                "TLS1.2(3)), default 3");
+                "TLS1.3(4)), default 3");
         System.out.println("-l <str>\tCipher list");
         System.out.println("-c <file>\tCertificate file,\t\tdefault " +
                 "../certs/client-cert.pem");
