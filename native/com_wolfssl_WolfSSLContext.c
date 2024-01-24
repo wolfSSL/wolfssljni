@@ -5509,6 +5509,35 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_set1SigAlgsList
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jstring list)
+{
+#if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    const char* sigAlgList = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || ctx == NULL || list == NULL) {
+        return (jint)WOLFSSL_FAILURE;
+    }
+
+    sigAlgList = (*jenv)->GetStringUTFChars(jenv, list, 0);
+
+    ret = wolfSSL_CTX_set1_sigalgs_list(ctx, sigAlgList);
+
+    (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)ctxPtr;
+    (void)list;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ctx)
 {

@@ -383,6 +383,7 @@ public class WolfSSLContext {
     private native int usePskIdentityHint(long ssl, String hint);
     private native int useSupportedCurve(long ctx, int name);
     private native int setGroups(long ctx, int[] groups);
+    private native int set1SigAlgsList(long ctx, String list);
     private native int useSecureRenegotiation(long ctx);
     private native int setMinDhKeySz(long ctx, int keySzBits);
     private native int setMinRsaKeySz(long ctx, int keySzBits);
@@ -1956,6 +1957,27 @@ public class WolfSSLContext {
 
         synchronized (ctxLock) {
             return setGroups(getContextPtr(), groups);
+        }
+    }
+
+    /**
+     * Set the supported signature algorithms for this WolfSSLContext. This
+     * replaces the existing or default list in the context.
+     *
+     * @param list Colon-separated list of [public key]+[digest] algorithms,
+     *             for example: "RSA+SHA256", or "RSA+SHA256:ECDSA:SHA256"
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise
+     *         <code>WolfSSL.SSL_FAILURE</code> on failure
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int set1SigAlgsList(String list)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            return set1SigAlgsList(getContextPtr(), list);
         }
     }
 

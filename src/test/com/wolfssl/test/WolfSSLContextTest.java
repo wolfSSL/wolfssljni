@@ -77,6 +77,7 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_useSecureRenegotiation();
         test_WolfSSLContext_useSupportedCurves();
         test_WolfSSLContext_setGroups();
+        test_WolfSSLContext_set1SigAlgsList();
         test_WolfSSLContext_setMinRSAKeySize();
         test_WolfSSLContext_setMinECCKeySize();
         test_WolfSSLContext_free();
@@ -462,8 +463,107 @@ public class WolfSSLContextTest {
 
         } catch (IllegalStateException e) {
             System.out.println("\t\t\t... failed");
-            fail("setGroups() failed");
             e.printStackTrace();
+            fail("setGroups() failed");
+        }
+    }
+
+    public void test_WolfSSLContext_set1SigAlgsList() {
+
+        int ret;
+
+        System.out.print("\tset1SigAlgsList()");
+        try {
+            /* Expected failure, null list */
+            ret = ctx.set1SigAlgsList(null);
+            if (ret != WolfSSL.NOT_COMPILED_IN &&
+                ret != WolfSSL.SSL_FAILURE) {
+                System.out.println("\t\t... failed");
+                fail("set1SigAlgsList() should fail with null list");
+            }
+
+            /* Expected failure, empty list */
+            ret = ctx.set1SigAlgsList("");
+            if (ret != WolfSSL.NOT_COMPILED_IN &&
+                ret != WolfSSL.SSL_FAILURE) {
+                System.out.println("\t\t... failed");
+                fail("set1SigAlgsList() should fail with empty list");
+            }
+
+            if (WolfSSL.RsaEnabled()) {
+                ret = ctx.set1SigAlgsList("RSA");
+                if (ret != WolfSSL.NOT_COMPILED_IN &&
+                    ret != WolfSSL.SSL_FAILURE) {
+                    System.out.println("\t\t... failed");
+                    fail("set1SigAlgsList() should fail without hash");
+                }
+
+                if (WolfSSL.Sha256Enabled()) {
+                    ret = ctx.set1SigAlgsList("RSA+SHA256");
+                    if (ret != WolfSSL.NOT_COMPILED_IN &&
+                        ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("\t\t... failed");
+                        fail("set1SigAlgsList() should pass with given list");
+                    }
+
+                    ret = ctx.set1SigAlgsList("RSA:RSA+SHA256");
+                    if (ret != WolfSSL.NOT_COMPILED_IN &&
+                        ret != WolfSSL.SSL_FAILURE) {
+                        System.out.println("\t\t... failed");
+                        fail("set1SigAlgsList() should fail without hash");
+                    }
+
+                    if (WolfSSL.Sha512Enabled()) {
+                        ret = ctx.set1SigAlgsList("RSA+SHA256:RSA+SHA512");
+                        if (ret != WolfSSL.NOT_COMPILED_IN &&
+                            ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("\t\t... failed");
+                            fail("set1SigAlgsList() should pass");
+                        }
+                    }
+                }
+            }
+
+            if (WolfSSL.EccEnabled()) {
+                ret = ctx.set1SigAlgsList("ECDSA");
+                if (ret != WolfSSL.NOT_COMPILED_IN &&
+                    ret != WolfSSL.SSL_FAILURE) {
+                    System.out.println("\t\t... failed");
+                    fail("set1SigAlgsList() should fail without hash");
+                }
+
+                if (WolfSSL.Sha256Enabled()) {
+                    ret = ctx.set1SigAlgsList("ECDSA+SHA256");
+                    if (ret != WolfSSL.NOT_COMPILED_IN &&
+                        ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("\t\t... failed");
+                        fail("set1SigAlgsList() should pass with given list");
+                    }
+
+                    ret = ctx.set1SigAlgsList("ECDSA:ECDSA+SHA256");
+                    if (ret != WolfSSL.NOT_COMPILED_IN &&
+                        ret != WolfSSL.SSL_FAILURE) {
+                        System.out.println("\t\t... failed");
+                        fail("set1SigAlgsList() should fail without hash");
+                    }
+
+                    if (WolfSSL.Sha512Enabled()) {
+                        ret = ctx.set1SigAlgsList("ECDSA+SHA256:ECDSA+SHA512");
+                        if (ret != WolfSSL.NOT_COMPILED_IN &&
+                            ret != WolfSSL.SSL_SUCCESS) {
+                            System.out.println("\t\t... failed");
+                            fail("set1SigAlgsList() should pass");
+                        }
+                    }
+                }
+            }
+
+            System.out.println("\t\t... passed");
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t\t... failed");
+            e.printStackTrace();
+            fail("set1SigAlgsList() failed");
         }
     }
 
