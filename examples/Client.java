@@ -72,6 +72,9 @@ public class Client {
         int logCallback = 0;                  /* use test logging callback */
         int usePsk = 0;                       /* use pre shared keys */
 
+        long session = 0;                     /* pointer to WOLFSSL_SESSION */
+        boolean resumeSession = false;        /* try one session resumption */
+
         /* cert info */
         String clientCert = "../certs/client-cert.pem";
         String clientKey  = "../certs/client-key.pem";
@@ -109,7 +112,7 @@ public class Client {
                     if (args.length < i+2)
                         printUsage();
                     sslVersion = Integer.parseInt(args[++i]);
-                    if (sslVersion < 0 || sslVersion > 3) {
+                    if (sslVersion < 0 || sslVersion > 4) {
                         printUsage();
                     }
 
@@ -195,6 +198,9 @@ public class Client {
                     }
                     pkCallbacks = 1;
 
+                } else if (arg.equals("-r")) {
+                    resumeSession = true;
+
                 } else {
                     printUsage();
                 }
@@ -231,6 +237,9 @@ public class Client {
                     break;
                 case 3:
                     method = WolfSSL.TLSv1_2_ClientMethod();
+                    break;
+                case 4:
+                    method = WolfSSL.TLSv1_3_ClientMethod();
                     break;
                 case -1:
                     method = WolfSSL.DTLSv1_ClientMethod();
@@ -433,6 +442,15 @@ public class Client {
                 }
             }
 
+            /* enable use of session tickets if compiled in native wolfSSL */
+            if (WolfSSL.sessionTicketEnabled()) {
+                ret = ssl.useSessionTicket();
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("Session tickets not enabled for " +
+                        "this WolfSSLSession: ret = " + ret);
+                }
+            }
+
             /* open Socket */
             if (doDTLS == 1) {
                 dsock = new DatagramSocket();
@@ -546,6 +564,122 @@ public class Client {
                 System.out.println("read failed");
             }
 
+            /* save session in case resuming */
+            session = ssl.getSession();
+            if (session == 0) {
+                System.out.println("Failed to get native WOLFSSL_SESSION");
+            } else {
+                System.out.println("Saved native WOLFSSL_SESSION");
+            }
+
+            /* shutdown SSL/TLS session */
+            ssl.shutdownSSL();
+
+            /* free native WOLFSSL session, also done by garbage collector
+             * later if not called explicitly */
+            ssl.freeSSL();
+
+            if (resumeSession) {
+                System.out.println("\nTrying session resumption...");
+
+                /* create SSL object */
+                ssl = new WolfSSLSession(sslCtx);
+
+                /* open Socket */
+                if (doDTLS == 1) {
+                    dsock = new DatagramSocket();
+                    hostAddr = InetAddress.getByName(host);
+                    InetSocketAddress addr =
+                        new InetSocketAddress(hostAddr, port);
+                    ret = ssl.dtlsSetPeer(addr);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("failed to set DTLS peer");
+                        System.exit(1);
+                    }
+                } else {
+                    sock = new Socket(host, port);
+                    System.out.println("Connected to " +
+                            sock.getInetAddress().getHostAddress() +
+                            " on port " +
+                            sock.getPort() + "\n");
+
+                    outstream = new DataOutputStream(sock.getOutputStream());
+                    instream = new DataInputStream(sock.getInputStream());
+                }
+
+                if (useIOCallbacks || (doDTLS == 1)) {
+                    /* register I/O callback user context */
+                    MyIOCtx ioctx = new MyIOCtx(outstream, instream, dsock,
+                            hostAddr, port);
+                    ssl.setIOReadCtx(ioctx);
+                    ssl.setIOWriteCtx(ioctx);
+                    System.out.println("Registered I/O callback user contexts");
+
+                } else {
+
+                    /* if not using DTLS or I/O callbacks, pass Socket
+                     * fd to wolfSSL */
+                    ret = ssl.setFd(sock);
+
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        System.out.println("Failed to set file descriptor");
+                        return;
+                    }
+                }
+
+                /* restore saved WOLFSSL_SESSION */
+                ssl.setSession(session);
+
+                /* call wolfSSL_connect */
+                do {
+                    ret = ssl.connect();
+                    err = ssl.getError(ret);
+                } while (ret != WolfSSL.SSL_SUCCESS &&
+                       (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                        err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    err = ssl.getError(ret);
+                    String errString = sslLib.getErrorString(err);
+                    System.out.println("wolfSSL_connect failed. err = " + err +
+                            ", " + errString);
+                    System.exit(1);
+                }
+
+                /* show peer info */
+                showPeer(ssl);
+                System.out.println("Session resumed: " + ssl.sessionReused());
+
+                /* test write(long, byte[], int) */
+                do {
+                    ret = ssl.write(msg.getBytes(), msg.length());
+                    err = ssl.getError(0);
+                } while (ret < 0 &&
+                         (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                          err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                /* read response */
+                do {
+                    input = ssl.read(back, back.length);
+                    err = ssl.getError(0);
+                } while (input < 0 &&
+                         (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                          err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                if (input > 0) {
+                    System.out.println("got back: " + new String(back));
+                } else {
+                    System.out.println("read failed");
+                }
+
+                /* shutdown SSL/TLS session */
+                ssl.shutdownSSL();
+
+                /* free native WOLFSSL session, also done by garbage collector
+                 * later if not called explicitly */
+                ssl.freeSSL();
+            }
+
             /* free resources */
             sslCtx.free();
 
@@ -595,7 +729,7 @@ public class Client {
         System.out.println("-h <host>\tHost to connect to, default 127.0.0.1");
         System.out.println("-p <num>\tPort to connect to, default 11111");
         System.out.println("-v <num>\tSSL version [0-3], SSLv3(0) - " +
-                "TLS1.2(3)), default 3");
+                "TLS1.3(4)), default 3");
         System.out.println("-l <str>\tCipher list");
         System.out.println("-c <file>\tCertificate file,\t\tdefault " +
                 "../certs/client-cert.pem");
@@ -605,6 +739,7 @@ public class Client {
                 "../certs/ca-cert.pem");
         System.out.println("-b <num>\tBenchmark <num> connections and print" +
                 " stats");
+        System.out.println("-r\t\tResume session");
         if (WolfSSL.isEnabledPSK() == 1)
             System.out.println("-s\t\tUse pre shared keys");
         System.out.println("-d\t\tDisable peer checks");

@@ -662,6 +662,41 @@ public class WolfSSL {
     public static native boolean TLSv13Enabled();
 
     /**
+     * Tests if SHA-1 is enabled in the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean ShaEnabled();
+
+    /**
+     * Tests if SHA-224 is enabled in the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Sha224Enabled();
+
+    /**
+     * Tests if SHA-256 is enabled in the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Sha256Enabled();
+
+    /**
+     * Tests if SHA-384 is enabled in the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Sha384Enabled();
+
+    /**
+     * Tests if SHA-512 is enabled in the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean Sha512Enabled();
+
+    /**
      * Tests if ECC support has been compiled into the native wolfSSL library.
      *
      * @return true if enabled, otherwise false if not compiled in.
@@ -714,6 +749,15 @@ public class WolfSSL {
      *         has not been defined.
      */
     public static native boolean trustPeerCertEnabled();
+
+    /**
+     * Tests if native session ticket support has been compiled into wolfSSL
+     * with HAVE_SESSION_TICKET.
+     *
+     * @return true if enabled, otherwise false if HAVE_SESSION_TICKET
+     *         has not been defined.
+     */
+    public static native boolean sessionTicketEnabled();
 
     /* ---------------- native SSL/TLS version functions ---------------- */
 

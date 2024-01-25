@@ -385,6 +385,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    set1SigAlgsList
+ * Signature: (JLjava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_set1SigAlgsList
+  (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    useSecureRenegotiation
  * Signature: (J)I
  */
