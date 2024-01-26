@@ -29,6 +29,7 @@ import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLALPNSelectCallback;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Arrays;
@@ -462,6 +463,10 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
+        if (in == null) {
+            throw new SSLException("SSLEngine.wrap() bad arguments");
+        }
+
         return wrap(new ByteBuffer[] { in }, 0, 1, out);
     }
 
@@ -475,8 +480,23 @@ public class WolfSSLEngine extends SSLEngine {
         /* Set initial status for SSLEngineResult return */
         Status status = SSLEngineResult.Status.OK;
 
+        /* Sanity check buffer arguments. */
         if (in == null || ofst + len > in.length || out == null) {
             throw new SSLException("SSLEngine.wrap() bad arguments");
+        }
+
+        if (ofst < 0 || len < 0) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        for (i = ofst; i < len; ++i) {
+            if (in[i] == null) {
+                throw new SSLException("SSLEngine.wrap() bad arguments");
+            }
+        }
+
+        if (out.isReadOnly()) {
+            throw new ReadOnlyBufferException();
         }
 
         if (!this.clientModeSet) {
@@ -788,6 +808,11 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
+        if (out == null) {
+            throw new IllegalArgumentException(
+                "SSLEngine.unwrap() bad arguments");
+        }
+
         return unwrap(in, new ByteBuffer[] { out }, 0, 1);
     }
 
@@ -804,9 +829,24 @@ public class WolfSSLEngine extends SSLEngine {
         /* Set initial status for SSLEngineResult return */
         Status status = SSLEngineResult.Status.OK;
 
+        /* Sanity check buffer arguments. */
         if (in == null || out == null || ofst + length > out.length) {
             throw new IllegalArgumentException(
                 "SSLEngine.unwrap() bad arguments");
+        }
+
+        if (ofst < 0 || length < 0) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        for (i = ofst; i < length; ++i) {
+            if (out[i] == null) {
+                throw new IllegalArgumentException("SSLEngine.unwrap() bad arguments");
+            }
+
+            if (out[i].isReadOnly()) {
+                throw new ReadOnlyBufferException();
+            }
         }
 
         if (!this.clientModeSet) {
@@ -1284,6 +1324,10 @@ public class WolfSSLEngine extends SSLEngine {
         /* No network data source yet */
         synchronized (netDataLock) {
             this.netData = null;
+        }
+
+        if (outBoundOpen == false) {
+            throw new SSLException("beginHandshake with closed out bound");
         }
 
         try {
