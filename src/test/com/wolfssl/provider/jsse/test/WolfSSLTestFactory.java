@@ -390,7 +390,9 @@ class WolfSSLTestFactory {
     }
 
     /**
-     * Creates a new context using provider passed in and km/tm
+     * Creates a new context using provider passed in and km/tm. Falls back
+     * and creates default TrustManager/KeyManager if those arguments are
+     * null.
      *
      * @param protocol to be used when creating context
      * @param provider to be used when creating context (can be null)
@@ -401,6 +403,42 @@ class WolfSSLTestFactory {
     protected SSLContext createSSLContext(String protocol, String provider,
             TrustManager[] tm, KeyManager[] km) {
         return internalCreateSSLContext(protocol, provider, tm, km);
+    }
+
+    /**
+     * Creates a new context using provider passed in and km/tm, does not
+     * fallback and create default TrustManager/KeyManager if thoes arguments
+     * are null.
+     *
+     * @param protocol to be used when creating context
+     * @param provider to be used when creating context (can be null)
+     * @param tm trust manager to use (can be null)
+     * @param km key manager to use (can be null)
+     * @return new SSLContext on success and null on failure
+     */
+    protected SSLContext createSSLContextNoDefaults(String protocol,
+        String provider, TrustManager[] tm, KeyManager[] km) {
+
+        SSLContext ctx = null;
+
+        try {
+            if (provider != null) {
+                ctx = SSLContext.getInstance(protocol, provider);
+            } else {
+                ctx = SSLContext.getInstance(protocol);
+            }
+
+            ctx.init(km, tm, null);
+            return ctx;
+
+        } catch (NoSuchAlgorithmException ex) {
+            ex.printStackTrace();
+        } catch (KeyManagementException ex) {
+            ex.printStackTrace();
+        } catch (NoSuchProviderException ex) {
+            ex.printStackTrace();
+        }
+        return null;
     }
 
     /**

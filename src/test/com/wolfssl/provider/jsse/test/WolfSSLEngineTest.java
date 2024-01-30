@@ -34,11 +34,13 @@ import java.security.Provider;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.security.cert.CertificateException;
 import java.security.KeyStore;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.net.Socket;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
@@ -46,6 +48,8 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -122,7 +126,7 @@ public class WolfSSLEngineTest {
         SSLEngine e;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting creation");
+        System.out.print("\tSSLEngine creation");
 
         for (int i = 0; i < enabledProtocols.size(); i++) {
             this.ctx = tf.createSSLContext(enabledProtocols.get(i),
@@ -143,7 +147,7 @@ public class WolfSSLEngineTest {
         String sup[];
         boolean ok = false;
 
-        System.out.print("\tTesting setting cipher");
+        System.out.print("\tSetting ciphersuite");
 
         if (!WolfSSL.TLSv12Enabled()) {
             pass("\t\t... skipped");
@@ -203,7 +207,7 @@ public class WolfSSLEngineTest {
         Certificate[] certs;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting cipher connection");
+        System.out.print("\tBasic ciphersuiet connection");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
@@ -262,24 +266,24 @@ public class WolfSSLEngineTest {
         }
         pass("\t... passed");
 
-        System.out.print("\tTesting close connection");
+        System.out.print("\tclose connection");
         try {
             /* test close connection */
             tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            error("\t... failed");
+            error("\t\t... failed");
             fail("failed to create engine");
         }
 
         /* check if inbound is still open */
         if (!server.isInboundDone() || !client.isInboundDone()) {
-            error("\t... failed");
+            error("\t\t... failed");
             fail("inbound is not done");
         }
 
         /* check if outbound is still open */
         if (!server.isOutboundDone() || !client.isOutboundDone()) {
-            error("\t... failed");
+            error("\t\t... failed");
             fail("outbound is not done");
         }
 
@@ -287,11 +291,11 @@ public class WolfSSLEngineTest {
         try {
             server.closeInbound();
         } catch (SSLException ex) {
-            error("\t... failed");
+            error("\t\t... failed");
             fail("close inbound failure");
         }
 
-        pass("\t... passed");
+        pass("\t\t... passed");
     }
 
     @Test
@@ -302,7 +306,7 @@ public class WolfSSLEngineTest {
         int ret;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting begin handshake");
+        System.out.print("\tbeginHandshake()");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
@@ -336,7 +340,7 @@ public class WolfSSLEngineTest {
         int ret;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting out/in bound");
+        System.out.print("\tisIn/OutboundDone()");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
@@ -383,7 +387,7 @@ public class WolfSSLEngineTest {
         SSLEngine client;
         SSLEngine server;
 
-        System.out.print("\tTesting setUseClientMode()");
+        System.out.print("\tsetUseClientMode()");
 
         /* expected to fail, not calling setUseClientMode() */
         this.ctx = tf.createSSLContext("TLS", engineProvider);
@@ -393,7 +397,7 @@ public class WolfSSLEngineTest {
         server.setNeedClientAuth(false);
         try {
             ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t... failed");
+            error("\t\t... failed");
             fail("did not fail without setUseClientMode()");
         } catch (IllegalStateException e) {
             /* expected */
@@ -407,7 +411,7 @@ public class WolfSSLEngineTest {
         client.setUseClientMode(true);
         try {
             ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t... failed");
+            error("\t\t... failed");
             fail("did not fail without server.setUseClientMode()");
         } catch (IllegalStateException e) {
             /* expected */
@@ -421,7 +425,7 @@ public class WolfSSLEngineTest {
         server.setUseClientMode(false);
         try {
             ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t... failed");
+            error("\t\t... failed");
             fail("did not fail without client.setUseClientMode()");
         } catch (IllegalStateException e) {
             /* expected */
@@ -438,11 +442,11 @@ public class WolfSSLEngineTest {
             ret = tf.testConnection(server, client, null, null, "Testing");
         } catch (IllegalStateException e) {
             e.printStackTrace();
-            error("\t... failed");
+            error("\t\t... failed");
             fail("failed with setUseClientMode(), should succeed");
         }
 
-        pass("\t... passed");
+        pass("\t\t... passed");
     }
 
     @Test
@@ -453,7 +457,7 @@ public class WolfSSLEngineTest {
         int ret;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting mutual auth");
+        System.out.print("\tMutual authentication");
 
         /* success case */
         this.ctx = tf.createSSLContext("TLS", engineProvider);
@@ -496,6 +500,437 @@ public class WolfSSLEngineTest {
         pass("\t\t... passed");
     }
 
+    /**
+     * Helper class used with below setWant/NeedClientAuth() test methods.
+     *
+     * Note that setWantClientAuth() and setNeedClientAuth() are only
+     * applicable when called on the server side. But including testing
+     * then when called on the client side here as well, for sanity.
+     */
+    private static class PeerAuthConfig {
+        boolean clientWantClientAuth;
+        boolean clientNeedClientAuth;
+        boolean serverWantClientAuth;
+        boolean serverNeedClientAuth;
+        boolean expectSuccess;
+
+        public PeerAuthConfig(boolean cwca, boolean cnca, boolean swca,
+            boolean snca, boolean ex) {
+            this.clientWantClientAuth = cwca;
+            this.clientNeedClientAuth = cnca;
+            this.serverWantClientAuth = swca;
+            this.serverNeedClientAuth = snca;
+            this.expectSuccess = ex;
+        }
+    }
+
+    @Test
+    public void testSetWantNeedClientAuth_ClientServerDefaultKeyManager()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret = 0;
+        SSLContext cCtx = null;
+        SSLContext sCtx = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        /* All combinations using DEFAULT X509TrustManager/X509KeyManager
+         * from WolfSSLTestFactory. All expected to pass since each since has
+         * certs/keys loaded no matter if verify is being done */
+        PeerAuthConfig[] configsDefaultManagers = new PeerAuthConfig[] {
+            new PeerAuthConfig(true, true, true, true, true),
+            new PeerAuthConfig(true, true, true, false, true),
+            new PeerAuthConfig(true, true, false, true, true),
+            new PeerAuthConfig(true, true, false, false, true),
+            new PeerAuthConfig(true, false, true, true, true),
+            new PeerAuthConfig(true, false, true, false, true),
+            new PeerAuthConfig(true, false, false, true, true),
+            new PeerAuthConfig(true, false, false, false, true),
+            new PeerAuthConfig(false, true, true, true, true),
+            new PeerAuthConfig(false, true, true, false, true),
+            new PeerAuthConfig(false, true, false, true, true),
+            new PeerAuthConfig(false, true, false, false, true),
+            new PeerAuthConfig(false, false, true, true, true),
+            new PeerAuthConfig(false, false, true, false, true),
+            new PeerAuthConfig(false, false, false, true, true),
+            new PeerAuthConfig(false, false, false, false, true)
+        };
+
+        System.out.print("\tsetWantClientAuth(default KM)");
+
+        for (PeerAuthConfig c : configsDefaultManagers) {
+
+            sCtx = tf.createSSLContext("TLS", engineProvider);
+            server = sCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setWantClientAuth(c.serverWantClientAuth);
+            server.setNeedClientAuth(c.serverNeedClientAuth);
+
+            cCtx = tf.createSSLContext("TLS", engineProvider);
+            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+            client.setUseClientMode(true);
+            client.setWantClientAuth(c.clientWantClientAuth);
+            client.setNeedClientAuth(c.clientNeedClientAuth);
+
+            ret = tf.testConnection(server, client, null, null, "Test");
+            if ((c.expectSuccess && ret != 0) ||
+                (!c.expectSuccess && ret == 0)) {
+                error("\t... failed");
+                fail("SSLEngine want/needClientAuth failed: \n" +
+                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                     "\n  expectSuccess = " + c.expectSuccess +
+                     "\n  got ret = " + ret);
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSetWantNeedClientAuth_ClientNoKeyManager()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret = 0;
+        SSLContext cCtx = null;
+        SSLContext sCtx = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        /* All combinations using 'null' as client KeyManager, so client
+         * will not have cert or private key loaded, but server will */
+        PeerAuthConfig[] configs = new PeerAuthConfig[] {
+            new PeerAuthConfig(true, true, true, true, false),
+            new PeerAuthConfig(true, true, true, false, true),
+            new PeerAuthConfig(true, true, false, true, false),
+            new PeerAuthConfig(true, true, false, false, true),
+            new PeerAuthConfig(true, false, true, true, false),
+            new PeerAuthConfig(true, false, true, false, true),
+            new PeerAuthConfig(true, false, false, true, false),
+            new PeerAuthConfig(true, false, false, false, true),
+            new PeerAuthConfig(false, true, true, true, false),
+            new PeerAuthConfig(false, true, true, false, true),
+            new PeerAuthConfig(false, true, false, true, false),
+            new PeerAuthConfig(false, true, false, false, true),
+            new PeerAuthConfig(false, false, true, true, false),
+            new PeerAuthConfig(false, false, true, false, true),
+            new PeerAuthConfig(false, false, false, true, false),
+            new PeerAuthConfig(false, false, false, false, true)
+        };
+
+        System.out.print("\tsetWantClientAuth(no client KM)");
+
+        for (PeerAuthConfig c : configs) {
+
+            sCtx = tf.createSSLContext("TLS", engineProvider);
+            server = sCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setWantClientAuth(c.serverWantClientAuth);
+            server.setNeedClientAuth(c.serverNeedClientAuth);
+
+            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                tf.createTrustManager("SunX509", tf.clientJKS, engineProvider),
+                null);
+            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+            client.setUseClientMode(true);
+            client.setWantClientAuth(c.clientWantClientAuth);
+            client.setNeedClientAuth(c.clientNeedClientAuth);
+
+            ret = tf.testConnection(server, client, null, null, "Test");
+            if ((c.expectSuccess && ret != 0) ||
+                (!c.expectSuccess && ret == 0)) {
+                error("\t... failed");
+                fail("SSLEngine want/needClientAuth failed: \n" +
+                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                     "\n  expectSuccess = " + c.expectSuccess +
+                     "\n  got ret = " + ret);
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSetWantNeedClientAuth_ServerNoKeyManager()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret = 0;
+        SSLContext cCtx = null;
+        SSLContext sCtx = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        /* All combinations using 'null' as server KeyManager, so server
+         * will not have cert or private key loaded, but client will.
+         * All these should fail, since the server requires a private key
+         * be loaded. */
+        PeerAuthConfig[] configs = new PeerAuthConfig[] {
+            new PeerAuthConfig(true, true, true, true, false),
+            new PeerAuthConfig(true, true, true, false, false),
+            new PeerAuthConfig(true, true, false, true, false),
+            new PeerAuthConfig(true, true, false, false, false),
+            new PeerAuthConfig(true, false, true, true, false),
+            new PeerAuthConfig(true, false, true, false, false),
+            new PeerAuthConfig(true, false, false, true, false),
+            new PeerAuthConfig(true, false, false, false, false),
+            new PeerAuthConfig(false, true, true, true, false),
+            new PeerAuthConfig(false, true, true, false, false),
+            new PeerAuthConfig(false, true, false, true, false),
+            new PeerAuthConfig(false, true, false, false, false),
+            new PeerAuthConfig(false, false, true, true, false),
+            new PeerAuthConfig(false, false, true, false, false),
+            new PeerAuthConfig(false, false, false, true, false),
+            new PeerAuthConfig(false, false, false, false, false)
+        };
+
+        System.out.print("\tsetWantClientAuth(no server KM)");
+
+        for (PeerAuthConfig c : configs) {
+
+            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                tf.createTrustManager("SunX509", tf.clientJKS, engineProvider),
+                null);
+            server = sCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setWantClientAuth(c.serverWantClientAuth);
+            server.setNeedClientAuth(c.serverNeedClientAuth);
+
+            cCtx = tf.createSSLContext("TLS", engineProvider);
+            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+            client.setUseClientMode(true);
+            client.setWantClientAuth(c.clientWantClientAuth);
+            client.setNeedClientAuth(c.clientNeedClientAuth);
+
+            ret = tf.testConnection(server, client, null, null, "Test");
+            if ((c.expectSuccess && ret != 0) ||
+                (!c.expectSuccess && ret == 0)) {
+                error("\t... failed");
+                fail("SSLEngine want/needClientAuth failed: \n" +
+                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                     "\n  expectSuccess = " + c.expectSuccess +
+                     "\n  got ret = " + ret);
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSetWantNeedClientAuth_ClientServerExternalTrustAllCerts()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret = 0;
+        SSLContext cCtx = null;
+        SSLContext sCtx = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        /* TrustManager that trusts all certificates */
+        TrustManager[] trustAllCerts = {
+            new X509ExtendedTrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType) {
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType, Socket socket) {
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType, SSLEngine engine) {
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType) {
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType, Socket socket) {
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType, SSLEngine engine) {
+                }
+            }
+        };
+
+        /* All combinations using DEFAULT X509TrustManager/X509KeyManager
+         * from WolfSSLTestFactory. All expected to pass since each since has
+         * certs/keys loaded no matter if verify is being done */
+        PeerAuthConfig[] configsDefaultManagers = new PeerAuthConfig[] {
+            new PeerAuthConfig(true, true, true, true, true),
+            new PeerAuthConfig(true, true, true, false, true),
+            new PeerAuthConfig(true, true, false, true, true),
+            new PeerAuthConfig(true, true, false, false, true),
+            new PeerAuthConfig(true, false, true, true, true),
+            new PeerAuthConfig(true, false, true, false, true),
+            new PeerAuthConfig(true, false, false, true, true),
+            new PeerAuthConfig(true, false, false, false, true),
+            new PeerAuthConfig(false, true, true, true, true),
+            new PeerAuthConfig(false, true, true, false, true),
+            new PeerAuthConfig(false, true, false, true, true),
+            new PeerAuthConfig(false, true, false, false, true),
+            new PeerAuthConfig(false, false, true, true, true),
+            new PeerAuthConfig(false, false, true, false, true),
+            new PeerAuthConfig(false, false, false, true, true),
+            new PeerAuthConfig(false, false, false, false, true)
+        };
+
+        System.out.print("\tsetWantClientAuth(ext KM all)");
+
+        for (PeerAuthConfig c : configsDefaultManagers) {
+
+            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
+            server = sCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setWantClientAuth(c.serverWantClientAuth);
+            server.setNeedClientAuth(c.serverNeedClientAuth);
+
+            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                trustAllCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
+            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+            client.setUseClientMode(true);
+            client.setWantClientAuth(c.clientWantClientAuth);
+            client.setNeedClientAuth(c.clientNeedClientAuth);
+
+            ret = tf.testConnection(server, client, null, null, "Test");
+            if ((c.expectSuccess && ret != 0) ||
+                (!c.expectSuccess && ret == 0)) {
+                error("\t... failed");
+                fail("SSLEngine want/needClientAuth failed: \n" +
+                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                     "\n  expectSuccess = " + c.expectSuccess +
+                     "\n  got ret = " + ret);
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testSetWantNeedClientAuth_ExternalTrustNoClientCerts()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        int ret = 0;
+        SSLContext cCtx = null;
+        SSLContext sCtx = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        /* TrustManager that trusts no certificates */
+        TrustManager[] trustNoClientCerts = {
+            new X509ExtendedTrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType) throws CertificateException {
+                    throw new CertificateException(
+                        "fail on purpose / bad cert");
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType, Socket socket)
+                    throws CertificateException {
+                    throw new CertificateException(
+                        "fail on purpose / bad cert");
+                }
+                public void checkClientTrusted(X509Certificate[] chain,
+                    String authType, SSLEngine engine)
+                    throws CertificateException {
+                    throw new CertificateException(
+                        "fail on purpose / bad cert");
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType) throws CertificateException {
+                    /* Accept all server certs, not in scope of
+                     * setWant/NeedClientAuth() */
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType, Socket socket)
+                    throws CertificateException {
+                    /* Accept all server certs, not in scope of
+                     * setWant/NeedClientAuth() */
+                }
+                public void checkServerTrusted(X509Certificate[] chain,
+                    String authType, SSLEngine engine)
+                    throws CertificateException {
+                    /* Accept all server certs, not in scope of
+                     * setWant/NeedClientAuth() */
+                }
+            }
+        };
+
+        /* All combinations with external X509ExtendedTrustManager registered
+         * which will trust NO client certs and ALL server certs */
+        PeerAuthConfig[] configsDefaultManagers = new PeerAuthConfig[] {
+            new PeerAuthConfig(true, true, true, true, false),
+            new PeerAuthConfig(true, true, true, false, true),
+            new PeerAuthConfig(true, true, false, true, false),
+            new PeerAuthConfig(true, true, false, false, true),
+            new PeerAuthConfig(true, false, true, true, false),
+            new PeerAuthConfig(true, false, true, false, true),
+            new PeerAuthConfig(true, false, false, true, false),
+            new PeerAuthConfig(true, false, false, false, true),
+            new PeerAuthConfig(false, true, true, true, false),
+            new PeerAuthConfig(false, true, true, false, true),
+            new PeerAuthConfig(false, true, false, true, false),
+            new PeerAuthConfig(false, true, false, false, true),
+            new PeerAuthConfig(false, false, true, true, false),
+            new PeerAuthConfig(false, false, true, false, true),
+            new PeerAuthConfig(false, false, false, true, false),
+            new PeerAuthConfig(false, false, false, false, true)
+        };
+
+        System.out.print("\tsetWantClientAuth(ext KM no)");
+
+        for (PeerAuthConfig c : configsDefaultManagers) {
+
+            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                trustNoClientCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
+            server = sCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setWantClientAuth(c.serverWantClientAuth);
+            server.setNeedClientAuth(c.serverNeedClientAuth);
+
+            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
+                trustNoClientCerts,
+                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
+            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+            client.setUseClientMode(true);
+            client.setWantClientAuth(c.clientWantClientAuth);
+            client.setNeedClientAuth(c.clientNeedClientAuth);
+
+            ret = tf.testConnection(server, client, null, null, "Test");
+            if ((c.expectSuccess && ret != 0) ||
+                (!c.expectSuccess && ret == 0)) {
+                error("\t... failed");
+                fail("SSLEngine want/needClientAuth failed: \n" +
+                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                     "\n  expectSuccess = " + c.expectSuccess +
+                     "\n  got ret = " + ret);
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+
     @Test
     public void testReuseSession()
         throws NoSuchProviderException, NoSuchAlgorithmException {
@@ -504,7 +939,7 @@ public class WolfSSLEngineTest {
         int ret;
 
         /* create new SSLEngine */
-        System.out.print("\tTesting reuse of session");
+        System.out.print("\tSession reuse");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
@@ -515,7 +950,7 @@ public class WolfSSLEngineTest {
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
-            error("\t... failed");
+            error("\t\t\t... failed");
             fail("failed to create engine");
         }
 
@@ -523,7 +958,7 @@ public class WolfSSLEngineTest {
             /* test close connection */
             tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            error("\t... failed");
+            error("\t\t\t... failed");
             fail("failed to create engine");
         }
 
@@ -535,22 +970,23 @@ public class WolfSSLEngineTest {
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, null, null, "Test reuse");
         if (ret != 0) {
-            error("\t... failed");
+            error("\t\t\t... failed");
             fail("failed to create engine");
         }
         try {
             /* test close connection */
             tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            error("\t... failed");
+            error("\t\t\t... failed");
             fail("failed to create engine");
         }
 
-        if (client.getEnableSessionCreation() || !server.getEnableSessionCreation()) {
-            error("\t... failed");
+        if (client.getEnableSessionCreation() ||
+            !server.getEnableSessionCreation()) {
+            error("\t\t\t... failed");
             fail("bad enabled session creation");
         }
-        pass("\t... passed");
+        pass("\t\t\t... passed");
     }
 
     /**
@@ -591,7 +1027,7 @@ public class WolfSSLEngineTest {
         failures.set(0, 0);
         success.set(0, 0);
 
-        System.out.print("\tTesting ExtendedThreadingUse");
+        System.out.print("\tExtended threading use");
 
         /* Start up simple TLS test server */
         CountDownLatch serverOpenLatch = new CountDownLatch(1);
@@ -627,14 +1063,16 @@ public class WolfSSLEngineTest {
 
         /* check failure count and success count against thread count */
         if (failures.get(0) == 0 && success.get(0) == numThreads) {
-            pass("\t... passed");
+            pass("\t\t... passed");
         } else {
             if (returnWithoutTimeout == true) {
+                error("\t\t... failed");
                 fail("SSLEngine threading error: " +
                      failures.get(0) + " failures, " +
                      success.get(0) + " success, " +
                      numThreads + " num threads total");
             } else {
+                error("\t\t... failed");
                 fail("SSLEngine threading error, threads timed out");
             }
         }
@@ -776,7 +1214,8 @@ public class WolfSSLEngineTest {
                     case NOT_HANDSHAKING:
                         break;
                     default:
-                        throw new Exception("Invalid HandshakeStatus");
+                        throw new Exception("Invalid HandshakeStatus: " +
+                            hsStatus);
                 }
                 hsStatus = engine.getHandshakeStatus();
             }

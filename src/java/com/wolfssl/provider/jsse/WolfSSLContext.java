@@ -178,7 +178,6 @@ public class WolfSSLContext extends SSLContextSpi {
 
         try {
             LoadTrustedRootCerts();
-            LoadClientKeyAndCertChain();
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
@@ -366,101 +365,6 @@ public class WolfSSLContext extends SSLContextSpi {
         if (caList.length > 0 && loadedCACount == 0) {
             throw new IllegalArgumentException("wolfSSL failed to load " +
                 "any trusted CA certificates from TrustManager");
-        }
-    }
-
-    private void LoadClientKeyAndCertChain() throws Exception {
-
-        int ret;
-        int offset;
-        X509KeyManager km = authStore.getX509KeyManager();
-        String javaVersion = System.getProperty("java.version");
-
-        if (km == null) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                    "internal KeyManager is null, no cert/key to load");
-            return;
-        }
-
-        /* We only load keys from algorithms enabled in native wolfSSL,
-         * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
-         * and 1.7.0_171 have a bug that causes PrivateKey.getEncoded() to
-         * fail for EC keys. This has been fixed in later JDK versions,
-         * but skip adding EC here if we're running on those versions . */
-        ArrayList<String> keyAlgos = new ArrayList<String>();
-        if (WolfSSL.EccEnabled() &&
-            (!javaVersion.equals("1.7.0_201") &&
-             !javaVersion.equals("1.7.0_171"))) {
-            keyAlgos.add("EC");
-        }
-        if (WolfSSL.RsaEnabled()) {
-            keyAlgos.add("RSA");
-        }
-
-        String[] keyStrings = new String[keyAlgos.size()];
-        keyStrings = keyAlgos.toArray(keyStrings);
-
-        String alias = km.chooseClientAlias(keyStrings, null, null);
-        authStore.setCertAlias(alias);
-
-        /* client private key */
-        PrivateKey privKey = km.getPrivateKey(alias);
-
-        if (privKey != null) {
-            byte[] privKeyEncoded = privKey.getEncoded();
-            if (!privKey.getFormat().equals("PKCS#8")) {
-                throw new Exception("Private key is not in PKCS#8 format");
-            }
-
-            /* skip past PKCS#8 offset */
-            offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
-                privKeyEncoded.length);
-
-            byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
-                offset, privKeyEncoded.length);
-
-            ret = ctx.usePrivateKeyBuffer(privKeyTraditional,
-                privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
-
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new WolfSSLJNIException("Failed to load private key " +
-                    "buffer, err = " + ret);
-            }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded private key from KeyManager (alias: " + alias +
-                    ")");
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "no private key found, skipped loading");
-        }
-
-        /* client certificate chain */
-        X509Certificate[] cert = km.getCertificateChain(alias);
-
-        if (cert != null) {
-            ByteArrayOutputStream certStream = new ByteArrayOutputStream();
-            int chainLength = 0;
-            for (int i = 0; i < cert.length; i++) {
-                /* concatenate certs into single byte array */
-                certStream.write(cert[i].getEncoded());
-                chainLength++;
-            }
-            byte[] certChain = certStream.toByteArray();
-            certStream.close();
-
-            ret = ctx.useCertificateChainBufferFormat(certChain,
-                certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
-
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new WolfSSLJNIException("Failed to load certificate " +
-                    "chain buffer, err = " + ret);
-            }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded certificate chain from KeyManager (length: " +
-                    chainLength + ")");
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "no certificate or chain found, skipped loading");
         }
     }
 

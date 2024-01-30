@@ -28,6 +28,7 @@ import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLALPNSelectCallback;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.function.BiFunction;
@@ -36,6 +37,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.security.cert.CertificateEncodingException;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -164,6 +166,14 @@ public class WolfSSLEngine extends SSLEngine {
         }
         EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params);
+
+        try {
+            EngineHelper.LoadKeyAndCertChain(null, this);
+        } catch (CertificateEncodingException | IOException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "failed to load private key and/or cert chain");
+            throw new WolfSSLException(e);
+        }
     }
 
     /**
@@ -192,6 +202,14 @@ public class WolfSSLEngine extends SSLEngine {
         }
         EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
+
+        try {
+            EngineHelper.LoadKeyAndCertChain(null, this);
+        } catch (CertificateEncodingException | IOException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "failed to load private key and/or cert chain");
+            throw new WolfSSLException(e);
+        }
     }
 
     /**
@@ -350,6 +368,13 @@ public class WolfSSLEngine extends SSLEngine {
         /* send/recv close_notify as needed */
         synchronized (ioLock) {
             ret = ssl.shutdownSSL();
+            if (ssl.getError(ret) == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                /* got close_notify alert, reset ret to 0 to continue
+                 * and let corresponding close_notify to be sent */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "ClosingConnection(), ssl.getError() is ZERO_RETURN");
+                ret = 0;
+            }
         }
         UpdateCloseNotifyStatus();
 
@@ -757,6 +782,8 @@ public class WolfSSLEngine extends SSLEngine {
                     synchronized (ioLock) {
                         if (ssl.getShutdown() ==
                                 WolfSSL.SSL_RECEIVED_SHUTDOWN) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "RecvAppData(), received shutdown message");
                             try {
                                 ret = ClosingConnection();
                                 if (ret > 0) {
@@ -1381,7 +1408,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void setUseClientMode(boolean mode) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setUseClientMode()");
+            "entered setUseClientMode(" + mode + ")");
         EngineHelper.setUseClientMode(mode);
         this.clientModeSet = true;
     }
@@ -1396,7 +1423,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void setNeedClientAuth(boolean need) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setNeedClientAuth()");
+            "entered setNeedClientAuth(" + need + ")");
         EngineHelper.setNeedClientAuth(need);
     }
 
@@ -1410,7 +1437,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void setWantClientAuth(boolean want) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setWantClientAuth()");
+            "entered setWantClientAuth(" + want + ")");
         EngineHelper.setWantClientAuth(want);
     }
 
@@ -1424,7 +1451,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void setEnableSessionCreation(boolean flag) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setEnableSessionCreation()");
+            "entered setEnableSessionCreation(" + flag + ")");
         EngineHelper.setEnableSessionCreation(flag);
     }
 
