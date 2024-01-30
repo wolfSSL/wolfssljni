@@ -1052,7 +1052,7 @@ public class WolfSSLContext {
      * and start with the subject's certificate, ending with the root
      * certificate.
      *
-     * @param in        the input buffer containing the PEM-formatted
+     * @param in        the input buffer containing the PEM or DER formatted
      *                  certificate chain to be loaded.
      * @param sz        the size of the input buffer, <b>in</b>
      * @param format    format of the certificate buffer being loaded - either
