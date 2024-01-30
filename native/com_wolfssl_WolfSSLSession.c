@@ -29,8 +29,9 @@
 #endif
 
 #ifndef USE_WINDOWS_API
-#include <sys/time.h>
-#include <arpa/inet.h>
+    #include <sys/time.h>
+    #include <arpa/inet.h>
+    #include <sys/errno.h>
 #endif
 
 #ifndef WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT
@@ -616,43 +617,51 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
     fd_set* recvfds = NULL;
     fd_set* sendfds = NULL;
     int nfds = sockfd + 1;
-    int result;
+    int result = 0;
     struct timeval timeout;
 
-    timeout.tv_sec = timeout_ms / 1000;
-    timeout.tv_usec = (timeout_ms % 1000) * 1000;
+#ifndef USE_WINDOWS_API
+    do {
+#endif
+        timeout.tv_sec = timeout_ms / 1000;
+        timeout.tv_usec = (timeout_ms % 1000) * 1000;
 
-    FD_ZERO(&fds);
-    FD_SET(sockfd, &fds);
-    FD_ZERO(&errfds);
-    FD_SET(sockfd, &errfds);
+        FD_ZERO(&fds);
+        FD_SET(sockfd, &fds);
+        FD_ZERO(&errfds);
+        FD_SET(sockfd, &errfds);
 
-    if (rx) {
-        recvfds = &fds;
-    } else {
-        sendfds = &fds;
-    }
-
-    if (timeout_ms == 0) {
-        result = select(nfds, recvfds, sendfds, &errfds, NULL);
-    } else {
-        result = select(nfds, recvfds, sendfds, &errfds, &timeout);
-    }
-
-    if (result == 0) {
-        return WOLFJNI_TIMEOUT;
-    } else if (result > 0) {
-        if (FD_ISSET(sockfd, &fds)) {
-            if (rx) {
-                return WOLFJNI_RECV_READY;
-            } else {
-                return WOLFJNI_SEND_READY;
-            }
-        } else if (FD_ISSET(sockfd, &errfds)) {
-            return WOLFJNI_ERROR_READY;
+        if (rx) {
+            recvfds = &fds;
+        } else {
+            sendfds = &fds;
         }
-    }
 
+        if (timeout_ms == 0) {
+            result = select(nfds, recvfds, sendfds, &errfds, NULL);
+        } else {
+            result = select(nfds, recvfds, sendfds, &errfds, &timeout);
+        }
+
+        if (result == 0) {
+            return WOLFJNI_TIMEOUT;
+        } else if (result > 0) {
+            if (FD_ISSET(sockfd, &fds)) {
+                if (rx) {
+                    return WOLFJNI_RECV_READY;
+                } else {
+                    return WOLFJNI_SEND_READY;
+                }
+            } else if (FD_ISSET(sockfd, &errfds)) {
+                return WOLFJNI_ERROR_READY;
+            }
+        }
+
+#ifndef USE_WINDOWS_API
+    } while ((result == -1) && (errno == EINTR));
+#endif
+
+    /* Return on error, unless select() was interrupted, try again above */
     return WOLFJNI_SELECT_FAIL;
 }
 
