@@ -1389,6 +1389,10 @@ public class WolfSSLSocket extends SSLSocket {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "thread got handshakeLock (initHandshake)");
 
+            if (connectionClosed == true) {
+                throw new SocketException("Connection already shutdown");
+            }
+
             if (handshakeComplete == true) {
                 /* handshake already finished */
                 return;
@@ -1634,6 +1638,10 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getInputStream()");
 
+        if (!this.isConnected()) {
+            throw new IOException("Socket is not connected");
+        }
+
         if (this.isClosed()) {
             throw new IOException("Socket has been closed");
         }
@@ -1659,6 +1667,15 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getOutputStream()");
+
+
+        if (!this.isConnected()) {
+            throw new IOException("Socket is not connected");
+        }
+
+        if (this.isClosed()) {
+            throw new IOException("Socket has been closed");
+        }
 
         if (outStream == null) {
             outStream = new WolfSSLOutputStream(ssl, this);
@@ -2096,6 +2113,10 @@ public class WolfSSLSocket extends SSLSocket {
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
             }
 
+            if (!sock.isConnected() || sock.isClosed()) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+
             try {
                 outStream = sock.getOutputStream();
                 outStream.write(buf, 0, sz);
@@ -2289,6 +2310,20 @@ public class WolfSSLSocket extends SSLSocket {
             this.socket = socket; /* parent socket */
         }
 
+        public synchronized void close() throws IOException {
+            if (this.socket.isClosed()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "socket (input) already closed");
+            }
+            else {
+                this.socket.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (input) closed: " + this.socket);
+            }
+
+            return;
+        }
+
         @Override
         public synchronized int read() throws IOException {
 
@@ -2429,6 +2464,20 @@ public class WolfSSLSocket extends SSLSocket {
         public WolfSSLOutputStream(WolfSSLSession ssl, WolfSSLSocket socket) {
             this.ssl = ssl;
             this.socket = socket; /* parent socket */
+        }
+
+        public synchronized void close() throws IOException {
+            if (this.socket.isClosed()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "socket (output) already closed");
+            }
+            else {
+                this.socket.close();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (output) closed: " + this.socket);
+            }
+
+            return;
         }
 
         public synchronized void write(int b) throws IOException {

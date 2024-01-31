@@ -321,6 +321,12 @@ public class WolfSSLContext extends SSLContextSpi {
             return;
         }
 
+        if (caList.length == 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "internal TrustManager has no certs");
+            return;
+        }
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Number of certs in X509TrustManager: " + caList.length);
 
@@ -479,7 +485,7 @@ public class WolfSSLContext extends SSLContextSpi {
         SecureRandom sr) throws KeyManagementException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineInit(" + km + ", " + tm + ", " + sr +")");
+            "entered engineInit(km=" + km + ", tm=" + tm + ", sr=" + sr +")");
 
         try {
             authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);

@@ -680,10 +680,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
      */
     @Override
     public void checkClientTrusted(X509Certificate[] certs, String type)
-            throws CertificateException {
+            throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkClientTrusted()");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
@@ -707,10 +715,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
      */
     @Override
     public void checkClientTrusted(X509Certificate[] certs, String type,
-        Socket socket) throws CertificateException {
+        Socket socket) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkClientTrusted() with Socket");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
@@ -721,10 +737,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
     @Override
     public void checkClientTrusted(X509Certificate[] certs, String type,
-        SSLEngine engine) throws CertificateException {
+        SSLEngine engine) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkClientTrusted() with SSLEngine");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
@@ -748,10 +772,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
      */
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type)
-        throws CertificateException {
+        throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkServerTrusted()");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
@@ -759,10 +791,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type,
-        Socket socket) throws CertificateException {
+        Socket socket) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkServerTrusted() with Socket");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
@@ -773,10 +813,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
     @Override
     public void checkServerTrusted(X509Certificate[] certs, String type,
-        SSLEngine engine) throws CertificateException {
+        SSLEngine engine) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered checkServerTrusted() with SSLEngine");
+
+        if (certs == null) {
+            throw new IllegalArgumentException("Input cert chain null");
+        }
+
+        if (type == null || type.length() == 0) {
+            throw new IllegalArgumentException("Input auth type null");
+        }
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
