@@ -1389,12 +1389,20 @@ public class WolfSSLSocket extends SSLSocket {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "thread got handshakeLock (initHandshake)");
 
+            if (!this.isConnected()) {
+                throw new SocketException("Socket is not connected");
+            }
+
             if (connectionClosed == true) {
                 throw new SocketException("Connection already shutdown");
             }
 
-            if (handshakeComplete == true) {
-                /* handshake already finished */
+            if (handshakeComplete == true && getSession().isValid()) {
+                /* Handshake already finished:
+                 *   - Return early if session still valid.
+                 *   - Otherwise proceed with new handshake. */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "handshake already finished, returning early");
                 return;
             }
 
