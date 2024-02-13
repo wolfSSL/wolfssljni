@@ -1390,12 +1390,18 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
         sess = wolfSSL_get_session(ssl);
     }
 
-    /* wolfSSL checks ssl for NULL, returns pointer to new WOLFSSL_SESSION,
-     * Returns new duplicated WOLFSSL_SESSION. Needs to be freed with
-     * wolfSSL_SESSION_free() when finished with pointer. */
-    if (sess != NULL) {
-        /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
-        dup = wolfSSL_SESSION_dup(sess);
+    /* Only duplicate / save session if not TLS 1.3 (will be using normal
+     * session IDs), or is TLS 1.3 and we have a session ticket */
+    if ((wolfSSL_version(ssl) != TLS1_3_VERSION) ||
+        (wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)sess))) {
+
+        /* wolfSSL checks ssl for NULL, returns pointer to new WOLFSSL_SESSION,
+         * Returns new duplicated WOLFSSL_SESSION. Needs to be freed with
+         * wolfSSL_SESSION_free() when finished with pointer. */
+        if (sess != NULL) {
+            /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
+            dup = wolfSSL_SESSION_dup(sess);
+        }
     }
 
     if (wc_UnLockMutex(jniSessLock) != 0) {
