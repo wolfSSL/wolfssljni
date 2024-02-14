@@ -1,0 +1,13 @@
+name: GitHub Actions Demo
+
+on:
+  push:
+    branches: [ 'master', 'main', 'testactions', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  testjob:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hello World"
