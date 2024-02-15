@@ -106,9 +106,11 @@ final class WolfSSLParameters {
     }
 
     void setWantClientAuth(boolean wantClientAuth) {
-        /* wantClientAuth OR needClientAuth can be set, not both */
+        /* wantClientAuth OR needClientAuth can be set true, not both */
         this.wantClientAuth = wantClientAuth;
-        this.needClientAuth = false;
+        if (this.wantClientAuth) {
+            this.needClientAuth = false;
+        }
     }
 
     boolean getNeedClientAuth() {
@@ -116,9 +118,11 @@ final class WolfSSLParameters {
     }
 
     void setNeedClientAuth(boolean needClientAuth) {
-        /* wantClientAuth OR needClientAuth can be set, not both */
+        /* wantClientAuth OR needClientAuth can be set true, not both */
         this.needClientAuth = needClientAuth;
-        this.wantClientAuth = false;
+        if (this.needClientAuth) {
+            this.wantClientAuth = false;
+        }
     }
 
     String getEndpointIdentificationAlgorithm() {

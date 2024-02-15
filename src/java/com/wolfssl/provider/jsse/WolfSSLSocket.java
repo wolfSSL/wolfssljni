@@ -36,6 +36,7 @@ import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Arrays;
 import java.nio.channels.SocketChannel;
+import java.security.cert.CertificateEncodingException;
 
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
@@ -131,8 +132,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
     }
@@ -173,8 +176,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
    }
@@ -218,8 +223,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, port, address);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
     }
@@ -260,8 +267,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
     }
@@ -305,8 +314,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
     }
@@ -364,8 +375,10 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(this.socket, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException |
+                 IOException e) {
             throw new IOException(e);
         }
     }
@@ -799,8 +812,9 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, s.getPort(), s.getInetAddress());
             EngineHelper.setUseClientMode(clientMode);
+            EngineHelper.LoadKeyAndCertChain(s, null);
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | CertificateEncodingException e) {
             throw new IOException(e);
         }
     }
@@ -850,6 +864,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                     this.params, s.getPort(), s.getInetAddress());
             EngineHelper.setUseClientMode(false);
+            EngineHelper.LoadKeyAndCertChain(s, null);
 
             /* register custom receive callback to read consumed first */
             if (consumed != null) {
@@ -859,10 +874,9 @@ public class WolfSSLSocket extends SSLSocket {
                 this.ssl.setIOReadCtx(recvCtx);
             }
 
-        } catch (WolfSSLException e) {
+        } catch (WolfSSLException | WolfSSLJNIException |
+                 CertificateEncodingException e) {
             throw new IOException(e);
-        } catch (WolfSSLJNIException jnie) {
-            throw new IOException(jnie);
         }
     }
 

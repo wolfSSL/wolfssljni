@@ -20,12 +20,12 @@
  */
 package com.wolfssl.provider.jsse;
 
-import com.wolfssl.WolfSSL;
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLSession;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -33,8 +33,18 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509KeyManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.SSLHandshakeException;
 import java.security.Security;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.security.cert.CertificateEncodingException;
+
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLSession;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 /**
  * This is a helper class to account for similar methods between SSLSocket
@@ -166,6 +176,206 @@ public class WolfSSLEngineHelper {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(peer port: " + port +
             ", peer IP: " + peerAddr.getHostAddress() + ")");
+    }
+
+    /**
+     * Get the alias from the X509KeyManager to use for finding and loading
+     * the private key and certificate chain for this endpoint.
+     *
+     * @param km X509KeyManager or X509ExtendedKeyManager to poll for
+     *        client/server alias name
+     * @param socket Socket or SSLSocket from which this peer is being
+     *        created, may be null if engine is being used instead
+     * @param engine SSLEngine from which this peer is being created, may be
+     *        null if socket is being used instead
+     *
+     * @return alias String, or null if none found
+     */
+    private String GetKeyAndCertChainAlias(X509KeyManager km, Socket sock,
+        SSLEngine engine) {
+
+        String alias = null;
+        String javaVersion = System.getProperty("java.version");
+
+        if (sock == null && engine == null) {
+            return null;
+        }
+
+        /* We only load keys from algorithms enabled in native wolfSSL,
+         * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
+         * and 1.7.0_171 have a bug that causes PrivateKey.getEncoded() to
+         * fail for EC keys. This has been fixed in later JDK versions,
+         * but skip adding EC here if we're running on those versions . */
+        ArrayList<String> keyAlgos = new ArrayList<String>();
+        if (WolfSSL.EccEnabled() &&
+            (!javaVersion.equals("1.7.0_201") &&
+             !javaVersion.equals("1.7.0_171"))) {
+            keyAlgos.add("EC");
+        }
+        if (WolfSSL.RsaEnabled()) {
+            keyAlgos.add("RSA");
+        }
+
+        String[] keyTypes = new String[keyAlgos.size()];
+        keyTypes = keyAlgos.toArray(keyTypes);
+
+        if (clientMode) {
+            if (sock != null) {
+                alias = km.chooseClientAlias(keyTypes, null, sock);
+            }
+            else if (engine != null) {
+                if (km instanceof X509ExtendedKeyManager) {
+                    alias = ((X509ExtendedKeyManager)km).
+                        chooseEngineClientAlias(keyTypes, null, engine);
+                }
+                else {
+                    alias = km.chooseClientAlias(keyTypes, null, null);
+                }
+            }
+        }
+        else {
+            /* Loop through available key types until we find an alias
+             * that works, or none that do and return null */
+            for (String type : keyTypes) {
+                if (sock != null) {
+                    alias = km.chooseServerAlias(type, null, sock);
+                }
+                else if (engine != null) {
+                    if (km instanceof X509ExtendedKeyManager) {
+                        alias = ((X509ExtendedKeyManager)km).
+                            chooseEngineServerAlias(type, null, engine);
+                    }
+                    else {
+                        alias = km.chooseServerAlias(type, null, null);
+                    }
+                }
+
+                if (alias != null) {
+                    break;
+                }
+            }
+        }
+
+        return alias;
+    }
+
+    /**
+     * Loads the private key and certificate chain for this
+     * SSLSocket/SSLEngine to be used for performing authentication of
+     * this peer during the handshake.
+     *
+     * If there is no X509KeyManager in our WolfSSLAuthStore, skips loading
+     * private key and certificate. This means SSLContext.init() was
+     * initialized with a null KeyManager.
+     *
+     * @param sock Socket or SSLSocket associated with this connection, may
+     *        be null if engine is used instead
+     * @param engine SSLEngine associated with this connection, may be null
+     *        if sock used instead
+     *
+     * @throws WolfSSLException if private key is not correct format,
+     *         WolfSSLAuthStore is null, or native error when loading
+     *         private key or certificate.
+     * @throws CertificateEncodingException on error getting Certificate
+     *         encoding before loading into native WOLFSSL
+     * @throws IOException on error concatenating certificate chain into
+     *         single byte array
+     */
+    protected void LoadKeyAndCertChain(Socket sock, SSLEngine engine)
+        throws WolfSSLException, CertificateEncodingException, IOException {
+
+        int ret;
+        int offset;
+        String alias = null;       /* KeyStore alias holding private key */
+        X509KeyManager km = null;  /* X509KeyManager from KeyStore */
+
+        if (this.authStore == null) {
+            throw new WolfSSLException("WolfSSLAuthStore is null");
+        }
+
+        km = this.authStore.getX509KeyManager();
+        if (km == null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
+                    "internal KeyManager is null, no cert/key to load");
+            return;
+        }
+
+        /* Ask X509KeyManager to choose correct client alias from which
+         * to load private key / cert chain */
+        alias = GetKeyAndCertChainAlias(km, sock, engine);
+        authStore.setCertAlias(alias);
+
+        /* Load private key into WOLFSSL session */
+        PrivateKey privKey = km.getPrivateKey(alias);
+
+        if (privKey != null) {
+            byte[] privKeyEncoded = privKey.getEncoded();
+            if (!privKey.getFormat().equals("PKCS#8")) {
+                throw new WolfSSLException(
+                    "Private key is not in PKCS#8 format");
+            }
+
+            /* Skip past PKCS#8 offset */
+            offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
+                privKeyEncoded.length);
+
+            byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
+                offset, privKeyEncoded.length);
+
+            try {
+                ret = this.ssl.usePrivateKeyBuffer(privKeyTraditional,
+                    privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
+            } catch (WolfSSLJNIException e) {
+                throw new WolfSSLException(e);
+            }
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLException("Failed to load private key " +
+                    "buffer into WOLFSSL, err = " + ret);
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loaded private key from X509KeyManager " +
+                    "(alias: " + alias + ")");
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "no private key found in X509KeyManager " +
+                    "(alias: " + alias + "), skipped loading");
+        }
+
+        /* Load certificate chain */
+        X509Certificate[] cert = km.getCertificateChain(alias);
+
+        if (cert != null) {
+            ByteArrayOutputStream certStream = new ByteArrayOutputStream();
+            int chainLength = 0;
+            for (int i = 0; i < cert.length; i++) {
+                /* concatenate certs into single byte array */
+                certStream.write(cert[i].getEncoded());
+                chainLength++;
+            }
+            byte[] certChain = certStream.toByteArray();
+            certStream.close();
+
+            try {
+                ret = this.ssl.useCertificateChainBufferFormat(certChain,
+                    certChain.length, WolfSSL.SSL_FILETYPE_ASN1);
+            } catch (WolfSSLJNIException e) {
+                throw new WolfSSLException(e);
+            }
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new WolfSSLException("Failed to load certificate " +
+                    "chain buffer into WOLFSSL, err = " + ret);
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loaded certificate chain from KeyManager (alias: " +
+                    alias + ", length: " +
+                    chainLength + ")");
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "no certificate or chain found " +
+                    "(alias: " + alias + "), skipped loading");
+        }
     }
 
     /**
@@ -580,7 +790,8 @@ public class WolfSSLEngineHelper {
 
         X509TrustManager tm = authStore.getX509TrustManager();
         wicb = new WolfSSLInternalVerifyCb(authStore.getX509TrustManager(),
-                                           this.clientMode, socket, engine);
+                                           this.clientMode, socket, engine,
+                                           this.params);
 
         if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
             /* use internal peer verification logic */

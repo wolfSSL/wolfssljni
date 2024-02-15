@@ -2358,6 +2358,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainBuffer
     return ret;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainBufferFormat
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray in, jlong sz, jint format)
+{
+    int ret = WOLFSSL_FAILURE;
+    byte* buff = NULL;
+    word32 buffSz = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+    (void)sz;
+
+    if (jenv == NULL || ssl == NULL || in == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+    buffSz = (*jenv)->GetArrayLength(jenv, in);
+
+    if (buff != NULL && buffSz > 0) {
+        ret = wolfSSL_use_certificate_chain_buffer_format(
+                ssl, buff, buffSz, format);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+
+    return (jint)ret;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setGroupMessages
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

@@ -48,6 +48,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
     private boolean clientMode;
     private SSLSocket callingSocket = null;
     private SSLEngine callingEngine = null;
+    private WolfSSLParameters params = null;
 
     /**
      * Create new WolfSSLInternalVerifyCb
@@ -56,13 +57,15 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
      * @param client boolean representing if this is client side
      * @param socket SSLSocket associated with this callback, or null
      * @param engine SSLEngine associated with this callback, or null
+     * @param params WolfSSLParameters associated with this callback
      */
     public WolfSSLInternalVerifyCb(X509TrustManager xtm, boolean client,
-        SSLSocket socket, SSLEngine engine) {
+        SSLSocket socket, SSLEngine engine, WolfSSLParameters params) {
         this.tm = xtm;
         this.clientMode = client;
         this.callingSocket = socket;
         this.callingEngine = engine;
+        this.params = params;
     }
 
     /**
@@ -115,6 +118,97 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
     }
 
     /**
+     * Calls registered X509TrustManager / X509ExtendedTrustManager to
+     * verify certificate chain.
+     *
+     * @param certs Peer certificate chain to validate
+     * @param authType Authentication type
+     *
+     * @return true on successful validation, otherwise false on failure
+     */
+    private boolean VerifyCertChainWithTrustManager(X509Certificate[] certs,
+        String authType) {
+
+        try {
+            /* Call TrustManager to do cert verification, should throw
+             * CertificateException if verification fails */
+            if (this.clientMode) {
+                if (this.tm instanceof X509ExtendedTrustManager) {
+                    X509ExtendedTrustManager xtm =
+                        (X509ExtendedTrustManager)this.tm;
+                    if (this.callingSocket != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                          "Calling TrustManager.checkServerTrusted(SSLSocket)");
+                        xtm.checkServerTrusted(certs, authType,
+                            this.callingSocket);
+                    }
+                    else if (this.callingEngine != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                          "Calling TrustManager.checkServerTrusted(SSLEngine)");
+                        xtm.checkServerTrusted(certs, authType,
+                            this.callingEngine);
+                    }
+                    else {
+                        /* If we do have access to X509ExtendedTrustManager,
+                         * but don't have SSLSocket/Engine, error out instead
+                         * of falling back to verify without hostname. */
+                        throw new Exception(
+                            "SSLSocket/SSLEngine null during server peer " +
+                            "verification, failed to verify");
+                    }
+                }
+                else {
+                    /* Basic X509TrustManager does not support HTTPS
+                     * hostname verification, no SSLSocket/Engine needed */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Calling TrustManager.checkServerTrusted()");
+                    this.tm.checkServerTrusted(certs, authType);
+                }
+
+            } else {
+                if (this.tm instanceof X509ExtendedTrustManager) {
+                    X509ExtendedTrustManager xtm =
+                        (X509ExtendedTrustManager)this.tm;
+                    if (this.callingSocket != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                          "Calling TrustManager.checkClientTrusted(SSLSocket)");
+                        xtm.checkClientTrusted(certs, authType,
+                            this.callingSocket);
+                    }
+                    else if (this.callingEngine != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                          "Calling TrustManager.checkClientTrusted(SSLEngine)");
+                        xtm.checkClientTrusted(certs, authType,
+                            this.callingEngine);
+                    }
+                    else {
+                        /* If we do have access to X509ExtendedTrustManager,
+                         * but don't have SSLSocket/Engine, error out instead
+                         * of falling back to verify without hostname. */
+                        throw new Exception(
+                            "SSLSocket/SSLEngine null during client peer " +
+                            "verification, failed to verify");
+                    }
+                }
+                else {
+                    /* Basic X509TrustManager does not support HTTPS
+                     * hostname verification, no SSLSocket/Engine needed */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Calling TrustManager.checkClientTrusted()");
+                    this.tm.checkClientTrusted(certs, authType);
+                }
+            }
+        } catch (Exception e) {
+            /* TrustManager rejected certificate, not valid */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "TrustManager rejected certificates, verification failed");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Native wolfSSL verify callback.
      *
      * @param preverify_ok Will be 1 if native wolfSSL verification
@@ -128,8 +222,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
     public int verifyCallback(int preverify_ok, long x509StorePtr) {
 
         WolfSSLCertificate[] certs = null;
-        X509Certificate[] x509certs = null;
         String authType = null;
+        X509Certificate[] x509certs = new X509Certificate[0];
 
         if (preverify_ok == 1) {
             /* When using WolfSSLTrustX509 implementation of
@@ -141,10 +235,12 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
              * passed if preverify_ok == 1, so we skip doing it again here
              * later on for this case */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Native wolfSSL peer verification passed");
+                    "Native wolfSSL peer verification passed (clientMode: " +
+                    this.clientMode + ")");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "NOTE: Native wolfSSL peer verification failed");
+                    "NOTE: Native wolfSSL peer verification failed " +
+                    "(clientMode: " + this.clientMode + ")");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "      Continuing with X509TrustManager verification");
         }
@@ -173,10 +269,11 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                 }
             } catch (CertificateException | IOException |
                      WolfSSLJNIException ce) {
-                /* failed to get cert array, give app null array */
+                /* failed to get cert array, give app empty array */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Failed to get X509Certificate[] array, set to null");
-                x509certs = null;
+                    "Failed to get X509Certificate[] array, set to " +
+                    "empty array");
+                x509certs = new X509Certificate[0];
             }
 
             /* get authType, use first cert */
@@ -205,87 +302,51 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
          * We do that here and return before going on to additional
          * checkServerTrusted/checkClientTrusted() so that we do not
          * duplicate verification. */
-        if (preverify_ok == 1 && (tm instanceof WolfSSLTrustX509)) {
+        if ((preverify_ok == 1) && (x509certs.length > 0) &&
+            (tm instanceof WolfSSLTrustX509)) {
             return verifyHostnameOnly(x509certs[0]);
         }
 
-        try {
-            /* poll TrustManager for cert verification, should throw
-             * CertificateException if verification fails */
-            if (clientMode) {
-                if (tm instanceof X509ExtendedTrustManager) {
-                    X509ExtendedTrustManager xtm = (X509ExtendedTrustManager)tm;
-                    if (this.callingSocket != null) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                          "Calling TrustManager.checkServerTrusted(SSLSocket)");
-                        xtm.checkServerTrusted(x509certs, authType,
-                            this.callingSocket);
-                    }
-                    else if (this.callingEngine != null) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                          "Calling TrustManager.checkServerTrusted(SSLEngine)");
-                        xtm.checkServerTrusted(x509certs, authType,
-                            this.callingEngine);
-                    }
-                    else {
-                        /* If we do have access to X509ExtendedTrustManager,
-                         * but don't have SSLSocket/Engine, error out instead
-                         * of falling back to verify without hostname. */
-                        throw new Exception(
-                            "SSLSocket/SSLEngine null during server peer " +
-                            "verification, failed to verify");
-                    }
-                }
-                else {
-                    /* Basic X509TrustManager does not support HTTPS
-                     * hostname verification, no SSLSocket/Engine needed */
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Calling TrustManager.checkServerTrusted()");
-                    tm.checkServerTrusted(x509certs, authType);
-                }
-
-            } else {
-                if (tm instanceof X509ExtendedTrustManager) {
-                    X509ExtendedTrustManager xtm = (X509ExtendedTrustManager)tm;
-                    if (this.callingSocket != null) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                          "Calling TrustManager.checkClientTrusted(SSLSocket)");
-                        xtm.checkClientTrusted(x509certs, authType,
-                            this.callingSocket);
-                    }
-                    else if (this.callingEngine != null) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                          "Calling TrustManager.checkClientTrusted(SSLEngine)");
-                        xtm.checkClientTrusted(x509certs, authType,
-                            this.callingEngine);
-                    }
-                    else {
-                        /* If we do have access to X509ExtendedTrustManager,
-                         * but don't have SSLSocket/Engine, error out instead
-                         * of falling back to verify without hostname. */
-                        throw new Exception(
-                            "SSLSocket/SSLEngine null during client peer " +
-                            "verification, failed to verify");
-                    }
-                }
-                else {
-                    /* Basic X509TrustManager does not support HTTPS
-                     * hostname verification, no SSLSocket/Engine needed */
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Calling TrustManager.checkClientTrusted()");
-                    tm.checkClientTrusted(x509certs, authType);
-                }
-            }
-        } catch (Exception e) {
-            /* TrustManager rejected certificate, not valid */
+        /* If server-side application has explicitly disabled client
+         * authentication, return as success and skip X509TrustManager
+         * verification */
+        if ((!this.clientMode) && (this.params != null) &&
+            (!this.params.getNeedClientAuth())) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "TrustManager rejected certificates, verification failed");
-            return 0;
+                "Application has disabled client verification with " +
+                "setNeedClientAuth(false), skipping verification");
+            return 1;
+        }
+        else if ((preverify_ok == 1) && (x509certs.length == 0) &&
+            (!this.clientMode) && (this.params != null) &&
+            this.params.getWantClientAuth() &&
+            (!this.params.getNeedClientAuth())) {
+            /* If native wolfSSL verification has passed, and we have no peer
+             * certificates, if application has set client authentication be
+             * requested (wantClientAuth == true), but not fatal if no
+             * certificate was sent (needClientAuth == false), don't call
+             * TrustManager with empty certificate chain just consider
+             * verification successful at this point */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "No client cert sent and client auth marked optional, not " +
+                "calling TrustManager for hostname verification");
+        }
+        else {
+            /* Poll X509TrustManager / X509ExtendedTrustManager for certificate
+             * verification status. Returns 0 if certificates are rejected,
+             * otherwise 1 on successful verification */
+            if (VerifyCertChainWithTrustManager(x509certs, authType) == false) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "TrustManager verification failed");
+                /* Abort handshake, verification failed */
+                return 0;
+            }
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "TrustManager verification successful");
-        /* continue handshake, verification succeeded */
+
+        /* Continue handshake, verification succeeded */
         return 1;
     }
 }
