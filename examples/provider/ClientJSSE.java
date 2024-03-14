@@ -81,8 +81,12 @@ public class ClientJSSE {
         String cipherList = null;             /* default ciphersuite list */
         int sslVersion = 3;                   /* default to TLS 1.2 */
         boolean verifyPeer = true;            /* verify peer by default */
-        boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
-        boolean listSuites = false;           /* list all supported cipher suites */
+        boolean useSysRoots = false;          /* skip CA KeyStore load,
+                                                 use system default roots */
+        boolean useEnvVar  = false;           /* load cert/key from enviornment
+                                                 variable */
+        boolean listSuites = false;           /* list all supported cipher
+                                                 suites */
         boolean listEnabledProtocols = false; /* show enabled protocols */
         boolean putEnabledProtocols  = false; /* set enabled protocols */
         boolean sendGET = false;              /* send HTTP GET */
@@ -187,6 +191,9 @@ public class ClientJSSE {
             } else if (arg.equals("-profile")) {
                 profileSleep = true;
 
+            } else if (arg.equals("-sysca")) {
+                useSysRoots = true;
+
             } else {
                 printUsage();
             }
@@ -230,10 +237,16 @@ public class ClientJSSE {
 
         /* trust manager (certificates) */
         if (verifyPeer) {
-            cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
             tm = TrustManagerFactory.getInstance("SunX509", provider);
-            tm.init(cert);
+            if (useSysRoots) {
+                /* Let wolfJSSE try to find/load default system CA certs */
+                tm.init((KeyStore)null);
+            }
+            else {
+                cert = KeyStore.getInstance("JKS");
+                cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
+                tm.init(cert);
+            }
         }
 
         /* load private key */
@@ -409,6 +422,8 @@ public class ClientJSSE {
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-g\t\tSend server HTTP GET");
         System.out.println("-e\t\tGet all supported cipher suites");
+        System.out.println("-r\t\tResume session");
+        System.out.println("-sysca\t\tLoad system CA certs, ignore any passed in");
         System.out.println("-getp\t\tGet enabled protocols");
         System.out.println("-setp <protocols> \tSet enabled protocols " +
                            "e.g \"TLSv1.1 TLSv1.2\"");
@@ -416,7 +431,6 @@ public class ClientJSSE {
                 "../provider/client.jks:wolfSSL test");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
                 "../provider/ca-server.jks:wolfSSL test");
-        System.out.println("-r Resume session");
         System.out.println("-profile\tSleep for 10 sec before/after running " +
                 "to allow profilers to attach");
         System.exit(1);
