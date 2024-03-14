@@ -25,7 +25,13 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.security.Security;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 
 import com.wolfssl.WolfSSLException;
 
@@ -274,5 +280,106 @@ public class WolfSSLUtil {
 
         return ret;
     }
+
+    /**
+     * Get path that JAVA_HOME is set, append trailing slash if needed.
+     *
+     * @return String that JAVA_HOME is set to, otherwise null if not set
+     */
+    protected static String GetJavaHome() {
+
+        String javaHome = System.getenv("JAVA_HOME");
+
+        if (javaHome != null) {
+            if (!javaHome.endsWith("/") &&
+                !javaHome.endsWith("\\")) {
+                /* add trailing slash if not there already */
+                javaHome = javaHome.concat("/");
+            }
+        }
+
+        return javaHome;
+    }
+
+    /**
+     * Detect if we are running on Android or not.
+     *
+     * @return true if we are running on an Android VM, otherwise false
+     */
+    protected static boolean isAndroid() {
+
+        String vmVendor = System.getProperty("java.vm.vendor");
+
+        if ((vmVendor != null) &&
+            vmVendor.equals("The Android Project")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if wolfJCE WKS KeyStore is available for use.
+     *
+     * @return true if WKS KeyStore type available, otherwise false
+     */
+    protected static boolean WKSAvailable() {
+
+        boolean wksAvailable = false;
+
+        try {
+            KeyStore.getInstance("WKS");
+            wksAvailable = true;
+        } catch (KeyStoreException e) {
+            /* wolfJCE WKS not available, may be that wolfJCE is not being
+             * used or hasn't bee installed in system */
+        }
+
+        return wksAvailable;
+    }
+
+    /**
+     * Try to get KeyStore instance of type specified and load from
+     * given file using provided password.
+     *
+     * @param file KeyStore file to load into new KeyStore object
+     * @param pass KeyStore password used to verify KeyStore integrity
+     * @param type KeyStore type of file to load
+     *
+     * @return new KeyStore object loaded with KeyStore file, or null
+     *         if unable to load KeyStore
+     */
+    protected static KeyStore LoadKeyStoreFileByType(String file, char[] pass,
+        String type) {
+
+        KeyStore ks = null;
+        FileInputStream stream = null;
+
+        try {
+            ks = KeyStore.getInstance(type);
+
+            try {
+                /* Initialize KeyStore, loading certs below will overwrite if
+                 * needed, but Android needs this to be initialized here */
+                ks.load(null, null);
+
+            } catch (Exception e) {
+                WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.ERROR,
+                   "Error initializing KeyStore with load(null, null)");
+                return null;
+            }
+
+            stream = new FileInputStream(file);
+            ks.load(stream, pass);
+            stream.close();
+
+        } catch (KeyStoreException | IOException | NoSuchAlgorithmException |
+                 CertificateException e) {
+            return null;
+        }
+
+        return ks;
+    }
+
 }
 
