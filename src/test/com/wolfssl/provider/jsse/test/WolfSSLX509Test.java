@@ -365,7 +365,6 @@ public class WolfSSLX509Test {
                 pass("\t\t\t... skipped");
                 return;
             }
-            System.out.print("\n\t  Signature provider " + sigProvider.getName());
 
             store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
@@ -403,6 +402,7 @@ public class WolfSSLX509Test {
         } catch (KeyStoreException | NoSuchAlgorithmException |
                 CertificateException | IOException | WolfSSLException e) {
             error("\t... failed");
+            e.printStackTrace();
             fail("general failure");
         }
         pass("\t... passed");
