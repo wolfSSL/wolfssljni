@@ -73,6 +73,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      * @param tsFile javax.net.ssl.trustStore system property value, or null
      * @param tsType javax.net.ssl.trustStoreType system property value,
      *        or null
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
      *
      * @return new KeyStore object that has been created and loaded using
      *         details specified in System properties.
@@ -81,7 +84,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      *         set but KeyStore fails to load
      */
     private KeyStore LoadKeyStoreFromSystemProperties(boolean wksAvailable,
-        String tsPass, String tsFile, String tsType)
+        String tsPass, String tsFile, String tsType, String requiredType)
         throws KeyStoreException {
 
         char[] passArr = null;
@@ -107,19 +110,29 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             if (tsType != null && !tsType.trim().isEmpty()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "javax.net.ssl.trustStoreType set: " + tsType);
+
+                if (requiredType != null && !requiredType.equals(tsType)) {
+                    throw new KeyStoreException(
+                        "javax.net.ssl.trustStoreType conflicts with " +
+                        "required KeyStore type from " +
+                        "wolfjsse.keystore.type.required");
+                }
+
                 sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                     tsFile, passArr, tsType);
             }
             else {
                 /* Try with wolfJCE WKS type first, in case wolfCrypt
                  * FIPS is being used */
-                if (wksAvailable) {
+                if (wksAvailable &&
+                    (requiredType == null || requiredType.equals("WKS"))) {
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         tsFile, passArr, "WKS");
                 }
 
                 /* Try with BKS, if we're running on Android */
-                if (sysStore == null && WolfSSLUtil.isAndroid()) {
+                if (sysStore == null && WolfSSLUtil.isAndroid() &&
+                    (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "Detected Android VM, trying BKS KeyStore type");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
@@ -127,7 +140,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 }
 
                 /* Try falling back to JKS */
-                if (sysStore == null) {
+                if (sysStore == null &&
+                    (requiredType == null || requiredType.equals("JKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "javax.net.ssl.trustStoreType system property not set, " +
                     "trying type: JKS");
@@ -169,12 +183,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      * @param tsPass javax.net.ssl.trustStorePassword, or null if not set
      * @param certBundleName Name of system certificate bundle, either
      *        "jssecacerts" or "cacerts"
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
      *
      * @return KeyStore object loaded with CA certs from jssecacerts, or
      *         null if not able to find KeyStore or load certs
      */
     private KeyStore LoadJavaSystemCerts(String jh, boolean wksAvailable,
-        String tsPass, String certBundleName) {
+        String tsPass, String certBundleName, String requiredType) {
 
         char[] passArr = null;
         KeyStore sysStore = null;
@@ -216,6 +233,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         }
 
         if (f.exists()) {
+
+            if (requiredType != null && !requiredType.equals(storeType)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Skipping loading of system KeyStore, required type " +
+                    "does not match wolfjsse.keystore.type.required");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Skipped loading: " + f.getAbsolutePath());
+                return null;
+            }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                    "Loading certs from " + f.getAbsolutePath());
@@ -276,15 +302,17 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     }
 
     private KeyStore LoadSystemJsseCaCerts(String jh, boolean wksAvailable,
-        String tsPass) {
+        String tsPass, String requiredType) {
 
-        return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "jssecacerts");
+        return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "jssecacerts",
+            requiredType);
     }
 
     private KeyStore LoadSystemCaCerts(String jh, boolean wksAvailable,
-        String tsPass) {
+        String tsPass, String requiredType) {
 
-        return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "cacerts");
+        return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "cacerts",
+            requiredType);
     }
 
     /**
@@ -293,18 +321,42 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      * Currently includes:
      *     1. /etc/ssl/certs/java/cacerts
      *
+     * @param wksAvailable Boolean if wolfJCE WKS KeyStore typs is available
+     * @param tsPass javax.net.ssl.trustStorePassword, or null if not set
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
+     *
      */
     private KeyStore LoadCommonSystemCerts(boolean wksAvailable,
-        String tsPass) {
+        String tsPass, String requiredType) {
 
         char[] passArr = null;
         File f = null;
         FileInputStream stream = null;
         KeyStore sysStore = null;
 
+        /* Get default KeyStore type, set in java.security and normally JKS */
+        String storeType = Security.getProperty("keystore.type");
+        if (storeType != null) {
+            storeType = storeType.toUpperCase();
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "keystore.type Security property set: " + storeType);
+        }
+
         f = new File("/etc/ssl/certs/java/cacerts");
 
         if (f.exists()) {
+
+            if (requiredType != null && !requiredType.equals(storeType)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Skipping loading of system KeyStore, required type " +
+                    "does not match wolfjsse.keystore.type.required");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Skipped loading: " + f.getAbsolutePath());
+                return null;
+            }
+
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                    "Loading certs from " + f.getAbsolutePath());
 
@@ -321,13 +373,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             }
 
             try {
+                sysStore = KeyStore.getInstance(storeType);
                 sysStore.load(stream, passArr);
 
             } catch (IOException | NoSuchAlgorithmException |
-                     CertificateException e) {
+                     CertificateException | KeyStoreException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to load KeyStore with file stream: " +
+                    "Not able to get or load KeyStore with file stream: " +
                     f.getAbsolutePath());
+                sysStore = null;
 
             } finally {
                 try {
@@ -353,12 +407,23 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      * certs. We try to load this first before going on to load root certs
      * manually, since it's already pre-imported and set up.
      *
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
+     *
      * @return KeyStore object referencing AndroidCAStore, or null if not
      *         found or not able to be loaded
      */
-    private KeyStore LoadAndroidCAStore() {
+    private KeyStore LoadAndroidCAStore(String requiredType) {
 
         KeyStore sysStore = null;
+
+        if (requiredType != null && !requiredType.equals("AndroidCAStore")) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Skipping loading of AndroidCAStore, required type " +
+                "does not match wolfjsse.keystore.type.required");
+            return null;
+        }
 
         try {
             sysStore = KeyStore.getInstance("AndroidCAStore");
@@ -390,10 +455,14 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      * Try to load Android system root certificates manually by reading
      * all PEM certificates in [android_root]/etc/security/cacerts directory.
      *
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
+     *
      * @return KeyStore object containing Android system CA certificates, or
      *         null if none found or error loading any certs
      */
-    private KeyStore LoadAndroidSystemCertsManually() {
+    private KeyStore LoadAndroidSystemCertsManually(String requiredType) {
 
         int aliasCnt = 0;
         byte[] derArray = null;
@@ -401,17 +470,25 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         CertificateFactory cfactory = null;
         ByteArrayInputStream bis = null;
         Certificate tmpCert = null;
+        String storeType = null;
         String androidRoot = System.getenv("ANDROID_ROOT");
 
         if (androidRoot != null) {
 
             /* Android default KeyStore type is BKS */
+            if (requiredType != null) {
+                storeType = requiredType;
+            } else {
+                storeType = "BKS";
+            }
+
             try {
-                sysStore = KeyStore.getInstance("BKS");
+                sysStore = KeyStore.getInstance(storeType);
             } catch (KeyStoreException e) {
-                /* Unable to get or load empty BKS KeyStore type */
+                /* Unable to get or load empty KeyStore type */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Unable to get or load BKS KeyStore instance");
+                    "Unable to get or load KeyStore instance, type: " +
+                    storeType);
                 return null;
             }
 
@@ -568,9 +645,18 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         String pass = System.getProperty("javax.net.ssl.trustStorePassword");
         String file = System.getProperty("javax.net.ssl.trustStore");
         String type = System.getProperty("javax.net.ssl.trustStoreType");
+        String requiredType = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered engineInit(KeyStore in)");
+
+        requiredType = WolfSSLUtil.getRequiredKeyStoreType();
+        if (requiredType != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "java.security has restricted KeyStore type");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "wolfjsse.keystore.type.required = " + requiredType);
+        }
 
         /* [1] Just use KeyStore passed in by user if available */
         if (in == null) {
@@ -586,7 +672,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             /* [2] Try to load from system property details */
             certs = LoadKeyStoreFromSystemProperties(
-                wksAvailable, pass, file, type);
+                wksAvailable, pass, file, type, requiredType);
 
             /* Get JAVA_HOME for trying to load system certs next */
             if (certs == null) {
@@ -603,32 +689,42 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             /* [3] Try to load system jssecacerts */
             if ((certs == null) && (javaHome != null)) {
-                certs = LoadSystemJsseCaCerts(javaHome, wksAvailable, pass);
+                certs = LoadSystemJsseCaCerts(javaHome, wksAvailable, pass,
+                    requiredType);
             }
 
             /* [4] Try to load system cacerts */
             if ((certs == null) && (javaHome != null)) {
-                certs = LoadSystemCaCerts(javaHome, wksAvailable, pass);
+                certs = LoadSystemCaCerts(javaHome, wksAvailable, pass,
+                    requiredType);
             }
 
             /* [5] Try to load common CA cert locations */
             if (certs == null) {
-                certs = LoadCommonSystemCerts(wksAvailable, pass);
+                certs = LoadCommonSystemCerts(wksAvailable, pass,
+                    requiredType);
             }
 
             /* [6] Try to load system certs if on Android */
             if ((certs == null) && WolfSSLUtil.isAndroid()) {
-                certs = LoadAndroidCAStore();
+                certs = LoadAndroidCAStore(requiredType);
             }
 
             /* [7] Try to load Android system root certs manually */
             if ((certs == null) && WolfSSLUtil.isAndroid()) {
-                certs = LoadAndroidSystemCertsManually();
+                certs = LoadAndroidSystemCertsManually(requiredType);
             }
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "input KeyStore provided, using for trusted certs");
+        }
+
+        /* Verify KeyStore we got matches our requirements, for example
+         * type may be restricted by users trying to conform to FIPS
+         * requirements */
+        if (certs != null) {
+            WolfSSLUtil.checkKeyStoreRequirements(certs);
         }
 
         this.store = certs;

@@ -58,13 +58,17 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
      *   3. Using BKS type if on Android
      *   4. Using JKS type if above all fail
      *
+     * @param requiredType KeyStore type required by user through
+     *        java.security if wolfjsse.keystore.type.required property
+     *        has been set.
+     *
      * @return new KeyStore object that has been created and loaded using
      *         details specified in System properties.
      *
      * @throws KeyStoreException if javax.net.ssl.keyStore property is
      *         set but KeyStore fails to load
      */
-    private KeyStore LoadKeyStoreFromSystemProperties()
+    private KeyStore LoadKeyStoreFromSystemProperties(String requiredType)
         throws KeyStoreException {
 
         KeyStore sysStore = null;
@@ -100,19 +104,28 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
             if (type != null && !type.trim().isEmpty()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "javax.net.ssl.keyStoreType set: " + type);
+
+                if (requiredType != null && !requiredType.equals(type)) {
+                    throw new KeyStoreException(
+                        "javax.net.ssl.keyStoreType conflicts with required " +
+                        "KeyStore type from wolfjsse.keystore.type.required");
+                }
+
                 sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                     file, this.pswd, type);
             }
             else {
                 /* Try with wolfJCE WKS type first, in case wolfCrypt
                  * FIPS is being used */
-                if (wksAvailable) {
+                if (wksAvailable &&
+                    (requiredType == null || requiredType.equals("WKS"))) {
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         file, this.pswd, "WKS");
                 }
 
                 /* Try with BKS, if we're running on Android */
-                if ((sysStore == null) && WolfSSLUtil.isAndroid()) {
+                if ((sysStore == null) && WolfSSLUtil.isAndroid() &&
+                    (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "Detected Android VM, trying BKS KeyStore type");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
@@ -120,7 +133,8 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 }
 
                 /* Try falling back to JKS */
-                if (sysStore == null) {
+                if (sysStore == null &&
+                    (requiredType == null || requiredType.equals("JKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "javax.net.ssl.keyStoreType system property not set, " +
                     "trying type: JKS");
@@ -150,9 +164,18 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
 
         this.pswd = password;
         KeyStore certs = store;
+        String requiredType = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entering engineInit(KeyStore store, char[] password)");
+
+        requiredType = WolfSSLUtil.getRequiredKeyStoreType();
+        if (requiredType != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "java.security has restricted KeyStore type");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "wolfjsse.keystore.type.required = " + requiredType);
+        }
 
         /* If no KeyStore passed in, try to load from system property values
          * if they have been set */
@@ -162,11 +185,18 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 "input KeyStore null, trying to load KeyStore from " +
                 "system properties");
 
-            certs = LoadKeyStoreFromSystemProperties();
+            certs = LoadKeyStoreFromSystemProperties(requiredType);
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "input KeyStore provided, using inside KeyManager");
+        }
+
+        /* Verify KeyStore we got matches our requirements, for example
+         * type may be restricted by users trying to conform to FIPS
+         * requirements */
+        if (certs != null) {
+            WolfSSLUtil.checkKeyStoreRequirements(certs);
         }
 
         this.store = certs;

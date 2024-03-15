@@ -220,6 +220,57 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return KeyStore type restriction if set in java.security
+     * with 'wolfjsse.keystore.type.required' Security property.
+     *
+     * @return String with required KeyStore type, or null if no
+     *         requirement set
+     */
+    protected static String getRequiredKeyStoreType() {
+
+        String requiredType =
+            Security.getProperty("wolfjsse.keystore.type.required");
+
+        if (requiredType == null || requiredType.isEmpty()) {
+            return null;
+        }
+        else {
+            requiredType = requiredType.toUpperCase();
+        }
+
+        return requiredType;
+    }
+
+    /**
+     * Check given KeyStore against any pre-defind requirements for
+     * KeyStore use, including the following.
+     *
+     * Restricted KeyStore type: wolfjsse.keystore.type.required
+     *
+     * @param store Input KeyStore to check against requirements
+     *
+     * @throws KeyStoreException if KeyStore given does not meet wolfJSSE
+     *         requirements
+     */
+    protected static void checkKeyStoreRequirements(
+        KeyStore store) throws KeyStoreException {
+
+        String requiredType = null;
+
+        if (store == null) {
+            return;
+        }
+
+        requiredType = getRequiredKeyStoreType();
+        if ((requiredType != null) &&
+            (!store.getType().equals(requiredType))) {
+            throw new KeyStoreException(
+                "KeyStore does not match required type, got " +
+                store.getType() + ", required " + requiredType);
+        }
+    }
+
+    /**
      * Return maximum key size allowed if minimum is set in
      * jdk.tls.disabledAlgorithms security property for specified algorithm.
      *
