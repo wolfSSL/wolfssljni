@@ -104,6 +104,7 @@ public class ClientJSSE {
         String caJKS      = "../provider/ca-server.jks";
         String clientPswd = "wolfSSL test";
         String caPswd = "wolfSSL test";
+        String keyStoreFormat = "JKS";
 
         /* server (peer) info */
         String host = "localhost";
@@ -194,6 +195,9 @@ public class ClientJSSE {
             } else if (arg.equals("-sysca")) {
                 useSysRoots = true;
 
+            } else if (arg.equals("-ksformat")) {
+                keyStoreFormat = args[++i];
+
             } else {
                 printUsage();
             }
@@ -243,14 +247,14 @@ public class ClientJSSE {
                 tm.init((KeyStore)null);
             }
             else {
-                cert = KeyStore.getInstance("JKS");
+                cert = KeyStore.getInstance(keyStoreFormat);
                 cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
                 tm.init(cert);
             }
         }
 
         /* load private key */
-        pKey = KeyStore.getInstance("JKS");
+        pKey = KeyStore.getInstance(keyStoreFormat);
         pKey.load(new FileInputStream(clientJKS), clientPswd.toCharArray());
         km = KeyManagerFactory.getInstance("SunX509", provider);
         km.init(pKey, clientPswd.toCharArray());
@@ -428,11 +432,12 @@ public class ClientJSSE {
         System.out.println("-setp <protocols> \tSet enabled protocols " +
                            "e.g \"TLSv1.1 TLSv1.2\"");
         System.out.println("-c <file>:<password>\tCertificate/key JKS,\t\tdefault " +
-                "../provider/client.jks:wolfSSL test");
+                "../provider/client.jks:\"wolfSSL test\"");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
-                "../provider/ca-server.jks:wolfSSL test");
+                "../provider/ca-server.jks:\"wolfSSL test\"");
         System.out.println("-profile\tSleep for 10 sec before/after running " +
                 "to allow profilers to attach");
+        System.out.println("-ksformat <str>\tKeyStore format (default: JKS)");
         System.exit(1);
     }
 }

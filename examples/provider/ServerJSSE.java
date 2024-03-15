@@ -69,6 +69,7 @@ public class ServerJSSE {
         String caJKS      = "../provider/ca-client.jks";
         String serverPswd = "wolfSSL test";
         String caPswd     = "wolfSSL test";
+        String keyStoreFormat = "JKS";
 
         /* server (peer) info */
         String host = "localhost";
@@ -164,6 +165,9 @@ public class ServerJSSE {
                 } else if (arg.equals("-profile")) {
                     profileSleep = true;
 
+                } else if (arg.equals("-ksformat")) {
+                    keyStoreFormat = args[++i];
+
                 } else {
                     printUsage();
                 }
@@ -201,10 +205,10 @@ public class ServerJSSE {
             }
 
             /* set up keystore and truststore */
-            KeyStore keystore = KeyStore.getInstance("JKS");
+            KeyStore keystore = KeyStore.getInstance(keyStoreFormat);
             keystore.load(new FileInputStream(serverJKS),
                 serverPswd.toCharArray());
-            KeyStore truststore = KeyStore.getInstance("JKS");
+            KeyStore truststore = KeyStore.getInstance(keyStoreFormat);
             truststore.load(new FileInputStream(caJKS), caPswd.toCharArray());
             TrustManagerFactory tm =
                 TrustManagerFactory.getInstance("SunX509", tmfProvider);
@@ -345,6 +349,7 @@ public class ServerJSSE {
                 "../provider/ca-client.jks:\"wolfSSL test\"");
         System.out.println("-profile\tSleep for 10 sec before/after running " +
                 "to allow profilers to attach");
+        System.out.println("-ksformat <str>\tKeyStore format (default: JKS)");
         System.exit(1);
     }
 
