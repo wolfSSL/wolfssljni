@@ -29,7 +29,10 @@ import java.security.Principal;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.security.KeyFactory;
 import java.security.SignatureException;
+import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -449,7 +452,7 @@ public class WolfSSLX509 extends X509Certificate {
             sig.initVerify(key);
             sig.update(this.getTBSCertificate());
         } catch (Exception e) {
-            throw new CertificateException();
+            throw new CertificateException(e);
         }
 
         if (sig.verify(this.getSignature()) == false) {
@@ -487,20 +490,41 @@ public class WolfSSLX509 extends X509Certificate {
     @Override
     public PublicKey getPublicKey() {
 
+        String type = null;
+        byte[] der = null;
+        KeyFactory kf = null;
+        PublicKey key = null;
+        X509EncodedKeySpec spec = null;
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getPublicKey()");
 
         if (this.cert == null) {
             return null;
         }
-        String type  = this.cert.getPubkeyType();
-        byte[] der   = this.cert.getPubkey();
+
+        type = this.cert.getPubkeyType();
+        der = this.cert.getPubkey();
 
         try {
-            return new WolfSSLPubKey(der, type, "X.509");
-        } catch (WolfSSLException e) {
+            if (type.equals("RSA")) {
+                kf = KeyFactory.getInstance("RSA");
+            } else if (type.equals("ECC")) {
+                kf = KeyFactory.getInstance("EC");
+            } else if (type.equals("DSA")) {
+                kf = KeyFactory.getInstance("DSA");
+            }
+
+            if (kf != null) {
+                spec = new X509EncodedKeySpec(der);
+                key = (PublicKey)kf.generatePublic(spec);
+            }
+
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             return null;
         }
+
+        return key;
     }
 
     /* If unsupported critical extension is found then wolfSSL should not parse
@@ -583,66 +607,6 @@ public class WolfSSLX509 extends X509Certificate {
         } finally {
             super.finalize();
         }
-    }
-
-
-    /* wolfSSL public key class */
-    private class WolfSSLPubKey implements PublicKey {
-        /**
-         * Default serial ID
-         */
-        private static final long serialVersionUID = 1L;
-        private byte[] encoding;
-        private String type;
-        private String format = "X.509";
-
-        /**
-         * Creates a new public key class
-         * @param der DER format key
-         * @param type key type i.e. WolfSSL.RSAk
-         * @param curveOID can be null in RSA case
-         * @throws WolfSSLException
-         */
-        private WolfSSLPubKey(byte[] der, String type, String format)
-                throws WolfSSLException {
-            this.format = format;
-            this.encoding = der;
-            if (this.encoding == null) {
-                throw new WolfSSLException("Error creating key");
-            }
-            this.type = type;
-
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "created new WolfSSLPubKey");
-        }
-
-        @Override
-        public String getAlgorithm() {
-
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered getAlgorithm()");
-
-            return this.type;
-        }
-
-        @Override
-        public String getFormat() {
-
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered getFormat()");
-
-            return this.format;
-        }
-
-        @Override
-        public byte[] getEncoded() {
-
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered getEncoded()");
-
-            return this.encoding;
-        }
-
     }
 
     /* wolfSSL Principal class */
