@@ -97,7 +97,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
             (*jenv)->DeleteLocalRef(jenv, derArr);
         }
     }
-    wolfSSL_sk_X509_free(sk);
+    wolfSSL_sk_X509_pop_free(sk, NULL);
 
     (*jenv)->DeleteLocalRef(jenv, arrType);
 
