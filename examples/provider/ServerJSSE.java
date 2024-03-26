@@ -57,8 +57,12 @@ public class ServerJSSE {
         boolean verifyPeer = true;            /* verify peer by default */
         boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
         boolean listSuites = false;           /* list all supported cipher suites */
-        boolean listEnabledProtocols = false;  /* show enabled protocols */
-        boolean putEnabledProtocols  = false;  /* set enabled protocols */
+        boolean listEnabledProtocols = false; /* show enabled protocols */
+        boolean putEnabledProtocols  = false; /* set enabled protocols */
+
+        /* Sleep 10 seconds before and after execution of main example,
+         * to allow profilers like VisualVM to be attached. */
+        boolean profileSleep = false;
 
         /* cert info */
         String serverJKS  = "../provider/server.jks";
@@ -86,6 +90,12 @@ public class ServerJSSE {
 
             /* load WolfSSLprovider */
             Security.addProvider(new WolfSSLProvider());
+            if (Security.getProvider("wolfJSSE") == null) {
+                System.out.println("Can't find wolfJSSE provider");
+            }
+            else {
+                System.out.println("Registered wolfJSSE provider");
+            }
 
             /* pull in command line options from user */
             for (int i = 0; i < args.length; i++)
@@ -151,6 +161,9 @@ public class ServerJSSE {
                     protocols = args[++i].split(" ");
                     sslVersion = -1;
 
+                } else if (arg.equals("-profile")) {
+                    profileSleep = true;
+
                 } else {
                     printUsage();
                 }
@@ -179,6 +192,12 @@ public class ServerJSSE {
                 default:
                     System.err.println("Unsupported SSL version");
                     System.exit(1);
+            }
+
+            if (profileSleep) {
+                System.out.println(
+                    "Sleeping 10 seconds to allow profiler to attach");
+                Thread.sleep(10000);
             }
 
             /* set up keystore and truststore */
@@ -258,6 +277,32 @@ public class ServerJSSE {
                 sock.getOutputStream().write(msg.getBytes());
 
                 sock.close();
+
+                if (profileSleep) {
+                    /* If profiling, only loop once */
+                    sock = null;
+                    break;
+                }
+            }
+
+            ss.close();
+
+            if (profileSleep) {
+                /* Remove provider and set variables to null to help
+                 * garbage collector for profiling */
+                Security.removeProvider("wolfJSSE");
+                ss = null;
+                ctx = null;
+                km = null;
+                tm = null;
+
+                /* Try and kick start garbage collector before profiling
+                 * heap dump */
+                System.gc();
+
+                System.out.println(
+                    "Sleeping 10 seconds to allow profiler to dump heap");
+                Thread.sleep(10000);
             }
 
         } catch (Exception e) {
@@ -298,6 +343,8 @@ public class ServerJSSE {
                 "../provider/server.jks:\"wolfSSL test\"");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
                 "../provider/ca-client.jks:\"wolfSSL test\"");
+        System.out.println("-profile\tSleep for 10 sec before/after running " +
+                "to allow profilers to attach");
         System.exit(1);
     }
 

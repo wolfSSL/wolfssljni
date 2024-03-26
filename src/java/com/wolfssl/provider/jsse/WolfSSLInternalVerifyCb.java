@@ -69,6 +69,16 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
     }
 
     /**
+     * Reset internal variables back to null/default.
+     */
+    protected void clearInternalVars() {
+        this.callingSocket = null;
+        this.callingEngine = null;
+        this.params = null;
+        this.tm = null;
+    }
+
+    /**
      * Verify hostname of provided peer certificate using
      * Endpoint Identification Algorithm if set in SSLParameters.
      *
@@ -348,6 +358,16 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
         /* Continue handshake, verification succeeded */
         return 1;
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        this.callingSocket = null;
+        this.callingEngine = null;
+        this.tm = null;
+        this.params = null;
+        super.finalize();
     }
 }
 

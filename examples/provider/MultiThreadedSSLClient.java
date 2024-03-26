@@ -78,6 +78,10 @@ public class MultiThreadedSSLClient
     int successClientConnections = 0; /* successful client connections */
     int failedClientConnections = 0;  /* failed client connections */
 
+    /* Sleep 10 seconds before and after execution of main example,
+     * to allow profilers like VisualVM to be attached. */
+    boolean profileSleep = false;
+
     long totalConnectionTimeMs = 0;   /* total handshake time, across clients */
     final Object timeLock = new Object();
 
@@ -156,10 +160,6 @@ public class MultiThreadedSSLClient
         String jkspass = "wolfSSL test";
         char[] passArr = jkspass.toCharArray();
 
-        if (args.length != 2) {
-            printUsage();
-        }
-
         /* pull in command line options from user */
         for (int i = 0; i < args.length; i++)
         {
@@ -170,12 +170,22 @@ public class MultiThreadedSSLClient
                     printUsage();
                 numClientConnections = Integer.parseInt(args[++i]);
 
+            } else if (arg.equals("-profile")) {
+                profileSleep = true;
+
             } else {
                 printUsage();
             }
         }
 
         try {
+
+            if (profileSleep) {
+                System.out.println(
+                    "Sleeping 10 seconds to allow profiler to attach");
+                Thread.sleep(10000);
+            }
+
             List<ClientThread> clientList = new ArrayList<ClientThread>();
             CountDownLatch latch = new CountDownLatch(numClientConnections);
 
@@ -209,11 +219,21 @@ public class MultiThreadedSSLClient
             latch.await();
             executor.shutdown();
 
+            Security.removeProvider("wolfJSSE");
+
+            if (profileSleep) {
+                /* Try and kick start garbage collector before profiling
+                 * heap dump */
+                System.gc();
+
+                System.out.println(
+                    "Sleeping 10 seconds to allow profiler to dump heap");
+                Thread.sleep(10000);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        Security.removeProvider("wolfJSSE");
 
         System.out.println("================================================");
         System.out.println("All Client Connections Finished");
@@ -234,6 +254,8 @@ public class MultiThreadedSSLClient
     private void printUsage() {
         System.out.println("Java wolfJSSE example threaded client usage:");
         System.out.println("-n <num>\tNumber of client connections");
+        System.out.println("-profile\tSleep for 10 sec before/after running " +
+                "to allow profilers to attach");
         System.exit(1);
     }
 }

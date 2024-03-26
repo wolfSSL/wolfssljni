@@ -87,6 +87,10 @@ public class ClientJSSE {
         boolean putEnabledProtocols  = false; /* set enabled protocols */
         boolean sendGET = false;              /* send HTTP GET */
 
+        /* Sleep 10 seconds before and after execution of main example,
+         * to allow profilers like VisualVM to be attached. */
+        boolean profileSleep = false;
+
         boolean resumeSession = false;        /* try one session resumption */
         byte[] firstSessionId = null;         /* sess ID of first session */
         byte[] resumeSessionId = null;        /* sess ID of resumed session */
@@ -180,6 +184,9 @@ public class ClientJSSE {
             } else if (arg.equals("-r")) {
                 resumeSession = true;
 
+            } else if (arg.equals("-profile")) {
+                profileSleep = true;
+
             } else {
                 printUsage();
             }
@@ -195,6 +202,12 @@ public class ClientJSSE {
             default:
                 printUsage();
                 return;
+        }
+
+        if (profileSleep) {
+            System.out.println(
+                "Sleeping 10 seconds to allow profiler to attach");
+            Thread.sleep(10000);
         }
 
         /* X509TrustManager that trusts all peer certificates. Used if peer
@@ -322,6 +335,25 @@ public class ClientJSSE {
             System.out.println("Server message : " + new String(back));
             sock.close();
         }
+
+        if (profileSleep) {
+            /* Remove provider and set variables to null to help garbage
+             * collector for profiling */
+            Security.removeProvider("wolfJSSE");
+            sock = null;
+            sf = null;
+            ctx = null;
+            km = null;
+            tm = null;
+
+            /* Try and kick start garbage collector before profiling
+             * heap dump */
+            System.gc();
+
+            System.out.println(
+                "Sleeping 10 seconds to allow profiler to dump heap");
+            Thread.sleep(10000);
+        }
     }
 
     private void showPeer(SSLSocket sock) {
@@ -385,6 +417,8 @@ public class ClientJSSE {
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
                 "../provider/ca-server.jks:wolfSSL test");
         System.out.println("-r Resume session");
+        System.out.println("-profile\tSleep for 10 sec before/after running " +
+                "to allow profilers to attach");
         System.exit(1);
     }
 }

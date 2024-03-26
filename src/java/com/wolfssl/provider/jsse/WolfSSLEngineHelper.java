@@ -87,6 +87,9 @@ public class WolfSSLEngineHelper {
     /* Has setUseClientMode() been called on this object */
     private boolean modeSet = false;
 
+    /* wolfSSL verification mode, set inside setLocalAuth() */
+    private int verifyMask = WolfSSL.SSL_VERIFY_PEER;
+
     /* Internal Java verify callback, used when user/app is not using
      * com.wolfssl.provider.jsse.WolfSSLTrustX509 and instead using their
      * own TrustManager to perform verification via checkClientTrusted()
@@ -805,7 +808,7 @@ public class WolfSSLEngineHelper {
              * Algorithm has been set. To get this callback to be called,
              * native wolfSSL should be compiled with the following define:
              * WOLFSSL_ALWAYS_VERIFY_CB */
-            this.ssl.setVerify(mask, wicb);
+            this.verifyMask = mask;
 
         } else {
             /* not our own TrustManager, set up callback so JSSE can use
@@ -814,8 +817,10 @@ public class WolfSSLEngineHelper {
                 "X509TrustManager is not of type WolfSSLTrustX509");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Using checkClientTrusted/ServerTrusted() for verification");
-            this.ssl.setVerify(WolfSSL.SSL_VERIFY_PEER, wicb);
+            this.verifyMask = WolfSSL.SSL_VERIFY_PEER;
         }
+
+        this.ssl.setVerify(this.verifyMask, wicb);
     }
 
 
@@ -1331,6 +1336,35 @@ public class WolfSSLEngineHelper {
     }
 
     /**
+     * Unset the native verify callback and reset internal verify
+     * callback state.
+     *
+     * This helper method is called by SSLEngine to reset the native
+     * wolfSSL verify callback back to null. Since a pointer to that verify
+     * callback is stored as a global JNI variable, it can prevent garbage
+     * collection from being done. This helper can be called when an SSLEngine
+     * or SSLSocket is closed/done to reset the verify callback.
+     *
+     * The verify callback will be set again if needed when
+     * initHandshake() is called.
+     */
+    protected synchronized void unsetVerifyCallback() {
+        /* Set native callback to null, releases JNI global and allows for
+         * garbage collection if needed */
+        if (this.ssl != null) {
+            this.ssl.setVerify(this.verifyMask, null);
+        }
+
+        /* Reset internal state of WolfSSLInternalVerifyCallback, removes
+         * references to SSLSocket/SSLEngine to allow garbage collection if
+         * needed */
+        if (this.wicb != null) {
+            this.wicb.clearInternalVars();
+            this.wicb = null;
+        }
+    }
+
+    /**
      * Saves session on connection close for resumption
      *
      * @return WolfSSL.SSL_SUCCESS if session was saved into cache, otherwise
@@ -1357,6 +1391,7 @@ public class WolfSSLEngineHelper {
          * may be used by wrapper object to WolfSSLEngineHelper and should
          * be freed there */
         this.ssl = null;
+        this.wicb = null;
 
         this.session = null;
         this.params = null;
