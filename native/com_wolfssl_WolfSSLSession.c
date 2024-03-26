@@ -3908,11 +3908,24 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
         return;
     }
 
+    /* Release global reference if already set, before setting again */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData != NULL) {
+        verifyCb = appData->g_verifySSLCbIfaceObj;
+        if (verifyCb != NULL) {
+            (*jenv)->DeleteGlobalRef(jenv, (jobject)(*verifyCb));
+            XFREE(verifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            verifyCb = NULL;
+            appData->g_verifySSLCbIfaceObj = NULL;
+        }
+    }
+
+    /* Set verify callback to NULL (reset), or passed in callback */
     if (!callbackIface) {
         wolfSSL_set_verify(ssl, mode, NULL);
     }
     else {
-        /* get app data to store verify callback jobject */
+        /* Get app data to store verify callback jobject */
         appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
         if (appData == NULL) {
             printf("Error getting app data from WOLFSSL\n");
