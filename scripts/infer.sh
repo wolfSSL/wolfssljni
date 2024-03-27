@@ -42,6 +42,7 @@ infer run -- javac \
     src/java/com/wolfssl/WolfSSLRsaSignCallback.java \
     src/java/com/wolfssl/WolfSSLRsaVerifyCallback.java \
     src/java/com/wolfssl/WolfSSLSession.java \
+    src/java/com/wolfssl/WolfSSLTls13SecretCallback.java \
     src/java/com/wolfssl/WolfSSLVerifyCallback.java \
     src/java/com/wolfssl/WolfSSLX509StoreCtx.java \
     src/java/com/wolfssl/wolfcrypt/ECC.java \

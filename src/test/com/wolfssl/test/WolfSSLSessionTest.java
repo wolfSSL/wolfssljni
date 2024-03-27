@@ -39,6 +39,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
+import com.wolfssl.WolfSSLTls13SecretCallback;
 import com.wolfssl.WolfSSLSession;
 
 public class WolfSSLSessionTest {
@@ -95,6 +96,7 @@ public class WolfSSLSessionTest {
         test_WolfSSLSession_UseAfterFree();
         test_WolfSSLSession_getSessionID();
         test_WolfSSLSession_useSecureRenegotiation();
+        test_WolfSSLSession_setTls13SecretCb();
     }
 
     public void test_WolfSSLSession_new() {
@@ -662,6 +664,55 @@ public class WolfSSLSessionTest {
         }
 
         System.out.println("... passed");
+    }
+
+    class TestTls13SecretCb implements WolfSSLTls13SecretCallback
+    {
+        public int tls13SecretCallback(WolfSSLSession ssl, int id,
+            byte[] secret, Object ctx)
+        {
+            return 0;
+        }
+    }
+
+    public void test_WolfSSLSession_setTls13SecretCb() {
+
+        int ret;
+        WolfSSL sslLib = null;
+        WolfSSLContext sslCtx = null;
+        WolfSSLSession ssl = null;
+        TestTls13SecretCb cb = null;
+
+        System.out.print("\tTesting setTls13SecretCb()");
+
+        if (!WolfSSL.secretCallbackEnabled()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        try {
+
+            /* setup library, context, session, socket */
+            sslLib = new WolfSSL();
+            sslCtx = new WolfSSLContext(WolfSSL.TLSv1_3_ClientMethod());
+            sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+            ssl = new WolfSSLSession(sslCtx);
+
+            /* setting with null should pass */
+            ssl.setTls13SecretCb(null, null);
+
+            /* set with test callback */
+            cb = new TestTls13SecretCb();
+            ssl.setTls13SecretCb(cb, null);
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail("failed setTls13SecretCb() test");
+            return;
+        }
+
+        System.out.println("\t... passed");
     }
 }
 

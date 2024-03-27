@@ -187,6 +187,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_NOT_COMPILED_IN -174L
 #undef com_wolfssl_WolfSSL_NO_PASSWORD
 #define com_wolfssl_WolfSSL_NO_PASSWORD -176L
+#undef com_wolfssl_WolfSSL_TLS13_SECRET_CB_E
+#define com_wolfssl_WolfSSL_TLS13_SECRET_CB_E -438L
 #undef com_wolfssl_WolfSSL_MD5
 #define com_wolfssl_WolfSSL_MD5 0L
 #undef com_wolfssl_WolfSSL_SHA
@@ -425,6 +427,62 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELL
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_CLIENT_EARLY_TRAFFIC_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1EARLY_1TRAFFIC_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1HANDSHAKE_1TRAFFIC_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_SERVER_HANDSHAKE_TRAFFIC_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1SERVER_1HANDSHAKE_1TRAFFIC_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_CLIENT_TRAFFIC_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1TRAFFIC_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_SERVER_TRAFFIC_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1SERVER_1TRAFFIC_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_EARLY_EXPORTER_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1EARLY_1EXPORTER_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getTls13SecretEnum_EXPORTER_SECRET
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1EXPORTER_1SECRET
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    getEnabledCipherSuites
  * Signature: ()Ljava/lang/String;
  */
@@ -597,6 +655,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_trustPeerCertEnabled
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionTicketEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    secretCallbackEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_secretCallbackEnabled
   (JNIEnv *, jclass);
 
 /*

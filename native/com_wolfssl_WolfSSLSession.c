@@ -54,6 +54,10 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     unsigned char *outlen, const unsigned char *in,
     unsigned int inlen, void *arg);
 
+/* TLS 1.3 secret native callback prototype */
+int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
+    int secretSz, void* ctx);
+
 #ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
@@ -4545,6 +4549,234 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
 }
 
 #endif /* HAVE_ALPN */
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_keepArrays
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    (void)jenv;
+    (void)jcl;
+#ifndef WOLFCRYPT_ONLY
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    /* Checks ssl for null internally */
+    wolfSSL_KeepArrays(ssl);
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientRandom
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if !defined(WOLFCRYPT_ONLY) && (defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(HAVE_SECRET_CALLBACK)) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int clientRandomSz;
+    byte clientRandom[32];
+    jbyteArray randomArr = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    clientRandomSz = (int)wolfSSL_get_client_random(ssl, clientRandom,
+        sizeof(clientRandom));
+
+    if (clientRandomSz <= 0) {
+        return NULL;
+    }
+
+    randomArr = (*jenv)->NewByteArray(jenv, clientRandomSz);
+    if (randomArr == NULL) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native getClientRandom()");
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, randomArr, 0, clientRandomSz,
+        (jbyte*)clientRandom);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return NULL;
+    }
+
+    return randomArr;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return NULL;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTls13SecretCb
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_TLS13) && !defined(WOLFCRYPT_ONLY) && \
+    defined(HAVE_SECRET_CALLBACK)
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int ret = SSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Java layer handles setting and giving back user CTX */
+    ret = wolfSSL_set_tls13_secret_cb(ssl, NativeTls13SecretCb, NULL);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFCRYPT_ONLY) && \
+    defined(HAVE_SECRET_CALLBACK)
+
+int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
+    int secretSz, void* ctx)
+{
+    JNIEnv* jenv;                   /* JNI environment */
+    jclass  excClass;               /* WolfSSLJNIException class */
+    int     needsDetach = 0;        /* Should we explicitly detach? */
+    jint    retval = 0;
+    jint    vmret = 0;
+
+    jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
+    jclass    sslClass;             /* WolfSSLSession class */
+    jmethodID tls13SecretMethodId;  /* internalTls13SecretCallback ID */
+    jbyteArray secretArr = NULL;
+
+    if (g_vm == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return TLS13_SECRET_CB_E;
+        }
+        needsDetach = 1;
+    }
+    else if (vmret != JNI_OK) {
+        return TLS13_SECRET_CB_E;
+    }
+
+    /* Find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return TLS13_SECRET_CB_E;
+    }
+
+    /* Get stored WolfSSLSession object */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession object reference in "
+            "NativeTls13SecretCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return TLS13_SECRET_CB_E;
+    }
+
+    /* Lookup WolfSSLSession class from object */
+    sslClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (sslClass == NULL) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeTls13SecretCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return TLS13_SECRET_CB_E;
+    }
+
+    /* Call internal TLS 1.3 secret callback */
+    tls13SecretMethodId = (*jenv)->GetMethodID(jenv, sslClass,
+        "internalTls13SecretCallback", "(Lcom/wolfssl/WolfSSLSession;I[B)I");
+    if (tls13SecretMethodId == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalTls13SecretCallback method from JNI");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return TLS13_SECRET_CB_E;
+    }
+
+    if (secretSz > 0) {
+        /* Create jbyteArray to hold secret data */
+        secretArr = (*jenv)->NewByteArray(jenv, secretSz);
+        if (secretArr == NULL) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Error creating new jbyteArray in NativeTls13SecretCb");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return TLS13_SECRET_CB_E;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, secretArr, 0, secretSz,
+            (jbyte*)secret);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return TLS13_SECRET_CB_E;
+        }
+
+        /* Call Java TLS 1.3 secret callback, ignore native CTX since Java
+         * handles it */
+        retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+            tls13SecretMethodId, (jobject)(*g_cachedSSLObj), (jint)id,
+            secretArr);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Exception while calling internalTls13SecretCallback()");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return TLS13_SECRET_CB_E;
+        }
+
+        /* Delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, secretArr);
+    }
+
+    /* Detach JNIEnv from thread */
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return (int)retval;
+}
+
+#endif /* WOLFSSL_TLS13 && !WOLFCRYPT_ONLY && HAVE_SECRET_CALLBACK */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ssl)

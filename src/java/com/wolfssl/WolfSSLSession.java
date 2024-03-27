@@ -56,6 +56,7 @@ public class WolfSSLSession {
     private Object rsaEncCtx;
     private Object rsaDecCtx;
     private Object alpnSelectArg;
+    private Object tls13SecretCtx;
 
     /* reference to the associated WolfSSLContext */
     private WolfSSLContext ctx = null;
@@ -73,6 +74,10 @@ public class WolfSSLSession {
     /* user-registered ALPN select callback, called by internal WolfSSLSession
      * ALPN select callback */
     private WolfSSLALPNSelectCallback internAlpnSelectCb;
+
+    /* user-registered TLS 1.3 secret callbcak, called by internal
+     * WolfSSLSession TLS 1.3 secret callback */
+    private WolfSSLTls13SecretCallback internTls13SecretCb;
 
     /* have session tickets been enabled for this session? Default to false. */
     private boolean sessionTicketsEnabled = false;
@@ -169,66 +174,54 @@ public class WolfSSLSession {
         return this.rsaDecCtx;
     }
 
-    /* these callbacks will be registered with native wolfSSL library */
+    /* These callbacks will be registered with native wolfSSL library */
     private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf,
                                           int sz)
     {
-        int ret;
-
         /* call user-registered recv method */
-        ret = internRecvSSLCb.receiveCallback(ssl, buf, sz,
-                    ssl.getIOReadCtx());
-
-        return ret;
+        return internRecvSSLCb.receiveCallback(ssl, buf, sz,
+            ssl.getIOReadCtx());
     }
 
     private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf,
                                           int sz)
     {
-        int ret;
-
         /* call user-registered recv method */
-        ret = internSendSSLCb.sendCallback(ssl, buf, sz,
-                    ssl.getIOWriteCtx());
-
-        return ret;
+        return internSendSSLCb.sendCallback(ssl, buf, sz,
+            ssl.getIOWriteCtx());
     }
 
     private long internalPskClientCallback(WolfSSLSession ssl, String hint,
             StringBuffer identity, long idMaxLen, byte[] key,
             long keyMaxLen)
     {
-        long ret;
-
         /* call user-registered PSK client callback method */
-        ret = internPskClientCb.pskClientCallback(ssl, hint, identity,
-                idMaxLen, key, keyMaxLen);
-
-        return ret;
+        return internPskClientCb.pskClientCallback(ssl, hint, identity,
+            idMaxLen, key, keyMaxLen);
     }
 
     private long internalPskServerCallback(WolfSSLSession ssl,
             String identity, byte[] key, long keyMaxLen)
     {
-        long ret;
-
         /* call user-registered PSK server callback method */
-        ret = internPskServerCb.pskServerCallback(ssl, identity,
-                key, keyMaxLen);
-
-        return ret;
+        return internPskServerCb.pskServerCallback(ssl, identity,
+            key, keyMaxLen);
     }
 
     private int internalAlpnSelectCallback(WolfSSLSession ssl, String[] out,
         String[] in)
     {
-        int ret;
-
         /* call user-registered ALPN select callback */
-        ret = internAlpnSelectCb.alpnSelectCallback(ssl, out, in,
-                this.alpnSelectArg);
+        return internAlpnSelectCb.alpnSelectCallback(ssl, out, in,
+            this.alpnSelectArg);
+    }
 
-        return ret;
+    private int internalTls13SecretCallback(WolfSSLSession ssl, int id,
+        byte[] secret)
+    {
+        /* call user-registered TLS 1.3 secret callback */
+        return internTls13SecretCb.tls13SecretCallback(ssl, id, secret,
+            this.tls13SecretCtx);
     }
 
     /**
@@ -350,6 +343,9 @@ public class WolfSSLSession {
     private native byte[] sslGet0AlpnSelected(long ssl);
     private native int useALPN(long ssl, String protocols, int options);
     private native int setALPNSelectCb(long ssl);
+    private native int setTls13SecretCb(long ssl);
+    private native void keepArrays(long ssl);
+    private native byte[] getClientRandom(long ssl);
     private native int useSecureRenegotiation(long ssl);
     private native int rehandshake(long ssl);
     private native int set1SigAlgsList(long ssl, String list);
@@ -3437,10 +3433,12 @@ public class WolfSSLSession {
      *
      * @param cb callback to be registered with SSL session
      * @param arg Object that will be passed back to user inside callback
+     *
      * @return    <code>SSL_SUCCESS</code> upon success. <code>
      *            NOT_COMPILED_IN</code> if wolfSSL was not compiled with
      *            ALPN support, and other negative value representing other
      *            error scenarios.
+     *
      * @throws IllegalStateException WolfSSLSession has been freed
      * @throws WolfSSLJNIException Internal JNI error
      */
@@ -3463,6 +3461,83 @@ public class WolfSSLSession {
         }
 
         return ret;
+    }
+
+    /**
+     * Register TLS 1.3 secret callback.
+     *
+     * The callback registered by this method is called by native wolfSSL
+     * during TLS 1.3 connection to retrieve the secrets used in those
+     * connections. These can be printed to a log file for consumption by
+     * Wireshark.
+     *
+     * @param cb callback to be registered with this SSL session
+     * @param ctx Object that will be passed back to user inside callback
+     *
+     * @return <code>SSL_SUCCESS</code> on success. <code>
+     *         NOT_COMPILED_IN</code> if wolfSSL was not compiled with
+     *         TLS 1.3 and HAVE_SECERT_CALLBACK defined, and other
+     *         negative value on error.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public int setTls13SecretCb(WolfSSLTls13SecretCallback cb, Object ctx)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            ret = setTls13SecretCb(getSessionPtr());
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Set TLS 1.3 secret callback */
+                internTls13SecretCb = cb;
+
+                /* Set TLS 1.3 secret ctx Object, returned to user in cb */
+                this.tls13SecretCtx = ctx;
+            }
+        }
+
+        return ret;
+    }
+
+    /**
+     * Do not free temporary arrays at end of handshake.
+     *
+     * This needs to be called if using the TLS 1.3 secret callback, and
+     * should be called after the WolfSSLSession object has been created.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public void keepArrays()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            keepArrays(getSessionPtr());
+        }
+    }
+
+    /**
+     * Get the client random value used in this SSL/TLS session.
+     *
+     * @return client random byte array on success, or null if not available
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public byte[] getClientRandom()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return getClientRandom(getSessionPtr());
+        }
     }
 
     /**

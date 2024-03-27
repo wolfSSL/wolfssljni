@@ -313,6 +313,28 @@ public class WolfSSL {
     /** ALPN ERR FATAL, ALPN callback no match and fatal */
     public static final int SSL_TLSEXT_ERR_ALERT_FATAL = 2;
 
+    /* ----------------- TLS 1.3 secret callback IDs  -------------------- */
+    /** TLS 1.3 secret ID: client early traffic secret */
+    public static int CLIENT_EARLY_TRAFFIC_SECRET;
+
+    /** TLS 1.3 secret ID: client handshake traffic secret */
+    public static int CLIENT_HANDSHAKE_TRAFFIC_SECRET;
+
+    /** TLS 1.3 secret ID: server handshake traffic secret */
+    public static int SERVER_HANDSHAKE_TRAFFIC_SECRET;
+
+    /** TLS 1.3 secret ID: client traffic secret */
+    public static int CLIENT_TRAFFIC_SECRET;
+
+    /** TLS 1.3 secret ID: server traffic secret */
+    public static int SERVER_TRAFFIC_SECRET;
+
+    /** TLS 1.3 secret ID: early exporter secret */
+    public static int EARLY_EXPORTER_SECRET;
+
+    /** TLS 1.3 secret ID: exporter secret */
+    public static int EXPORTER_SECRET;
+
     /* ---------------------- wolfCrypt codes ---------------------------- */
 
     /** Out of memory error */
@@ -332,6 +354,9 @@ public class WolfSSL {
 
     /** No password provided by user */
     public static final int NO_PASSWORD     = -176;
+
+    /** TLS 1.3 secret callback function failure */
+    public static final int TLS13_SECRET_CB_E = -438;
 
     /* hmac codes, from wolfssl/wolfcrypt/hmac.h */
     /** Md5 HMAC type */
@@ -519,6 +544,22 @@ public class WolfSSL {
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
 
+        /* initialize TLS 1.3 secret callback ID enums */
+        CLIENT_EARLY_TRAFFIC_SECRET =
+            getTls13SecretEnum_CLIENT_EARLY_TRAFFIC_SECRET();
+        CLIENT_HANDSHAKE_TRAFFIC_SECRET =
+            getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET();
+        SERVER_HANDSHAKE_TRAFFIC_SECRET =
+            getTls13SecretEnum_SERVER_HANDSHAKE_TRAFFIC_SECRET();
+        CLIENT_TRAFFIC_SECRET =
+            getTls13SecretEnum_CLIENT_TRAFFIC_SECRET();
+        SERVER_TRAFFIC_SECRET =
+            getTls13SecretEnum_SERVER_TRAFFIC_SECRET();
+        EARLY_EXPORTER_SECRET =
+            getTls13SecretEnum_EARLY_EXPORTER_SECRET();
+        EXPORTER_SECRET =
+            getTls13SecretEnum_EXPORTER_SECRET();
+
         this.active = true;
     }
 
@@ -543,6 +584,14 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumAESCCM();
     static native int getBulkCipherAlgorithmEnumCHACHA();
     static native int getBulkCipherAlgorithmEnumCAMELLIA();
+
+    static native int getTls13SecretEnum_CLIENT_EARLY_TRAFFIC_SECRET();
+    static native int getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET();
+    static native int getTls13SecretEnum_SERVER_HANDSHAKE_TRAFFIC_SECRET();
+    static native int getTls13SecretEnum_CLIENT_TRAFFIC_SECRET();
+    static native int getTls13SecretEnum_SERVER_TRAFFIC_SECRET();
+    static native int getTls13SecretEnum_EARLY_EXPORTER_SECRET();
+    static native int getTls13SecretEnum_EXPORTER_SECRET();
 
     static native String getEnabledCipherSuites();
     static native String getEnabledCipherSuitesIana();
@@ -758,6 +807,16 @@ public class WolfSSL {
      *         has not been defined.
      */
     public static native boolean sessionTicketEnabled();
+
+    /**
+     * Tests if native wolfSSL has been compiled with HAVE_SECRET_CALLBACK
+     * default. If defined, will compile in APIs to support SSL/TLS secret
+     * callback support.
+     *
+     * @return true if enabled, otherwise false if HAVE_SECRET_CALLBACK
+     *         has not been defind.
+     */
+    public static native boolean secretCallbackEnabled();
 
     /* ---------------- native SSL/TLS version functions ---------------- */
 
