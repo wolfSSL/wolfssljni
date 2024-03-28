@@ -72,6 +72,9 @@ public class Client {
         int logCallback = 0;                  /* use test logging callback */
         int usePsk = 0;                       /* use pre shared keys */
 
+        boolean useSecretCallback = false;    /* enable TLS 1.3 secret cb */
+        String keyLogFile = "sslkeylog.log";  /* output keylog file */
+
         long session = 0;                     /* pointer to WOLFSSL_SESSION */
         boolean resumeSession = false;        /* try one session resumption */
 
@@ -200,6 +203,16 @@ public class Client {
 
                 } else if (arg.equals("-r")) {
                     resumeSession = true;
+
+                } else if (arg.equals("-tls13secretcb")) {
+                    if (!WolfSSL.secretCallbackEnabled()) {
+                        printUsage();
+                    }
+                    if (args.length < i+2) {
+                        printUsage();
+                    }
+                    useSecretCallback = true;
+                    keyLogFile = args[++i];
 
                 } else {
                     printUsage();
@@ -449,6 +462,16 @@ public class Client {
                     System.out.println("Session tickets not enabled for " +
                         "this WolfSSLSession: ret = " + ret);
                 }
+            }
+
+            /* Set TLS 1.3 secret callback if enabled */
+            if (useSecretCallback) {
+                MyTls13SecretCallback tsc =
+                    new MyTls13SecretCallback(keyLogFile);
+                ssl.keepArrays();
+                ssl.setTls13SecretCb(tsc, null);
+                System.out.println("Writing TLS 1.3 secrets to keylog file: " +
+                    keyLogFile);
             }
 
             /* open Socket */
@@ -757,6 +780,8 @@ public class Client {
             System.out.println("-U\t\tEnable Atomic User Record Layer Callbacks");
         if (WolfSSL.isEnabledPKCallbacks() == 1)
             System.out.println("-P\t\tPublic Key Callbacks");
+        if (WolfSSL.secretCallbackEnabled())
+            System.out.println("-tls13secretcb\tEnable TLS 1.3 secret callback");
         System.exit(1);
     }
 

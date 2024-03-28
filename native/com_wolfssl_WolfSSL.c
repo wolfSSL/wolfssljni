@@ -298,6 +298,97 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELL
     return wolfssl_camellia;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1EARLY_1TRAFFIC_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return CLIENT_EARLY_TRAFFIC_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1HANDSHAKE_1TRAFFIC_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return CLIENT_HANDSHAKE_TRAFFIC_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1SERVER_1HANDSHAKE_1TRAFFIC_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return SERVER_HANDSHAKE_TRAFFIC_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1TRAFFIC_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return CLIENT_TRAFFIC_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1SERVER_1TRAFFIC_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return SERVER_TRAFFIC_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1EARLY_1EXPORTER_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return EARLY_EXPORTER_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1EXPORTER_1SECRET
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+    return EXPORTER_SECRET;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
   (JNIEnv* jenv, jclass jcl)
 {
@@ -513,6 +604,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionTicketEnabled
     (void)jcl;
 
 #ifdef HAVE_SESSION_TICKET
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_secretCallbackEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef HAVE_SECRET_CALLBACK
     return JNI_TRUE;
 #else
     return JNI_FALSE;

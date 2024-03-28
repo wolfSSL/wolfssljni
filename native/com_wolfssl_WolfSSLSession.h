@@ -777,6 +777,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setTls13SecretCb
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTls13SecretCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    keepArrays
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_keepArrays
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getClientRandom
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientRandom
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    useSecureRenegotiation
  * Signature: (J)I
  */
