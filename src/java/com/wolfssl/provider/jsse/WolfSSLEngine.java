@@ -606,7 +606,12 @@ public class WolfSSLEngine extends SSLEngine {
          */
         if (produced >= 0 &&
             (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
+            /* Mark SSLEngine status as CLOSED */
             status = SSLEngineResult.Status.CLOSED;
+            /* Handshake has finished and SSLEngine is closed, release
+             * global JNI verify callback pointer */
+            this.EngineHelper.unsetVerifyCallback();
+
             try {
                 ClosingConnection();
             } catch (SocketException e) {
@@ -962,7 +967,11 @@ public class WolfSSLEngine extends SSLEngine {
             if (outBoundOpen == false) {
                 try {
                     if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                        /* Mark SSLEngine status as CLOSED */
                         status = SSLEngineResult.Status.CLOSED;
+                        /* Handshake has finished and SSLEngine is closed,
+                         * release, global JNI verify callback pointer */
+                        this.EngineHelper.unsetVerifyCallback();
                     }
                 } catch (SocketException e) {
                     throw new SSLException(e);
@@ -1030,7 +1039,11 @@ public class WolfSSLEngine extends SSLEngine {
                 }
 
                 if (outBoundOpen == false || this.closeNotifySent) {
+                    /* Mark SSLEngine status as CLOSED */
                     status = SSLEngineResult.Status.CLOSED;
+                    /* Handshake has finished and SSLEngine is closed,
+                     * release, global JNI verify callback pointer */
+                    this.EngineHelper.unsetVerifyCallback();
                 }
 
                 int err = ssl.getError(ret);
@@ -1773,7 +1786,7 @@ public class WolfSSLEngine extends SSLEngine {
             this.ssl.freeSSL();
             this.ssl = null;
         }
-        EngineHelper = null;
+        this.EngineHelper = null;
         super.finalize();
     }
 }
