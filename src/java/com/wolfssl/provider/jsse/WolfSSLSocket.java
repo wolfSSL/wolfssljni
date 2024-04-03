@@ -1781,7 +1781,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @throws SSLException if native JNI call fails or underlying
      *         WolfSSLSession has been freed
      */
-    public boolean sessionResumed() throws SSLException {
+    public synchronized boolean sessionResumed() throws SSLException {
         if (this.ssl != null) {
             try {
                 int resume = this.ssl.sessionReused();
