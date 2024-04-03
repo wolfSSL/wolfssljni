@@ -778,6 +778,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
         /* get session mutex from SSL app data */
         appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
         if (appData == NULL) {
+            (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data,
+                    JNI_ABORT);
             return WOLFSSL_FAILURE;
         }
 
@@ -864,6 +866,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
         /* get session mutex from SSL app data */
         appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
         if (appData == NULL) {
+            (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data,
+                    JNI_ABORT);
             return WOLFSSL_FAILURE;
         }
 
