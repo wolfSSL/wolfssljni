@@ -252,8 +252,10 @@ public class WolfSSLSession {
     private native int getUsingNonblock(long ssl);
     private native int getFd(long ssl);
     private native int connect(long ssl, int timeout);
-    private native int write(long ssl, byte[] data, int length, int timeout);
-    private native int read(long ssl, byte[] data, int sz, int timeout);
+    private native int write(long ssl, byte[] data, int offset, int length,
+        int timeout);
+    private native int read(long ssl, byte[] data, int offset, int sz,
+        int timeout);
     private native int accept(long ssl, int timeout);
     private native void freeSSL(long ssl);
     private native int shutdownSSL(long ssl, int timeout);
@@ -728,7 +730,7 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
-        ret = write(getSessionPtr(), data, length, 0);
+        ret = write(getSessionPtr(), data, 0, length, 0);
 
         if (ret == WOLFJNI_SELECT_FAIL) {
             throw new SocketException("Socket select() failed, errno = " +
@@ -778,6 +780,50 @@ public class WolfSSLSession {
 
         int ret;
 
+        return write(data, 0, length, timeout);
+    }
+
+    /**
+     * Write bytes from a byte array to the SSL connection, using socket
+     * timeout value in milliseconds.
+     * If necessary, <code>write()</code> will negotiate an SSL/TLS session
+     * if the handshake has not already been performed yet by <code>connect
+     * </code> or <code>accept</code>.
+     * <p>
+     * <code>write()</code> works with both blocking and non-blocking I/O.
+     * When the underlying I/O is non-blocking, <code>write()</code> will
+     * return when the underlying I/O could not satisfy the needs of <code>
+     * write()</code> to continue. In this case, a call to <code>getError
+     * </code> will yield either <b>SSL_ERROR_WANT_READ</b> or
+     * <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat the
+     * call to <code>write()</code> when the underlying I/O is ready.
+     * <p>
+     * If the underlying I/O is blocking, <code>write()</code> will only
+     * return once the buffer <b>data</b> of size <b>length</b> has been
+     * completely written or an error occurred.
+     *
+     * @param data   data buffer which will be sent to peer
+     * @param offset offset into data buffer to start writing from
+     * @param length size, in bytes, of data to send to the peer
+     * @param timeout read timeout, milliseconds.
+     * @return       the number of bytes written upon success. <code>0
+     *               </code>will be returned upon failure. <code>
+     *               SSL_FATAL_ERROR</code>upon failure when either an
+     *               error occurred or, when using non-blocking sockets,
+     *               the <b>SSL_ERROR_WANT_READ</b> or
+     *               <b>SSL_ERROR_WANT_WRITE</b> error was received and the
+     *               application needs to call <code>write()</code> again.
+     *               <code>BAD_FUNC_ARC</code> when bad arguments are used.
+     *               Use <code>getError</code> to get a specific error code.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select() failed
+     */
+    public int write(byte[] data, int offset, int length, int timeout)
+        throws IllegalStateException, SocketTimeoutException, SocketException {
+
+        int ret;
+
         confirmObjectIsActive();
 
         /* not synchronizing on sslLock here since JNI write() locks
@@ -785,7 +831,7 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
-        ret = write(getSessionPtr(), data, length, timeout);
+        ret = write(getSessionPtr(), data, offset, length, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket write timeout");
@@ -845,7 +891,7 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(getSessionPtr(), data, sz, 0);
+        ret = read(getSessionPtr(), data, 0, sz, 0);
 
         if (ret == WOLFJNI_SELECT_FAIL) {
             throw new SocketException("Socket select() failed, errno = " +
@@ -897,6 +943,52 @@ public class WolfSSLSession {
 
         int ret;
 
+        return read(data, 0, sz, timeout);
+    }
+
+    /**
+     * Reads bytes from the SSL session and returns the read bytes as a byte
+     * array, using socket timeout value in milliseconds.
+     * The bytes read are removed from the internal receive buffer.
+     * <p>
+     * If necessary, <code>read()</code> will negotiate an SSL/TLS session
+     * if the handshake has not already been performed yet by <code>connect()
+     * </code> or <code>accept()</code>.
+     * <p>
+     * The SSL/TLS protocol uses SSL records which have a maximum size of
+     * 16kB. As such, wolfSSL needs to read an entire SSL record internally
+     * before it is able to process and decrypt the record. Because of this,
+     * a call to <code>read()</code> will only be able to return the
+     * maximum buffer size which has been decrypted at the time of calling.
+     * There may be additional not-yet-decrypted data waiting in the internal
+     * wolfSSL receive buffer which will be retrieved and decrypted with the
+     * next call to <code>read()</code>.
+     *
+     * @param data  buffer where the data read from the SSL connection
+     *              will be placed.
+     * @param offset offset into data buffer for data to be placed.
+     * @param sz    number of bytes to read into <b><code>data</code></b>
+     * @param timeout read timeout, milliseconds.
+     * @return      the number of bytes read upon success. <code>SSL_FAILURE
+     *              </code> will be returned upon failure which may be caused
+     *              by either a clean (close notify alert) shutdown or just
+     *              that the peer closed the connection. <code>
+     *              SSL_FATAL_ERROR</code> upon failure when either an error
+     *              occurred or, when using non-blocking sockets, the
+     *              <b>SSL_ERROR_WANT_READ</b> or <b>SSL_ERROR_WANT_WRITE</b>
+     *              error was received and the application needs to call
+     *              <code>read()</code> again. Use <code>getError</code> to
+     *              get a specific error code.
+     *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select() failed
+     */
+    public int read(byte[] data, int offset, int sz, int timeout)
+        throws IllegalStateException, SocketTimeoutException, SocketException {
+
+        int ret;
+
         confirmObjectIsActive();
 
         /* not synchronizing on sslLock here since JNI read() locks
@@ -904,7 +996,7 @@ public class WolfSSLSession {
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(getSessionPtr(), data, sz, timeout);
+        ret = read(getSessionPtr(), data, offset, sz, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket read timeout");

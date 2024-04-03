@@ -753,10 +753,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
-  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray raw, jint length,
-   jint timeout)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray raw, jint offset,
+   jint length, jint timeout)
 {
-    byte* data;
+    byte* data = NULL;
     int ret = SSL_FAILURE, err, sockfd;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
@@ -767,7 +767,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
         return BAD_FUNC_ARG;
     }
 
-    if (length >= 0) {
+    if ((offset >= 0) && (length >= 0)) {
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -798,7 +798,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
                 break;
             }
 
-            ret = wolfSSL_write(ssl, data, length);
+            ret = wolfSSL_write(ssl, data + offset, length);
             err = wolfSSL_get_error(ssl, ret);
 
             /* unlock mutex around session I/O after write attempt */
@@ -841,10 +841,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
     }
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
-    jobject jcl, jlong sslPtr, jbyteArray raw, jint length, int timeout)
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray raw, jint offset,
+   jint length, jint timeout)
 {
-    byte* data;
+    byte* data = NULL;
     int size = 0, ret, err, sockfd;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
@@ -855,7 +856,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
         return BAD_FUNC_ARG;
     }
 
-    if (length >= 0) {
+    if ((offset >= 0) && (length >= 0)) {
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -885,7 +886,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read(JNIEnv* jenv,
                 break;
             }
 
-            size = wolfSSL_read(ssl, data, length);
+            size = wolfSSL_read(ssl, data + offset, length);
             err = wolfSSL_get_error(ssl, size);
 
             /* unlock mutex around session I/O after read attempt */
