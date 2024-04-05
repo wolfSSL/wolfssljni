@@ -5476,7 +5476,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useSupportedCurve
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jintArray groups)
 {
-#ifdef HAVE_SUPPORTED_CURVES
+#if defined(HAVE_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     int ret = WOLFSSL_FAILURE;
     int groupsSz = 0;
     int* jniGroups = NULL;

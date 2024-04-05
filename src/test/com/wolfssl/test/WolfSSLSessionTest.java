@@ -268,6 +268,7 @@ public class WolfSSLSessionTest {
             if (!e.getMessage().equals("wolfSSL not compiled with PSK " +
                         "support")) {
                 System.out.println("\t\t... failed");
+                fail("Failed setPskClientCb test");
                 e.printStackTrace();
             }
         }
@@ -303,6 +304,7 @@ public class WolfSSLSessionTest {
             if (!e.getMessage().equals("wolfSSL not compiled with PSK " +
                         "support")) {
                 System.out.println("\t\t... failed");
+                fail("Failed setPskServerCb test");
                 e.printStackTrace();
             }
         }
@@ -320,6 +322,7 @@ public class WolfSSLSessionTest {
             }
         } catch (IllegalStateException e) {
             System.out.println("\t\t... failed");
+            fail("Failed usePskIdentityHint test");
             e.printStackTrace();
         }
         System.out.println("\t\t... passed");
@@ -335,6 +338,7 @@ public class WolfSSLSessionTest {
             }
         } catch (IllegalStateException e) {
             System.out.println("\t\t... failed");
+            fail("Failed getPskIdentityHint test");
             e.printStackTrace();
         }
         System.out.println("\t\t... passed");
@@ -362,6 +366,7 @@ public class WolfSSLSessionTest {
             String identity = ssl.getPskIdentity();
         } catch (IllegalStateException e) {
             System.out.println("\t\t... failed");
+            fail("Failed getPskIdentity test");
             e.printStackTrace();
         }
         System.out.println("\t\t... passed");
@@ -373,6 +378,7 @@ public class WolfSSLSessionTest {
         ssl.setTimeout(5);
         if (ssl.getTimeout() != 5) {
             System.out.println("\t\t\t... failed");
+            fail("Failed timeout test");
         }
         System.out.println("\t\t\t... passed");
     }
@@ -382,6 +388,7 @@ public class WolfSSLSessionTest {
         System.out.print("\tstatus()");
         if (ssl.handshakeDone() == true) {
             System.out.println("\t\t\t... failed");
+            fail("Failed status test");
         }
         System.out.println("\t\t\t... passed");
     }
@@ -397,6 +404,7 @@ public class WolfSSLSessionTest {
             System.out.println("\t\t\t... skipped");
         } else if (ret != WolfSSL.SSL_SUCCESS) {
             System.out.println("\t\t\t... failed");
+            fail("Failed useSNI test");
         } else {
             System.out.println("\t\t\t... passed");
         }
@@ -408,7 +416,9 @@ public class WolfSSLSessionTest {
         String[] alpnProtos = new String[] {
             "h2", "http/1.1"
         };
-        byte[] alpnProtoBytes = "http/1.1".getBytes();
+        String http11Alpn = "http/1.1";
+        byte[] alpnProtoBytes = http11Alpn.getBytes();
+        byte[] alpnProtoBytesPacked = new byte[1 + alpnProtoBytes.length];
 
         System.out.print("\tuseALPN()");
 
@@ -447,7 +457,12 @@ public class WolfSSLSessionTest {
 
         /* Testing useALPN(byte[]) */
         if (ret == WolfSSL.SSL_SUCCESS) {
-            ret = ssl.useALPN(alpnProtoBytes);
+
+            alpnProtoBytesPacked[0] = (byte)http11Alpn.length();
+            System.arraycopy(alpnProtoBytes, 0, alpnProtoBytesPacked, 1,
+                alpnProtoBytes.length);
+
+            ret = ssl.useALPN(alpnProtoBytesPacked);
         }
 
         if (ret == WolfSSL.SSL_SUCCESS) {
@@ -462,6 +477,7 @@ public class WolfSSLSessionTest {
             System.out.println("\t\t\t... skipped");
         } else if (ret != WolfSSL.SSL_SUCCESS) {
             System.out.println("\t\t\t... failed");
+            fail("Failed useALPN test");
         } else {
             System.out.println("\t\t\t... passed");
         }
@@ -475,6 +491,7 @@ public class WolfSSLSessionTest {
             ssl.freeSSL();
         } catch (WolfSSLJNIException e) {
             System.out.println("\t\t\t... failed");
+            fail("Failed freeSSL test");
             e.printStackTrace();
         }
         System.out.println("\t\t\t... passed");
@@ -530,6 +547,7 @@ public class WolfSSLSessionTest {
 
         } catch (Exception e) {
             System.out.println("\t\t... failed");
+            fail("Failed UseAfterFree test");
             e.printStackTrace();
             return;
         }
@@ -542,6 +560,7 @@ public class WolfSSLSessionTest {
             return;
         } catch (SocketTimeoutException | SocketException e) {
             System.out.println("\t\t... failed");
+            fail("Failed UseAfterFree test");
             e.printStackTrace();
             return;
         }
@@ -619,6 +638,7 @@ public class WolfSSLSessionTest {
 
         } catch (Exception e) {
             System.out.println("\t\t... failed");
+            fail("Failed getSessionID test");
             e.printStackTrace();
             return;
         }
@@ -649,6 +669,7 @@ public class WolfSSLSessionTest {
             ret = ssl.useSecureRenegotiation();
             if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
                 System.out.println("... failed");
+                fail("Failed useSecureRenegotiation test");
                 ssl.freeSSL();
                 sslCtx.free();
                 return;
@@ -659,6 +680,7 @@ public class WolfSSLSessionTest {
 
         } catch (Exception e) {
             System.out.println("... failed");
+            fail("Failed useSecureRenegotiation test");
             e.printStackTrace();
             return;
         }

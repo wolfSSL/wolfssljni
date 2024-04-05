@@ -9,7 +9,7 @@
 :: included by other example .bat files.
 
 :: wolfSSL Normal non-FIPS (DLL Debug x64)
-SET WOLFSSL_DLL_DIR=..\..\..\wolfssl\IDE\WIN10\DLL Debug\x64
+SET WOLFSSL_DLL_DIR=..\..\..\wolfssl\DLL Debug\x64
 SET WOLFSSLJNI_DLL_DIR=..\..\IDE\WIN\DLL Debug\x64
 
 :: wolfSSL Normal non-FIPS (DLL Release x64)
