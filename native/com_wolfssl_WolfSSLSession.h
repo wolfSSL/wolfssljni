@@ -90,18 +90,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    write
- * Signature: (J[BII)I
+ * Signature: (J[BIII)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
-  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint);
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    read
- * Signature: (J[BII)I
+ * Signature: (J[BIII)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
-  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint);
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jint, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

@@ -2375,7 +2375,6 @@ public class WolfSSLSocket extends SSLSocket {
                    IOException {
 
             int ret = 0;
-            byte[] data = null;
 
             if (b == null) {
                 throw new NullPointerException("Input array is null");
@@ -2421,24 +2420,18 @@ public class WolfSSLSocket extends SSLSocket {
                     "Array index out of bounds");
             }
 
-            if (off != 0) {
-                /* create new tmp buffer to read data into */
-                data = new byte[len];
-            } else {
-                data = b;
-            }
-
             try {
                 int err;
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ssl.read() socket timeout = " + socket.getSoTimeout());
 
-                ret = ssl.read(data, len, socket.getSoTimeout());
+                ret = ssl.read(b, off, len, socket.getSoTimeout());
                 err = ssl.getError(ret);
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.read() ret = " + ret + ", err = " + err);
+                    "ssl.read(off: " + off + ", len: " + len + ") ret = " +
+                    ret + ", err = " + err);
 
                 /* check for end of stream */
                 if ((err == WolfSSL.SSL_ERROR_ZERO_RETURN) ||
@@ -2466,11 +2459,6 @@ public class WolfSSLSocket extends SSLSocket {
 
             } catch (IllegalStateException e) {
                 throw new IOException(e);
-            }
-
-            if (off != 0) {
-                /* copy data into original array at offset */
-                System.arraycopy(data, 0, b, off, ret);
             }
 
             /* return number of bytes read */
@@ -2517,7 +2505,6 @@ public class WolfSSLSocket extends SSLSocket {
             throws IOException {
 
             int ret;
-            byte[] data = null;
 
             if (b == null) {
                 throw new NullPointerException("Input array is null");
@@ -2553,13 +2540,6 @@ public class WolfSSLSocket extends SSLSocket {
                     "Array index out of bounds");
             }
 
-            if (off != 0) {
-                data = new byte[len];
-                System.arraycopy(b, off, data, 0, len);
-            } else {
-                data = b;
-            }
-
             try {
                 int err;
 
@@ -2567,11 +2547,12 @@ public class WolfSSLSocket extends SSLSocket {
                     "ssl.write() socket timeout = " +
                     socket.getSoTimeout());
 
-                ret = ssl.write(data, len, socket.getSoTimeout());
+                ret = ssl.write(b, off, len, socket.getSoTimeout());
                 err = ssl.getError(ret);
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.write returned ret = " + ret + ", err = " + err);
+                    "ssl.write(off: " + off + ", len: " + len +
+                    ") returned ret = " + ret + ", err = " + err);
 
                 /* check for end of stream */
                 if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
@@ -2602,6 +2583,5 @@ public class WolfSSLSocket extends SSLSocket {
             }
         }
     } /* end WolfSSLOutputStream inner class */
-
 }
 
