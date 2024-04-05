@@ -323,7 +323,9 @@ public class WolfSSLCertificate {
 
         confirmObjectIsActive();
 
-        return this.x509Ptr;
+        synchronized (x509Lock) {
+            return this.x509Ptr;
+        }
     }
 
     /**
@@ -1435,14 +1437,14 @@ public class WolfSSLCertificate {
 
         confirmObjectIsActive();
 
-        if (this.altNames != null) {
-            /* already gathered, return cached version */
-            return this.altNames;
-        }
-
-        Collection<List<?>> names = new ArrayList<List<?>>();
-
         synchronized (x509Lock) {
+            if (this.altNames != null) {
+                /* already gathered, return cached version */
+                return this.altNames;
+            }
+
+            Collection<List<?>> names = new ArrayList<List<?>>();
+
             String nextAltName = X509_get_next_altname(this.x509Ptr);
             while (nextAltName != null) {
                 Object[] entry = new Object[2];
@@ -1453,12 +1455,12 @@ public class WolfSSLCertificate {
                 names.add(Collections.unmodifiableList(entryList));
                 nextAltName = X509_get_next_altname(this.x509Ptr);
             }
+
+            /* cache altNames collection for later use */
+            this.altNames = Collections.unmodifiableCollection(names);
+
+            return this.altNames;
         }
-
-        /* cache altNames collection for later use */
-        this.altNames = Collections.unmodifiableCollection(names);
-
-        return this.altNames;
     }
 
     /**

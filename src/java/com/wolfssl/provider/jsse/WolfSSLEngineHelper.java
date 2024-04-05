@@ -284,7 +284,8 @@ public class WolfSSLEngineHelper {
      * @throws IOException on error concatenating certificate chain into
      *         single byte array
      */
-    protected void LoadKeyAndCertChain(Socket sock, SSLEngine engine)
+    protected synchronized void LoadKeyAndCertChain(
+        Socket sock, SSLEngine engine)
         throws WolfSSLException, CertificateEncodingException, IOException {
 
         int ret;
@@ -388,7 +389,7 @@ public class WolfSSLEngineHelper {
      * @param hostname peer hostname String
      * @param port peer port number
      */
-    protected void setHostAndPort(String hostname, int port) {
+    protected synchronized void setHostAndPort(String hostname, int port) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setHostAndPort()");
@@ -403,7 +404,7 @@ public class WolfSSLEngineHelper {
      *
      * @param peerAddr InetAddress of peer
      */
-    protected void setPeerAddress(InetAddress peerAddr) {
+    protected synchronized void setPeerAddress(InetAddress peerAddr) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setPeerAddress()");
@@ -416,7 +417,7 @@ public class WolfSSLEngineHelper {
      *
      * @return com.wolfssl.WolfSSLSession for this object
      */
-    protected WolfSSLSession getWolfSSLSession() {
+    protected synchronized WolfSSLSession getWolfSSLSession() {
         return ssl;
     }
 
@@ -425,7 +426,7 @@ public class WolfSSLEngineHelper {
      *
      * @return WolfSSLImplementSession for this object
      */
-    protected WolfSSLImplementSSLSession getSession() {
+    protected synchronized WolfSSLImplementSSLSession getSession() {
 
         if (this.session == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -444,7 +445,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of all supported cipher suites
      */
-    protected String[] getAllCiphers() {
+    protected synchronized String[] getAllCiphers() {
         return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
@@ -454,7 +455,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of all enabled cipher suites
      */
-    protected String[] getCiphers() {
+    protected synchronized String[] getCiphers() {
         return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
     }
 
@@ -469,7 +470,8 @@ public class WolfSSLEngineHelper {
      *         cipher suites, input array is null, or input array has length
      *         zero
      */
-    protected void setCiphers(String[] suites) throws IllegalArgumentException {
+    protected synchronized void setCiphers(String[] suites)
+        throws IllegalArgumentException {
 
         if (suites == null) {
             throw new IllegalArgumentException("input array is null");
@@ -501,7 +503,8 @@ public class WolfSSLEngineHelper {
      * @throws IllegalArgumentException if input array is null,
      *         has length zero, or contains invalid/unsupported protocols
      */
-    protected void setProtocols(String[] p) throws IllegalArgumentException {
+    protected synchronized void setProtocols(String[] p)
+        throws IllegalArgumentException {
 
         if (p == null) {
             throw new IllegalArgumentException("input array is null");
@@ -528,7 +531,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of enabled SSL/TLS protocols
      */
-    protected String[] getProtocols() {
+    protected synchronized String[] getProtocols() {
         return WolfSSLUtil.sanitizeProtocols(this.params.getProtocols());
     }
 
@@ -539,7 +542,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of supported protocols
      */
-    protected String[] getAllProtocols() {
+    protected synchronized String[] getAllProtocols() {
         return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
     }
 
@@ -551,7 +554,7 @@ public class WolfSSLEngineHelper {
      * @throws IllegalArgumentException if called after SSL/TLS handshake
      *         has been completed. Only allowed before.
      */
-    protected void setUseClientMode(boolean mode)
+    protected synchronized void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
         if (this.ssl.handshakeDone()) {
@@ -574,7 +577,7 @@ public class WolfSSLEngineHelper {
      *
      * @return boolean value of clientMode set for this session
      */
-    protected boolean getUseClientMode() {
+    protected synchronized boolean getUseClientMode() {
         return this.clientMode;
     }
 
@@ -583,7 +586,7 @@ public class WolfSSLEngineHelper {
      *
      * @param need boolean if session needs client authentication
      */
-    protected void setNeedClientAuth(boolean need) {
+    protected synchronized void setNeedClientAuth(boolean need) {
         this.params.setNeedClientAuth(need);
     }
 
@@ -592,7 +595,7 @@ public class WolfSSLEngineHelper {
      *
      * @return boolean value for needClientAuth
      */
-    protected boolean getNeedClientAuth() {
+    protected synchronized boolean getNeedClientAuth() {
         return this.params.getNeedClientAuth();
     }
 
@@ -601,7 +604,7 @@ public class WolfSSLEngineHelper {
      *
      * @param want boolean value of wantClientAuth for this session
      */
-    protected void setWantClientAuth(boolean want) {
+    protected synchronized void setWantClientAuth(boolean want) {
         this.params.setWantClientAuth(want);
     }
 
@@ -610,7 +613,7 @@ public class WolfSSLEngineHelper {
      *
      * @return boolean value for wantClientAuth
      */
-    protected boolean getWantClientAuth() {
+    protected synchronized boolean getWantClientAuth() {
         return this.params.getWantClientAuth();
     }
 
@@ -619,7 +622,7 @@ public class WolfSSLEngineHelper {
      *
      * @param flag boolean to set enable session creation
      */
-    protected void setEnableSessionCreation(boolean flag) {
+    protected synchronized void setEnableSessionCreation(boolean flag) {
         this.sessionCreation = flag;
     }
 
@@ -628,7 +631,7 @@ public class WolfSSLEngineHelper {
      *
      * @return boolean value for enableSessionCreation
      */
-    protected boolean getEnableSessionCreation() {
+    protected synchronized boolean getEnableSessionCreation() {
         return this.sessionCreation;
     }
 
@@ -637,7 +640,7 @@ public class WolfSSLEngineHelper {
      *
      * @param flag boolean to enable/disable session tickets
      */
-    protected void setUseSessionTickets(boolean flag) {
+    protected synchronized void setUseSessionTickets(boolean flag) {
         this.params.setUseSessionTickets(flag);
     }
 
@@ -646,7 +649,7 @@ public class WolfSSLEngineHelper {
      *
      * @param alpnProtos encoded byte array of ALPN protocols
      */
-    protected void setAlpnProtocols(byte[] alpnProtos) {
+    protected synchronized void setAlpnProtocols(byte[] alpnProtos) {
         this.params.setAlpnProtocols(alpnProtos);
     }
 
@@ -658,7 +661,7 @@ public class WolfSSLEngineHelper {
      * @return encoded byte array for selected ALPN protocol or null if
      *         handshake has not finished
      */
-    protected byte[] getAlpnSelectedProtocol() {
+    protected synchronized byte[] getAlpnSelectedProtocol() {
         if (this.ssl.handshakeDone()) {
             return ssl.getAlpnSelected();
         }
@@ -672,7 +675,7 @@ public class WolfSSLEngineHelper {
      *         if protocol is not available yet, or empty String if
      *         ALPN will not be used for this connection.
      */
-    protected String getAlpnSelectedProtocolString() {
+    protected synchronized String getAlpnSelectedProtocolString() {
         String proto = ssl.getAlpnSelectedString();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1133,7 +1136,9 @@ public class WolfSSLEngineHelper {
      * @throws SSLHandshakeException session creation is not allowed
      *
      */
-    protected void initHandshake(SSLSocket socket) throws SSLException {
+    protected synchronized void initHandshake(SSLSocket socket)
+        throws SSLException {
+
         initHandshakeInternal(socket, null);
     }
 
@@ -1152,7 +1157,9 @@ public class WolfSSLEngineHelper {
      * @throws SSLHandshakeException session creation is not allowed
      *
      */
-    protected void initHandshake(SSLEngine engine) throws SSLException {
+    protected synchronized void initHandshake(SSLEngine engine)
+        throws SSLException {
+
         initHandshakeInternal(null, engine);
     }
 
@@ -1235,7 +1242,7 @@ public class WolfSSLEngineHelper {
      *                      on native socket error
      * @throws SocketTimeoutException if socket timed out
      */
-    protected int doHandshake(int isSSLEngine, int timeout)
+    protected synchronized int doHandshake(int isSSLEngine, int timeout)
         throws SSLException, SocketTimeoutException {
 
         int ret, err;

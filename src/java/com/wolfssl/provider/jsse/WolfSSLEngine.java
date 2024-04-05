@@ -66,7 +66,7 @@ import java.net.SocketTimeoutException;
  */
 public class WolfSSLEngine extends SSLEngine {
 
-    private WolfSSLEngineHelper EngineHelper = null;
+    private WolfSSLEngineHelper engineHelper = null;
     private WolfSSLSession ssl = null;
     private com.wolfssl.WolfSSLContext ctx = null;
     private WolfSSLAuthStore authStore = null;
@@ -164,11 +164,11 @@ public class WolfSSLEngine extends SSLEngine {
                              null, ex);
             throw new WolfSSLException("Error with init");
         }
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
-                this.params);
+        this.engineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+            this.params);
 
         try {
-            EngineHelper.LoadKeyAndCertChain(null, this);
+            this.engineHelper.LoadKeyAndCertChain(null, this);
         } catch (CertificateEncodingException | IOException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "failed to load private key and/or cert chain");
@@ -200,11 +200,11 @@ public class WolfSSLEngine extends SSLEngine {
                              null, ex);
             throw new WolfSSLException("Error with init");
         }
-        EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
+        this.engineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
 
         try {
-            EngineHelper.LoadKeyAndCertChain(null, this);
+            this.engineHelper.LoadKeyAndCertChain(null, this);
         } catch (CertificateEncodingException | IOException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "failed to load private key and/or cert chain");
@@ -355,7 +355,7 @@ public class WolfSSLEngine extends SSLEngine {
          * since underlying get1Session can use I/O with peek. */
         if (!this.sessionStored) {
             synchronized (ioLock) {
-                EngineHelper.saveSession();
+                this.engineHelper.saveSession();
             }
         }
 
@@ -444,7 +444,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* only send up to maximum app data size chunk */
         sendSz = Math.min(totalIn,
-                          EngineHelper.getSession().getApplicationBufferSize());
+            this.engineHelper.getSession().getApplicationBufferSize());
         dataBuf = ByteBuffer.allocate(sendSz);
 
         /* gather byte array of sendSz bytes from input buffers */
@@ -533,7 +533,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ entering wrap() ] ===================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + EngineHelper.getUseClientMode());
+                "setUseClientMode: " + this.engineHelper.getUseClientMode());
             for (i = 0; i < len; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
@@ -583,7 +583,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (needInit) {
-            EngineHelper.initHandshake(this);
+            this.engineHelper.initHandshake(this);
             needInit = false;
             closed = false; /* opened a connection */
         }
@@ -593,7 +593,8 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         /* Force out buffer to be large enough to hold max packet size */
-        if (out.remaining() < EngineHelper.getSession().getPacketBufferSize()) {
+        if (out.remaining() <
+            this.engineHelper.getSession().getPacketBufferSize()) {
             return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
         }
 
@@ -610,7 +611,7 @@ public class WolfSSLEngine extends SSLEngine {
             status = SSLEngineResult.Status.CLOSED;
             /* Handshake has finished and SSLEngine is closed, release
              * global JNI verify callback pointer */
-            this.EngineHelper.unsetVerifyCallback();
+            this.engineHelper.unsetVerifyCallback();
 
             try {
                 ClosingConnection();
@@ -645,7 +646,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ exiting wrap() ] ===================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + EngineHelper.getUseClientMode());
+                "setUseClientMode: " + this.engineHelper.getUseClientMode());
             for (i = 0; i < len; i++) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
@@ -896,7 +897,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ entering unwrap() ] =================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + EngineHelper.getUseClientMode());
+                "setUseClientMode: " + this.engineHelper.getUseClientMode());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.remaining(): " + in.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -959,7 +960,7 @@ public class WolfSSLEngine extends SSLEngine {
         else {
 
             if (needInit) {
-                EngineHelper.initHandshake(this);
+                this.engineHelper.initHandshake(this);
                 needInit = false;
                 closed = false;
             }
@@ -971,7 +972,7 @@ public class WolfSSLEngine extends SSLEngine {
                         status = SSLEngineResult.Status.CLOSED;
                         /* Handshake has finished and SSLEngine is closed,
                          * release, global JNI verify callback pointer */
-                        this.EngineHelper.unsetVerifyCallback();
+                        this.engineHelper.unsetVerifyCallback();
                     }
                 } catch (SocketException e) {
                     throw new SSLException(e);
@@ -1027,8 +1028,8 @@ public class WolfSSLEngine extends SSLEngine {
                     if (!this.sessionStored) {
                         synchronized (ioLock) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "calling EngineHelper.saveSession()");
-                            int ret2 = EngineHelper.saveSession();
+                                "calling engineHelper.saveSession()");
+                            int ret2 = this.engineHelper.saveSession();
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "return from saveSession(), ret = " + ret2);
                             if (ret2 == WolfSSL.SSL_SUCCESS) {
@@ -1043,7 +1044,7 @@ public class WolfSSLEngine extends SSLEngine {
                     status = SSLEngineResult.Status.CLOSED;
                     /* Handshake has finished and SSLEngine is closed,
                      * release, global JNI verify callback pointer */
-                    this.EngineHelper.unsetVerifyCallback();
+                    this.engineHelper.unsetVerifyCallback();
                 }
 
                 int err = ssl.getError(ret);
@@ -1083,7 +1084,7 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "==== [ exiting unwrap() ] ==================================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + EngineHelper.getUseClientMode());
+                "setUseClientMode: " + this.engineHelper.getUseClientMode());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "in.remaining(): " + in.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1188,10 +1189,10 @@ public class WolfSSLEngine extends SSLEngine {
                                 "SSL/TLS handshake finished");
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "SSL/TLS protocol: " +
-                                EngineHelper.getSession().getProtocol());
+                                this.engineHelper.getSession().getProtocol());
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "SSL/TLS cipher suite: " +
-                                EngineHelper.getSession().getCipherSuite());
+                                this.engineHelper.getSession().getCipherSuite());
                         }
                         /* give priority of WRAP/UNWRAP to state of our internal
                          * I/O data buffers first, then wolfSSL err status */
@@ -1279,49 +1280,49 @@ public class WolfSSLEngine extends SSLEngine {
     public String[] getSupportedCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedCipherSuites()");
-        return EngineHelper.getAllCiphers();
+        return this.engineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledCipherSuites()");
-        return EngineHelper.getCiphers();
+        return this.engineHelper.getCiphers();
     }
 
     @Override
     public void setEnabledCipherSuites(String[] suites) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnabledCipherSuites()");
-        EngineHelper.setCiphers(suites);
+        this.engineHelper.setCiphers(suites);
     }
 
     @Override
     public String[] getSupportedProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
-        return EngineHelper.getAllProtocols();
+        return this.engineHelper.getAllProtocols();
     }
 
     @Override
     public synchronized String[] getEnabledProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
-        return EngineHelper.getProtocols();
+        return this.engineHelper.getProtocols();
     }
 
     @Override
     public synchronized void setEnabledProtocols(String[] protocols) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnabledProtocols()");
-        EngineHelper.setProtocols(protocols);
+        this.engineHelper.setProtocols(protocols);
     }
 
     @Override
     public synchronized SSLSession getSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSession()");
-        return EngineHelper.getSession();
+        return this.engineHelper.getSession();
     }
 
     /**
@@ -1335,7 +1336,7 @@ public class WolfSSLEngine extends SSLEngine {
      * @throws SSLException if native JNI call fails or underlying
      *         WolfSSLSession has been freed
      */
-    public boolean sessionResumed() throws SSLException {
+    public synchronized boolean sessionResumed() throws SSLException {
         if (this.ssl != null) {
             try {
                 int resume = this.ssl.sessionReused();
@@ -1353,7 +1354,7 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLSession getHandshakeSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeSession()");
-        return EngineHelper.getSession();
+        return this.engineHelper.getSession();
     }
 
     @Override
@@ -1379,14 +1380,14 @@ public class WolfSSLEngine extends SSLEngine {
         if (needInit == true) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
-            EngineHelper.initHandshake(this);
+            this.engineHelper.initHandshake(this);
             needInit = false;
         }
 
         try {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "calling EngineHelper.doHandshake()");
-            int ret = EngineHelper.doHandshake(1, 0);
+                "calling engineHelper.doHandshake()");
+            int ret = this.engineHelper.doHandshake(1, 0);
             SetHandshakeStatus(ret);
 
         } catch (SocketTimeoutException e) {
@@ -1422,7 +1423,7 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized void setUseClientMode(boolean mode) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setUseClientMode(" + mode + ")");
-        EngineHelper.setUseClientMode(mode);
+        this.engineHelper.setUseClientMode(mode);
         this.clientModeSet = true;
     }
 
@@ -1430,55 +1431,55 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized boolean getUseClientMode() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getUseClientMode()");
-        return EngineHelper.getUseClientMode();
+        return this.engineHelper.getUseClientMode();
     }
 
     @Override
     public synchronized void setNeedClientAuth(boolean need) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setNeedClientAuth(" + need + ")");
-        EngineHelper.setNeedClientAuth(need);
+        this.engineHelper.setNeedClientAuth(need);
     }
 
     @Override
     public synchronized boolean getNeedClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getNeedClientAuth()");
-        return EngineHelper.getNeedClientAuth();
+        return this.engineHelper.getNeedClientAuth();
     }
 
     @Override
     public synchronized void setWantClientAuth(boolean want) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setWantClientAuth(" + want + ")");
-        EngineHelper.setWantClientAuth(want);
+        this.engineHelper.setWantClientAuth(want);
     }
 
     @Override
     public synchronized boolean getWantClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getWantClientAuth()");
-        return EngineHelper.getWantClientAuth();
+        return this.engineHelper.getWantClientAuth();
     }
 
     @Override
     public synchronized void setEnableSessionCreation(boolean flag) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnableSessionCreation(" + flag + ")");
-        EngineHelper.setEnableSessionCreation(flag);
+        this.engineHelper.setEnableSessionCreation(flag);
     }
 
     @Override
     public synchronized boolean getEnableSessionCreation() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnableSessionCreation()");
-        return EngineHelper.getEnableSessionCreation();
+        return this.engineHelper.getEnableSessionCreation();
     }
 
     public synchronized String getApplicationProtocol() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getApplicationProtocol()");
-        return EngineHelper.getAlpnSelectedProtocolString();
+        return this.engineHelper.getAlpnSelectedProtocolString();
     }
 
     /**
@@ -1501,7 +1502,7 @@ public class WolfSSLEngine extends SSLEngine {
             "entered getHandshakeApplicationProtocol()");
 
         if (!this.needInit && !this.handshakeFinished) {
-            return EngineHelper.getAlpnSelectedProtocolString();
+            return this.engineHelper.getAlpnSelectedProtocolString();
         }
 
         return null;
@@ -1786,7 +1787,6 @@ public class WolfSSLEngine extends SSLEngine {
             this.ssl.freeSSL();
             this.ssl = null;
         }
-        this.EngineHelper = null;
         super.finalize();
     }
 }

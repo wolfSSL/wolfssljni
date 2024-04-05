@@ -31,6 +31,9 @@ public class WolfSSLX509Name {
     /* Lock around active state */
     private final Object stateLock = new Object();
 
+    /* Lock around x509NamePtr pointer access */
+    private final Object x509NameLock = new Object();
+
     /* Cache name elements in Java before pushing through JNI, for easier
      * retrieval from getXXX() methods */
     private String countryName               = null;
@@ -97,8 +100,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
-        /* TODO lock around x509NamePtr */
-        return this.x509NamePtr;
+        /* TODO lock around x509NamePtr for caller use */
+        synchronized (x509NameLock) {
+            return this.x509NamePtr;
+        }
     }
 
     /**
@@ -122,9 +127,11 @@ public class WolfSSLX509Name {
                 "addEntryByTxt()");
         }
 
-        ret = X509_NAME_add_entry_by_txt(this.x509NamePtr, field,
-                MBSTRING_UTF8, entry.getBytes(),
-                entry.getBytes().length, -1, 0);
+        synchronized (x509NameLock) {
+            ret = X509_NAME_add_entry_by_txt(this.x509NamePtr, field,
+                    MBSTRING_UTF8, entry.getBytes(),
+                    entry.getBytes().length, -1, 0);
+        }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
             throw new WolfSSLException("Error setting " + field + " into " +
@@ -507,12 +514,14 @@ public class WolfSSLX509Name {
                 /* already freed, just return */
                 return;
             }
-            
-            /* free native resources */
-            X509_NAME_free(this.x509NamePtr);
 
-            this.active = false;
-            this.x509NamePtr = 0;
+            synchronized (x509NameLock) {
+                /* free native resources */
+                X509_NAME_free(this.x509NamePtr);
+
+                this.active = false;
+                this.x509NamePtr = 0;
+            }
         }
     }
 

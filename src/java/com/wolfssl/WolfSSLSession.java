@@ -41,7 +41,10 @@ import com.wolfssl.WolfSSLJNIException;
  */
 public class WolfSSLSession {
 
-    private long sslPtr;    /* internal pointer to native WOLFSSL object */
+    /* Internal pointer to native WOLFSSL object. Access to this pointer
+     * should be protected in this class with synchronization on the
+     * this.sslLock lock. */
+    private long sslPtr;
 
     private Object ioReadCtx;
     private Object ioWriteCtx;
@@ -125,52 +128,48 @@ public class WolfSSLSession {
 
     /* ------------------- private/protected methods -------------------- */
 
-    long getSessionPtr() {
-        return sslPtr;
-    }
-
     /* used from JNI code */
     WolfSSLContext getAssociatedContextPtr() {
         return ctx;
     }
 
-    Object getGenCookieCtx() {
+    synchronized Object getGenCookieCtx() {
         return this.genCookieCtx;
     }
 
-    Object getMacEncryptCtx() {
+    synchronized Object getMacEncryptCtx() {
         return this.macEncryptCtx;
     }
 
-    Object getDecryptVerifyCtx() {
+    synchronized Object getDecryptVerifyCtx() {
         return this.decryptVerifyCtx;
     }
 
-    Object getEccSignCtx() {
+    synchronized Object getEccSignCtx() {
         return this.eccSignCtx;
     }
 
-    Object getEccVerifyCtx() {
+    synchronized Object getEccVerifyCtx() {
         return this.eccVerifyCtx;
     }
 
-    Object getEccSharedSecretCtx() {
+    synchronized Object getEccSharedSecretCtx() {
         return this.eccSharedSecretCtx;
     }
 
-    Object getRsaSignCtx() {
+    synchronized Object getRsaSignCtx() {
         return this.rsaSignCtx;
     }
 
-    Object getRsaVerifyCtx() {
+    synchronized Object getRsaVerifyCtx() {
         return this.rsaVerifyCtx;
     }
 
-    Object getRsaEncCtx() {
+    synchronized Object getRsaEncCtx() {
         return this.rsaEncCtx;
     }
 
-    Object getRsaDecCtx() {
+    synchronized Object getRsaDecCtx() {
         return this.rsaDecCtx;
     }
 
@@ -385,7 +384,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useCertificateFile(getSessionPtr(), file, format);
+            return useCertificateFile(this.sslPtr, file, format);
         }
     }
 
@@ -420,7 +419,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return usePrivateKeyFile(getSessionPtr(), file, format);
+            return usePrivateKeyFile(this.sslPtr, file, format);
         }
     }
 
@@ -450,7 +449,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useCertificateChainFile(getSessionPtr(), file);
+            return useCertificateChainFile(this.sslPtr, file);
         }
     }
 
@@ -470,7 +469,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setFd(getSessionPtr(), sd, 1);
+            return setFd(this.sslPtr, sd, 1);
         }
     }
 
@@ -490,7 +489,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setFd(getSessionPtr(), sd, 2);
+            return setFd(this.sslPtr, sd, 2);
         }
     }
 
@@ -516,7 +515,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            setUsingNonblock(getSessionPtr(), nonblock);
+            setUsingNonblock(this.sslPtr, nonblock);
         }
     }
 
@@ -541,7 +540,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getUsingNonblock(getSessionPtr());
+            return getUsingNonblock(this.sslPtr);
         }
     }
 
@@ -561,7 +560,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getFd(getSessionPtr());
+            return getFd(this.sslPtr);
         }
     }
 
@@ -610,7 +609,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = connect(getSessionPtr(), 0);
+            ret = connect(this.sslPtr, 0);
         }
 
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
@@ -672,7 +671,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = connect(getSessionPtr(), timeout);
+            ret = connect(this.sslPtr, timeout);
         }
 
         if (ret == WOLFJNI_TIMEOUT) {
@@ -722,15 +721,22 @@ public class WolfSSLSession {
         throws IllegalStateException, SocketException {
 
         int ret;
+        long localPtr;
 
         confirmObjectIsActive();
+
+        /* Fix for Infer scan, since not synchronizing on sslLock for
+         * access to this.sslPtr, see note below */
+        synchronized (sslLock) {
+            localPtr = this.sslPtr;
+        }
 
         /* not synchronizing on sslLock here since JNI write() locks
          * session mutex around native wolfSSL_write() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
-        ret = write(getSessionPtr(), data, 0, length, 0);
+        ret = write(localPtr, data, 0, length, 0);
 
         if (ret == WOLFJNI_SELECT_FAIL) {
             throw new SocketException("Socket select() failed, errno = " +
@@ -823,15 +829,22 @@ public class WolfSSLSession {
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
+        long localPtr;
 
         confirmObjectIsActive();
+
+        /* Fix for Infer scan, since not synchronizing on sslLock for
+         * access to this.sslPtr, see note below */
+        synchronized (sslLock) {
+            localPtr = this.sslPtr;
+        }
 
         /* not synchronizing on sslLock here since JNI write() locks
          * session mutex around native wolfSSL_write() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
-        ret = write(getSessionPtr(), data, offset, length, timeout);
+        ret = write(localPtr, data, offset, length, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket write timeout");
@@ -883,15 +896,22 @@ public class WolfSSLSession {
         throws IllegalStateException, SocketException {
 
         int ret;
+        long localPtr;
 
         confirmObjectIsActive();
+
+        /* Fix for Infer scan, since not synchronizing on sslLock for
+         * access to this.sslPtr, see note below */
+        synchronized (sslLock) {
+            localPtr = this.sslPtr;
+        }
 
         /* not synchronizing on sslLock here since JNI read() locks
          * session mutex around native wolfSSL_read() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(getSessionPtr(), data, 0, sz, 0);
+        ret = read(localPtr, data, 0, sz, 0);
 
         if (ret == WOLFJNI_SELECT_FAIL) {
             throw new SocketException("Socket select() failed, errno = " +
@@ -988,15 +1008,22 @@ public class WolfSSLSession {
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
         int ret;
+        long localPtr;
 
         confirmObjectIsActive();
+
+        /* Fix for Infer scan, since not synchronizing on sslLock for
+         * access to this.sslPtr, see note below */
+        synchronized (sslLock) {
+            localPtr = this.sslPtr;
+        }
 
         /* not synchronizing on sslLock here since JNI read() locks
          * session mutex around native wolfSSL_read() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(getSessionPtr(), data, offset, sz, timeout);
+        ret = read(localPtr, data, offset, sz, timeout);
 
         if (ret == WOLFJNI_TIMEOUT) {
             throw new SocketTimeoutException("Socket read timeout");
@@ -1045,7 +1072,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = accept(getSessionPtr(), 0);
+            ret = accept(this.sslPtr, 0);
         }
 
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
@@ -1099,7 +1126,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = accept(getSessionPtr(), timeout);
+            ret = accept(this.sslPtr, timeout);
         }
 
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
@@ -1133,7 +1160,7 @@ public class WolfSSLSession {
 
             synchronized (sslLock) {
                 /* free native resources */
-                freeSSL(getSessionPtr());
+                freeSSL(this.sslPtr);
 
                 /* free Java resources */
                 this.active = false;
@@ -1180,7 +1207,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = shutdownSSL(getSessionPtr(), 0);
+            ret = shutdownSSL(this.sslPtr, 0);
         }
 
         if (ret == WOLFJNI_SELECT_FAIL) {
@@ -1231,7 +1258,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = shutdownSSL(getSessionPtr(), timeout);
+            ret = shutdownSSL(this.sslPtr, timeout);
         }
 
         if (ret == WOLFJNI_TIMEOUT) {
@@ -1268,7 +1295,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getError(getSessionPtr(), ret);
+            return getError(this.sslPtr, ret);
         }
     }
 
@@ -1298,7 +1325,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setSession(getSessionPtr(), session);
+            return setSession(this.sslPtr, session);
         }
     }
 
@@ -1333,7 +1360,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return get1Session(getSessionPtr());
+            return get1Session(this.sslPtr);
         }
     }
 
@@ -1365,7 +1392,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            long sess = getSession(getSessionPtr());
+            long sess = getSession(this.sslPtr);
             if (sess != 0) {
                 /* returns new byte[] independent of sess ptr */
                  return getSessionID(sess);
@@ -1407,7 +1434,9 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        return setServerID(getSessionPtr(), id, id.length, newSess);
+        synchronized (sslLock) {
+            return setServerID(this.sslPtr, id, id.length, newSess);
+        }
     }
 
     /**
@@ -1450,7 +1479,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getSessTimeout(this.getSession(getSessionPtr()));
+            return getSessTimeout(this.getSession(this.sslPtr));
         }
     }
 
@@ -1468,7 +1497,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setTimeout(getSessionPtr(), t);
+            return setTimeout(this.sslPtr, t);
         }
     }
 
@@ -1485,7 +1514,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getTimeout(getSessionPtr());
+            return getTimeout(this.sslPtr);
         }
     }
 
@@ -1517,7 +1546,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setCipherList(getSessionPtr(), list);
+            return setCipherList(this.sslPtr, list);
         }
     }
 
@@ -1572,7 +1601,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return set1SigAlgsList(getSessionPtr(), list);
+            return set1SigAlgsList(this.sslPtr, list);
         }
     }
 
@@ -1607,7 +1636,7 @@ public class WolfSSLSession {
         for (String curve : curveNames) {
             curveEnum = WolfSSL.getNamedGroupFromString(curve);
             synchronized (sslLock) {
-                ret = useSupportedCurve(getSessionPtr(), curveEnum);
+                ret = useSupportedCurve(this.sslPtr, curveEnum);
             }
         }
 
@@ -1639,7 +1668,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return dtlsGetCurrentTimeout(getSessionPtr());
+            return dtlsGetCurrentTimeout(this.sslPtr);
         }
     }
 
@@ -1668,7 +1697,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return dtlsGotTimeout(getSessionPtr());
+            return dtlsGotTimeout(this.sslPtr);
         }
     }
 
@@ -1690,7 +1719,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return dtls(getSessionPtr());
+            return dtls(this.sslPtr);
         }
     }
 
@@ -1714,7 +1743,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return dtlsSetPeer(getSessionPtr(), peer);
+            return dtlsSetPeer(this.sslPtr, peer);
         }
     }
 
@@ -1734,7 +1763,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return dtlsGetPeer(getSessionPtr());
+            return dtlsGetPeer(this.sslPtr);
         }
     }
 
@@ -1758,7 +1787,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return sessionReused(getSessionPtr());
+            return sessionReused(this.sslPtr);
         }
     }
 
@@ -1781,7 +1810,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPeerCertificate(getSessionPtr());
+            return getPeerCertificate(this.sslPtr);
         }
     }
 
@@ -1804,7 +1833,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPeerX509Issuer(getSessionPtr(), x509);
+            return getPeerX509Issuer(this.sslPtr, x509);
         }
     }
 
@@ -1827,7 +1856,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPeerX509Subject(getSessionPtr(), x509);
+            return getPeerX509Subject(this.sslPtr, x509);
         }
     }
 
@@ -1854,7 +1883,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPeerX509AltName(getSessionPtr(), x509);
+            return getPeerX509AltName(this.sslPtr, x509);
         }
     }
 
@@ -1875,7 +1904,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getVersion(getSessionPtr());
+            return getVersion(this.sslPtr);
         }
     }
 
@@ -1897,7 +1926,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getCurrentCipher(getSessionPtr());
+            return getCurrentCipher(this.sslPtr);
         }
     }
 
@@ -1922,7 +1951,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return checkDomainName(getSessionPtr(), dn);
+            return checkDomainName(this.sslPtr, dn);
         }
     }
 
@@ -1948,7 +1977,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setTmpDH(getSessionPtr(), p, pSz, g, gSz);
+            return setTmpDH(this.sslPtr, p, pSz, g, gSz);
         }
     }
 
@@ -1977,7 +2006,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setTmpDHFile(getSessionPtr(), fname, format);
+            return setTmpDHFile(this.sslPtr, fname, format);
         }
     }
 
@@ -2014,7 +2043,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useCertificateBuffer(getSessionPtr(), in, sz, format);
+            return useCertificateBuffer(this.sslPtr, in, sz, format);
         }
     }
 
@@ -2054,7 +2083,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return usePrivateKeyBuffer(getSessionPtr(), in, sz, format);
+            return usePrivateKeyBuffer(this.sslPtr, in, sz, format);
         }
     }
 
@@ -2094,7 +2123,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useCertificateChainBuffer(getSessionPtr(), in, sz);
+            return useCertificateChainBuffer(this.sslPtr, in, sz);
         }
     }
 
@@ -2138,8 +2167,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useCertificateChainBufferFormat(
-                        getSessionPtr(), in, sz, format);
+            return useCertificateChainBufferFormat(this.sslPtr, in, sz, format);
         }
     }
 
@@ -2160,7 +2188,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setGroupMessages(getSessionPtr());
+            return setGroupMessages(this.sslPtr);
         }
     }
 
@@ -2183,7 +2211,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      * @see    WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      */
-    public void setIOReadCtx(Object ctx)
+    public synchronized void setIOReadCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2197,7 +2225,7 @@ public class WolfSSLSession {
      * @return Object that was set with setIOReadCtx().
      * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public Object getIOReadCtx()
+    public synchronized Object getIOReadCtx()
         throws IllegalStateException {
 
         confirmObjectIsActive();
@@ -2224,7 +2252,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      * @see    WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      */
-    public void setIOWriteCtx(Object ctx)
+    public synchronized void setIOWriteCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2238,7 +2266,7 @@ public class WolfSSLSession {
      * @return Object that was set with setIOWriteCtx().
      * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public Object getIOWriteCtx()
+    public synchronized Object getIOWriteCtx()
         throws IllegalStateException {
 
         confirmObjectIsActive();
@@ -2260,7 +2288,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setGenCookie(WolfSSLGenCookieCallback)
      */
-    public void setGenCookieCtx(Object ctx)
+    public synchronized void setGenCookieCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2298,7 +2326,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return enableCRL(getSessionPtr(), options);
+            return enableCRL(this.sslPtr, options);
         }
     }
 
@@ -2325,7 +2353,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return disableCRL(getSessionPtr());
+            return disableCRL(this.sslPtr);
         }
     }
 
@@ -2373,7 +2401,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return loadCRL(getSessionPtr(), path, type, monitor);
+            return loadCRL(this.sslPtr, path, type, monitor);
         }
     }
 
@@ -2399,7 +2427,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setCRLCb(getSessionPtr(), cb);
+            return setCRLCb(this.sslPtr, cb);
         }
     }
 
@@ -2419,7 +2447,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return cipherGetName(getSessionPtr());
+            return cipherGetName(this.sslPtr);
         }
     }
 
@@ -2443,7 +2471,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getMacSecret(getSessionPtr(), verify);
+            return getMacSecret(this.sslPtr, verify);
         }
     }
 
@@ -2463,7 +2491,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getClientWriteKey(getSessionPtr());
+            return getClientWriteKey(this.sslPtr);
         }
     }
 
@@ -2485,7 +2513,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getClientWriteIV(getSessionPtr());
+            return getClientWriteIV(this.sslPtr);
         }
     }
 
@@ -2505,7 +2533,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getServerWriteKey(getSessionPtr());
+            return getServerWriteKey(this.sslPtr);
         }
     }
 
@@ -2527,7 +2555,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getServerWriteIV(getSessionPtr());
+            return getServerWriteIV(this.sslPtr);
         }
     }
 
@@ -2545,7 +2573,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getKeySize(getSessionPtr());
+            return getKeySize(this.sslPtr);
         }
     }
 
@@ -2565,7 +2593,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getSide(getSessionPtr());
+            return getSide(this.sslPtr);
         }
     }
 
@@ -2584,7 +2612,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return isTLSv1_1(getSessionPtr());
+            return isTLSv1_1(this.sslPtr);
         }
     }
 
@@ -2610,7 +2638,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getBulkCipher(getSessionPtr());
+            return getBulkCipher(this.sslPtr);
         }
     }
 
@@ -2629,7 +2657,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getCipherBlockSize(getSessionPtr());
+            return getCipherBlockSize(this.sslPtr);
         }
     }
 
@@ -2649,7 +2677,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getAeadMacSize(getSessionPtr());
+            return getAeadMacSize(this.sslPtr);
         }
     }
 
@@ -2669,7 +2697,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getHmacSize(getSessionPtr());
+            return getHmacSize(this.sslPtr);
         }
     }
 
@@ -2696,7 +2724,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getHmacType(getSessionPtr());
+            return getHmacType(this.sslPtr);
         }
     }
 
@@ -2719,7 +2747,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getCipherType(getSessionPtr());
+            return getCipherType(this.sslPtr);
         }
     }
 
@@ -2748,7 +2776,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setTlsHmacInner(getSessionPtr(), inner, sz, content, verify);
+            return setTlsHmacInner(this.sslPtr, inner, sz, content, verify);
         }
     }
 
@@ -2762,7 +2790,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setMacEncryptCb(WolfSSLMacEncryptCallback)
      */
-    public void setMacEncryptCtx(Object ctx)
+    public synchronized void setMacEncryptCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2780,7 +2808,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
      */
-    public void setDecryptVerifyCtx(Object ctx)
+    public synchronized void setDecryptVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2797,14 +2825,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
      */
-    public void setEccSignCtx(Object ctx)
+    public synchronized void setEccSignCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         eccSignCtx = ctx;
         synchronized (sslLock) {
-            setEccSignCtx(getSessionPtr());
+            setEccSignCtx(this.sslPtr);
         }
     }
 
@@ -2817,14 +2845,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
      */
-    public void setEccVerifyCtx(Object ctx)
+    public synchronized void setEccVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         eccVerifyCtx = ctx;
         synchronized (sslLock) {
-            setEccVerifyCtx(getSessionPtr());
+            setEccVerifyCtx(this.sslPtr);
         }
     }
 
@@ -2838,14 +2866,14 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
      * @see    WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
      */
-    public void setEccSharedSecretCtx(Object ctx)
+    public synchronized void setEccSharedSecretCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         eccSharedSecretCtx = ctx;
         synchronized (sslLock) {
-            setEccSharedSecretCtx(getSessionPtr());
+            setEccSharedSecretCtx(this.sslPtr);
         }
     }
 
@@ -2858,14 +2886,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaSignCb(WolfSSLRsaSignCallback)
      */
-    public void setRsaSignCtx(Object ctx)
+    public synchronized void setRsaSignCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         rsaSignCtx = ctx;
         synchronized (sslLock) {
-            setRsaSignCtx(getSessionPtr());
+            setRsaSignCtx(this.sslPtr);
         }
     }
 
@@ -2879,14 +2907,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaVerifyCb(WolfSSLRsaVerifyCallback)
      */
-    public void setRsaVerifyCtx(Object ctx)
+    public synchronized void setRsaVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         rsaVerifyCtx = ctx;
         synchronized (sslLock) {
-            setRsaVerifyCtx(getSessionPtr());
+            setRsaVerifyCtx(this.sslPtr);
         }
     }
 
@@ -2900,14 +2928,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaEncCb(WolfSSLRsaEncCallback)
      */
-    public void setRsaEncCtx(Object ctx)
+    public synchronized void setRsaEncCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         rsaEncCtx = ctx;
         synchronized (sslLock) {
-            setRsaEncCtx(getSessionPtr());
+            setRsaEncCtx(this.sslPtr);
         }
     }
 
@@ -2921,14 +2949,14 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaDecCb(WolfSSLRsaDecCallback)
      */
-    public void setRsaDecCtx(Object ctx)
+    public synchronized void setRsaDecCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
 
         rsaDecCtx = ctx;
         synchronized (sslLock) {
-            setRsaDecCtx(getSessionPtr());
+            setRsaDecCtx(this.sslPtr);
         }
     }
 
@@ -2963,7 +2991,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentity()
      * @see    WolfSSLSession#getPskIdentityHint()
      */
-    public void setPskClientCb(WolfSSLPskClientCallback callback)
+    public synchronized void setPskClientCb(WolfSSLPskClientCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2973,7 +3001,7 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         synchronized (sslLock) {
-            setPskClientCb(getSessionPtr());
+            setPskClientCb(this.sslPtr);
         }
     }
 
@@ -3004,7 +3032,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentity()
      * @see    WolfSSLSession#getPskIdentityHint()
      */
-    public void setPskServerCb(WolfSSLPskServerCallback callback)
+    public synchronized void setPskServerCb(WolfSSLPskServerCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3014,7 +3042,7 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         synchronized (sslLock) {
-            setPskServerCb(getSessionPtr());
+            setPskServerCb(this.sslPtr);
         }
     }
 
@@ -3036,7 +3064,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPskIdentityHint(getSessionPtr());
+            return getPskIdentityHint(this.sslPtr);
         }
     }
 
@@ -3058,7 +3086,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getPskIdentity(getSessionPtr());
+            return getPskIdentity(this.sslPtr);
         }
     }
 
@@ -3082,7 +3110,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return usePskIdentityHint(getSessionPtr(), hint);
+            return usePskIdentityHint(this.sslPtr, hint);
         }
     }
 
@@ -3097,7 +3125,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return handshakeDone(getSessionPtr());
+            return handshakeDone(this.sslPtr);
         }
     }
 
@@ -3111,7 +3139,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            setConnectState(getSessionPtr());
+            setConnectState(this.sslPtr);
         }
     }
 
@@ -3125,7 +3153,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            setAcceptState(getSessionPtr());
+            setAcceptState(this.sslPtr);
         }
     }
 
@@ -3169,7 +3197,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            setVerify(getSessionPtr(), mode, callback);
+            setVerify(this.sslPtr, mode, callback);
         }
     }
 
@@ -3188,7 +3216,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return setOptions(getSessionPtr(), op);
+            return setOptions(this.sslPtr, op);
         }
     }
 
@@ -3207,7 +3235,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getOptions(getSessionPtr());
+            return getOptions(this.sslPtr);
         }
     }
 
@@ -3222,7 +3250,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            int ret = gotCloseNotify(getSessionPtr());
+            int ret = gotCloseNotify(this.sslPtr);
             if (ret == 1) {
                 return true;
             } else {
@@ -3251,7 +3279,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setIOSend(WolfSSLIOSendCallback)
      */
-    public void setIORecv(WolfSSLIORecvCallback callback)
+    public synchronized void setIORecv(WolfSSLIORecvCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3261,7 +3289,7 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         synchronized (sslLock) {
-            setSSLIORecv(getSessionPtr());
+            setSSLIORecv(this.sslPtr);
         }
     }
 
@@ -3285,7 +3313,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setIORecv(WolfSSLIORecvCallback)
      */
-    public void setIOSend(WolfSSLIOSendCallback callback)
+    public synchronized void setIOSend(WolfSSLIOSendCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3295,7 +3323,7 @@ public class WolfSSLSession {
 
         /* register internal callback with native library */
         synchronized (sslLock) {
-            setSSLIOSend(getSessionPtr());
+            setSSLIOSend(this.sslPtr);
         }
     }
 
@@ -3311,14 +3339,15 @@ public class WolfSSLSession {
      * @throws IllegalStateException if called when WolfSSLSession is not
      *         active
      */
-    public int useSNI(byte type, byte[] data) throws IllegalStateException {
+    public synchronized int useSNI(byte type, byte[] data)
+        throws IllegalStateException {
 
         int ret;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = useSNI(getSessionPtr(), type, data);
+            ret = useSNI(this.sslPtr, type, data);
 
             if (ret == WolfSSL.SSL_SUCCESS) {
                 /* Save SNI requested by client for use later if needed */
@@ -3337,7 +3366,8 @@ public class WolfSSLSession {
      * @throws IllegalStateException if called when WolfSSLSession is not
      *         active
      */
-    public byte[] getClientSNIRequest() throws IllegalStateException {
+    public synchronized byte[] getClientSNIRequest()
+        throws IllegalStateException {
 
         confirmObjectIsActive();
 
@@ -3367,7 +3397,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             /* Returns a byte array representing SNI host name */
-            reqBytes = getSNIRequest(getSessionPtr(), type);
+            reqBytes = getSNIRequest(this.sslPtr, type);
         }
 
         if (reqBytes != null) {
@@ -3383,14 +3413,15 @@ public class WolfSSLSession {
      * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
      * @throws IllegalStateException WolfSSLSession has been freed
      */
-    public int useSessionTicket() throws IllegalStateException {
+    public synchronized int useSessionTicket()
+        throws IllegalStateException {
 
         int ret;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = useSessionTicket(getSessionPtr());
+            ret = useSessionTicket(this.sslPtr);
 
             if (ret == WolfSSL.SSL_SUCCESS) {
                 this.sessionTicketsEnabled = true;
@@ -3408,7 +3439,8 @@ public class WolfSSLSession {
      * @return true if enabled, otherwise false.
      * @throws IllegalStateException WolfSSLSession has been freed
      */
-    public boolean sessionTicketsEnabled() throws IllegalStateException {
+    public synchronized boolean sessionTicketsEnabled()
+        throws IllegalStateException {
 
         confirmObjectIsActive();
 
@@ -3433,7 +3465,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return sslSetAlpnProtos(getSessionPtr(), alpnProtos);
+            return sslSetAlpnProtos(this.sslPtr, alpnProtos);
         }
     }
 
@@ -3473,7 +3505,7 @@ public class WolfSSLSession {
         }
 
         synchronized (sslLock) {
-            return useALPN(getSessionPtr(), allProtocols.toString(), options);
+            return useALPN(this.sslPtr, allProtocols.toString(), options);
         }
     }
 
@@ -3488,7 +3520,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return sslGet0AlpnSelected(getSessionPtr());
+            return sslGet0AlpnSelected(this.sslPtr);
         }
     }
 
@@ -3542,7 +3574,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = setALPNSelectCb(getSessionPtr());
+            ret = setALPNSelectCb(this.sslPtr);
             if (ret == WolfSSL.SSL_SUCCESS) {
                 /* set ALPN select callback */
                 internAlpnSelectCb = cb;
@@ -3582,7 +3614,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            ret = setTls13SecretCb(getSessionPtr());
+            ret = setTls13SecretCb(this.sslPtr);
             if (ret == WolfSSL.SSL_SUCCESS) {
                 /* Set TLS 1.3 secret callback */
                 internTls13SecretCb = cb;
@@ -3610,7 +3642,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            keepArrays(getSessionPtr());
+            keepArrays(this.sslPtr);
         }
     }
 
@@ -3628,7 +3660,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getClientRandom(getSessionPtr());
+            return getClientRandom(this.sslPtr);
         }
     }
 
@@ -3648,7 +3680,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return useSecureRenegotiation(getSessionPtr());
+            return useSecureRenegotiation(this.sslPtr);
         }
     }
 
@@ -3698,7 +3730,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return rehandshake(getSessionPtr());
+            return rehandshake(this.sslPtr);
         }
     }
 
@@ -3711,7 +3743,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getShutdown(getSessionPtr());
+            return getShutdown(this.sslPtr);
         }
     }
 
@@ -3721,8 +3753,6 @@ public class WolfSSLSession {
     {
         /* free resources, freeSSL() checks and sets state */
         this.freeSSL();
-        this.sslPtr = 0;
-
         super.finalize();
     }
 

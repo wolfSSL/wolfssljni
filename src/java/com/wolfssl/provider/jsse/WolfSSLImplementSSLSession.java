@@ -315,7 +315,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     /**
      * Invalidate this session
      */
-    public void invalidate() {
+    public synchronized void invalidate() {
         this.valid = false;
     }
 
@@ -324,7 +324,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      *
      * @return boolean if this session is valid
      */
-    public boolean isValid() {
+    public synchronized boolean isValid() {
         return this.valid;
     }
 
@@ -333,7 +333,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * session is then valid and can be joined or resumed
      * @param in true/false valid boolean
      */
-    protected void setValid(boolean in) {
+    protected synchronized void setValid(boolean in) {
         this.valid = in;
     }
 
@@ -836,7 +836,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      *         if no SNI names were requested.
      */
     @Override
-    public List<SNIServerName> getRequestedServerNames()
+    public synchronized List<SNIServerName> getRequestedServerNames()
         throws UnsupportedOperationException {
 
         byte[] sniRequestArr = null;
@@ -863,7 +863,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
     @SuppressWarnings("deprecation")
     @Override
-    protected void finalize() throws Throwable
+    protected synchronized void finalize() throws Throwable
     {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered finalize(): this.sesPtr = " + this.sesPtr);
