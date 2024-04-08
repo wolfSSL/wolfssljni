@@ -80,6 +80,8 @@ printf "Generated ca-keyPkcs8.der\n"
 
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-cert.pem
+sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-ecc-cert.pem
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-cert.pem
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int2-ecc-cert.pem
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-cert.pem
