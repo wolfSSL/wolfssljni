@@ -96,7 +96,7 @@ public class WolfSSLSocket extends SSLSocket {
      * accessing WolfSSLSession object / WOLFSSL struct */
     private final Object ioLock = new Object();
 
-    /* ALPN selector callback, if set */
+    /** ALPN selector callback, if set */
     protected BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
 
     /**

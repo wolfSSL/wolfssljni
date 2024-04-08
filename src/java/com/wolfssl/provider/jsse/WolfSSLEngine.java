@@ -106,7 +106,7 @@ public class WolfSSLEngine extends SSLEngine {
     private final Object ioLock = new Object();
     private final Object toSendLock = new Object();
 
-    /* ALPN selector callback, if set */
+    /** ALPN selector callback, if set */
     protected BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
 
     /** Turn on extra/verbose SSLEngine debug logging */

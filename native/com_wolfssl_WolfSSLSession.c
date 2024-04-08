@@ -4146,6 +4146,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
 
     if (buff != NULL && buffSz > 0) {
         ret = wolfSSL_set_alpn_protos(ssl, buff, buffSz);
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+        if (ret == 0) {
+            /* wolfSSL_set_alpn_protos() returns 0 on success if
+             * WOLFSSL_ERROR_CODE_OPENSSL is defined, to match behavior of
+             * OpenSSL for compatibility layer. We translate back to
+             * a consistent SSL_SUCCESS here */
+            ret = SSL_SUCCESS;
+        }
+        else {
+            ret = SSL_FAILURE;
+        }
+#endif
     }
 
     (*jenv)->ReleaseByteArrayElements(jenv, alpnProtos,
@@ -4279,7 +4291,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     jmethodID alpnSelectMethodId;   /* internalAlpnSelectCallback ID */
 
     int ret = 0;
-    int idx = 0;
+    unsigned int idx = 0;
     int peerProtoCount = 0;
     char* peerProtos = NULL;
     char* peerProtosCopy = NULL;
@@ -4533,7 +4545,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         /* get char* from jstring */
         selectedProtoCharArr = (*jenv)->GetStringUTFChars(jenv,
             selectedProto, 0);
-        selectedProtoCharArrSz = XSTRLEN(selectedProtoCharArr);
+        selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
 
         /* see if selected ALPN protocol is in original sent list */
         if (selectedProtoCharArr != NULL) {
