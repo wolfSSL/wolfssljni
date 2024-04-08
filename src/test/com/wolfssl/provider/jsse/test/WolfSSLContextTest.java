@@ -499,6 +499,11 @@ public class WolfSSLContextTest {
         /* Save original property value to reset after test */
         String originalProperty =
             Security.getProperty("jdk.tls.disabledAlgorithms");
+        if (originalProperty == null) {
+            /* Default back to empty string, otherwise we may get a NullPointerException when
+             * trying to restore this back to the original value later */
+            originalProperty = "";
+        }
 
         /* Test with no protocols disabled */
         Security.setProperty("jdk.tls.disabledAlgorithms", "");

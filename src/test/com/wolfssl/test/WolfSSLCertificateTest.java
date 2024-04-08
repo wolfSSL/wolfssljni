@@ -90,9 +90,12 @@ public class WolfSSLCertificateTest {
 
         cliCertDer = WolfSSLTestCommon.getPath(cliCertDer);
         cliCertPem = WolfSSLTestCommon.getPath(cliCertPem);
+        cliKeyDer = WolfSSLTestCommon.getPath(cliKeyDer);
         cliKeyPubDer = WolfSSLTestCommon.getPath(cliKeyPubDer);
         caCertPem = WolfSSLTestCommon.getPath(caCertPem);
         caKeyDer = WolfSSLTestCommon.getPath(caKeyDer);
+        caKeyPkcs8Der = WolfSSLTestCommon.getPath(caKeyPkcs8Der);
+        serverCertPem = WolfSSLTestCommon.getPath(serverCertPem);
         external   = WolfSSLTestCommon.getPath(external);
     }
 
