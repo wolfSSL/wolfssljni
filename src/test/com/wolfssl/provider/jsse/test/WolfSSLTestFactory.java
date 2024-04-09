@@ -858,6 +858,9 @@ class WolfSSLTestFactory {
 
         /* make sure protocol has not been disabled at system level */
         secProp = Security.getProperty(prop);
+        if (secProp == null) {
+            return false;
+        }
         /* Remove spaces after commas, split into List */
         secProp = secProp.replaceAll(", ",",");
         propList = Arrays.asList(secProp.split(","));

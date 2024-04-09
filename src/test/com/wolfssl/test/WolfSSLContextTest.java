@@ -65,7 +65,9 @@ public class WolfSSLContextTest {
 
         cliCert = WolfSSLTestCommon.getPath(cliCert);
         cliKey = WolfSSLTestCommon.getPath(cliKey);
+        svrCertEcc = WolfSSLTestCommon.getPath(svrCertEcc);
         caCert = WolfSSLTestCommon.getPath(caCert);
+        dhParams = WolfSSLTestCommon.getPath(dhParams);
 
         test_WolfSSLContext_new(WolfSSL.SSLv23_ServerMethod());
         test_WolfSSLContext_useCertificateFile();

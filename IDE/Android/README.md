@@ -123,9 +123,12 @@ located in the wolfssljni/IDE directory.
 This will ask for permissions to access the certificates in the /sdcard/
 directory and then print out the server certificate information on success.
 
-3) OPTIONAL: The androidTests can be run after permissions has been given.
+3) OPTIONAL: The androidTests can be run after permissions have been given.
 app->java->com.wolfssl->provider.jsse.test->WolfSSLJSSETestSuite and
-app->java->com.wolfssl->test->WolfSSLTestSuite
+app->java->com.wolfssl->test->WolfSSLTestSuite. In order to get the correct
+permissions, you may need to install and run the app first, before running
+the tests. Otherwise you will see EACCESS errors when trying to open
+example certificate and .bks files.
 
 ## Support
 

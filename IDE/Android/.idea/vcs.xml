@@ -3,6 +3,5 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/../.." vcs="Git" />
     <mapping directory="$PROJECT_DIR$/app/src/main/cpp/wolfssl" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/wolfssl" vcs="Git" />
   </component>
 </project>

@@ -176,9 +176,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("client")) {
+            if (!alias.equals("client") && !alias.equals("ca")) {
                 error("\t... failed");
-                fail("expected 'client' alias for RSA type from allJKS");
+                fail("expected 'client' alias for RSA type from allJKS, got: " + alias);
             }
         }
 
@@ -189,9 +189,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("server-ecc")) {
+            if (!alias.equals("server-ecc") && !alias.equals("ca-ecc")) {
                 error("\t... failed");
-                fail("expected 'server-ecc' alias for EC type from allJKS");
+                fail("expected 'server-ecc' alias for EC type from allJKS, got: " + alias);
             }
         }
 
@@ -238,9 +238,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("client")) {
+            if (!alias.equals("client") && !alias.equals("ca")) {
                 error("\t... failed");
-                fail("expected 'client' alias for RSA type from allJKS");
+                fail("expected 'client' alias for RSA type from allJKS, got: " + alias);
             }
         }
 
@@ -251,9 +251,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("server-ecc")) {
+            if (!alias.equals("server-ecc") && !alias.equals("ca-ecc")) {
                 error("\t... failed");
-                fail("expected 'server-ecc' alias for EC type from allJKS");
+                fail("expected 'server-ecc' alias for EC type from allJKS, got: " + alias);
             }
         }
 
@@ -350,9 +350,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("client")) {
+            if (!alias.equals("client") && !alias.equals("ca")) {
                 error("\t... failed");
-                fail("expected 'client' alias for RSA type from allJKS");
+                fail("expected 'client' alias for RSA type from allJKS, got: " + alias);
             }
         }
 
@@ -363,9 +363,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("server-ecc")) {
+            if (!alias.equals("server-ecc") && !alias.equals("ca-ecc")) {
                 error("\t... failed");
-                fail("expected 'server-ecc' alias for EC type from allJKS");
+                fail("expected 'server-ecc' alias for EC type from allJKS, got: " + alias);
             }
         }
 
@@ -412,9 +412,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("client")) {
+            if (!alias.equals("client") && !alias.equals("ca")) {
                 error("\t... failed");
-                fail("expected 'client' alias for RSA type from allJKS");
+                fail("expected 'client' alias for RSA type from allJKS, got: " + alias);
             }
         }
 
@@ -425,9 +425,9 @@ public class WolfSSLKeyX509Test {
             /* Note: this is very dependent on the contents and ordering of
              * all.jks. If that file is re-generated or changed, this test may
              * need to be updated */
-            if (!alias.equals("server-ecc")) {
+            if (!alias.equals("server-ecc") && !alias.equals("ca-ecc")) {
                 error("\t... failed");
-                fail("expected 'server-ecc' alias for EC type from allJKS");
+                fail("expected 'server-ecc' alias for EC type from allJKS, got: " + alias);
             }
         }
 
