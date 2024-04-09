@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.wolfssl</groupId>
 	<artifactId>wolfssl-jsse</artifactId>
-	<version>1.12.0-SNAPSHOT</version>
+	<version>1.13.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>wolfssl-jsse</name>
     <url>https://www.wolfssl.com</url>
