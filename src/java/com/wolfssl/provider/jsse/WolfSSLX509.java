@@ -103,15 +103,19 @@ public class WolfSSLX509 extends X509Certificate {
      * Create new WolfSSLX509 object
      *
      * @param x509 initialized pointer to native WOLFSSL_X509 struct
+     * @param doFree should this WOLFSSL_X509 structure be freed when free()
+     *        is called? true to free memory, false to skip free. Free
+     *        should be skipped if caller is controlling memory for this
+     *        WOLFSSL_X509 struct pointer.
      *
      * @throws WolfSSLException if certificate parsing fails
      */
-    public WolfSSLX509(long x509) throws WolfSSLException {
+    public WolfSSLX509(long x509, boolean doFree) throws WolfSSLException {
         super();
-        this.cert = new WolfSSLCertificate(x509);
+        this.cert = new WolfSSLCertificate(x509, doFree);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLX509(long x509)");
+            "created new WolfSSLX509(long x509, boolean doFree)");
     }
 
     @Override
