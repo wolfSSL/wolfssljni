@@ -277,19 +277,29 @@ public class WolfSSLCertificate {
      * Create WolfSSLCertificate from pre existing native pointer.
      *
      * @param x509 pre existing native pointer to WOLFSSL_X509 structure.
+     * @param doFree should this WOLFSSL_X509 structure be freed when free()
+     *        is called? true to free memory, false to skip free. Free
+     *        should be skipped if caller is controlling memory for this
+     *        WOLFSSL_X509 struct pointer.
      *
      * @throws WolfSSLException if input pointer is invalid
      */
-    public WolfSSLCertificate(long x509) throws WolfSSLException {
+    public WolfSSLCertificate(long x509, boolean doFree)
+        throws WolfSSLException {
 
         if (x509 == 0) {
             throw new WolfSSLException("Input pointer may not be 0/NULL");
         }
         x509Ptr = x509;
 
-        /* x509Ptr has NOT been allocated natively, do not mark as owned.
-         * Original owner is responsible for freeing. */
-        this.weOwnX509Ptr = false;
+        if (!doFree) {
+            /* x509Ptr has NOT been allocated natively, do not mark as owned.
+             * Original owner is responsible for freeing. */
+            this.weOwnX509Ptr = false;
+        }
+        else {
+            this.weOwnX509Ptr = true;
+        }
 
         synchronized (stateLock) {
             this.active = true;
@@ -1496,6 +1506,30 @@ public class WolfSSLCertificate {
         }
 
         return cert;
+    }
+
+    /**
+     * Free native WOLFSSL_X509 structure pointer.
+     * This method should be called with caution, so that double free
+     * issues do not happen. Calling code should take extra caution to ensure
+     * control is maintained around this native pointer and synchronization
+     * is used correctly to ensure multiple threads will not free the same
+     * pointer simultaneously.
+     *
+     * This method is needed when WolfSSLSession.getPeerCertificate()
+     * is called with wolfSSL versions later than or equal to 5.3.0.
+     * See wolfSSL PR 4807.
+     *
+     * @param x509 pointer to initialized WOLFSSL_X509 structure to be freed
+     *        by calling wolfSSL_X509_free() at the JNI level.
+     */
+    public static void freeX509(long x509) {
+
+        /* No object active check or synchronization needed, since this
+         * method is working on a standalone pointer, not related to this
+         * object. Method placed here since it relates to common
+         * WOLFSSL_X509 / WolfSSLCertificate functionality */
+        X509_free(x509);
     }
 
     @Override

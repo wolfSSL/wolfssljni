@@ -480,7 +480,17 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         try {
-            cert = new WolfSSLX509(x509);
+            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
+             * structure from wolfSSL_get_peer_certificate(). In that case,
+             * we need to free the pointer when finished. Prior to 5.3.0,
+             * this memory was freed internally by wolfSSL since the API
+             * only returned a pointer to internal memory */
+            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
+                cert = new WolfSSLX509(x509, true);
+            }
+            else {
+                cert = new WolfSSLX509(x509, false);
+            }
         } catch (WolfSSLException ex) {
             throw new SSLPeerUnverifiedException("Error creating certificate");
         }
@@ -529,6 +539,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     @Override
     public synchronized javax.security.cert.X509Certificate[] getPeerCertificateChain()
         throws SSLPeerUnverifiedException {
+
+        long peerX509 = 0;
         WolfSSLX509X x509;
 
         if (ssl == null) {
@@ -536,7 +548,23 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         try {
-            x509 = new WolfSSLX509X(this.ssl.getPeerCertificate());
+            peerX509 = this.ssl.getPeerCertificate();
+            if (peerX509 == 0) {
+                return null;
+            }
+
+            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
+             * structure from wolfSSL_get_peer_certificate(). In that case,
+             * we need to free the pointer when finished. Prior to 5.3.0,
+             * this memory was freed internally by wolfSSL since the API
+             * only returned a pointer to internal memory */
+            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
+                x509 = new WolfSSLX509X(peerX509, true);
+            }
+            else {
+                x509 = new WolfSSLX509X(peerX509, false);
+            }
+
             return new javax.security.cert.X509Certificate[] {
                 (javax.security.cert.X509Certificate)x509 };
 
@@ -552,15 +580,37 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     @Override
     public synchronized Principal getPeerPrincipal()
         throws SSLPeerUnverifiedException {
+
+        long peerX509 = 0;
+        Principal peerPrincipal = null;
+        WolfSSLX509 x509 = null;
+
         if (ssl == null) {
             throw new SSLPeerUnverifiedException("handshake not done");
         }
 
         try {
-            Principal peerPrincipal = null;
-            WolfSSLX509 x509 = new WolfSSLX509(this.ssl.getPeerCertificate());
-            peerPrincipal = x509.getSubjectDN();
-            x509.free();
+            peerX509 = this.ssl.getPeerCertificate();
+            if (peerX509 == 0) {
+                return null;
+            }
+
+            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
+             * structure from wolfSSL_get_peer_certificate(). In that case,
+             * we need to free the pointer when finished. Prior to 5.3.0,
+             * this memory was freed internally by wolfSSL since the API
+             * only returned a pointer to internal memory */
+            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
+                x509 = new WolfSSLX509(peerX509, true);
+            }
+            else {
+                x509 = new WolfSSLX509(peerX509, false);
+            }
+
+            if (x509 != null) {
+                peerPrincipal = x509.getSubjectDN();
+                x509.free();
+            }
 
             return peerPrincipal;
 

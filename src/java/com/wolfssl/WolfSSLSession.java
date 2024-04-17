@@ -1796,6 +1796,17 @@ public class WolfSSLSession {
      * This can be used to retrieve further information about the peer's
      * certificate (issuer, subject, alt name, etc.)
      *
+     * wolfSSL versions 5.3.0 or later return a newly-allocated
+     * WOLFSSL_X509 structure poiner from the native
+     * wolfSSL_get_peer_certificate() API called by this wrapper. If using
+     * wolfSSL greater than or equal to 5.3.0, the pointer (long) returned
+     * from this method must be freed by the caller. Versions of wolfSSL
+     * less than 5.3.0 should not free the pointer returned since it points
+     * to internal memory that is freed by native wolfSSL.
+     *
+     * Pointer should be freed by calling:
+     *     WolfSSLCertificate.freeX509(long x509);
+     *
      * @return (long) WOLFSSL_X509 pointer to the peer's certificate.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error

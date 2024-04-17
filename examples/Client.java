@@ -29,6 +29,7 @@ import java.nio.charset.CharacterCodingException;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLIOSendCallback;
@@ -722,11 +723,11 @@ public class Client {
 
     void showPeer(WolfSSLSession ssl) {
 
+        long peerCrtPtr = 0;
         String altname;
 
         try {
-
-            long peerCrtPtr = ssl.getPeerCertificate();
+            peerCrtPtr = ssl.getPeerCertificate();
 
             if (peerCrtPtr != 0) {
                 System.out.println("issuer : " +
@@ -743,6 +744,13 @@ public class Client {
 
         } catch (WolfSSLJNIException e) {
             e.printStackTrace();
+
+        } finally {
+            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
+                if (peerCrtPtr != 0) {
+                    WolfSSLCertificate.freeX509(peerCrtPtr);
+                }
+            }
         }
     }
 
