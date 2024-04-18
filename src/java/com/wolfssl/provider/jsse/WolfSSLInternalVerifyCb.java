@@ -359,15 +359,5 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         /* Continue handshake, verification succeeded */
         return 1;
     }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    protected void finalize() throws Throwable {
-        this.callingSocket = null;
-        this.callingEngine = null;
-        this.tm = null;
-        this.params = null;
-        super.finalize();
-    }
 }
 
