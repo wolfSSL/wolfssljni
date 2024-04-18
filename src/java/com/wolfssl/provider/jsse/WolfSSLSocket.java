@@ -1909,6 +1909,10 @@ public class WolfSSLSocket extends SSLSocket {
                             this.ssl.freeSSL();
                             this.ssl = null;
 
+                            /* Reset internal WolfSSLEngineHelper to null */
+                            this.EngineHelper.clearObjectState();
+                            this.EngineHelper = null;
+
                             /* Release Input/OutputStream objects */
                             if (this.inStream != null) {
                                 this.inStream.close();
@@ -2080,6 +2084,8 @@ public class WolfSSLSocket extends SSLSocket {
             }
             this.ssl.freeSSL();
             this.ssl = null;
+            this.EngineHelper = null;
+            this.params = null;
         }
         super.finalize();
     }
