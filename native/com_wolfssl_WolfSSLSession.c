@@ -4221,33 +4221,47 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
-  (JNIEnv* jenv, jobject jcl, jlong ssl, jstring protocols, jint options)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jstring protocols, jint options)
 {
     int ret = SSL_FAILURE;
 #ifdef HAVE_ALPN
-    const char* protoList;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    char* protoList = NULL;
+    jsize protocolsLen = 0;
     (void)jcl;
 
     if (jenv == NULL || ssl == 0 || protocols == NULL || options < 0) {
         return BAD_FUNC_ARG;
     }
 
-    protoList = (*jenv)->GetStringUTFChars(jenv, protocols, 0);
+    protocolsLen = (*jenv)->GetStringUTFLength(jenv, protocols);
+    if (protocolsLen == 0) {
+        return BAD_FUNC_ARG;
+    }
 
-    ret = (jint) wolfSSL_UseALPN((WOLFSSL*)(uintptr_t)ssl, (char*)protoList,
-            (unsigned int)XSTRLEN(protoList), (int)options);
+    /* Allocate size + 1 to guarantee we are null terminated */
+    protoList = (char*)XMALLOC(protocolsLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (protoList == NULL) {
+        return MEMORY_E;
+    }
 
-    (*jenv)->ReleaseStringUTFChars(jenv, protocols, protoList);
+    /* GetStringUTFRegion() does not need to be freed/released */
+    (*jenv)->GetStringUTFRegion(jenv, protocols, 0, protocolsLen, protoList);
+    protoList[protocolsLen] = '\0';
+
+    ret = wolfSSL_UseALPN(ssl, protoList, protocolsLen, (int)options);
+
+    XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     (void)jenv;
     (void)jcl;
-    (void)ssl;
+    (void)sslPtr;
     (void)protocols;
     (void)options;
     ret = NOT_COMPILED_IN;
 #endif
 
-    return ret;
+    return (jint)ret;
 }
 
 JNIEXPORT int JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
