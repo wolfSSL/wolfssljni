@@ -204,6 +204,11 @@ public class WolfSSLEngineHelper {
             return null;
         }
 
+        /* If javaVersion is null, set to empty string */
+        if (javaVersion == null) {
+            javaVersion = "";
+        }
+
         /* We only load keys from algorithms enabled in native wolfSSL,
          * and in the priority order of ECC first, then RSA. JDK 1.7.0_201
          * and 1.7.0_171 have a bug that causes PrivateKey.getEncoded() to
