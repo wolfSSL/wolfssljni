@@ -1165,6 +1165,8 @@ public class WolfSSLSession {
                 /* free Java resources */
                 this.active = false;
                 this.sslPtr = 0;
+                this.clientSNIRequested = null;
+                this.ctx = null;
             }
         }
     }

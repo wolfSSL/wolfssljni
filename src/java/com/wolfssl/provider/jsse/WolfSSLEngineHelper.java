@@ -1395,6 +1395,13 @@ public class WolfSSLEngineHelper {
         return WolfSSL.SSL_FAILURE;
     }
 
+    protected synchronized void clearObjectState() {
+        this.ssl = null;
+        this.session = null;
+        this.params = null;
+        this.authStore = null;
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     protected synchronized void finalize() throws Throwable {
