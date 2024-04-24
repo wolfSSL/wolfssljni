@@ -27,11 +27,18 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.net.Socket;
+import java.net.ServerSocket;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.net.ConnectException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
@@ -49,6 +56,8 @@ public class WolfSSLSessionTest {
 
     private static String cliCert = "./examples/certs/client-cert.pem";
     private static String cliKey  = "./examples/certs/client-key.pem";
+    private static String srvCert = "./examples/certs/server-cert.pem";
+    private static String srvKey  = "./examples/certs/server-key.pem";
     private static String caCert  = "./examples/certs/ca-cert.pem";
     private static String bogusFile = "/dev/null";
 
@@ -74,8 +83,10 @@ public class WolfSSLSessionTest {
 
         /* Set cert/key paths */
         cliCert = WolfSSLTestCommon.getPath(cliCert);
-        cliKey = WolfSSLTestCommon.getPath(cliKey);
-        caCert = WolfSSLTestCommon.getPath(caCert);
+        cliKey  = WolfSSLTestCommon.getPath(cliKey);
+        srvCert = WolfSSLTestCommon.getPath(srvCert);
+        srvKey  = WolfSSLTestCommon.getPath(srvKey);
+        caCert  = WolfSSLTestCommon.getPath(caCert);
     }
 
     @Test
@@ -914,6 +925,273 @@ public class WolfSSLSessionTest {
             if (sslCtx != null) {
                 sslCtx.free();
             }
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void test_WolfSSLSession_getSetSession()
+        throws WolfSSLJNIException, WolfSSLException,
+               IOException {
+
+        int ret = 0;
+        int err = 0;
+        long sessionPtr = 0;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+
+        System.out.print("\tTesting get/setSession()");
+
+        /* Create ServerSocket first to get ephemeral port */
+        final ServerSocket srvSocket = new ServerSocket(0);
+
+        /* Create client/server WolfSSLContext objects, Server context
+         * must be final since used inside inner class. */
+        final WolfSSLContext srvCtx =
+            new WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
+        WolfSSLContext cliCtx =
+            new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+
+        /* Load certificate/key files */
+        ret = srvCtx.useCertificateChainFile(srvCert);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load server certificate!");
+        }
+
+        ret = srvCtx.usePrivateKeyFile(srvKey,
+                WolfSSL.SSL_FILETYPE_PEM);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load server private key!");
+        }
+
+        ret = cliCtx.useCertificateFile(cliCert,
+                WolfSSL.SSL_FILETYPE_PEM);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load client certificate!");
+        }
+
+        ret = cliCtx.usePrivateKeyFile(cliKey,
+                WolfSSL.SSL_FILETYPE_PEM);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load client private key!");
+        }
+
+        /* Load CA certs */
+        ret = srvCtx.loadVerifyLocations(cliCert, null);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load CA certificates!");
+        }
+
+        ret = cliCtx.loadVerifyLocations(caCert, null);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            srvCtx.free();
+            cliCtx.free();
+            System.out.println("\t... failed");
+            fail("Failed to load CA certificates!");
+        }
+
+        /* Start server, handles 1 resumption */
+        try {
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Loop twice to allow handle one resumption */
+                        for (int i = 0; i < 2; i++) {
+                            server = srvSocket.accept();
+                            srvSes = new WolfSSLSession(srvCtx);
+
+                            ret = srvSes.setFd(server);
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.setFd() failed: " + ret);
+                            }
+
+                            do {
+                                ret = srvSes.accept();
+                                err = srvSes.getError(ret);
+                            } while (ret != WolfSSL.SSL_SUCCESS &&
+                                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.accept() failed: " + ret);
+                            }
+
+                            srvSes.shutdownSSL();
+                            srvSes.freeSSL();
+                            srvSes = null;
+                        }
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                    }
+
+                    return null;
+                }
+            });
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            /* -------------------------------------------------------------- */
+            /* Client connection #1 */
+            /* -------------------------------------------------------------- */
+            cliSock = new Socket(InetAddress.getLocalHost(),
+                srvSocket.getLocalPort());
+
+            cliSes = new WolfSSLSession(cliCtx);
+
+            ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setFd() failed, ret = " + ret);
+            }
+
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.connect() failed: " + err);
+            }
+
+            /* Get WOLFSSL_SESSION pointer */
+            sessionPtr = cliSes.getSession();
+            if (sessionPtr == 0) {
+                throw new Exception(
+                    "WolfSSLSession.getSession() failed, ptr == 0");
+            }
+
+            /* wolfSSL_SessionIsSetup() may not be available, don't treat
+             * NOT_COMPILED_IN as an error */
+            ret = cliSes.sessionIsSetup(sessionPtr);
+            if ((ret != 1) && (ret != WolfSSL.NOT_COMPILED_IN)) {
+                throw new Exception(
+                    "WolfSSLSession.sessionIsSetup() did not return 1: " + ret);
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSes = null;
+            cliSock.close();
+            cliSock = null;
+
+            /* -------------------------------------------------------------- */
+            /* Client connection #2, set session and try resumption */
+            /* -------------------------------------------------------------- */
+            cliSock = new Socket(InetAddress.getLocalHost(),
+                srvSocket.getLocalPort());
+            cliSes = new WolfSSLSession(cliCtx);
+
+            ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setFd() failed, ret = " + ret);
+            }
+
+            /* Set session pointer from original connection */
+            ret = cliSes.setSession(sessionPtr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setSession() failed: " + ret);
+            }
+
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.connect() failed: " + err);
+            }
+
+            /* Get WOLFSSL_SESSION pointer, free original one first */
+            cliSes.freeSession(sessionPtr);
+            sessionPtr = cliSes.getSession();
+            if (sessionPtr == 0) {
+                throw new Exception(
+                    "WolfSSLSession.getSession() failed, ptr == 0");
+            }
+
+            /* Free WOLFSSL_SESSION pointer */
+            cliSes.freeSession(sessionPtr);
+            sessionPtr = 0;
+
+            /* Session should be marked as resumed */
+            if (cliSes.sessionReused() == 0) {
+                throw new Exception(
+                    "Second connection not resumed");
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSes = null;
+            cliSock.close();
+            cliSock = null;
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+
+        } finally {
+            if (sessionPtr != 0) {
+                cliSes.freeSession(sessionPtr);
+            }
+            if (cliSes != null) {
+                cliSes.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+        }
+
+        /* Free resources */
+        if (srvSocket != null) {
+            srvSocket.close();
+        }
+        if (srvCtx != null) {
+            srvCtx.free();
         }
 
         System.out.println("\t... passed");
