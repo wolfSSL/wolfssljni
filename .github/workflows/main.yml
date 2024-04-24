@@ -98,3 +98,21 @@ jobs:
       jdk_distro: "zulu"
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
+
+  # ------------------ Facebook Infer static analysis -------------------
+  # Run Facebook infer over PR code, only running on Linux with one
+  # JDK/version for now.
+  fb-infer:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest' ]
+        jdk_version: [ '11' ]
+        wolfssl_configure: [ '--enable-jni --enable-all' ]
+    name: Facebook Infer (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure }})
+    uses: ./.github/workflows/infer.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+
