@@ -129,7 +129,7 @@ public class WolfSSLSession {
     /* ------------------- private/protected methods -------------------- */
 
     /* used from JNI code */
-    WolfSSLContext getAssociatedContextPtr() {
+    synchronized WolfSSLContext getAssociatedContextPtr() {
         return ctx;
     }
 
@@ -262,6 +262,7 @@ public class WolfSSLSession {
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
     private native long get1Session(long ssl);
+    private static native int wolfsslSessionIsSetup(long ssl);
     private static native void freeNativeSession(long session);
     private native byte[] getSessionID(long session);
     private native int setServerID(long ssl, byte[] id, int len, int newSess);
@@ -1364,6 +1365,30 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             return get1Session(this.sslPtr);
         }
+    }
+
+    /**
+     * Check if native WOLFSSL_SESSION has been set up or not.
+     *
+     * This method is static and does not check active state since this
+     * takes a native pointer and has no interaction with the rest of this
+     * object.
+     *
+     * @param session pointer to native WOLFSSL_SESSION structure. May be
+     *        obtained from getSession().
+     *
+     * @return 1 if session has been set up, otherwise 0 if not set up. May
+     *         return WolfSSL.NOT_COMPILED_IN if native wolfSSL does not have
+     *         wolfSSL_SessionIsSetup() compiled in. This API was added
+     *         after the wolfSSL 5.7.0 release.
+     */
+    public static int sessionIsSetup(long session) {
+
+        if (session == 0) {
+            return 0;
+        }
+
+        return wolfsslSessionIsSetup(session);
     }
 
     /**

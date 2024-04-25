@@ -1331,19 +1331,27 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
+    int ret = 0;
+    int err = 0;
+    int sockfd = 0;
+    int version = 0;
+    int hasTicket = 0;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* sess = NULL;
     WOLFSSL_SESSION* dup = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
+
     /* tmpBuf is only 1 byte since wolfSSL_peek() doesn't need to read
      * any app data, only session ticket internally */
     char tmpBuf[1];
-    int ret = 0;
-    int err = 0;
-    int sockfd = 0;
+
     (void)jenv;
     (void)jcl;
+
+    if (ssl == NULL) {
+        return (jlong)0;
+    }
 
     /* get session mutex from SSL app data */
     appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
@@ -1364,13 +1372,22 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
         return (jlong)0;
     }
 
+    /* get protocol version for this session */
+    version = wolfSSL_version(ssl);
+
     /* Use wolfSSL_get_session() only as an indicator if we need to call
      * wolfSSL_peek() for TLS 1.3 connections to potentially get the
      * session ticket message. */
     sess = wolfSSL_get_session(ssl);
-    if (sess == NULL) {
 
-        /* session not available yet (TLS 1.3), try peeking to get ticket */
+    /* Check if session has session ticket, checks sess for null internal */
+    hasTicket = wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)sess);
+
+    /* If session is not available yet, or if TLS 1.3 and we have a session
+     * pointer but no session ticket yet, try peeking to get ticket */
+    if (sess == NULL ||
+        ((sess != NULL) && (version == TLS1_3_VERSION) && (hasTicket == 0))) {
+
         do {
             ret = wolfSSL_peek(ssl, tmpBuf, (int)sizeof(tmpBuf));
             err = wolfSSL_get_error(ssl, ret);
@@ -1397,12 +1414,12 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
         } while (err == SSL_ERROR_WANT_READ);
 
         sess = wolfSSL_get_session(ssl);
+        hasTicket = wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)sess);
     }
 
     /* Only duplicate / save session if not TLS 1.3 (will be using normal
      * session IDs), or is TLS 1.3 and we have a session ticket */
-    if ((wolfSSL_version(ssl) != TLS1_3_VERSION) ||
-        (wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)sess))) {
+    if (version != TLS1_3_VERSION || hasTicket == 1) {
 
         /* wolfSSL checks ssl for NULL, returns pointer to new WOLFSSL_SESSION,
          * Returns new duplicated WOLFSSL_SESSION. Needs to be freed with
@@ -1418,6 +1435,34 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
     }
 
     return (jlong)(uintptr_t)dup;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsSetup
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+#if (LIBWOLFSSL_VERSION_HEX > 0x05007000) || \
+    defined(WOLFSSL_PR7430_PATCH_APPLIED)
+    int ret;
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return 0;
+    }
+
+    /* wolfSSL_SessionIsSetup() was added after wolfSSL 5.7.0 in PR
+     * 7430. Version checked above must be greater than 5.7.0 or patch
+     * from this PR must be applied and WOLFSSL_PR7430_PATCH_APPLIED defined
+     * when compiling this JNI wrapper */
+    ret = wolfSSL_SessionIsSetup(session);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sessionPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession

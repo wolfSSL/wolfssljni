@@ -161,6 +161,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    wolfsslSessionIsSetup
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsSetup
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    freeNativeSession
  * Signature: (J)V
  */

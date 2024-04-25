@@ -53,11 +53,13 @@ jobs:
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
   # Temurin JDK (Linux, Mac)
+  # JDK 8 seems to have been removed from Temurin macos, with 8 we see the error
+  # Could not find satisfied version for SemVer '8'
   linux-temurin:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '8', '11', '17', '21' ]
+        jdk_version: [ '11', '17', '21' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Temurin JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
