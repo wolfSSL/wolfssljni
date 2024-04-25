@@ -2023,6 +2023,7 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
+                    server.close();
 
                 } catch (SSLException e) {
                     System.out.println("\t... failed");
@@ -2034,6 +2035,7 @@ public class WolfSSLSocketTest {
 
         try {
             cs.startHandshake();
+            cs.close();
 
         } catch (SSLHandshakeException e) {
             System.out.println("\t... failed");
@@ -2042,8 +2044,6 @@ public class WolfSSLSocketTest {
 
         es.shutdown();
         serverFuture.get();
-        cs.close();
-        server.close();
         ss.close();
 
         System.out.println("\t... passed");
