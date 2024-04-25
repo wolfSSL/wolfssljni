@@ -129,7 +129,7 @@ public class WolfSSLSession {
     /* ------------------- private/protected methods -------------------- */
 
     /* used from JNI code */
-    WolfSSLContext getAssociatedContextPtr() {
+    synchronized WolfSSLContext getAssociatedContextPtr() {
         return ctx;
     }
 

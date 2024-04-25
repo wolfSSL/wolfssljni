@@ -975,7 +975,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return array of supported cipher suite Strings
      */
     @Override
-    public String[] getSupportedCipherSuites() {
+    public synchronized String[] getSupportedCipherSuites() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedCipherSuites()");
@@ -1197,7 +1197,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @return String array containing supported SSL/TLS protocols
      */
     @Override
-    public String[] getSupportedProtocols() {
+    public synchronized String[] getSupportedProtocols() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
