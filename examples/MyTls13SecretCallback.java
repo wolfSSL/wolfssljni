@@ -108,9 +108,9 @@ class MyTls13SecretCallback implements WolfSSLTls13SecretCallback
             } else if (id == WolfSSL.SERVER_HANDSHAKE_TRAFFIC_SECRET) {
                 str = "SERVER_HANDSHAKE_TRAFFIC_SECRET";
             } else if (id == WolfSSL.CLIENT_TRAFFIC_SECRET) {
-                str = "CLIENT_TRAFFIC_SECRET";
+                str = "CLIENT_TRAFFIC_SECRET_0";
             } else if (id == WolfSSL.SERVER_TRAFFIC_SECRET) {
-                str = "SERVER_TRAFFIC_SECRET";
+                str = "SERVER_TRAFFIC_SECRET_0";
             } else if (id == WolfSSL.EXPORTER_SECRET) {
                 str = "EXPORTER_SECRET";
             } else {
