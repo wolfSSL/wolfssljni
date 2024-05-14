@@ -397,18 +397,20 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.getUseClientMode()) {
                 synchronized (ioLock) {
                     ret = this.ssl.connect();
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.connect() ret:err = " + ret + " : " +
+                        ssl.getError(ret));
                 }
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.connect() ret:err = " + ret + " : " +
-                    ssl.getError(ret));
             }
             else {
                 synchronized (ioLock) {
                     ret = this.ssl.accept();
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.accept() ret:err = " + ret + " : " +
+                        ssl.getError(ret));
                 }
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.accept() ret:err = " + ret + " : " +
-                    ssl.getError(ret));
             }
 
         } catch (SocketTimeoutException | SocketException e) {
@@ -754,6 +756,7 @@ public class WolfSSLEngine extends SSLEngine {
         int maxOutSz = 0;
         int ret = 0;
         int idx = 0; /* index into out[] array */
+        int err = 0;
         byte[] tmp;
 
         /* create read buffer of max output size */
@@ -768,10 +771,11 @@ public class WolfSSLEngine extends SSLEngine {
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "RecvAppData(), ssl.read() ret = " + ret);
+
+            err = ssl.getError(ret);
         }
 
         if (ret <= 0) {
-            int err = ssl.getError(ret);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "RecvAppData(), ssl.getError() = " + err);
 
@@ -857,7 +861,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
-        int i, ret = 0, sz = 0;
+        int i, ret = 0, sz = 0, err = 0;
         int inPosition = 0;
         int inRemaining = 0;
         int consumed = 0;
@@ -1053,7 +1057,9 @@ public class WolfSSLEngine extends SSLEngine {
                     this.engineHelper.unsetVerifyCallback();
                 }
 
-                int err = ssl.getError(ret);
+                synchronized (ioLock) {
+                    err = ssl.getError(ret);
+                }
                 if (ret < 0 &&
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
                     (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
@@ -1153,7 +1159,13 @@ public class WolfSSLEngine extends SSLEngine {
      */
     private synchronized void SetHandshakeStatus(int ret) {
 
-        int err = ssl.getError(ret);
+        int err = 0;
+
+        /* Get current wolfSSL error, synchronize on ioLock in case I/O is
+         * happening and error state may change */
+        synchronized (ioLock) {
+            err = ssl.getError(ret);
+        }
 
         /* Lock access to this.toSend and this.toRead */
         synchronized (toSendLock) {
