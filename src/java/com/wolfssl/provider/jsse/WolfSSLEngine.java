@@ -352,9 +352,14 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* Save session into WolfSSLAuthStore cache, saves session
          * pointer for resumption if on client side. Protected with ioLock
-         * since underlying get1Session can use I/O with peek. */
-        if (!this.sessionStored) {
-            synchronized (ioLock) {
+         * since underlying get1Session can use I/O with peek.
+         *
+         * Only store session if handshake is finished, SSL_get_error() does
+         * not have an active error state, and the session has not been
+         * stored previously. */
+        synchronized (ioLock) {
+            if (this.handshakeFinished && (ssl.getError(0) == 0) &&
+                !this.sessionStored) {
                 this.engineHelper.saveSession();
             }
         }
@@ -1025,8 +1030,9 @@ public class WolfSSLEngine extends SSLEngine {
                      * we may need to wait for session ticket. We do try
                      * right after wolfSSL_connect/accept() finishes, but
                      * we might not have had session ticket at that time. */
-                    if (!this.sessionStored) {
-                        synchronized (ioLock) {
+                    synchronized (ioLock) {
+                        if (this.handshakeFinished && (ssl.getError(0) == 0) &&
+                            !this.sessionStored) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "calling engineHelper.saveSession()");
                             int ret2 = this.engineHelper.saveSession();
