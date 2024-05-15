@@ -345,6 +345,7 @@ public class WolfSSLEngine extends SSLEngine {
     /**
      * Handles logic during shutdown
      *
+     * @return WolfSSL.SSL_SUCCESS on success, zero or negative on error
      * @throws SocketException if ssl.shutdownSSL() encounters a socket error
      */
     private synchronized int ClosingConnection() throws SocketException {
@@ -374,11 +375,11 @@ public class WolfSSLEngine extends SSLEngine {
         synchronized (ioLock) {
             ret = ssl.shutdownSSL();
             if (ssl.getError(ret) == WolfSSL.SSL_ERROR_ZERO_RETURN) {
-                /* got close_notify alert, reset ret to 0 to continue
+                /* got close_notify alert, reset ret to SSL_SUCCESS to continue
                  * and let corresponding close_notify to be sent */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ClosingConnection(), ssl.getError() is ZERO_RETURN");
-                ret = 0;
+                ret = WolfSSL.SSL_SUCCESS;
             }
         }
         UpdateCloseNotifyStatus();
