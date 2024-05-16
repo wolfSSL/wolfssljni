@@ -352,6 +352,7 @@ public class WolfSSLSession {
     private native int rehandshake(long ssl);
     private native int set1SigAlgsList(long ssl, String list);
     private native int useSupportedCurve(long ssl, int name);
+    private native int hasTicket(long session);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -1426,6 +1427,31 @@ public class WolfSSLSession {
             } else {
                 return new byte[0];
             }
+        }
+    }
+
+    /**
+     * Check if there is a session ticket associated with this
+     * WolfSSLSession (WOLFSSL_SESSION).
+     *
+     * @return true if internal session has session ticket, otherwise false
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public boolean hasSessionTicket() throws IllegalStateException {
+
+        boolean hasTicket = false;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            long sess = getSession(this.sslPtr);
+            if (sess != 0) {
+                if (hasTicket(sess) == WolfSSL.SSL_SUCCESS) {
+                    hasTicket = true;
+                }
+            }
+
+            return hasTicket;
         }
     }
 
