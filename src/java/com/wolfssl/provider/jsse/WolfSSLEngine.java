@@ -93,6 +93,9 @@ public class WolfSSLEngine extends SSLEngine {
     /* session stored (WOLFSSL_SESSION), relevant on client side */
     private boolean sessionStored = false;
 
+    /* TLS 1.3 session ticket received (on client side) */
+    private boolean sessionTicketReceived = false;
+
     /* client/server mode has been set */
     private boolean clientModeSet = false;
 
@@ -1091,6 +1094,18 @@ public class WolfSSLEngine extends SSLEngine {
                 consumed += in.position() - inPosition;
             }
             SetHandshakeStatus(ret);
+        }
+
+        /* If client side and we have just received a TLS 1.3 session ticket,
+         * we should return FINISHED HandshakeStatus from unwrap() directly
+         * but not from getHandshakeStatus(). Keep track of if we have
+         * received ticket, so we only set/return this once */
+        synchronized (ioLock) {
+            if (this.getUseClientMode() && this.ssl.hasSessionTicket() &&
+                this.sessionTicketReceived == false) {
+                hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                this.sessionTicketReceived = true;
+            }
         }
 
         if (extraDebugEnabled == true) {
