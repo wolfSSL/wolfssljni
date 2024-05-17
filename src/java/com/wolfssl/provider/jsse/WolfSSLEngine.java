@@ -965,7 +965,7 @@ public class WolfSSLEngine extends SSLEngine {
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
         }
         else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
-                 this.toSend.length > 0) {
+                 (this.toSend != null) && (this.toSend.length > 0)) {
             /* Already have data buffered to send and in NEED_WRAP state,
              * just return so wrap() can be called */
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
