@@ -2383,7 +2383,12 @@ public class WolfSSLSocket extends SSLSocket {
             byte[] data = new byte[1];
 
             try {
-                this.read(data, 0, 1);
+                int ret = this.read(data, 0, 1);
+
+                /* check for end of stream and other errors */
+                if (ret < 0) {
+                    return ret;
+                }
 
             } catch (NullPointerException ne) {
                 throw new IOException(ne);
