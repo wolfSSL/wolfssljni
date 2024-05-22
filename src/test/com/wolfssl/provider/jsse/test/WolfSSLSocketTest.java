@@ -1813,7 +1813,7 @@ public class WolfSSLSocketTest {
         protocolConnectionTest("TLSv1");
 
         System.out.print("\tTLS 1.0 extended Socket test");
-        protocolConnectionTestExtendedSocket("TLSv1.0");
+        protocolConnectionTestExtendedSocket("TLSv1");
     }
 
     @Test

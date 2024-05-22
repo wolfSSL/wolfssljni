@@ -93,6 +93,9 @@ public class WolfSSLEngine extends SSLEngine {
     /* session stored (WOLFSSL_SESSION), relevant on client side */
     private boolean sessionStored = false;
 
+    /* TLS 1.3 session ticket received (on client side) */
+    private boolean sessionTicketReceived = false;
+
     /* client/server mode has been set */
     private boolean clientModeSet = false;
 
@@ -345,6 +348,7 @@ public class WolfSSLEngine extends SSLEngine {
     /**
      * Handles logic during shutdown
      *
+     * @return WolfSSL.SSL_SUCCESS on success, zero or negative on error
      * @throws SocketException if ssl.shutdownSSL() encounters a socket error
      */
     private synchronized int ClosingConnection() throws SocketException {
@@ -352,9 +356,14 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* Save session into WolfSSLAuthStore cache, saves session
          * pointer for resumption if on client side. Protected with ioLock
-         * since underlying get1Session can use I/O with peek. */
-        if (!this.sessionStored) {
-            synchronized (ioLock) {
+         * since underlying get1Session can use I/O with peek.
+         *
+         * Only store session if handshake is finished, SSL_get_error() does
+         * not have an active error state, and the session has not been
+         * stored previously. */
+        synchronized (ioLock) {
+            if (this.handshakeFinished && (ssl.getError(0) == 0) &&
+                !this.sessionStored) {
                 this.engineHelper.saveSession();
             }
         }
@@ -369,11 +378,11 @@ public class WolfSSLEngine extends SSLEngine {
         synchronized (ioLock) {
             ret = ssl.shutdownSSL();
             if (ssl.getError(ret) == WolfSSL.SSL_ERROR_ZERO_RETURN) {
-                /* got close_notify alert, reset ret to 0 to continue
+                /* got close_notify alert, reset ret to SSL_SUCCESS to continue
                  * and let corresponding close_notify to be sent */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ClosingConnection(), ssl.getError() is ZERO_RETURN");
-                ret = 0;
+                ret = WolfSSL.SSL_SUCCESS;
             }
         }
         UpdateCloseNotifyStatus();
@@ -392,18 +401,20 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.getUseClientMode()) {
                 synchronized (ioLock) {
                     ret = this.ssl.connect();
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.connect() ret:err = " + ret + " : " +
+                        ssl.getError(ret));
                 }
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.connect() ret:err = " + ret + " : " +
-                    ssl.getError(ret));
             }
             else {
                 synchronized (ioLock) {
                     ret = this.ssl.accept();
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "ssl.accept() ret:err = " + ret + " : " +
+                        ssl.getError(ret));
                 }
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ssl.accept() ret:err = " + ret + " : " +
-                    ssl.getError(ret));
             }
 
         } catch (SocketTimeoutException | SocketException e) {
@@ -749,6 +760,7 @@ public class WolfSSLEngine extends SSLEngine {
         int maxOutSz = 0;
         int ret = 0;
         int idx = 0; /* index into out[] array */
+        int err = 0;
         byte[] tmp;
 
         /* create read buffer of max output size */
@@ -763,10 +775,11 @@ public class WolfSSLEngine extends SSLEngine {
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "RecvAppData(), ssl.read() ret = " + ret);
+
+            err = ssl.getError(ret);
         }
 
         if (ret <= 0) {
-            int err = ssl.getError(ret);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "RecvAppData(), ssl.getError() = " + err);
 
@@ -852,7 +865,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
-        int i, ret = 0, sz = 0;
+        int i, ret = 0, sz = 0, err = 0;
         int inPosition = 0;
         int inRemaining = 0;
         int consumed = 0;
@@ -952,7 +965,7 @@ public class WolfSSLEngine extends SSLEngine {
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
         }
         else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
-                 this.toSend.length > 0) {
+                 (this.toSend != null) && (this.toSend.length > 0)) {
             /* Already have data buffered to send and in NEED_WRAP state,
              * just return so wrap() can be called */
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
@@ -1025,8 +1038,9 @@ public class WolfSSLEngine extends SSLEngine {
                      * we may need to wait for session ticket. We do try
                      * right after wolfSSL_connect/accept() finishes, but
                      * we might not have had session ticket at that time. */
-                    if (!this.sessionStored) {
-                        synchronized (ioLock) {
+                    synchronized (ioLock) {
+                        if (this.handshakeFinished && (ssl.getError(0) == 0) &&
+                            !this.sessionStored) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "calling engineHelper.saveSession()");
                             int ret2 = this.engineHelper.saveSession();
@@ -1047,7 +1061,9 @@ public class WolfSSLEngine extends SSLEngine {
                     this.engineHelper.unsetVerifyCallback();
                 }
 
-                int err = ssl.getError(ret);
+                synchronized (ioLock) {
+                    err = ssl.getError(ret);
+                }
                 if (ret < 0 &&
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
                     (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
@@ -1078,6 +1094,18 @@ public class WolfSSLEngine extends SSLEngine {
                 consumed += in.position() - inPosition;
             }
             SetHandshakeStatus(ret);
+        }
+
+        /* If client side and we have just received a TLS 1.3 session ticket,
+         * we should return FINISHED HandshakeStatus from unwrap() directly
+         * but not from getHandshakeStatus(). Keep track of if we have
+         * received ticket, so we only set/return this once */
+        synchronized (ioLock) {
+            if (this.getUseClientMode() && this.ssl.hasSessionTicket() &&
+                this.sessionTicketReceived == false) {
+                hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                this.sessionTicketReceived = true;
+            }
         }
 
         if (extraDebugEnabled == true) {
@@ -1147,7 +1175,13 @@ public class WolfSSLEngine extends SSLEngine {
      */
     private synchronized void SetHandshakeStatus(int ret) {
 
-        int err = ssl.getError(ret);
+        int err = 0;
+
+        /* Get current wolfSSL error, synchronize on ioLock in case I/O is
+         * happening and error state may change */
+        synchronized (ioLock) {
+            err = ssl.getError(ret);
+        }
 
         /* Lock access to this.toSend and this.toRead */
         synchronized (toSendLock) {

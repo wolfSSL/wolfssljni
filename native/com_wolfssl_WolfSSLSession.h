@@ -839,6 +839,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSupportedCurve
   (JNIEnv *, jobject, jlong, jint);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    hasTicket
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

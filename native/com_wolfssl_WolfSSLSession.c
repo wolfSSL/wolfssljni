@@ -4945,6 +4945,27 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSupportedCurve
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
+  (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
+{
+#if !defined(NO_SESSION_CACHE) && \
+    (defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE))
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    (void)jcl;
+
+    if (jenv == NULL || session == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return (jint)wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)session);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sessionPtr;
+    return (jint)WolfSSL.SSL_FAILURE;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

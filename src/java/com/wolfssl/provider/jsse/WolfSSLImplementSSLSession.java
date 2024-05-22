@@ -316,6 +316,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * Invalidate this session
      */
     public synchronized void invalidate() {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "SSLSession.invalidate() called, invalidating session");
+
         this.valid = false;
     }
 
