@@ -2380,10 +2380,11 @@ public class WolfSSLSocket extends SSLSocket {
         @Override
         public synchronized int read() throws IOException {
 
+            int ret;
             byte[] data = new byte[1];
 
             try {
-                int ret = this.read(data, 0, 1);
+                ret = this.read(data, 0, 1);
 
                 /* check for end of stream and other errors */
                 if (ret < 0) {
