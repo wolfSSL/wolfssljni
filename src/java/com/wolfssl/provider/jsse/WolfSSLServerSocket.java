@@ -46,7 +46,6 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     private boolean clientMode = false;
     private boolean enableSessionCreation = true;
-    private WolfSSLSocket socket = null;
     private WolfSSLDebug debug;
 
     /**
@@ -368,7 +367,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
                 sock.getPort());
 
         /* create new WolfSSLSocket wrapping connected Socket */
-        socket = new WolfSSLSocket(context, authStore, params,
+        WolfSSLSocket socket = new WolfSSLSocket(context, authStore, params,
             clientMode, sock, true);
 
         socket.setEnableSessionCreation(enableSessionCreation);
@@ -378,9 +377,6 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     @Override
     public synchronized void close() throws IOException {
-        if (this.socket != null) {
-            this.socket.close();
-        }
         super.close();
     }
 }
