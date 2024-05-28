@@ -42,6 +42,7 @@ import javax.net.ssl.ManagerFactoryParameters;
 public class WolfSSLKeyManager extends KeyManagerFactorySpi {
     private char[] pswd;
     private KeyStore store;
+    private boolean initialized = false;
 
     /** Default WolfSSLKeyManager constructor */
     public WolfSSLKeyManager() { }
@@ -136,6 +137,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
             }
         }
         this.store = certs;
+        this.initialized = true;
     }
 
     @Override
@@ -151,10 +153,16 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
     }
 
     @Override
-    protected KeyManager[] engineGetKeyManagers() {
+    protected KeyManager[] engineGetKeyManagers()
+        throws IllegalStateException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered engineGetKeyManagers()");
+
+        if (!this.initialized) {
+            throw new IllegalStateException("KeyManagerFactory must be " +
+                    "initialized before use, please call init()");
+        }
 
         KeyManager[] km = {new WolfSSLKeyX509(this.store, this.pswd)};
         return km;
