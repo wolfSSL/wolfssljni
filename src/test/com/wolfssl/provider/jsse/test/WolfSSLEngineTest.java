@@ -300,7 +300,8 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testBeginHandshake()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               SSLException {
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -312,6 +313,26 @@ public class WolfSSLEngineTest {
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
 
+        /* Calling beginHandshake() before setUseClientMode() should throw
+         * IllegalStateException */
+        try {
+            server.beginHandshake();
+            error("\t\t... failed");
+            fail("beginHandshake() before setUseClientMode() should throw " +
+                 "IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+        try {
+            client.beginHandshake();
+            error("\t\t... failed");
+            fail("beginHandshake() before setUseClientMode() should throw " +
+                 "IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+
+        /* Set client/server mode, disable auth to simplify tests below */
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
@@ -329,6 +350,24 @@ public class WolfSSLEngineTest {
             error("\t\t... failed");
             fail("failed to create engine");
         }
+
+        /* Calling beginHandshake() again should throw SSLException
+         * since renegotiation is not yet supported in wolfJSSE */
+        try {
+            server.beginHandshake();
+            error("\t\t... failed");
+            fail("beginHandshake() called again should throw SSLException");
+        } catch (SSLException e) {
+            /* expected */
+        }
+        try {
+            client.beginHandshake();
+            error("\t\t... failed");
+            fail("beginHandshake() called again should throw SSLException");
+        } catch (SSLException e) {
+            /* expected */
+        }
+
         pass("\t\t... passed");
     }
 

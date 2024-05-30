@@ -83,6 +83,9 @@ public class WolfSSLEngine extends SSLEngine {
     /* closed completely (post shutdown or before handshake) */
     private boolean closed = true;
 
+    /* handshake started explicitly by user with beginHandshake() */
+    private boolean handshakeStartedExplicitly = false;
+
     /* handshake completed */
     private boolean handshakeFinished = false;
 
@@ -1395,10 +1398,53 @@ public class WolfSSLEngine extends SSLEngine {
         return this.engineHelper.getSession();
     }
 
+    /**
+     * Explicitly start the SSL/TLS handshake.
+     *
+     * This method does not block until handshake is completed, unlike
+     * the SSLSocket.startHandshake() method.
+     *
+     * The handshake may be started implicitly by a call to wrap() or unwrap(),
+     * if those methods are called and the handshake is not done yet. In that
+     * case, the user has not explicitly started the handshake themselves
+     * and may inadvertently call beginHandshake() unknowing that the handshake
+     * has already started. For that case, we should just return without
+     * error/exception, since the user is just trying to start the first
+     * initial handshake.
+     *
+     * beginHandshake() may also be called again to initiate renegotiation.
+     * wolfJSSE does not support renegotiation inside SSLEngine yet. In that
+     * case, we throw an SSLException to notify callers renegotiation is not
+     * supported.
+     *
+     * @throws SSLException if a problem was encountered while initiating
+     *         a SSL/TLS handshake on this SSLEngine.
+     * @throws IllegalStateException if the client/server mode has not yet
+     *         been set.
+     */
     @Override
     public synchronized void beginHandshake() throws SSLException {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered beginHandshake()");
+
+        if (!this.clientModeSet) {
+            throw new IllegalStateException(
+                "setUseClientMode() has not been called on this SSLEngine");
+        }
+
+        if (this.handshakeStartedExplicitly) {
+            /* Renegotiation (thus calling beginHandshake() multiple times)
+             * is not supported in wolfJSSE SSLEngine implementation yet. If
+             * already called once by user, throw SSLException. */
+            throw new SSLException("Renegotiation not supported");
+        }
+        else if (!this.needInit && !this.handshakeFinished) {
+            /* Handshake has started implicitly by wrap() or unwrap(). Simply
+             * return since this is the first time that the user has called
+             * beginHandshake() themselves. */
+            this.handshakeStartedExplicitly = true;
+            return;
+        }
 
         /* No network data source yet */
         synchronized (netDataLock) {
@@ -1406,7 +1452,8 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (outBoundOpen == false) {
-            throw new SSLException("beginHandshake with closed out bound");
+            throw new SSLException(
+                "beginHandshake() called but outbound closed");
         }
 
         try {
@@ -1427,6 +1474,10 @@ public class WolfSSLEngine extends SSLEngine {
                 "calling engineHelper.doHandshake()");
             int ret = this.engineHelper.doHandshake(1, 0);
             SetHandshakeStatus(ret);
+
+            /* Mark that the user has explicitly started the handshake
+             * on this SSLEngine by calling beginHandshake() */
+            this.handshakeStartedExplicitly = true;
 
         } catch (SocketTimeoutException e) {
             e.printStackTrace();
