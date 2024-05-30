@@ -634,6 +634,14 @@ public class WolfSSLEngine extends SSLEngine {
             }
             produced += CopyOutPacket(out);
         }
+        else if ((produced > 0) && !inBoundOpen &&
+                 (!this.closeNotifySent && !this.closeNotifyReceived)) {
+            /* We had buffered data to send, but inbound was already closed.
+             * Most likely this is because we needed to send an alert to
+             * the peer. We should now mark outbound as closed since we
+             * won't be sending anything after the alert went out. */
+            this.outBoundOpen = false;
+        }
         else if (produced == 0) {
             /* continue handshake or application data */
             if (!this.handshakeFinished) {
@@ -1076,6 +1084,16 @@ public class WolfSSLEngine extends SSLEngine {
                             ret + " : " + err);
                     }
                     else {
+                        /* Native wolfSSL threw an exception when unwrapping
+                         * data, close inbound since we can't receive more
+                         * data */
+                        this.inBoundOpen = false;
+                        if (err == WolfSSL.FATAL_ERROR) {
+                            /* If client side and we received fatal alert,
+                             * close outbound since we won't be receiving
+                             * any more data */
+                            this.outBoundOpen = false;
+                        }
                         throw new SSLException(
                             "wolfSSL error, ret:err = " + ret + " : " + err);
                     }
@@ -1241,7 +1259,8 @@ public class WolfSSLEngine extends SSLEngine {
                             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                         }
                         else if (this.netData != null &&
-                                 this.netData.remaining() > 0) {
+                                 this.netData.remaining() > 0 &&
+                                 this.inBoundOpen == true) {
                             hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
                         }
                         else if (err == WolfSSL.SSL_ERROR_WANT_READ) {

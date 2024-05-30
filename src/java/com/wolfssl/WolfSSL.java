@@ -172,6 +172,8 @@ public class WolfSSL {
     public static final int SSL_ERROR_ZERO_RETURN      =  6;
     /** Generatl SSL error */
     public static final int SSL_ERROR_SSL              = 85;
+    /** Received fatal alert error */
+    public static final int FATAL_ERROR                = -313;
     /** Peer closed socket */
     public static final int SSL_ERROR_SOCKET_PEER_CLOSED = -397;
     /** Unrecognized ALPN protocol name */
