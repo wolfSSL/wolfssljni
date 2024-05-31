@@ -178,8 +178,8 @@ public class WolfSSLTrustX509Test {
         throws NoSuchProviderException, NoSuchAlgorithmException {
         TrustManagerFactory tmf;
         TrustManager[] tm;
-        X509TrustManager x509tm;
-        X509Certificate cas[];
+        KeyManagerFactory kmf;
+        KeyManager[] km;
 
         System.out.print("\tTesting use before init()");
 
@@ -196,24 +196,27 @@ public class WolfSSLTrustX509Test {
             return;
         }
 
-        tm = tmf.getTrustManagers();
-        if (tm == null) {
+        try {
+            tm = tmf.getTrustManagers();
             error("\t... failed");
-            fail("failed to get instance of trustmanager");
+            fail("getTrustManagers() before init() did not throw an error");
+        } catch (IllegalStateException e) {
+            /* Expected, TrustManagerFactory not yet initialized */
+        }
+
+        kmf = KeyManagerFactory.getInstance("SunX509", provider);
+        if (kmf == null) {
+            error("\t... failed");
+            fail("failed to get instance of keymanager factory");
             return;
         }
 
-        x509tm = (X509TrustManager) tm[0];
-        cas = x509tm.getAcceptedIssuers();
-        if (cas == null) {
+        try {
+            km = kmf.getKeyManagers();
             error("\t... failed");
-            fail("get accepted issuers returned null");
-            return;
-        }
-
-        if (cas.length != 0) {
-            error("\t... failed");
-            fail("cas should be empty");
+            fail("getKeyManagers() before init() did not throw an error");
+        } catch (IllegalStateException e) {
+            /* Expected, KeyManagerFactory not yet initialized */
         }
 
         pass("\t... passed");

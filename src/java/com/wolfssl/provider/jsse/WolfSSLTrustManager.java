@@ -49,6 +49,7 @@ import com.wolfssl.WolfSSLJNIException;
  */
 public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     private KeyStore store;
+    private boolean initialized = false;
 
     /** Default WolfSSLTrustManager constructor */
     public WolfSSLTrustManager() { }
@@ -352,6 +353,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             }
         }
         this.store = certs;
+        this.initialized = true;
     }
 
     @Override
@@ -367,10 +369,17 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     }
 
     @Override
-    protected TrustManager[] engineGetTrustManagers() {
+    protected TrustManager[] engineGetTrustManagers()
+        throws IllegalStateException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered engineGetTrustManagers()");
+
+        if (!this.initialized) {
+            throw new IllegalStateException("TrustManagerFactory must be " +
+                    "initialized before use, please call init()");
+        }
+
 
         /* array of WolfSSLX509Trust objects to use */
         TrustManager[] tm = {new WolfSSLTrustX509(this.store)};
