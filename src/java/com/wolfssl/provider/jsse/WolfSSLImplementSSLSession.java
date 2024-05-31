@@ -341,6 +341,24 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     }
 
     /**
+     * Check if this session is resumable.
+     *
+     * Calls down to native wolfSSL_SESSION_is_resumable() with
+     * WOLFSSL_SESSION pointer.
+     *
+     * @return true if resumable, otherwise false
+     */
+    protected synchronized boolean isResumable() {
+        synchronized (sesPtrLock) {
+            if (WolfSSLSession.sessionIsResumable(this.sesPtr) == 1) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    /**
      * Return status of internal session pointer (WOLFSSL_SESSION).
      * @return true if this.sesPtr is set, otherwise false if 0 */
     protected boolean sessionPointerSet() {
