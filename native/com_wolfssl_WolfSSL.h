@@ -79,6 +79,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_ERROR_ZERO_RETURN 6L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SSL
 #define com_wolfssl_WolfSSL_SSL_ERROR_SSL 85L
+#undef com_wolfssl_WolfSSL_FATAL_ERROR
+#define com_wolfssl_WolfSSL_FATAL_ERROR -313L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED
 #define com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED -397L
 #undef com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E

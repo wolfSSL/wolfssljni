@@ -1465,6 +1465,29 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsSetup
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsResumable
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+#ifdef OPENSSL_EXTRA
+    int ret;
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return 0;
+    }
+
+    ret = wolfSSL_SESSION_is_resumable(session);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sessionPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
   (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
 {

@@ -351,6 +351,24 @@ public class WolfSSLAuthStore {
                  * after the resumed session completes the handshake, for
                  * subsequent resumption attempts to use. */
                 store.remove(toHash.hashCode());
+
+                /* Check if native WOLFSSL_SESSION is resumable before
+                 * returning it for resumption. If not, create a new
+                 * session instead. */
+                if (!ses.isResumable()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "native WOLFSSL_SESSION not resumable, " +
+                        "creating new session");
+                    ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+                    ses.setValid(true); /* new sessions marked as valid */
+
+                    ses.isFromTable = false;
+                    ses.setPseudoSessionId(
+                        Integer.toString(ssl.hashCode()).getBytes());
+
+                    return ses;
+                }
+
                 ses.isFromTable = true;
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -459,7 +477,7 @@ public class WolfSSLAuthStore {
      * the session cache is global and shared amongst all threads.
      *
      * @param session SSLSession to be stored in Java session cache
-     * @return SSL_SUCCESS on success
+     * @return WolfSSL.SSL_SUCCESS on success
      */
     protected int addSession(WolfSSLImplementSSLSession session) {
 
@@ -467,12 +485,19 @@ public class WolfSSLAuthStore {
         int    hashCode = 0;
 
         /* Don't store session if invalid (or not complete with sesPtr
-         * if on client side). Server-side still needs to store session
-         * for things like returning the session ID, even though sesPtr
-         * will be 0 since server manages session cache at native level. */
+         * if on client side, or not resumable). Server-side still needs to
+         * store session for things like returning the session ID, even though
+         * sesPtr will be 0 since server manages session cache at native
+         * level. */
         if (!session.isValid() ||
             (session.getSide() == WolfSSL.WOLFSSL_CLIENT_END &&
-             !session.sessionPointerSet())) {
+             (!session.sessionPointerSet() || !session.isResumable()))) {
+
+            if (!session.isResumable()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Not storing session in Java client cache since " +
+                    "native WOLFSSL_SESSION is not resumable");
+            }
             return WolfSSL.SSL_FAILURE;
         }
 
