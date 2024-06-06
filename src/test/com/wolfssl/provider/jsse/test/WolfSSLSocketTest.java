@@ -1803,17 +1803,24 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.0 connection test");
 
         /* skip if TLS 1.0 is not compiled in at native level */
-        if (WolfSSL.TLSv1Enabled() == false ||
-            WolfSSLTestFactory.securityPropContains(
-                "jdk.tls.disabledAlgorithms", "TLS")) {
+        if (WolfSSL.TLSv1Enabled() == false) {
             System.out.println("\t\t... skipped");
             return;
         }
+
+        /* reset disabledAlgorithms property to test TLS 1.0 which is
+         * disabled by default */
+        String originalProperty =
+            Security.getProperty("jdk.tls.disabledAlgorithms");
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
         protocolConnectionTest("TLSv1");
 
         System.out.print("\tTLS 1.0 extended Socket test");
         protocolConnectionTestExtendedSocket("TLSv1");
+
+        /* restore system property */
+        Security.setProperty("jdk.tls.disabledAlgorithms", originalProperty);
     }
 
     @Test
@@ -1822,17 +1829,24 @@ public class WolfSSLSocketTest {
         System.out.print("\tTLS 1.1 connection test");
 
         /* skip if TLS 1.1 is not compiled in at native level */
-        if (WolfSSL.TLSv11Enabled() == false ||
-            WolfSSLTestFactory.securityPropContains(
-                "jdk.tls.disabledAlgorithms", "TLSv1.1")) {
+        if (WolfSSL.TLSv11Enabled() == false) {
             System.out.println("\t\t... skipped");
             return;
         }
+
+        /* reset disabledAlgorithms property to test TLS 1.1 which is
+         * disabled by default */
+        String originalProperty =
+            Security.getProperty("jdk.tls.disabledAlgorithms");
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
         protocolConnectionTest("TLSv1.1");
 
         System.out.print("\tTLS 1.1 extended Socket test");
         protocolConnectionTestExtendedSocket("TLSv1.1");
+
+        /* restore system property */
+        Security.setProperty("jdk.tls.disabledAlgorithms", originalProperty);
     }
 
     @Test
