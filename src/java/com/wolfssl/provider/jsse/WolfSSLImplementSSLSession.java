@@ -75,7 +75,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * SSLSocket.getSession().getPeerCertificates() will return the peer
      * certificate even on a resumed connection where the cert has not been
      * sent during the handshake. */
-    private Certificate[] peerCerts = null;
+    private X509Certificate[] peerCerts = null;
 
     /**
      * Is this object currently inside the WolfSSLAuthStore session cache table?
@@ -456,7 +456,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * ssl.getPeerCertificate() fails, then we return the cached cert if
      * we have it.
      *
-     * @return Certificate array of peer certs for session
+     * @return Certificate array of peer certs for session. Actual subclass
+     *         type returned is X509Certificate[] to match SunJSSE behavior
      *
      * @throws SSLPeerUnverifiedException if handshake is not complete,
      *         or error getting certificates
@@ -546,7 +547,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         cert.free();
 
         /* cache peer cert for use by app in resumed session */
-        this.peerCerts = new Certificate[] { exportCert };
+        this.peerCerts = new X509Certificate[] { exportCert };
 
         return this.peerCerts.clone();
     }
