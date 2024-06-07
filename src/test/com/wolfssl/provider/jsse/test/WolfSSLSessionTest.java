@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.Provider;
@@ -275,6 +276,18 @@ public class WolfSSLSessionTest {
                 if (!certs[0].getType().equals("X.509")) {
                     error("\t\t... failed");
                     fail("unexpected cert type found");
+                }
+
+                /* Check that Certificate[] returned from getPeerCertificates()
+                 * is actually of subclass type X509Certificate[]. If not and
+                 * we try to cast back to it, we should get a
+                 * ClassCastException */
+                try {
+                    X509Certificate[] xCerts = (X509Certificate[])certs;
+                } catch (ClassCastException e) {
+                    error("\t\t... failed");
+                    fail("getPeerCertificates() did not return array of type " +
+                         "X509Certificate[]");
                 }
             }
         } catch (SSLPeerUnverifiedException e) {
