@@ -374,10 +374,5 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
         return socket;
     }
-
-    @Override
-    public synchronized void close() throws IOException {
-        super.close();
-    }
 }
 
