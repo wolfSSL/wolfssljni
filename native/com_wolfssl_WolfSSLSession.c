@@ -662,7 +662,7 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
         }
 
 #ifndef USE_WINDOWS_API
-    } while ((result == -1) && (errno == EINTR));
+    } while ((result == -1) && ((errno == EINTR) || (errno == EAGAIN)));
 #endif
 
     /* Return on error, unless select() was interrupted, try again above */
