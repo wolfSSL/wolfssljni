@@ -647,7 +647,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
     @Override
     public Principal getLocalPrincipal() {
-
+    /* Logic needs to be added to check for client auth when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(authStore.getCertAlias());
@@ -657,12 +657,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
             return null;
         }
 
-        for (int i = 0; i < certs.length; i++) {
-            if (certs[i].getBasicConstraints() < 0) {
-                /* is not a CA treat as end of chain */
-                localPrincipal = certs[i].getSubjectDN();
-                break;
-            }
+        if (certs.length > 0){
+            /* When chain of certificates exceeds one, the user certifcate is the first */
+            localPrincipal = certs[0].getSubjectDN();
         }
 
         /* free native resources earlier than garbage collection if
