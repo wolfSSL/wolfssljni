@@ -554,7 +554,7 @@ public class WolfSSLEngine extends SSLEngine {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ByteBuffer in["+i+"].position(): " + in[i].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].limit(): " + in[i].position());
+                    "ByteBuffer in["+i+"].limit(): " + in[i].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "ofst: " + ofst + ", len: " + len);
@@ -675,7 +675,7 @@ public class WolfSSLEngine extends SSLEngine {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "ByteBuffer in["+i+"].position(): " + in[i].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].limit(): " + in[i].position());
+                    "ByteBuffer in["+i+"].limit(): " + in[i].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "ofst: " + ofst + ", len: " + len);
