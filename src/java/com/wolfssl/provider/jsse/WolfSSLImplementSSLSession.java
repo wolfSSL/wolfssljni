@@ -647,7 +647,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
     @Override
     public Principal getLocalPrincipal() {
-    /* Logic needs to be added to check for client auth when wrapper is made TODO */
+        /* Logic needs to be added to check for client auth when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(authStore.getCertAlias());
