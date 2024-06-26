@@ -54,9 +54,36 @@ public class WolfSSL {
     public static final int JNI_SESSION_UNAVAILABLE = -10001;
 
     /**
-     * Socket timed out, matches com_wolfssl_WolfSSLSession.c socketSelect()
-     * return value */
-    public static final int WOLFJNI_TIMEOUT = -11;
+     * Socket select/poll() failed, matches com_wolfssl_WolfSSLSession.c
+     * socketSelect() and socketPoll() return value.
+     */
+    public static final int WOLFJNI_IO_EVENT_FAIL = -10;
+
+    /**
+     * Socket timed out, matches com_wolfssl_WolfSSLSession.c
+     * socketSelect() and socketPoll() return value.
+     */
+    public static final int WOLFJNI_IO_EVENT_TIMEOUT = -11;
+
+    /**
+     * Socket poll() exceptional error, matches com_wolfssl_WolfSSLSession.c
+     * socketPoll() return value */
+    public static final int WOLFJNI_IO_EVENT_ERROR = -14;
+
+    /**
+     * Socket file descriptor closed, matches com_wolfssl_WolfSSLSession.c
+     * socketPoll() return value */
+    public static final int WOLFJNI_IO_EVENT_FD_CLOSED = -15;
+
+    /**
+     * Socket disconnected during poll(), matches
+     * com_wolfssl_WolfSSLSession.c socketPoll() return value */
+    public static final int WOLFJNI_IO_EVENT_POLLHUP = -16;
+
+    /**
+     * Socket invalid timeout during poll/select(), matches
+     * com_wolfssl_WolfSSLSession.c socketPoll/socketSelect() return value */
+    public static final int WOLFJNI_IO_EVENT_INVALID_TIMEOUT = -17;
 
     /* ----------------------- wolfSSL codes ---------------------------- */
 
