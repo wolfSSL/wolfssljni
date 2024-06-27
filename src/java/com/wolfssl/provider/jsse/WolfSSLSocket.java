@@ -1299,15 +1299,13 @@ public class WolfSSLSocket extends SSLSocket {
                 "Handshake attempt failed in SSLSocket.getSession()");
 
             /* close SSLSocket */
-            if (this.socket != null && !this.socket.isClosed()) {
-                try {
-                    close();
-                } catch (Exception ex) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "close attempt failed in SSLSocket.getSession(): " +
-                        ex);
-                }
+            try {
+                close();
+            } catch (Exception ex) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "close attempt failed in SSLSocket.getSession(): " + ex);
             }
+
             /* return invalid session object with cipher suite
              * "SSL_NULL_WITH_NULL_NULL" */
             return new WolfSSLImplementSSLSession(this.authStore);
