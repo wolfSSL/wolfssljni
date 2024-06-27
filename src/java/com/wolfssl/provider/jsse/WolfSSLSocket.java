@@ -1297,6 +1297,18 @@ public class WolfSSLSocket extends SSLSocket {
             /* Log error, but continue. Session returned will be empty */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Handshake attempt failed in SSLSocket.getSession()");
+
+            /* close SSLSocket */
+            try {
+                close();
+            } catch (Exception ex) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "close attempt failed in SSLSocket.getSession(): " + ex);
+            }
+
+            /* return invalid session object with cipher suite
+             * "SSL_NULL_WITH_NULL_NULL" */
+            return new WolfSSLImplementSSLSession(this.authStore);
         }
 
         return EngineHelper.getSession();
@@ -1446,6 +1458,8 @@ public class WolfSSLSocket extends SSLSocket {
             } catch (SocketTimeoutException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "got socket timeout in doHandshake()");
+                /* close socket if the handshake is unsuccessful */
+                close();
                 throw e;
             }
 
@@ -1453,6 +1467,8 @@ public class WolfSSLSocket extends SSLSocket {
                 int err = ssl.getError(ret);
                 String errStr = WolfSSL.getErrorString(err);
 
+                /* close socket if the handshake is unsuccessful */
+                close();
                 throw new SSLHandshakeException(errStr + " (error code: " +
                     err + ", TID " + Thread.currentThread().getId() + ")");
             }
