@@ -1220,7 +1220,7 @@ public class WolfSSLEngineHelper {
                 /* TODO: SunJSSE sends a Handshake Failure alert instead here */
                 try {
                     this.ssl.shutdownSSL();
-                } catch (SocketException e) {
+                } catch (SocketException | SocketTimeoutException e) {
                     throw new SSLException(e);
                 }
 
@@ -1336,7 +1336,8 @@ public class WolfSSLEngineHelper {
 
             } catch (SocketException e) {
                 /* SocketException may be thrown if native socket
-                 * select() fails. Propogate errno back inside exception. */
+                 * select/poll() fails. Propogate errno back inside new
+                 * SSLException. */
                 throw new SSLException(e);
             }
 

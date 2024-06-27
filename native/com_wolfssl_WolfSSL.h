@@ -9,8 +9,18 @@ extern "C" {
 #endif
 #undef com_wolfssl_WolfSSL_JNI_SESSION_UNAVAILABLE
 #define com_wolfssl_WolfSSL_JNI_SESSION_UNAVAILABLE -10001L
-#undef com_wolfssl_WolfSSL_WOLFJNI_TIMEOUT
-#define com_wolfssl_WolfSSL_WOLFJNI_TIMEOUT -11L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_FAIL
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_FAIL -10L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_TIMEOUT
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_TIMEOUT -11L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_ERROR
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_ERROR -14L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_FD_CLOSED
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_FD_CLOSED -15L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_POLLHUP
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_POLLHUP -16L
+#undef com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_INVALID_TIMEOUT
+#define com_wolfssl_WolfSSL_WOLFJNI_IO_EVENT_INVALID_TIMEOUT -17L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_NONE
 #define com_wolfssl_WolfSSL_SSL_ERROR_NONE 0L
 #undef com_wolfssl_WolfSSL_SSL_FAILURE

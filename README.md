@@ -327,6 +327,24 @@ $ ./configure --enable-secure-renegotiation
 
 Or by defining `-DHAVE_SECURE_RENEGOTIATION`.
 
+### Native File Descriptor Events
+
+wolfSSL JNI/JSSE internally makes several calls that operate on native
+file descriptors inside Java Socket objects. These native file descriptors
+are watched for read and write events with either `select()` or `poll()`.
+
+By default `poll()` will be used, unless `WOLFJNI_USE_IO_SELECT` is defined
+or added to CFLAGS when compiling the native JNI sources (see `java.sh`).
+Windows builds will also default to using `select()` since `poll()` is not
+available there.
+
+wolfSSL JNI/JSSE does not select/poll on a large number of file descriptors
+(typically just one). Although if used in applications that make lots of
+connections, when using `select()` the `FD_ISSET` and other related macros
+result in undefined behavior when the file descriptor number is larger than
+`FD_SETSIZE` (defaults to 1024 on most systems). For this reason, `poll()` is
+used as the default descriptor monitoring function.
+
 ## Release Notes
 
 Release notes can be found in [ChangeLog.md](./ChangeLog.md).
