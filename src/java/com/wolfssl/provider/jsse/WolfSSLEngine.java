@@ -353,8 +353,11 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * @return WolfSSL.SSL_SUCCESS on success, zero or negative on error
      * @throws SocketException if ssl.shutdownSSL() encounters a socket error
+     * @throws SocketTimeoutException if ssl.shutdownSSL() times out
      */
-    private synchronized int ClosingConnection() throws SocketException {
+    private synchronized int ClosingConnection()
+        throws SocketException, SocketTimeoutException {
+
         int ret;
 
         /* Save session into WolfSSLAuthStore cache, saves session
@@ -395,7 +398,13 @@ public class WolfSSLEngine extends SSLEngine {
 
     /**
      * Starts or continues SSL/TLS handshake.
-     * Returns WolfSSL.SSL_SUCCESS or WolfSSL.SSL_FAILURE
+     *
+     * @return WolfSSL.SSL_SUCCESS or WolfSSL.SSL_FAILURE
+     * @throws SocketException if ssl.connect() or ssl.accept() encounters
+     *         a socket exception.
+     * @throws SocketTimeoutException if ssl.connect() or ssl.accept()
+     *         times out. This should not happen since infinite timeout is
+     *         being used for these calls.
      */
     private synchronized int DoHandshake() throws SSLException {
         int ret = WolfSSL.SSL_SUCCESS;
@@ -434,10 +443,12 @@ public class WolfSSLEngine extends SSLEngine {
      * (SSLSession.getApplicationBufferSize()).
      *
      * @throws SocketException if ssl.write() encounters a socket error
+     * @throws SocketTimeoutException if ssl.write() times out. Shouldn't
+     *         happen since this is using an infinite timeout.
      * @return bytes sent on success, negative on error
      */
     private synchronized int SendAppData(ByteBuffer[] in, int ofst, int len)
-        throws SocketException {
+        throws SocketException, SocketTimeoutException {
 
         int i = 0;
         int ret = 0;
@@ -629,7 +640,7 @@ public class WolfSSLEngine extends SSLEngine {
 
             try {
                 ClosingConnection();
-            } catch (SocketException e) {
+            } catch (SocketException | SocketTimeoutException e) {
                 throw new SSLException(e);
             }
             produced += CopyOutPacket(out);
@@ -653,7 +664,7 @@ public class WolfSSLEngine extends SSLEngine {
                     if (ret > 0) {
                         consumed += ret;
                     }
-                } catch (SocketException e) {
+                } catch (SocketException | SocketTimeoutException e) {
                     throw new SSLException(e);
                 }
             }
@@ -781,7 +792,7 @@ public class WolfSSLEngine extends SSLEngine {
         synchronized (ioLock) {
             try {
                 ret = this.ssl.read(tmp, maxOutSz);
-            } catch (SocketException e) {
+            } catch (SocketTimeoutException | SocketException e) {
                 throw new SSLException(e);
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -821,7 +832,8 @@ public class WolfSSLEngine extends SSLEngine {
                                      * 0, or err */
                                     ret = 0;
                                 }
-                            } catch (SocketException e) {
+                            } catch (SocketException |
+                                     SocketTimeoutException e) {
                                 throw new SSLException(e);
                             }
                             return ret;
@@ -998,7 +1010,7 @@ public class WolfSSLEngine extends SSLEngine {
                          * release, global JNI verify callback pointer */
                         this.engineHelper.unsetVerifyCallback();
                     }
-                } catch (SocketException e) {
+                } catch (SocketException | SocketTimeoutException e) {
                     throw new SSLException(e);
                 }
             }

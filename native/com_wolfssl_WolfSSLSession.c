@@ -33,6 +33,11 @@
     #include <arpa/inet.h>
     #include <sys/errno.h>
 #endif
+#ifdef WOLFJNI_USE_IO_SELECT
+    #include <sys/select.h>
+#else
+    #include <poll.h>
+#endif
 
 #ifndef WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT
     /* Default wolfSSL_peek() timeout for wolfSSL_get_session(), ms */
@@ -185,9 +190,6 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
     return retval;
 }
-
-
-/* jni functions */
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
   (JNIEnv* jenv, jobject jcl, jlong ctx)
@@ -599,22 +601,50 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getFd
     return wolfSSL_get_fd(ssl);
 }
 
-/* enum values used in socketSelect() */
+/* enum values used in socketSelect() and socketPoll(). Some of these
+ * values are also duplicated in WolfSSL.java for access from Java classes.
+ * If updated here, make sure to update in WolfSSL.java too. */
 enum {
-    WOLFJNI_SELECT_FAIL = -10,
-    WOLFJNI_TIMEOUT     = -11,  /* also in WolfSSL.java */
-    WOLFJNI_RECV_READY  = -12,
-    WOLFJNI_SEND_READY  = -13,
-    WOLFJNI_ERROR_READY = -14
+    WOLFJNI_IO_EVENT_FAIL            = -10,
+    WOLFJNI_IO_EVENT_TIMEOUT         = -11,
+    WOLFJNI_IO_EVENT_RECV_READY      = -12,
+    WOLFJNI_IO_EVENT_SEND_READY      = -13,
+    WOLFJNI_IO_EVENT_ERROR           = -14,
+    WOLFJNI_IO_EVENT_FD_CLOSED       = -15,
+    WOLFJNI_IO_EVENT_POLLHUP         = -16,
+    WOLFJNI_IO_EVENT_INVALID_TIMEOUT = -17
 };
 
-/* perform a select() call on underlying socket to wait for socket to be ready
- * to read/write, or timeout. Note that we explicitly set the underlying
- * socket descriptor to non-blocking so we can select() on it.
+#ifdef WOLFJNI_USE_IO_SELECT
+
+/* Perform a select() call on the underlying socket to wait for socket to be
+ * ready for read/write, or timeout. Note that we explicitly set the underlying
+ * socket descriptor to non-blocking.
  *
- * The Java socket timeout value representing no timeout is NULL, not 0 like
- * C. We adjust for this when handling timeout_ms here. timeout_ms is in
- * milliseconds. */
+ * NOTE: the FD_ISSET macro behavior is undefined if the descriptor value is
+ *       less than 0 or greater than or equal to FD_SETSIZE (1024 by default).
+ *
+ * On a Java Socket, a timeout of 0 is an infinite timeout. Greater than zero
+ * is a timeout in milliseconds. Negative timeout is invalid and not supported.
+ * For select(), a non-NULL timeval struct specifies maximum timeout to wait,
+ * a NULL timeval struct is an infinite timeout. A zero-valued timeval struct
+ * will return immediately (no timeout).
+ *
+ * @param sockfd     socket descriptor to select()
+ * @param timeout_ms timeout in milliseconds. 0 indicates infinite timeout, to
+ *                   match Java timeout behavior. Negative timeout not
+ *                   supported, since not supported on Java Socket.
+ * @param rx         set to 1 to monitor readability on socket descriptor,
+ *                   otherwise 0 to monitor writability
+ *
+ * @return possible return values are:
+ *         WOLFJNI_IO_EVENT_FAIL
+ *         WOLFJNI_IO_EVENT_ERROR
+ *         WOLFJNI_IO_EVENT_TIMEOUT
+ *         WOLFJNI_IO_EVENT_RECV_READY
+ *         WOLFJNI_IO_EVENT_SEND_READY
+ *         WOLFJNI_IO_EVENT_INVALID_TIMEOUT
+ */
 static int socketSelect(int sockfd, int timeout_ms, int rx)
 {
     fd_set fds, errfds;
@@ -623,6 +653,11 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
     int nfds = sockfd + 1;
     int result = 0;
     struct timeval timeout;
+
+    /* Java Socket does not support negative timeouts, sanitize */
+    if (timeout_ms < 0) {
+        return WOLFJNI_IO_EVENT_INVALID_TIMEOUT;
+    }
 
 #ifndef USE_WINDOWS_API
     do {
@@ -648,31 +683,118 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
         }
 
         if (result == 0) {
-            return WOLFJNI_TIMEOUT;
+            return WOLFJNI_IO_EVENT_TIMEOUT;
         } else if (result > 0) {
             if (FD_ISSET(sockfd, &fds)) {
                 if (rx) {
-                    return WOLFJNI_RECV_READY;
+                    return WOLFJNI_IO_EVENT_RECV_READY;
                 } else {
-                    return WOLFJNI_SEND_READY;
+                    return WOLFJNI_IO_EVENT_SEND_READY;
                 }
             } else if (FD_ISSET(sockfd, &errfds)) {
-                return WOLFJNI_ERROR_READY;
+                return WOLFJNI_IO_EVENT_ERROR;
             }
         }
 
 #ifndef USE_WINDOWS_API
-    } while ((result == -1) && (errno == EINTR));
+    } while ((result == -1) && ((errno == EINTR) || (errno == EAGAIN)));
 #endif
 
-    /* Return on error, unless select() was interrupted, try again above */
-    return WOLFJNI_SELECT_FAIL;
+    /* Return on error, unless errno EINTR or EAGAIN, try again above */
+    return WOLFJNI_IO_EVENT_FAIL;
 }
+
+#else /* !WOLFJNI_USE_IO_SELECT */
+
+/* Perform poll() on underlying socket descriptor to wait for socket to be
+ * ready for read/write, or timeout. Note that we are explicitly setting
+ * the underlying descriptor to non-blocking.
+ *
+ * On a Java Socket, a timeout of 0 is an infinite timeout. Greater than zero
+ * is a timeout in milliseconds. Negative timeout is invalid and not supported.
+ * For poll(), timeout greater than 0 specifies max timeout in milliseconds,
+ * zero timeout will return immediately (no timeout), and -1 will block
+ * indefinitely.
+ *
+ * @param sockfd     socket descriptor to poll()
+ * @param timeout_ms timeout in milliseconds. 0 indicates infinite timeout, to
+ *                   match Java timeout behavior. Negative timeout not
+ *                   supported, since not supported on Java Socket.
+ * @param rx         set to 1 to monitor readability on socket descriptor,
+ *                   otherwise 0 to ignore readability events
+ * @param tx         set to 1 to monitor writability on socket descriptor,
+ *                   otherwise 0 to ignore writability events
+ *
+ * @return possible return values are:
+ *         WOLFJNI_IO_EVENT_FAIL
+ *         WOLFJNI_IO_EVENT_ERROR
+ *         WOLFJNI_IO_EVENT_TIMEOUT
+ *         WOLFJNI_IO_EVENT_RECV_READY
+ *         WOLFJNI_IO_EVENT_SEND_READY
+ *         WOLFJNI_IO_EVENT_FD_CLOSED
+ *         WOLFJNI_IO_EVENT_POLLHUP
+ *         WOLFJNI_IO_EVENT_INVALID_TIMEOUT
+ */
+static int socketPoll(int sockfd, int timeout_ms, int rx, int tx)
+{
+    int ret;
+    int timeout;
+    struct pollfd fds[1];
+
+    /* Sanitize timeout and convert from Java to poll() expectations */
+    timeout = timeout_ms;
+    if (timeout < 0) {
+        return WOLFJNI_IO_EVENT_INVALID_TIMEOUT;
+    } else if (timeout == 0) {
+        timeout = -1;
+    }
+
+    fds[0].fd = sockfd;
+    fds[0].events = 0;
+    if (tx) {
+        fds[0].events |= POLLOUT;
+    }
+    if (rx) {
+        fds[0].events |= POLLIN;
+    }
+
+    do {
+        ret = poll(fds, 1, timeout);
+        if (ret == 0) {
+            return WOLFJNI_IO_EVENT_TIMEOUT;
+
+        } else if (ret > 0) {
+            if (fds[0].revents & POLLIN ||
+                fds[0].revents & POLLPRI) {         /* read possible */
+                return WOLFJNI_IO_EVENT_RECV_READY;
+
+            } else if (fds[0].revents & POLLOUT) {  /* write possible */
+                return WOLFJNI_IO_EVENT_SEND_READY;
+
+            } else if (fds[0].revents & POLLNVAL) { /* fd not open */
+                return WOLFJNI_IO_EVENT_FD_CLOSED;
+
+            } else if (fds[0].revents & POLLERR) {  /* exceptional error */
+                return WOLFJNI_IO_EVENT_ERROR;
+
+            } else if (fds[0].revents & POLLHUP) {  /* sock disconnected */
+                return WOLFJNI_IO_EVENT_POLLHUP;
+            }
+        }
+
+    } while ((ret == -1) && ((errno == EINTR) || (errno == EAGAIN)));
+
+    return WOLFJNI_IO_EVENT_FAIL;
+}
+
+#endif /* WOLFJNI_USE_IO_SELECT */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err = 0, sockfd = 0;
+    int pollRx = 0;
+    int pollTx = 0;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -726,12 +848,28 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
                 break;
             }
 
-            ret = socketSelect(sockfd, (int)timeout, 1);
-            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+            if (err == SSL_ERROR_WANT_READ) {
+                pollRx = 1;
+            }
+            else if (err == SSL_ERROR_WANT_WRITE) {
+                pollTx = 1;
+            }
+
+        #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+            ret = socketSelect(sockfd, (int)timeout, pollRx);
+        #else
+            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+        #endif
+            if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
                 /* I/O ready, continue handshake and try again */
                 continue;
-            } else if (ret == WOLFJNI_TIMEOUT) {
-                /* Java will throw SocketTimeoutException */
+            } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
+                       ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
+                       ret == WOLFJNI_IO_EVENT_ERROR ||
+                       ret == WOLFJNI_IO_EVENT_POLLHUP ||
+                       ret == WOLFJNI_IO_EVENT_FAIL) {
+                /* Java will throw SocketTimeoutException or SocketException */
                 break;
             } else {
                 /* error */
@@ -758,6 +896,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
 {
     byte* data = NULL;
     int ret = SSL_FAILURE, err, sockfd;
+    int pollRx = 0;
+    int pollTx = 0;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -819,12 +959,32 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
                     break;
                 }
 
-                ret = socketSelect(sockfd, (int)timeout, 0);
-                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                if (err == SSL_ERROR_WANT_READ) {
+                    pollRx = 1;
+                }
+                else if (err == SSL_ERROR_WANT_WRITE) {
+                    pollTx = 1;
+                }
+
+            #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+                ret = socketSelect(sockfd, (int)timeout, pollRx);
+            #else
+                ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+            #endif
+                if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                    (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
                     /* loop around and try wolfSSL_write() again */
                     continue;
+                } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
+                           ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
+                           ret == WOLFJNI_IO_EVENT_ERROR ||
+                           ret == WOLFJNI_IO_EVENT_POLLHUP ||
+                           ret == WOLFJNI_IO_EVENT_FAIL) {
+                    /* Java will throw SocketTimeoutException or
+                     * SocketException */
+                    break;
                 } else {
-                    /* error or timeout occurred during select */
+                    /* error */
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
@@ -847,6 +1007,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
 {
     byte* data = NULL;
     int size = 0, ret, err, sockfd;
+    int pollRx = 0;
+    int pollTx = 0;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -905,12 +1067,32 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
                     break;
                 }
 
-                ret = socketSelect(sockfd, timeout, 1);
-                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+                if (err == SSL_ERROR_WANT_READ) {
+                    pollRx = 1;
+                }
+                else if (err == SSL_ERROR_WANT_WRITE) {
+                    pollTx = 1;
+                }
+
+            #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+                ret = socketSelect(sockfd, (int)timeout, pollRx);
+            #else
+                ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+            #endif
+                if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                    (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
                     /* loop around and try wolfSSL_read() again */
                     continue;
+                } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
+                           ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
+                           ret == WOLFJNI_IO_EVENT_ERROR ||
+                           ret == WOLFJNI_IO_EVENT_POLLHUP ||
+                           ret == WOLFJNI_IO_EVENT_FAIL) {
+                    /* Java will throw SocketTimeoutException or
+                     * SocketException */
+                    break;
                 } else {
-                    /* error or timeout occurred during select */
+                    /* other error occurred */
                     size = ret;
                     break;
                 }
@@ -930,6 +1112,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err, sockfd;
+    int pollRx = 0;
+    int pollTx = 0;
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -983,12 +1167,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
                 break;
             }
 
-            ret = socketSelect(sockfd, (int)timeout, 1);
-            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
-                /* I/O ready, continue handshake and try again */
+            if (err == SSL_ERROR_WANT_READ) {
+                pollRx = 1;
+            }
+            else if (err == SSL_ERROR_WANT_WRITE) {
+                pollTx = 1;
+            }
+
+        #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+            ret = socketSelect(sockfd, (int)timeout, pollRx);
+        #else
+            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+        #endif
+            if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
+                /* loop around and try wolfSSL_accept() again */
                 continue;
+            } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
+                       ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
+                       ret == WOLFJNI_IO_EVENT_ERROR ||
+                       ret == WOLFJNI_IO_EVENT_POLLHUP ||
+                       ret == WOLFJNI_IO_EVENT_FAIL) {
+                /* Java will throw SocketTimeoutException or
+                 * SocketException */
+                break;
             } else {
-                /* error or timeout */
+                /* other error occurred */
+                ret = SSL_FAILURE;
                 break;
             }
         }
@@ -1156,6 +1361,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err, sockfd;
+    int pollRx = 0;
+    int pollTx = 0;
     wolfSSL_Mutex* jniSessLock;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -1209,12 +1416,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
                 break;
             }
 
-            ret = socketSelect(sockfd, timeout, 1);
-            if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
-                /* I/O ready, continue handshake and try again */
+            if (err == SSL_ERROR_WANT_READ) {
+                pollRx = 1;
+            }
+            else if (err == SSL_ERROR_WANT_WRITE) {
+                pollTx = 1;
+            }
+
+        #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+            ret = socketSelect(sockfd, (int)timeout, pollRx);
+        #else
+            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+        #endif
+            if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
+                /* loop around and try wolfSSL_shutdown() again */
                 continue;
+            } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
+                       ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
+                       ret == WOLFJNI_IO_EVENT_ERROR ||
+                       ret == WOLFJNI_IO_EVENT_POLLHUP ||
+                       ret == WOLFJNI_IO_EVENT_FAIL) {
+                /* Java will throw SocketTimeoutException or
+                 * SocketException */
+                break;
             } else {
-                /* error or timeout */
+                /* other error occurred */
+                ret = SSL_FAILURE;
                 break;
             }
         }
@@ -1401,9 +1629,16 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
                     break;
                 }
 
+            #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
+                /* Default to select() on Windows or if WOLFJNI_USE_IO_SELECT */
                 ret = socketSelect(sockfd,
                         (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1);
-                if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
+            #else
+                ret = socketPoll(sockfd,
+                        (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1, 0);
+            #endif
+                if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
+                    (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
                     /* I/O ready, continue handshake and try again */
                     continue;
                 } else {
