@@ -1723,6 +1723,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsResumable
 #endif
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionDup
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return 0;
+    }
+
+    /* checks session for NULL */
+    return (jlong)(uintptr_t)wolfSSL_SESSION_dup(session);
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
   (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
 {
