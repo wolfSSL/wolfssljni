@@ -871,7 +871,7 @@ public class WolfSSLEngineHelper {
      * name depending on what createSocket() API the user has called and with
      * what String.
      */
-    private void setLocalServerNames() {
+    private void setLocalServerNames() throws SSLException {
 
         /* Do not add SNI if system property has been set to false */
         boolean enableSNI =
@@ -931,7 +931,9 @@ public class WolfSSLEngineHelper {
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "hostname and peerAddr are null, not setting SNI");
-                }
+                    //throw an SSLException if the hostname is null
+		    throw new SSLException("Hostname is null");
+		}
             }
         }
     }
