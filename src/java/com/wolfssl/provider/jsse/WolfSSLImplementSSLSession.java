@@ -66,6 +66,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     private final HashMap<String, Object> binding;
     private final int port;
     private final String host;
+    String protocol = null;
     Date creation = null;
     Date accessed = null; /* when new connection was made using session */
     byte[] pseudoSessionID = null; /* used with TLS 1.3*/
@@ -130,6 +131,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
         this.sesPtr = 0;
+        this.protocol = this.nullProtocol;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -154,6 +156,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
         this.sesPtr = 0;
+        this.protocol = this.nullProtocol;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -175,6 +178,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
         this.sesPtr = 0;
+        this.protocol = this.nullProtocol;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -224,6 +228,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         if (orig.peerCerts != null) {
             this.peerCerts = orig.peerCerts.clone();
         }
+        this.protocol = orig.protocol;
+
         /* This session has been copied and is therefore not inside the
          * WolfSSLAuthStore session cache table currently */
         this.isInTable = false;
@@ -690,20 +696,22 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         return null;
     }
 
+    /**
+     * Return the cipher suite from the native WOLFSSL_SESSION structure.
+     *
+     * @return String representation of the cipher suite from the native
+     *         WOLFSSL_SESSION structure, or NULL if not able to be
+     *         retrieved.
+     */
+    public synchronized String getSessionCipherSuite() {
+        synchronized (sesPtrLock) {
+            return WolfSSLSession.sessionGetCipherName(this.sesPtr);
+        }
+    }
+
     @Override
     public synchronized String getProtocol() {
-        if (ssl == null) {
-            return this.nullProtocol;
-        }
-
-        try {
-            return this.ssl.getVersion();
-        } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
-        }
-        return null;
+        return this.protocol;
     }
 
     @Override
@@ -816,6 +824,20 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
                     this.sesPtrUpdatedAfterTable = true;
                 }
             }
+
+            /* Update cached values in this SSLSession from WolfSSLSession,
+             * in case that goes out of scope and is garbage collected. */
+            updateStoredSessionValues();
+        }
+    }
+
+    protected synchronized void updateStoredSessionValues() {
+
+        try {
+            this.protocol = this.ssl.getVersion();
+        } catch (IllegalStateException | WolfSSLJNIException ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Not able to update stored WOLFSSL protocol");
         }
     }
 

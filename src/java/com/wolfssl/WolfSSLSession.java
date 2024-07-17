@@ -260,6 +260,7 @@ public class WolfSSLSession {
     private static native int wolfsslSessionIsSetup(long ssl);
     private static native int wolfsslSessionIsResumable(long ssl);
     private static native long wolfsslSessionDup(long session);
+    private static native String wolfsslSessionCipherGetName(long ssl);
     private static native void freeNativeSession(long session);
     private native byte[] getSessionID(long session);
     private native int setServerID(long ssl, byte[] id, int len, int newSess);
@@ -1387,6 +1388,29 @@ public class WolfSSLSession {
         }
 
         return wolfsslSessionDup(session);
+    }
+
+    /**
+     * Get cipher suite name from WOLFSSL_SESSION, calling native
+     * wolfSSL_SESSION_CIPHER_get_name().
+     *
+     * This method is static and does not check active state since this
+     * takes a native pointer and has no interaction with the rest of this
+     * object.
+     *
+     * @param session pointer to native WOLFSSL_SESSION structure. May have
+     *        been obtained from getSession().
+     * @return String representation of the cipher suite used in native
+     *         WOLFSSL_SESSION structure, or NULL if not able to find the
+     *         session.
+     */
+    public static String sessionGetCipherName(long session) {
+
+        if (session == 0) {
+            return null;
+        }
+
+        return wolfsslSessionCipherGetName(session);
     }
 
     /**

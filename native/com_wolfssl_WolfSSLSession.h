@@ -185,6 +185,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionDup
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    wolfsslSessionCipherGetName
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionCipherGetName
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    freeNativeSession
  * Signature: (J)V
  */

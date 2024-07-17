@@ -1733,6 +1733,27 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionDup
     return (jlong)(uintptr_t)wolfSSL_SESSION_dup(session);
 }
 
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionCipherGetName
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    const char* cipherName;
+    jstring cipherStr = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || session == NULL) {
+        return NULL;
+    }
+
+    cipherName = wolfSSL_SESSION_CIPHER_get_name(session);
+
+    if (cipherName != NULL) {
+        cipherStr = (*jenv)->NewStringUTF(jenv, cipherName);
+    }
+
+    return cipherStr;
+}
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
   (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
 {
