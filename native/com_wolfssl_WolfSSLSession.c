@@ -1083,16 +1083,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read
                     (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
                     /* loop around and try wolfSSL_read() again */
                     continue;
-                } else if (ret == WOLFJNI_IO_EVENT_TIMEOUT ||
-                           ret == WOLFJNI_IO_EVENT_FD_CLOSED ||
-                           ret == WOLFJNI_IO_EVENT_ERROR ||
-                           ret == WOLFJNI_IO_EVENT_POLLHUP ||
-                           ret == WOLFJNI_IO_EVENT_FAIL) {
-                    /* Java will throw SocketTimeoutException or
-                     * SocketException */
-                    break;
                 } else {
-                    /* other error occurred */
+                    /* Java will throw SocketTimeoutException or
+                    * SocketException if ret equals
+                    * WOLFJNI_IO_EVENT_TIMEOUT, WOLFJNI_IO_EVENT_FD_CLOSED
+                    * WOLFJNI_IO_EVENT_ERROR, WOLFJNI_IO_EVENT_POLLHUP or
+                    * WOLFJNI_IO_EVENT_FAIL */
                     size = ret;
                     break;
                 }
