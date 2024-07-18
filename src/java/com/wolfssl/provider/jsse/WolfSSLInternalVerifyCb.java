@@ -119,7 +119,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             }
         } catch (CertificateException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "X509ExtendedTrustManager hostname verification failed");
+                "X509ExtendedTrustManager hostname verification failed: " +
+                e.getMessage());
             return 0;
         }
 
@@ -138,6 +139,17 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
      */
     private boolean VerifyCertChainWithTrustManager(X509Certificate[] certs,
         String authType) {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "Verifying peer with X509TrustManager: " + this.tm);
+        if (this.tm instanceof X509ExtendedTrustManager) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager of type X509ExtendedTrustManager");
+        }
+        else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager of type X509TrustManager");
+        }
 
         try {
             /* Call TrustManager to do cert verification, should throw
@@ -211,7 +223,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         } catch (Exception e) {
             /* TrustManager rejected certificate, not valid */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "TrustManager rejected certificates, verification failed");
+                "TrustManager rejected certificates, verification failed: " +
+                e.getMessage());
             return false;
         }
 
@@ -264,7 +277,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         } catch (WolfSSLException e) {
             /* failed to get certs from native, give app null array */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Failed to get certs from x509StorePtr, certs = null");
+                "Failed to get certs from x509StorePtr, certs = null: " +
+                e.getMessage());
             certs = null;
         }
 
@@ -282,7 +296,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                 /* failed to get cert array, give app empty array */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "Failed to get X509Certificate[] array, set to " +
-                    "empty array");
+                    "empty array: " + ce.getMessage());
                 x509certs = new X509Certificate[0];
             }
 
