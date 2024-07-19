@@ -600,7 +600,7 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
-        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        /* Set wolfSSL I/O callbacks and context for read/write operations */
         try {
             setSSLCallbacks();
         } catch (WolfSSLJNIException e) {
@@ -975,7 +975,7 @@ public class WolfSSLEngine extends SSLEngine {
                 "===========================================================");
         }
 
-        /* Set wolfSSL I/O callbacks and contextx for read/write operations */
+        /* Set wolfSSL I/O callbacks and context for read/write operations */
         try {
             setSSLCallbacks();
         } catch (WolfSSLJNIException e) {
@@ -1091,6 +1091,9 @@ public class WolfSSLEngine extends SSLEngine {
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
                     (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
                     if (err == WolfSSL.UNKNOWN_ALPN_PROTOCOL_NAME_E) {
+                        /* Native wolfSSL could not negotiate a common ALPN
+                         * protocol */
+                        this.inBoundOpen = false;
                         throw new SSLHandshakeException(
                             "Unrecognized protocol name error, ret:err = " +
                             ret + " : " + err);
