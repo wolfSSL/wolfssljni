@@ -345,6 +345,106 @@ result in undefined behavior when the file descriptor number is larger than
 `FD_SETSIZE` (defaults to 1024 on most systems). For this reason, `poll()` is
 used as the default descriptor monitoring function.
 
+### Security Property Support
+
+wolfJSSE allows for some customization through the `java.security` file
+and use of Security properties.
+
+Support is included for the following pre-existing Java Security properties.
+
+**keystore.type (String)** - Specifies the default KeyStore type. This defaults
+to JKS, but could be set to something else if desired.
+
+**jdk.tls.disabledAlgorithms (String)** - Can be used to disable algorithms,
+TLS protocol versions, and key lengths, among other things. This should be a
+comma-delimited String. wolfJSSE includes partial support for this property,
+with supported items including disabling SSL/TLS protocol versions and setting
+minimum RSA/ECC/DH key sizes. An example of potential use:
+
+```
+jdk.tls.disabledAlgorithms=SSLv3, TLSv1.1, DH keySize < 1024, EC keySize < 224, RSA keySize < 1024
+```
+
+The following custom wolfJSSE-specific Security property settings are supported.
+These can be placed into the `java.security` file and will be parsed and used
+by wolfJSSE.
+
+**wolfjsse.enabledCipherSuites (String)** - Allows restriction of the enabled
+cipher suiets to those listed in this Security property. When set, applications
+wil not be able to override or add additional suites at runtime without
+changing this property. This should be a comma-delimited String. Example use:
+
+```
+wolfjsse.enabledCipherSuites=TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+```
+
+**wolfjsse.enabledSupportedCurves (String)** - Allows setting of specific ECC
+curves to be enabled for SSL/TLS connections. This propogates down to the native
+wolfSSL API `wolfSSL_UseSupportedCurve()`. If invalid/bad values are found
+when processing this property, connection establishment will fail with an
+SSLException. This should be a comma-delimited String. Example use:
+
+```
+wolfjsse.enabledSupportedCurves=secp256r1, secp521r1
+```
+
+**wolfjsse.enabledSignatureAlgorithms (String)** - Allows restriction of the
+signature algorithms sent in the TLS ClientHello Signature Algorithms
+Extension. By using/setting this property, native wolfSSL will not populate
+the extension with default values, which are based on what algorithms have been
+compiled into the native wolfSSL library. This should be a comma-delimited
+String of signature algorithm + MAC combinations. Example use:
+
+```
+wolfjsse.enabledSignatureAlgorithms=RSA+SHA256:ECDSA+SHA256
+```
+
+**wolfjsse.keystore.type.required (String)** - Can be used to specify a KeyStore
+type that is required to be used. If this is set, wolfJSSE will not allow use
+of any KeyStore instances that are not of this type. One use of this option
+is when using wolfCrypt FIPS 140-2/3 with wolfJCE registered as a JCE provider.
+This option can be used to restrict use of the wolfJCE "WKS" KeyStore type
+to help ensure conformance to using FIPS-validated cryptography. Other
+non-wolfJCE KeyStore implementations may not use/consume FIPS validated crypto.
+
+If there are other Security properties you would like to use with wolfJSSE,
+please contact support@wolfssl.com.
+
+### System Property Support
+
+wolfJSSE allows some customization through the use of System properties. Since
+these are **System** properties and not **Security** properties, they will not
+get picked up if placed in the `java.security` file. That file is only used
+with/for Security properties (see section above).
+
+**javax.net.ssl.keyStore (String)** - Can be used to specify the KeyStore file
+to use for KeyManager objects. An alternative to passing in the KeyStore file
+programatically at runtime.
+
+**javax.net.ssl.keyStoreType (String)** - Can be used to specify the KeyStore
+type to use when getting KeyStore instances inside KeyManager objects.
+
+**javax.net.ssl.keyStorePassword (String)** - Can be used to specify the
+KeyStore password to use for initializing KeyManager instances.
+
+**javax.net.ssl.trustStore (String)** - Can be used to specify the KeyStore
+file to use with TrustManager objects. An alternative to passing in the
+KeyStore file programatically at runtime.
+
+**javax.net.ssl.trustStoreType (String)** - Can be used to specify the KeyStore
+type to use when loading KeyStore inside TrustManager objects.
+
+**javax.net.ssl.trustStorePassword (String)** - Can be used to specify the
+KeyStore password to use when loading KeyStore inside TrustManager objects.
+
+**jdk.tls.client.enableSessionTicketExtension (boolean)** - Session tickets
+are enabled in different ways depending on the JDK implementation. For
+Oracle/OpenJDK and variants, this System property enables session tickets and
+was added in Java 13. Should be set to "true" to enable.
+
+If there are other System properties you would like to use with wolfJSSE,
+please contact support@wolfssl.com.
+
 ## Release Notes
 
 Release notes can be found in [ChangeLog.md](./ChangeLog.md).

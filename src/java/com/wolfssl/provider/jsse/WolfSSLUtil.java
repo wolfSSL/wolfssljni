@@ -25,7 +25,13 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.security.Security;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 
 import com.wolfssl.WolfSSLException;
 
@@ -214,6 +220,57 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return KeyStore type restriction if set in java.security
+     * with 'wolfjsse.keystore.type.required' Security property.
+     *
+     * @return String with required KeyStore type, or null if no
+     *         requirement set
+     */
+    protected static String getRequiredKeyStoreType() {
+
+        String requiredType =
+            Security.getProperty("wolfjsse.keystore.type.required");
+
+        if (requiredType == null || requiredType.isEmpty()) {
+            return null;
+        }
+        else {
+            requiredType = requiredType.toUpperCase();
+        }
+
+        return requiredType;
+    }
+
+    /**
+     * Check given KeyStore against any pre-defind requirements for
+     * KeyStore use, including the following.
+     *
+     * Restricted KeyStore type: wolfjsse.keystore.type.required
+     *
+     * @param store Input KeyStore to check against requirements
+     *
+     * @throws KeyStoreException if KeyStore given does not meet wolfJSSE
+     *         requirements
+     */
+    protected static void checkKeyStoreRequirements(
+        KeyStore store) throws KeyStoreException {
+
+        String requiredType = null;
+
+        if (store == null) {
+            return;
+        }
+
+        requiredType = getRequiredKeyStoreType();
+        if ((requiredType != null) &&
+            (!store.getType().equals(requiredType))) {
+            throw new KeyStoreException(
+                "KeyStore does not match required type, got " +
+                store.getType() + ", required " + requiredType);
+        }
+    }
+
+    /**
      * Return maximum key size allowed if minimum is set in
      * jdk.tls.disabledAlgorithms security property for specified algorithm.
      *
@@ -274,5 +331,106 @@ public class WolfSSLUtil {
 
         return ret;
     }
+
+    /**
+     * Get path that JAVA_HOME is set, append trailing slash if needed.
+     *
+     * @return String that JAVA_HOME is set to, otherwise null if not set
+     */
+    protected static String GetJavaHome() {
+
+        String javaHome = System.getenv("JAVA_HOME");
+
+        if (javaHome != null) {
+            if (!javaHome.endsWith("/") &&
+                !javaHome.endsWith("\\")) {
+                /* add trailing slash if not there already */
+                javaHome = javaHome.concat("/");
+            }
+        }
+
+        return javaHome;
+    }
+
+    /**
+     * Detect if we are running on Android or not.
+     *
+     * @return true if we are running on an Android VM, otherwise false
+     */
+    protected static boolean isAndroid() {
+
+        String vmVendor = System.getProperty("java.vm.vendor");
+
+        if ((vmVendor != null) &&
+            vmVendor.equals("The Android Project")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if wolfJCE WKS KeyStore is available for use.
+     *
+     * @return true if WKS KeyStore type available, otherwise false
+     */
+    protected static boolean WKSAvailable() {
+
+        boolean wksAvailable = false;
+
+        try {
+            KeyStore.getInstance("WKS");
+            wksAvailable = true;
+        } catch (KeyStoreException e) {
+            /* wolfJCE WKS not available, may be that wolfJCE is not being
+             * used or hasn't bee installed in system */
+        }
+
+        return wksAvailable;
+    }
+
+    /**
+     * Try to get KeyStore instance of type specified and load from
+     * given file using provided password.
+     *
+     * @param file KeyStore file to load into new KeyStore object
+     * @param pass KeyStore password used to verify KeyStore integrity
+     * @param type KeyStore type of file to load
+     *
+     * @return new KeyStore object loaded with KeyStore file, or null
+     *         if unable to load KeyStore
+     */
+    protected static KeyStore LoadKeyStoreFileByType(String file, char[] pass,
+        String type) {
+
+        KeyStore ks = null;
+        FileInputStream stream = null;
+
+        try {
+            ks = KeyStore.getInstance(type);
+
+            try {
+                /* Initialize KeyStore, loading certs below will overwrite if
+                 * needed, but Android needs this to be initialized here */
+                ks.load(null, null);
+
+            } catch (Exception e) {
+                WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.ERROR,
+                   "Error initializing KeyStore with load(null, null)");
+                return null;
+            }
+
+            stream = new FileInputStream(file);
+            ks.load(stream, pass);
+            stream.close();
+
+        } catch (KeyStoreException | IOException | NoSuchAlgorithmException |
+                 CertificateException e) {
+            return null;
+        }
+
+        return ks;
+    }
+
 }
 

@@ -81,8 +81,12 @@ public class ClientJSSE {
         String cipherList = null;             /* default ciphersuite list */
         int sslVersion = 3;                   /* default to TLS 1.2 */
         boolean verifyPeer = true;            /* verify peer by default */
-        boolean useEnvVar  = false;           /* load cert/key from enviornment variable */
-        boolean listSuites = false;           /* list all supported cipher suites */
+        boolean useSysRoots = false;          /* skip CA KeyStore load,
+                                                 use system default roots */
+        boolean useEnvVar  = false;           /* load cert/key from enviornment
+                                                 variable */
+        boolean listSuites = false;           /* list all supported cipher
+                                                 suites */
         boolean listEnabledProtocols = false; /* show enabled protocols */
         boolean putEnabledProtocols  = false; /* set enabled protocols */
         boolean sendGET = false;              /* send HTTP GET */
@@ -100,6 +104,7 @@ public class ClientJSSE {
         String caJKS      = "../provider/ca-server.jks";
         String clientPswd = "wolfSSL test";
         String caPswd = "wolfSSL test";
+        String keyStoreFormat = "JKS";
 
         /* server (peer) info */
         String host = "localhost";
@@ -187,6 +192,12 @@ public class ClientJSSE {
             } else if (arg.equals("-profile")) {
                 profileSleep = true;
 
+            } else if (arg.equals("-sysca")) {
+                useSysRoots = true;
+
+            } else if (arg.equals("-ksformat")) {
+                keyStoreFormat = args[++i];
+
             } else {
                 printUsage();
             }
@@ -230,14 +241,20 @@ public class ClientJSSE {
 
         /* trust manager (certificates) */
         if (verifyPeer) {
-            cert = KeyStore.getInstance("JKS");
-            cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
             tm = TrustManagerFactory.getInstance("SunX509", provider);
-            tm.init(cert);
+            if (useSysRoots) {
+                /* Let wolfJSSE try to find/load default system CA certs */
+                tm.init((KeyStore)null);
+            }
+            else {
+                cert = KeyStore.getInstance(keyStoreFormat);
+                cert.load(new FileInputStream(caJKS), caPswd.toCharArray());
+                tm.init(cert);
+            }
         }
 
         /* load private key */
-        pKey = KeyStore.getInstance("JKS");
+        pKey = KeyStore.getInstance(keyStoreFormat);
         pKey.load(new FileInputStream(clientJKS), clientPswd.toCharArray());
         km = KeyManagerFactory.getInstance("SunX509", provider);
         km.init(pKey, clientPswd.toCharArray());
@@ -409,16 +426,18 @@ public class ClientJSSE {
         System.out.println("-d\t\tDisable peer checks");
         System.out.println("-g\t\tSend server HTTP GET");
         System.out.println("-e\t\tGet all supported cipher suites");
+        System.out.println("-r\t\tResume session");
+        System.out.println("-sysca\t\tLoad system CA certs, ignore any passed in");
         System.out.println("-getp\t\tGet enabled protocols");
         System.out.println("-setp <protocols> \tSet enabled protocols " +
                            "e.g \"TLSv1.1 TLSv1.2\"");
         System.out.println("-c <file>:<password>\tCertificate/key JKS,\t\tdefault " +
-                "../provider/client.jks:wolfSSL test");
+                "../provider/client.jks:\"wolfSSL test\"");
         System.out.println("-A <file>:<password>\tCertificate/key CA JKS file,\tdefault " +
-                "../provider/ca-server.jks:wolfSSL test");
-        System.out.println("-r Resume session");
+                "../provider/ca-server.jks:\"wolfSSL test\"");
         System.out.println("-profile\tSleep for 10 sec before/after running " +
                 "to allow profilers to attach");
+        System.out.println("-ksformat <str>\tKeyStore format (default: JKS)");
         System.exit(1);
     }
 }
