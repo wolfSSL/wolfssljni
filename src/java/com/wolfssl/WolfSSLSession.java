@@ -259,6 +259,7 @@ public class WolfSSLSession {
     private native long get1Session(long ssl);
     private static native int wolfsslSessionIsSetup(long ssl);
     private static native int wolfsslSessionIsResumable(long ssl);
+    private static native long wolfsslSessionDup(long session);
     private static native void freeNativeSession(long session);
     private native byte[] getSessionID(long session);
     private native int setServerID(long ssl, byte[] id, int len, int newSess);
@@ -1362,6 +1363,30 @@ public class WolfSSLSession {
         }
 
         return wolfsslSessionIsResumable(session);
+    }
+
+    /**
+     * Deep copy the contents of the WOLFSSL_SESSION, calling native
+     * wolfSSL_SESSION_dup().
+     *
+     * This session will create a new WOLFSSL_SESSION and deep copy it
+     * from the WOLFSSL_SESSION pointer provided. Note that if a non-zero
+     * value is returned the application is responsible for freeing this
+     * WOLFSSL_SESSION memory when finished by calling freeSession().
+     *
+     * @param session pointer to native WOLFSSL_SESSION structure. May have
+     *        been obtained from getSession().
+     *
+     * @return long representing a native pointer to a new WOLFSSL_SESSION
+     *         structure, or zero on error (equivalent to a NULL pointer).
+     */
+    public static long duplicateSession(long session) {
+
+        if (session == 0) {
+            return 0;
+        }
+
+        return wolfsslSessionDup(session);
     }
 
     /**

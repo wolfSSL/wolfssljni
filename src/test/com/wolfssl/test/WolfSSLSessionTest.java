@@ -938,6 +938,7 @@ public class WolfSSLSessionTest {
         int ret = 0;
         int err = 0;
         long sessionPtr = 0;
+        long sesDup = 0;
         Socket cliSock = null;
         WolfSSLSession cliSes = null;
 
@@ -1107,6 +1108,19 @@ public class WolfSSLSessionTest {
                     "WolfSSLSession.sessionIsSetup() did not return 1: " + ret);
             }
 
+            /* Test duplicateSession(), wraps wolfSSL_SESSION_dup() */
+            sesDup = cliSes.duplicateSession(sessionPtr);
+            if (sesDup == 0) {
+                throw new Exception(
+                    "WolfSSLSession.duplicateSession() returned 0");
+            }
+            if (sesDup == sessionPtr) {
+                throw new Exception(
+                    "WolfSSLSession.duplicateSession() returned same pointer");
+            }
+            cliSes.freeSession(sesDup);
+            sesDup = 0;
+
             cliSes.shutdownSSL();
             cliSes.freeSSL();
             cliSes = null;
@@ -1177,6 +1191,9 @@ public class WolfSSLSessionTest {
         } finally {
             if (sessionPtr != 0) {
                 cliSes.freeSession(sessionPtr);
+            }
+            if (sesDup != 0) {
+                cliSes.freeSession(sesDup);
             }
             if (cliSes != null) {
                 cliSes.freeSSL();

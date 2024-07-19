@@ -177,6 +177,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionIsResumable
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    wolfsslSessionDup
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_wolfsslSessionDup
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    freeNativeSession
  * Signature: (J)V
  */
