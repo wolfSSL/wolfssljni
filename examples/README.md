@@ -41,6 +41,33 @@ argument:
 $ ./examples/server.sh --help
 ```
 
+## wolfSSL JNI Example Simple Threaded Client and Server
+
+Example client/server applications that use threads, which use
+wolfSSL JNI (not JSSE):
+
+**SimpleThreadedClient.java** - Example wolfSSL JNI threaded client \
+**SimpleThreadedServer.java** - Example wolfSSL JNI threaded server
+
+These examples can be run with the provided bash scripts:
+
+```
+$ cd <wolfssljni_root>
+$ ./examples/SimpleThreadedServer.sh
+$ ./examples/SimpleThreadedClient.sh -n <num_connections>
+```
+
+The `SimpleThreadedServer.java` starts at `localhost:11111` and waits for
+client connections. When a client connection is received, it is handled in a
+separate thread.
+
+The `SimpleThreadedClient.java` makes concurrent client connections to a server
+located at `localhost:11111`. Default number of client threads is **5**, but
+can be changed using the `-n <num_connections>` command line argument. This
+example implements a simple application-wide Java client cache where native
+`WOLFSSL_SESSION` pointers are stored and used for session resumption where
+possible. See code comments for further explanation.
+
 ## X509v3 Certificate Generation Example
 
 An example is included which will generate self-signed and CA-signed
