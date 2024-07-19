@@ -421,6 +421,10 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
                 fullChain.add(rootCA);
             }
         }
+        else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Not returning cert chain from verify, not requested");
+        }
 
         return fullChain;
     }
@@ -695,6 +699,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkClientTrusted(), success");
     }
 
     /**
@@ -733,6 +740,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify hostname if right criteria matches */
         verifyHostname(certs[0], socket, null, false);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkClientTrusted(Socket), success");
     }
 
     @Override
@@ -755,6 +765,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify hostname if right criteria matches */
         verifyHostname(certs[0], null, engine, false);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkClientTrusted(SSLEngine), success");
     }
 
     /**
@@ -787,6 +800,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify cert chain, throw CertificateException if not valid */
         certManagerVerify(certs, type, false);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkServerTrusted(certs, type), success");
     }
 
     @Override
@@ -809,6 +825,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify hostname if right criteria matches */
         verifyHostname(certs[0], socket, null, true);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkServerTrusted(certs, type, Socket), success");
     }
 
     @Override
@@ -831,6 +850,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Verify hostname if right criteria matches */
         verifyHostname(certs[0], null, engine, true);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkServerTrusted(certs, type, SSLEngine), success");
     }
 
     /**
@@ -851,10 +873,17 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
     public List<X509Certificate> checkServerTrusted(X509Certificate[] certs,
         String type, String host) throws CertificateException {
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkServerTrusted()");
+        List<X509Certificate> certList = null;
 
-        return certManagerVerify(certs, type, true);
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered checkServerTrusted(cert, type, host)");
+
+        certList = certManagerVerify(certs, type, true);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "leaving checkServerTrusted(certs, type, host), success");
+
+        return certList;
     }
 
     /**
