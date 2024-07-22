@@ -41,6 +41,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -164,6 +165,87 @@ public class WolfSSLServerSocketTest {
                 sockFactories.add(sf);
             }
         }
+    }
+
+    @Test
+    public void testGetSSLParameters() throws Exception {
+        System.out.print("\tget/setSSLParameters()");
+
+        /* create new context, SSLServerSocket */
+        this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
+        SSLServerSocket ss = (SSLServerSocket)
+            ctx.getServerSocketFactory().createServerSocket(0);
+
+        SSLParameters p = ss.getSSLParameters();
+        assertNotNull(p);
+
+        /* test getting and setting cipher suites */
+        String[] suites = p.getCipherSuites();
+        assertNotNull(suites);
+        assertNotSame(suites, p.getCipherSuites()); /* should return copy */
+
+        String[] supportedSuites = ss.getSupportedCipherSuites();
+        assertNotNull(supportedSuites);
+        p.setCipherSuites(supportedSuites);
+        assertArrayEquals(supportedSuites, p.getCipherSuites());
+
+        /* test getting and setting need client auth */
+        assertFalse(p.getNeedClientAuth());          /* default: false */
+        p.setNeedClientAuth(true);
+        assertTrue(p.getNeedClientAuth());
+
+        /* test getting and setting want client auth */
+        assertFalse(p.getWantClientAuth());          /* default: false */
+        p.setWantClientAuth(true);
+        assertTrue(p.getWantClientAuth());
+
+        /* test getting and setting protocols */
+        String[] protos = p.getProtocols();
+        assertNotNull(protos);
+        assertNotSame(protos, p.getProtocols());
+
+        String[] supportedProtos = ss.getSupportedProtocols();
+        assertNotNull(supportedProtos);
+        p.setProtocols(supportedProtos);
+        assertArrayEquals(supportedProtos, p.getProtocols());
+
+        /* test getting and setting Application Protocols */
+        assertArrayEquals(new String[] {},
+                p.getApplicationProtocols());             /* default: empty */
+        String[] alpnProtos = new String[] {"h2", "http/1.1"};
+        p.setApplicationProtocols(alpnProtos);
+        assertArrayEquals(alpnProtos, p.getApplicationProtocols());
+
+
+        /* test setting SSLParameters on SSLServerSocket */
+        p = ss.getSSLParameters();
+        String[] oneSuite = new String[] { suites[0] };
+        p.setCipherSuites(oneSuite);
+        p.setApplicationProtocols(alpnProtos);
+        String[] oneProtocol = new String[] { supportedProtos[0] };
+        p.setProtocols(oneProtocol);
+        ss.setSSLParameters(p);
+
+        p = ss.getSSLParameters();
+        assertArrayEquals(oneSuite, p.getCipherSuites());
+        assertArrayEquals(alpnProtos, p.getApplicationProtocols());
+        assertArrayEquals(oneProtocol, p.getProtocols());
+
+        /* test that connected socket has the same SSLParameters */
+        SSLSocket cs = (SSLSocket) ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket) ss.accept();
+        p = server.getSSLParameters();
+        assertArrayEquals(oneSuite, p.getCipherSuites());
+        assertArrayEquals(alpnProtos, p.getApplicationProtocols());
+        assertArrayEquals(oneProtocol, p.getProtocols());
+
+        server.close();
+        cs.close();
+        ss.close();
+
+        System.out.println("\t\t... passed");
     }
 
     @Test
