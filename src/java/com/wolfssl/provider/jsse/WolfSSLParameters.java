@@ -60,6 +60,12 @@ final class WolfSSLParameters {
         cp.setServerNames(this.getServerNames());
         cp.useSessionTickets = this.useSessionTickets;
         cp.endpointIdAlgorithm = this.endpointIdAlgorithm;
+        cp.setApplicationProtocols(this.applicationProtocols);
+        cp.useCipherSuiteOrder = this.useCipherSuiteOrder;
+
+        if (alpnProtocols != null && alpnProtocols.length != 0) {
+            cp.setAlpnProtocols(this.alpnProtocols);
+        }
 
         /* TODO: duplicate other properties here when WolfSSLParameters
          * can handle them */

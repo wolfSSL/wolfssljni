@@ -338,7 +338,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     /**
      * Set the SSLParameters for this SSLServerSocket.
      *
-     * @param params SSLParameters to set for this SSLSocket object
+     * @param params SSLParameters to set for this SSLServerSocket object
      */
     synchronized public void setSSLParameters(SSLParameters params) {
 
@@ -350,6 +350,19 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         }
     }
 
+    /**
+     * Gets the SSLParameters for this SSLServerSocket.
+     *
+     * @return SSLParameters for this SSLServerSocket object.
+     */
+    @Override
+    synchronized public SSLParameters getSSLParameters() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered getSSLParameters()");
+
+        return WolfSSLParametersHelper.decoupleParams(this.params);
+    }
 
     @Override
     synchronized public Socket accept() throws IOException {
