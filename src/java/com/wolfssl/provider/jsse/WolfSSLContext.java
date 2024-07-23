@@ -539,7 +539,16 @@ public class WolfSSLContext extends SSLContextSpi {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered engineGetSupportedSSLParameters()");
 
-        return WolfSSLParametersHelper.decoupleParams(this.params);
+        SSLParameters supportedParams =
+            WolfSSLParametersHelper.decoupleParams(this.params);
+
+        /* set cipher suites and protocols to all supported cipher suites and
+           protocols */
+        supportedParams.setCipherSuites(WolfSSLUtil.sanitizeSuites(
+                    WolfSSL.getCiphersIana()));
+        supportedParams.setProtocols(WolfSSLUtil.sanitizeProtocols(
+                    WolfSSL.getProtocols()));
+        return supportedParams;
     }
 
     /**
