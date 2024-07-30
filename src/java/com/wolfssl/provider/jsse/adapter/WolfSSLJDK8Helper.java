@@ -23,6 +23,7 @@ package com.wolfssl.provider.jsse;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.ssl.SSLParameters;
@@ -162,10 +163,24 @@ public class WolfSSLJDK8Helper
                 "WolfSSLJDK8Helper.getApplicationProtocols() cannot be null");
         }
 
-        String[] appProtos = in.getApplicationProtocols();
-        if (appProtos != null) {
-            /* call WolfSSLParameters.setApplicationProtocols() */
-            out.setApplicationProtocols(appProtos);
+        try {
+            /* Android API < 29 does not support SSLParameters
+             * getApplicationProtocols(). Use reflection here to conditionally
+             * call it if available */
+            Method meth = SSLParameters.class.getMethod(
+                "getApplicationProtocols");
+            if (meth == null) {
+                return;
+            }
+            String[] appProtos = (String[])meth.invoke(in);
+            if (appProtos != null) {
+                /* call WolfSSLParameters.setApplicationProtocols() */
+                out.setApplicationProtocols(appProtos);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException |
+                 InvocationTargetException e) {
+            /* getApplicationProtocols() not available, just return */
+            return;
         }
     }
 

@@ -496,6 +496,7 @@ public class WolfSSLCertificate {
 
         int ret = 0;
         File keyFile = null;
+        byte[] fileBytes = null;
 
         confirmObjectIsActive();
 
@@ -509,7 +510,13 @@ public class WolfSSLCertificate {
                 filePath);
         }
 
-        setPublicKey(Files.readAllBytes(keyFile.toPath()), keyType, format);
+        fileBytes = WolfSSL.fileToBytes(keyFile);
+        if (fileBytes == null) {
+            throw new WolfSSLException("Failed to read bytes from file: " +
+                filePath);
+        }
+
+        setPublicKey(fileBytes, keyType, format);
     }
 
     /**
@@ -882,6 +889,7 @@ public class WolfSSLCertificate {
 
         int ret = 0;
         File keyFile = null;
+        byte[] fileBytes = null;
 
         confirmObjectIsActive();
 
@@ -895,8 +903,13 @@ public class WolfSSLCertificate {
                 filePath);
         }
 
-        signCert(Files.readAllBytes(keyFile.toPath()), keyType, format,
-                 digestAlg);
+        fileBytes = WolfSSL.fileToBytes(keyFile);
+        if (fileBytes == null) {
+            throw new WolfSSLException("Failed to read bytes from file: " +
+                filePath);
+        }
+
+        signCert(fileBytes, keyType, format, digestAlg);
     }
 
     /**
