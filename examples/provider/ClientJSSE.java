@@ -23,6 +23,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -64,9 +66,11 @@ public class ClientJSSE {
 
     public void run(String[] args) throws Exception {
         int ret = 0, input;
-        byte[] back = new byte[80];
+        byte[] back = new byte[1024];
+        String readString = null;
         String msg  = "Too legit to quit";
-        String httpGetMsg = "GET /index.html HTTP/1.0\r\n\r\n";
+        /* HTTP GET Host appended after command line args */
+        String httpGetMsg = "GET / HTTP/1.1";
         String provider = "wolfJSSE";
 
         KeyStore pKey, cert;
@@ -75,6 +79,8 @@ public class ClientJSSE {
         ServerSocketFactory srv;
         ServerSocket tls;
         SSLContext ctx;
+        BufferedReader inReader = null;
+        OutputStream outStream = null;
 
         /* config info */
         String version;
@@ -215,6 +221,9 @@ public class ClientJSSE {
                 return;
         }
 
+        /* Add host into HTTP GET */
+        httpGetMsg = String.format("%s\r\nHost: %s\r\n\r\n", httpGetMsg, host);
+
         if (profileSleep) {
             System.out.println(
                 "Sleeping 10 seconds to allow profiler to attach");
@@ -307,14 +316,25 @@ public class ClientJSSE {
         sock.startHandshake();
         firstSessionId = sock.getSession().getId();
         showPeer(sock);
+
+        inReader = new BufferedReader(
+            new InputStreamReader(sock.getInputStream()));
+        outStream = sock.getOutputStream();
+
         if (sendGET) {
-            sock.getOutputStream().write(httpGetMsg.getBytes());
+            outStream.write(httpGetMsg.getBytes());
         }
         else {
-            sock.getOutputStream().write(msg.getBytes());
+            outStream.write(msg.getBytes());
         }
-        sock.getInputStream().read(back);
-        System.out.println("Server message : " + new String(back));
+
+        System.out.println("Server message : ");
+        while ((readString = inReader.readLine()) != null) {
+            System.out.println(readString);
+        }
+
+        inReader.close();
+        outStream.close();
         sock.close();
 
         if (resumeSession) {
@@ -336,6 +356,10 @@ public class ClientJSSE {
             resumeSessionId = sock.getSession().getId();
             showPeer(sock);
 
+            inReader = new BufferedReader(
+                new InputStreamReader(sock.getInputStream()));
+            outStream = sock.getOutputStream();
+
             if (Arrays.equals(firstSessionId, resumeSessionId)) {
                 System.out.println("Session resumed");
             } else {
@@ -343,13 +367,19 @@ public class ClientJSSE {
             }
 
             if (sendGET) {
-                sock.getOutputStream().write(httpGetMsg.getBytes());
+                outStream.write(httpGetMsg.getBytes());
             }
             else {
-                sock.getOutputStream().write(msg.getBytes());
+                outStream.write(msg.getBytes());
             }
-            sock.getInputStream().read(back);
-            System.out.println("Server message : " + new String(back));
+
+            System.out.println("Server message : ");
+            while ((readString = inReader.readLine()) != null) {
+                System.out.println(readString);
+            }
+
+            inReader.close();
+            outStream.close();
             sock.close();
         }
 
