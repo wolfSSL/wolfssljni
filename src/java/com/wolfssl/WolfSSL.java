@@ -21,6 +21,11 @@
 
 package com.wolfssl;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.FileNotFoundException;
+
 /**
  * Base class which wraps the native WolfSSL embedded SSL library.
  * This class contains library init and cleanup methods, general callback
@@ -705,6 +710,56 @@ public class WolfSSL {
     public static void loadLibraryAbsolute(String libPath)
         throws UnsatisfiedLinkError {
         System.load(libPath);
+    }
+
+    /* ----------------- generic static helper functions ---------------- */
+
+    /**
+     * Read a File into byte array.
+     *
+     * This method can't use the java.nio package since we have users
+     * on Android API 24 which does not support java.nio.
+     *
+     * @param file File to read into byte array
+     *
+     * @return byte array representing input File, or null if file is null
+     */
+    protected static byte[] fileToBytes(File file)
+        throws FileNotFoundException, IOException {
+
+        int bytesRead = 0;
+        long fileLen = 0;
+        byte[] fileBytes = null;
+        FileInputStream fis = null;
+
+        if (file == null) {
+            return null;
+        }
+
+        fileLen = file.length();
+        if (fileLen == 0) {
+            return new byte[0];
+        }
+
+        try {
+            fis = new FileInputStream(file);
+            if (fis != null) {
+                fileBytes = new byte[(int)fileLen];
+
+                bytesRead = fis.read(fileBytes);
+
+                if (bytesRead != fileLen) {
+                    throw new IOException("Unable to read entire file: " +
+                        file.getAbsolutePath());
+                }
+            }
+        } finally {
+            if (fis != null) {
+                fis.close();
+            }
+        }
+
+        return fileBytes;
     }
 
     /* --------------- native feature detection functions --------------- */

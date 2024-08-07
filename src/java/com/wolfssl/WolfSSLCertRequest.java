@@ -22,7 +22,6 @@ package com.wolfssl;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.charset.Charset;
 import java.security.PublicKey;
 import java.security.PrivateKey;
@@ -243,6 +242,7 @@ public class WolfSSLCertRequest {
 
         int ret = 0;
         File keyFile = null;
+        byte[] fileBytes = null;
 
         confirmObjectIsActive();
 
@@ -256,7 +256,13 @@ public class WolfSSLCertRequest {
                 filePath);
         }
 
-        setPublicKey(Files.readAllBytes(keyFile.toPath()), keyType, format);
+        fileBytes = WolfSSL.fileToBytes(keyFile);
+        if (fileBytes == null) {
+            throw new WolfSSLException("Failed to read bytes from file: " +
+                filePath);
+        }
+
+        setPublicKey(fileBytes, keyType, format);
     }
 
     /**
@@ -506,6 +512,7 @@ public class WolfSSLCertRequest {
 
         int ret = 0;
         File keyFile = null;
+        byte[] fileBytes = null;
 
         confirmObjectIsActive();
 
@@ -519,8 +526,13 @@ public class WolfSSLCertRequest {
                 filePath);
         }
 
-        signRequest(Files.readAllBytes(keyFile.toPath()), keyType,
-            format, digestAlg);
+        fileBytes = WolfSSL.fileToBytes(keyFile);
+        if (fileBytes == null) {
+            throw new WolfSSLException("Failed to read bytes from file: " +
+                filePath);
+        }
+
+        signRequest(fileBytes, keyType, format, digestAlg);
     }
 
     /**
