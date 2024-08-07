@@ -296,13 +296,24 @@ public class WolfSSLAuthStore {
      * @param port port number of peer being connected to
      * @param host host of the peer being connected to
      * @param clientMode if is client side then true, otherwise false
+     * @param enabledCipherSuites String array containing enabled cipher
+     *        suites for the SSLSocket/SSLEngine requesting this session.
+     *        Used to compare cipher suite of cached session against enabled
+     *        cipher suites.
+     * @param enabledProtocols String array containing enabled protocols
+     *        for the SSLSocket/SSLEngine requesting this session.
+     *        Used to compare protocol of cached session against enabled
+     *        protocols.
+     *
      * @return an existing SSLSession from Java session cache, or a new
      *         object if not in cache, called on server side, or host
      *         is null
      */
     protected synchronized WolfSSLImplementSSLSession getSession(
-        WolfSSLSession ssl, int port, String host, boolean clientMode) {
+        WolfSSLSession ssl, int port, String host, boolean clientMode,
+        String[] enabledCipherSuites, String[] enabledProtocols) {
 
+        boolean needNewSession = false;
         WolfSSLImplementSSLSession ses = null;
         String toHash = null;
 
@@ -327,16 +338,51 @@ public class WolfSSLAuthStore {
          * is shared between all threads */
         synchronized (storeLock) {
 
-            /* generate cache key hash (host:port) */
+            /* Generate cache key hash (host:port) */
             toHash = host.concat(Integer.toString(port));
 
-            /* try getting session out of Java store */
+            /* Try getting session out of Java store */
             ses = store.get(toHash.hashCode());
 
-            if (ses == null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "session not found in cache table, creating new");
-                /* not found in stored sessions create a new one */
+            /* Remove old entry from table. TLS 1.3 binder changes between
+             * resumptions and stored session should only be used to
+             * resume once. New session structure/object will be cached
+             * after the resumed session completes the handshake, for
+             * subsequent resumption attempts to use. */
+            store.remove(toHash.hashCode());
+
+            /* Check conditions where we need to create a new new session:
+             *   1. Session not found in cache
+             *   2. Session marked as not resumable
+             *   3. Original session cipher suite not available
+             *   4. Original session protocol version not available
+             */
+            if (ses == null ||
+                !ses.isResumable() ||
+                !sessionCipherSuiteAvailable(ses, enabledCipherSuites) ||
+                !sessionProtocolAvailable(ses, enabledProtocols)) {
+                needNewSession = true;
+            }
+
+            if (needNewSession) {
+                if (ses == null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "session not found in cache table, " +
+                        "creating new session");
+                }
+                else if (!ses.isResumable()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "native WOLFSSL_SESSION not resumable, " +
+                        "creating new session");
+                }
+                else if (!sessionCipherSuiteAvailable(
+                            ses, enabledCipherSuites)) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "cipher suite used in original WOLFSSL_SESSION not " +
+                        "available, creating new session");
+                }
+
+                /* Not found in stored sessions create a new one */
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
                 ses.setValid(true); /* new sessions marked as valid */
 
@@ -345,34 +391,10 @@ public class WolfSSLAuthStore {
                     Integer.toString(ssl.hashCode()).getBytes());
             }
             else {
-                /* Remove old entry from table. TLS 1.3 binder changes between
-                 * resumptions and stored session should only be used to
-                 * resume once. New session structure/object will be cached
-                 * after the resumed session completes the handshake, for
-                 * subsequent resumption attempts to use. */
-                store.remove(toHash.hashCode());
-
-                /* Check if native WOLFSSL_SESSION is resumable before
-                 * returning it for resumption. If not, create a new
-                 * session instead. */
-                if (!ses.isResumable()) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "native WOLFSSL_SESSION not resumable, " +
-                        "creating new session");
-                    ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-                    ses.setValid(true); /* new sessions marked as valid */
-
-                    ses.isFromTable = false;
-                    ses.setPseudoSessionId(
-                        Integer.toString(ssl.hashCode()).getBytes());
-
-                    return ses;
-                }
-
-                ses.isFromTable = true;
-
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "session found in cache, trying to resume");
+
+                ses.isFromTable = true;
 
                 if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -384,11 +406,94 @@ public class WolfSSLAuthStore {
                     ses.isFromTable = false;
                     ses.setPseudoSessionId(
                         Integer.toString(ssl.hashCode()).getBytes());
-
                 }
             }
+
             return ses;
         }
+    }
+
+    /**
+     * Check if cipher suite from original WOLFSSL_SESSION
+     * (WolfSSLImplementSSLSession) is available in new WolfSSLSession
+     * WolfSSLParameters.
+     *
+     * This is used in getSession(), since if we try resuming an old session
+     * but the cipher suite used in that session is not available in the
+     * ClientHello, the server will close the connection and send back an
+     * alert. If wolfSSL on the server side, this will be an illegal_parameter
+     * alert.
+     *
+     * @param ses WolfSSLImplementSSLSession to get existing cipher suite from
+     *        to check.
+     * @param enabledCipherSuites cipher suites enabled, usually coming from
+     *        WolfSSLEngineHelper.getCiphers().
+     *
+     * @return true if cipher suite from session is available in
+     *         WolfSSLParameters enabled suites, otherwise false.
+     */
+    private boolean sessionCipherSuiteAvailable(WolfSSLImplementSSLSession ses,
+        String[] enabledCipherSuites) {
+
+        String sessionCipher = null;
+
+        if (ses == null || enabledCipherSuites == null) {
+            return false;
+        }
+
+        sessionCipher = ses.getSessionCipherSuite();
+
+        if (Arrays.asList(enabledCipherSuites).contains(sessionCipher)) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "WOLFSSL_SESSION cipher suite available in enabled ciphers");
+            return true;
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "WOLFSSL_SESSION cipher suite (" + sessionCipher + ") differs " +
+            "from enabled suites list");
+
+        return false;
+    }
+
+    /**
+     * Check if protocol from original WOLFSSL_SESSION
+     * (WolfSSLImplementSSLSession) is available in new WolfSSLSession
+     * WolfSSLParameters.
+     *
+     * @param ses WolfSSLImplementSSLSession to get existing protocol from
+     *        to check
+     * @param enabledProtocols protocols enabled on this SSLSocket/SSLEngine,
+     *        usually coming from WolfSSLEngineHelper.getProtocols().
+     *
+     * @return true if protocol from session is available in WolfSSLParameters
+     *         enabled protocols, otherwise false.
+     */
+    private boolean sessionProtocolAvailable(WolfSSLImplementSSLSession ses,
+        String[] enabledProtocols) {
+
+        String sessionProtocol = null;
+
+        if (ses == null || enabledProtocols == null) {
+            return false;
+        }
+
+        sessionProtocol = ses.getProtocol();
+        if (sessionProtocol == null) {
+            return false;
+        }
+
+        if (Arrays.asList(enabledProtocols).contains(sessionProtocol)) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "WOLFSSL_SESSION protocol available in enabled protocols");
+            return true;
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "WOLFSSL_SESSION protocol (" + sessionProtocol + ") differs " +
+            "from enabled protocol list: " + Arrays.asList(enabledProtocols));
+
+        return false;
     }
 
     /**

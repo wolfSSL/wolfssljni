@@ -1199,7 +1199,7 @@ public class WolfSSLEngineHelper {
 
         /* create non null session */
         this.session = this.authStore.getSession(ssl, this.port,
-            sessCacheHostname, this.clientMode);
+            sessCacheHostname, this.clientMode, getCiphers(), getProtocols());
 
         if (this.session != null) {
             if (this.clientMode) {
@@ -1345,6 +1345,11 @@ public class WolfSSLEngineHelper {
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
+        /* Update cached values in WolfSSLImplementSSLSession from
+         * WolfSSLSession, in case that goes out of scope and is garbage
+         * collected (ex: protocol version). */
+        this.session.updateStoredSessionValues();
+
         return ret;
     }
 
@@ -1385,6 +1390,10 @@ public class WolfSSLEngineHelper {
      */
     protected synchronized int saveSession() {
         if (this.session != null && this.session.isValid()) {
+            /* Update values from WOLFSSL which are stored in
+             * WolfSSLImplementSSLSession (ex: protocol) */
+            this.session.updateStoredSessionValues();
+
             if (this.clientMode) {
                 /* Only need to set resume on client side, server-side
                  * maintains session cache at native level. */
