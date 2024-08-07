@@ -2514,12 +2514,22 @@ public class WolfSSLSocket extends SSLSocket {
                     /* other errors besides end of stream or WANT_READ
                      * are treated as I/O errors and throw an exception */
                     String errStr = WolfSSL.getErrorString(err);
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Native wolfSSL_read() error: " + errStr +
-                        " (error code: " + err + ")");
-                    throw new IOException("Native wolfSSL_read() " +
-                        "error: " + errStr +
-                        " (error code: " + err + ")");
+                    if (err == WolfSSL.SOCKET_ERROR_E) {
+                        /* Socket error, indicate to caller by returning
+                         * end of stream */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Native wolfSSL_read() error: " + errStr +
+                            " (error code: " + err + "), end of stream");
+                        return -1;
+
+                    } else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Native wolfSSL_read() error: " + errStr +
+                            " (error code: " + err + ")");
+                        throw new IOException("Native wolfSSL_read() " +
+                            "error: " + errStr +
+                            " (error code: " + err + ")");
+                    }
                 }
 
             } catch (SocketException e) {

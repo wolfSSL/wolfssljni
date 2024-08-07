@@ -89,6 +89,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SSL_ERROR_ZERO_RETURN 6L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SSL
 #define com_wolfssl_WolfSSL_SSL_ERROR_SSL 85L
+#undef com_wolfssl_WolfSSL_SOCKET_ERROR_E
+#define com_wolfssl_WolfSSL_SOCKET_ERROR_E -308L
 #undef com_wolfssl_WolfSSL_FATAL_ERROR
 #define com_wolfssl_WolfSSL_FATAL_ERROR -313L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED
