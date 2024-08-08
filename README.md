@@ -219,6 +219,7 @@ and what each enables.
 | --- | --- | --- | --- |
 | wolfssl.debug | "false" | "true" | Enables native wolfSSL debug logging |
 | wolfjsse.debug | "false" | "true | Enables wolfJSSE debug logging |
+| wolfjsse.debugFormat | | "JSON" | Switches debug output format |
 | wolfsslengine.debug | "false" | "true" | Enables SSLEngine debug logging |
 | wolfsslengine.io.debug | "false" | "true" | Enables SSLEngine I/O bytes log |
 
@@ -239,6 +240,35 @@ System.setProperty("wolfsslengine.debug", "true);
 ```
 
 JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.
+
+### JSON Log Message Format
+
+Debug messages can be output in JSON format for consumption by tools such as
+DataDog. Setting the following System property to "JSON" will cause all debug
+messages to print in JSON instead of the default text output:
+
+```
+System.setProperty("wolfjsse.debugFormat", "JSON");
+```
+
+This can also be specified at runtime on the command line like so:
+
+```
+-Dwolfjsse.debug=true -Dwolfjsse.debugFormat=JSON
+```
+
+Debug messages will look similar to the following when output in JSON format:
+
+```
+{
+    "@timestamp": "2024-04-05 11:13:07.193",
+    "level": "INFO",
+    "logger_name": "wolfJSSE",
+    "message": "[ WolfSSLTrustManager] entered engineInit()",
+    "thread_name": "main",:
+    "thread_id": "1"
+}
+```
 
 ## Building for Android
 
