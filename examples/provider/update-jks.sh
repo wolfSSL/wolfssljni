@@ -107,6 +107,12 @@ rm client-ecc.jks &> /dev/null
 add_cert_key "client-ecc.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc" "wolfSSL test"
 printf "done\n"
 
+# Client cert: RSAPSS only
+printf "\tCreating client-rsapss.jks ..."
+rm client-rsapss.jks &> /dev/null
+add_cert_key "client-rsapss.jks" "/rsapss/client-rsapss.pem" "/rsapss/client-rsapss-priv.pem" "client-rsapss" "wolfSSL test"
+printf "done\n"
+
 #################### SERVER KEYSTORES ####################
 
 # Server cert: both RSA 2048-bit and ECC
@@ -134,6 +140,12 @@ rm server-ecc.jks &> /dev/null
 add_cert_key "server-ecc.jks" "/server-ecc.pem" "/ecc-key.pem" "server-ecc" "wolfSSL test"
 printf "done\n"
 
+# Server cert: RSAPSS only
+printf "\tCreating server-rsapss.jks ..."
+rm server-rsapss.jks &> /dev/null
+add_cert_key "server-rsapss.jks" "/rsapss/server-rsapss.pem" "/rsapss/server-rsapss-priv.pem" "server-rsapss" "wolfSSL test"
+printf "done\n"
+
 #################### CA CERT KEYSTORES ###################
 
 # Contains all CA certs (RSA and ECC), verifies both client and server certs
@@ -150,18 +162,22 @@ printf "done\n"
 # Contains CA certs used to verify client certs:
 # client-cert.pem verifies itself (self signed)
 # client-ecc-cert.pem verifies itself (self signed)
+# client-rsapss.pem verifies itself (self signed)
 printf "\tCreating ca-client.jks ..."
 rm ca-client.jks &> /dev/null
 add_cert_key "ca-client.jks" "/client-cert.pem" "/client-key.pem" "client-rsa" "wolfSSL test"
 add_cert_key "ca-client.jks" "/client-ecc-cert.pem" "/ecc-client-key.pem" "client-ecc" "wolfSSL test"
+add_cert_key "ca-client.jks" "/rsapss/client-rsapss.pem" "/rsapss/client-rsapss-priv.pem" "client-rsapss" "wolfSSL test"
 printf "done\n"
 
 # Contains CA certs used to verify server certs:
 # ca-cert.pem verifies server-cert.pem
 # ca-ecc-cert.pem verifies server-ecc.pem
+# ca-rsapss.pem verifies server-rsapss.pem
 printf "\tCreating ca-server.jks ..."
 rm ca-server.jks &> /dev/null
 add_cert_key "ca-server.jks" "/ca-cert.pem" "/ca-key.pem" "ca-rsa" "wolfSSL test"
 add_cert_key "ca-server.jks" "/ca-ecc-cert.pem" "/ca-ecc-key.pem" "ca-ecc" "wolfSSL test"
+add_cert_key "ca-server.jks" "/rsapss/ca-rsapss.pem" "/rsapss/ca-rsapss-priv.pem" "ca-rsapss" "wolfSSL test"
 printf "done\n"
 

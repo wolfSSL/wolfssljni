@@ -532,6 +532,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaEnabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_RsaPssEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_Curve25519Enabled
   (JNIEnv* jenv, jclass jcl)
 {

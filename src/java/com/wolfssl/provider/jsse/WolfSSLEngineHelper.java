@@ -222,6 +222,9 @@ public class WolfSSLEngineHelper {
         }
         if (WolfSSL.RsaEnabled()) {
             keyAlgos.add("RSA");
+            if (WolfSSL.RsaPssEnabled()) {
+                keyAlgos.add("RSASSA-PSS");
+            }
         }
 
         String[] keyTypes = new String[keyAlgos.size()];

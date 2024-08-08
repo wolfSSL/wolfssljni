@@ -293,7 +293,9 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         try {
             key = (PrivateKey)store.getKey(alias, password);
         } catch (Exception e) {
-           /* @TODO unable to get key */
+            /* @TODO unable to get key */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "failed to load private key: " + e);
         }
         return key;
     }

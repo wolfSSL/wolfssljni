@@ -481,6 +481,57 @@ public class WolfSSLTrustX509Test {
     }
 
     @Test
+    public void testVerifyRsaPss()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyStoreException, FileNotFoundException, IOException,
+            CertificateException {
+
+        /* skip if RSA_PSS is not compiled in at native level */
+        if (WolfSSL.RsaPssEnabled() == false) {
+            return;
+        }
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        X509Certificate cas[];
+        InputStream stream;
+        KeyStore ks;
+
+        System.out.print("\tTesting verify rsa_pss");
+
+        tm = tf.createTrustManager("SunX509", tf.caServerJKS, provider);
+        if (tm == null) {
+            error("\t\t\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+
+        x509tm = (X509TrustManager) tm[0];
+        cas = x509tm.getAcceptedIssuers();
+        if (cas == null) {
+            error("\t\t\t... failed");
+            fail("no CAs where found");
+            return;
+        }
+
+        ks = KeyStore.getInstance(tf.keyStoreType);
+        stream = new FileInputStream(tf.serverRSAPSSJKS);
+        ks.load(stream, "wolfSSL test".toCharArray());
+        stream.close();
+        try {
+            x509tm.checkServerTrusted(new X509Certificate[] {
+            (X509Certificate)ks.getCertificate("server-rsapss") }, "RSASSA-PSS");
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            error("\t\t... failed");
+            fail("failed to verify");
+        }
+
+        pass("\t\t... passed");
+    }
+
+    @Test
     public void testCheckServerTrustedWithChain()
         throws NoSuchProviderException, NoSuchAlgorithmException,
             KeyStoreException, FileNotFoundException, IOException,
@@ -1442,6 +1493,65 @@ public class WolfSSLTrustX509Test {
         if (rootCount != 1) {
             error("\t... failed");
             fail("checkServerTrusted() contained more than one copy of root");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testUsingRsaPssCert()
+        throws Exception {
+        /* skip if RSA_PSS is not compiled in at native level */
+        if (WolfSSL.RsaPssEnabled() == false) {
+            return;
+        }
+
+        System.out.print("\tTest using rsa_pss certs");
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.3", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverRSAPSSJKS, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.3", provider,
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientRSAPSSJKS, provider));
+
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs, 1);
+        server.start();
+
+        TestArgs clientArgs = new TestArgs(
+            "HTTPS", "www.wolfssl.com", false, false, true, null);
+        TestSSLSocketClient client = new TestSSLSocketClient(
+            cliCtx, ss.getLocalPort(), clientArgs);
+        client.start();
+
+        try {
+            client.join(1000);
+            server.join(1000);
+        } catch (InterruptedException e) {
+            System.out.println("interrupt happened");
+            fail("RSA_PSS cert test failed");
+        }
+
+        /* Fail if client or server encountered exception */
+        Exception srvException = server.getException();
+        Exception cliException = client.getException();
+        if (srvException != null || cliException != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            if (srvException != null) {
+                srvException.printStackTrace(pw);
+            }
+            if (cliException != null) {
+                cliException.printStackTrace(pw);
+            }
+            String traceString = sw.toString();
+            throw new Exception(traceString);
         }
 
         pass("\t... passed");
