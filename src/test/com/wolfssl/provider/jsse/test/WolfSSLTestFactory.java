@@ -67,10 +67,12 @@ class WolfSSLTestFactory {
     protected String clientRSA1024JKS;
     protected String clientRSAJKS;
     protected String clientECCJKS;
+    protected String clientRSAPSSJKS;
     protected static String serverJKS;
     protected String serverRSA1024JKS;
     protected String serverRSAJKS;
     protected String serverECCJKS;
+    protected String serverRSAPSSJKS;
     protected String caJKS;
     protected static String caClientJKS;
     protected String caServerJKS;
@@ -91,10 +93,12 @@ class WolfSSLTestFactory {
          * client-rsa-1024.jks   RSA 1024-bit only client cert
          * client-rsa.jks        RSA 2048-bit only client cert
          * client-ecc.jks        ECC only client cert
+         * client-rsapss.jks     RSA_PSS only client cert
          * server.jks            RSA 2048-bit and ECC server certs
          * server-rsa-1024.jks   RSA 1024-bit only server cert
          * server-rsa.jks        RSA 2048-bit only server cert
          * server-ecc.jks        ECC only server cert
+         * server-rsapss.jks     RSA_PSS only server cert
          * cacerts.jks           All CA certs (RSA, ECC, 1024, 2048, etc)
          * ca-client.jks         CA certs used to verify client certs
          * ca-server.jks         CA certs used to verify server certs */
@@ -104,10 +108,12 @@ class WolfSSLTestFactory {
         clientRSA1024JKS = "examples/provider/client-rsa-1024.jks";
         clientRSAJKS     = "examples/provider/client-rsa.jks";
         clientECCJKS     = "examples/provider/client-ecc.jks";
+        clientRSAPSSJKS  = "examples/provider/client-rsapss.jks";
         serverJKS        = "examples/provider/server.jks";
         serverRSA1024JKS = "examples/provider/server-rsa-1024.jks";
         serverRSAJKS     = "examples/provider/server-rsa.jks";
         serverECCJKS     = "examples/provider/server-ecc.jks";
+        serverRSAPSSJKS  = "examples/provider/server-rsapss.jks";
         caJKS            = "examples/provider/cacerts.jks";
         caClientJKS      = "examples/provider/ca-client.jks";
         caServerJKS      = "examples/provider/ca-server.jks";
@@ -141,10 +147,12 @@ class WolfSSLTestFactory {
         clientRSA1024JKS = in.concat(clientRSA1024JKS);
         clientRSAJKS = in.concat(clientRSAJKS);
         clientECCJKS = in.concat(clientECCJKS);
+        clientRSAPSSJKS = in.concat(clientRSAPSSJKS);
         serverJKS = in.concat(serverJKS);
         serverRSA1024JKS = in.concat(serverRSA1024JKS);
         serverRSAJKS = in.concat(serverRSAJKS);
         serverECCJKS = in.concat(serverECCJKS);
+        serverRSAPSSJKS = in.concat(serverRSAPSSJKS);
         caJKS = in.concat(caJKS);
         caClientJKS = in.concat(caClientJKS);
         caServerJKS = in.concat(caServerJKS);

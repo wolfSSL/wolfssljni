@@ -844,6 +844,14 @@ public class WolfSSL {
     public static native boolean RsaEnabled();
 
     /**
+     * Tests if RSA_PSS support has been compiled into the native wolfSSL
+     * library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean RsaPssEnabled();
+
+    /**
      * Tests if Curve25519/X25519 support has been compiled into the native
      * wolfSSL library.
      *

@@ -1174,6 +1174,8 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
             return (*jenv)->NewStringUTF(jenv, "SHA512withECDSA");
         case CTC_ED25519:
             return (*jenv)->NewStringUTF(jenv, "ED25519");
+        case CTC_RSASSAPSS:
+            return (*jenv)->NewStringUTF(jenv, "RSASSA-PSS");
 
         default:
             (*jenv)->ThrowNew(jenv, jcl, "Unknown signature type");
