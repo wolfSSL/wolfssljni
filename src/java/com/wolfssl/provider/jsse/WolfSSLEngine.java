@@ -1258,6 +1258,7 @@ public class WolfSSLEngine extends SSLEngine {
                         if (ssl.handshakeDone() && this.toSend == null) {
                             this.handshakeFinished = true;
                             hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                            this.engineHelper.getSession().updateStoredSessionValues();
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "SSL/TLS handshake finished");
