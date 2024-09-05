@@ -24,11 +24,17 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-import java.security.NoSuchProviderException;
+import java.io.IOException;
 import java.security.Principal;
 import java.security.Provider;
 import java.security.Security;
+import java.security.NoSuchProviderException;
+import java.security.NoSuchAlgorithmException;
+import java.security.KeyStoreException;
+import java.security.KeyManagementException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
+import java.security.cert.CertificateException;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
@@ -67,7 +73,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testGetClientAliases() {
+    public void testGetClientAliases()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] list;
         X509KeyManager km;
@@ -137,7 +146,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testChooseClientAlias() {
+    public void testChooseClientAlias()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] km = null;
         X509KeyManager x509km = null;
@@ -199,7 +211,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testEngineChooseClientAlias() {
+    public void testEngineChooseClientAlias()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] km = null;
         X509ExtendedKeyManager x509km = null;
@@ -264,7 +279,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testGetServerAliases() {
+    public void testGetServerAliases()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] list;
         X509KeyManager km;
@@ -311,7 +329,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testChooseServerAlias() {
+    public void testChooseServerAlias()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] km = null;
         X509KeyManager x509km = null;
@@ -373,7 +394,10 @@ public class WolfSSLKeyX509Test {
     }
 
     @Test
-    public void testChooseEngineServerAlias() {
+    public void testChooseEngineServerAlias()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
 
         KeyManager[] km = null;
         X509ExtendedKeyManager x509km = null;

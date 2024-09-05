@@ -29,13 +29,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.SignatureException;
+import java.security.KeyStoreException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -410,7 +412,11 @@ public class WolfSSLX509Test {
 
 
     @Test
-    public void testGetters() {
+    public void testGetters()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, IOException, CertificateException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         String    cipher = null;

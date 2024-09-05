@@ -40,6 +40,7 @@ import java.io.PrintWriter;
 import java.time.Instant;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
@@ -104,7 +105,9 @@ public class WolfSSLTrustX509Test {
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with all.jks */
     @Test
     public void testCAParsing()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
@@ -225,7 +228,9 @@ public class WolfSSLTrustX509Test {
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with server.jks */
     @Test
     public void testServerParsing()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
@@ -291,7 +296,9 @@ public class WolfSSLTrustX509Test {
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with all_mixed.jks */
     @Test
     public void testCAParsingMixed()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
@@ -360,7 +367,10 @@ public class WolfSSLTrustX509Test {
     }
 
     @Test
-    public void testSystemLoad() {
+    public void testSystemLoad()
+        throws NoSuchAlgorithmException, KeyStoreException, IOException,
+               CertificateException, NoSuchProviderException {
+
         String file = System.getProperty("javax.net.ssl.trustStore");
         TrustManager[] tm;
 
@@ -371,7 +381,8 @@ public class WolfSSLTrustX509Test {
             if (home != null) {
                 File f = new File(home.concat("lib/security/jssecacerts"));
                 if (f.exists()) {
-                    tm = tf.createTrustManager("SunX509", null, provider);
+                    tm = tf.createTrustManager(
+                            "SunX509", (String)null, provider);
                     if (tm == null) {
                         error("\t... failed");
                         fail("failed to create trustmanager with default");
@@ -382,7 +393,8 @@ public class WolfSSLTrustX509Test {
                 else {
                     f = new File(home.concat("lib/security/cacerts"));
                     if (f.exists()) {
-                        tm = tf.createTrustManager("SunX509", null, provider);
+                        tm = tf.createTrustManager(
+                                "SunX509", (String)null, provider);
                         if (tm == null) {
                             error("\t... failed");
                             fail("failed to create trustmanager with default");
@@ -394,7 +406,7 @@ public class WolfSSLTrustX509Test {
             }
         }
         else {
-            tm = tf.createTrustManager("SunX509", null, provider);
+            tm = tf.createTrustManager("SunX509", (String)null, provider);
             if (tm == null) {
                 error("\t... failed");
                 fail("failed to create trustmanager with default");
@@ -412,7 +424,8 @@ public class WolfSSLTrustX509Test {
     public void testVerify()
         throws NoSuchProviderException, NoSuchAlgorithmException,
             KeyStoreException, FileNotFoundException, IOException,
-            CertificateException {
+            CertificateException, NoSuchAlgorithmException {
+
         TrustManager[] tm;
         X509TrustManager x509tm;
         X509Certificate cas[];
@@ -1581,11 +1594,27 @@ public class WolfSSLTrustX509Test {
         /* SSLSocket should succeed if server cert changes after resume */
         testX509ExtendedTrustManagerSSLSocketCertChangeSuccess();
 
-        /* Basic SSLEngine success case, SNI matches server cert CN */
+        /* Basic SSLEngine success case, HTTPS hostname verification,
+         * SNI matches server cert CN */
         testX509ExtendedTrustManagerSSLEngineBasicSuccess();
 
-        /* Basic SSLEngine fail case, SNI does not match server cert CN */
+        /* Basic SSLEngine success case, LDAPS hostname verification,
+         * SNI matches server cert CN */
+        testX509ExtendedTrustManagerSSLEngineBasicSuccessLDAPS();
+
+        /* Basic SSLEngine fail case, HTTPS hostname verification,
+         * SNI does not match server cert CN */
         testX509ExtendedTrustManagerSSLEngineBasicFail();
+
+        /* Basic SSLEngine fail case, LDAPS hostname verification,
+         * SNI does not match server cert CN */
+        testX509ExtendedTrustManagerSSLEngineBasicFailLDAPS();
+
+        /* LDAPS hostname verification test, wildcard failures */
+        testX509ExtendedTrustManagerSSLEngineWildcardFailLDAPS();
+
+        /* LDAPS hostname verification test, wildcard success */
+        testX509ExtendedTrustManagerSSLEngineWildcardSuccessLDAPS();
 
         /* SSLEngine should fail if trying to use bad endoint alg */
         testX509ExtendedTrustManagerSSLEngineEndpointAlgFail();
@@ -1866,10 +1895,10 @@ public class WolfSSLTrustX509Test {
             srvCtx, ss, serverArgs, 1);
         server.start();
 
-        /* We only support "HTTPS" as an endpoint algorithm. Setting
-         * "LDAPS" should fail as unsupported */
+        /* We only support "HTTPS" and "LDAPS" as an endpoint algorithms.
+         * Setting "BADTYPE" should fail as unsupported */
         TestArgs clientArgs = new TestArgs(
-            "LDAPS", "www.wolfssl.com", false, false, true, null);
+            "BADTYPE", "www.wolfssl.com", false, false, true, null);
         TestSSLSocketClient client = new TestSSLSocketClient(
             cliCtx, ss.getLocalPort(), clientArgs);
         client.start();
@@ -1928,6 +1957,39 @@ public class WolfSSLTrustX509Test {
         }
     }
 
+    private void testX509ExtendedTrustManagerSSLEngineBasicSuccessLDAPS()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        SSLContext ctx = tf.createSSLContext("TLS", provider);
+        server = ctx.createSSLEngine();
+        client = ctx.createSSLEngine("example.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+
+        /* Enable Endpoint Identification for hostname verification on client */
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+
+        /* Not setting SNI, since LDAPS hostname verification requires server
+         * name to come directly from when connection was made. Peer cert
+         * has altName set to "example.com" */
+
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret != 0) {
+            throw new Exception("Failed SSLEngine connection");
+        }
+    }
+
     private void testX509ExtendedTrustManagerSSLEngineBasicFail()
         throws CertificateException, IOException, Exception {
 
@@ -1962,6 +2024,195 @@ public class WolfSSLTrustX509Test {
         ret = tf.testConnection(server, client, null, null, "Test mutual auth");
         if (ret == 0) {
             throw new Exception("Expected connection to fail, but did not");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineBasicFailLDAPS()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLEngine client;
+        SSLEngine server;
+
+        SSLContext ctx = tf.createSSLContext("TLS", provider);
+        server = ctx.createSSLEngine();
+        /* Setting wrong hostname */
+        client = ctx.createSSLEngine("www.invalid.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+
+        /* Enable Endpoint Identification for hostname verification on client */
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception("Expected connection to fail, but did not");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineWildcardFailLDAPS()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLContext srvCtx = null;
+        SSLContext cliCtx = null;
+        KeyStore srvCertStore = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+        SSLParameters cliParams = null;
+
+        /* Generate new KeyStore with new self-signed cert. CN is set to
+         * invalidname.com so we don't match on that. Subject altName is
+         * set to '*.example.com' */
+        srvCertStore = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "*.example.com", true);
+
+        srvCtx = tf.createSSLContext("TLS", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", srvCertStore, provider));
+
+        cliCtx = tf.createSSLContext("TLS", provider,
+            tf.createTrustManager("SunX509", srvCertStore, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* --------------------------------------------------------------------
+         * LDAPS hostname verification should fail for 'example.com', since
+         * altName contains '*.example.com'
+         * ------------------------------------------------------------------ */
+        server = srvCtx.createSSLEngine();
+        client = cliCtx.createSSLEngine("example.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        /* Enable Endpoint Identification for hostname verification on client.
+         * Not setting SNI, since LDAPS hostname verification requires server
+         * name to come directly from when connection was made. Peer cert
+         * has altName set to "example.com" */
+        cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception(
+                "Should fail SSLEngine connection, but succeeded");
+        }
+
+        /* --------------------------------------------------------------------
+         * LDAPS hostname verification should fail for 'a.b.example.com', since
+         * altName contains '*.example.com' and LDAPS only matches left-most
+         * wildcard.
+         * ------------------------------------------------------------------ */
+        server = srvCtx.createSSLEngine();
+        client = cliCtx.createSSLEngine("a.b.example.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+
+        /* Enable Endpoint Identification for hostname verification on client.
+         * Not setting SNI, since LDAPS hostname verification requires server
+         * name to come directly from when connection was made. Peer cert
+         * has altName set to "example.com" */
+        cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception(
+                "Should fail SSLEngine connection, but succeeded");
+        }
+
+        /* --------------------------------------------------------------------
+         * LDAPS hostname verification should fail for 'a.example*.com', since
+         * altName contains '*.example.com' and LDAPS only matches left-most
+         * wildcard.
+         * ------------------------------------------------------------------ */
+        server = srvCtx.createSSLEngine();
+        client = cliCtx.createSSLEngine("a.example*.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+
+        /* Enable Endpoint Identification for hostname verification on client.
+         * Not setting SNI, since LDAPS hostname verification requires server
+         * name to come directly from when connection was made. Peer cert
+         * has altName set to "example.com" */
+        cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret == 0) {
+            throw new Exception(
+                "Should fail SSLEngine connection, but succeeded");
+        }
+    }
+
+    private void testX509ExtendedTrustManagerSSLEngineWildcardSuccessLDAPS()
+        throws CertificateException, IOException, Exception {
+
+        int ret;
+        SSLContext srvCtx = null;
+        SSLContext cliCtx = null;
+        KeyStore srvCertStore = null;
+        SSLEngine client = null;
+        SSLEngine server = null;
+        SSLParameters cliParams = null;
+
+        /* Generate new KeyStore with new self-signed cert. CN is set to
+         * invalidname.com so we don't match on that. Subject altName is
+         * set to '*.example.com' */
+        srvCertStore = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "*.example.com", true);
+
+        srvCtx = tf.createSSLContext("TLS", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", srvCertStore, provider));
+
+        cliCtx = tf.createSSLContext("TLS", provider,
+            tf.createTrustManager("SunX509", srvCertStore, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        /* --------------------------------------------------------------------
+         * LDAPS hostname verification 'test.example.com' should match against
+         * '*.example.com' altName in server cert.
+         * ------------------------------------------------------------------ */
+        server = srvCtx.createSSLEngine();
+        client = cliCtx.createSSLEngine("test.example.com", 11111);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        /* Enable Endpoint Identification for hostname verification on client.
+         * Not setting SNI, since LDAPS hostname verification requires server
+         * name to come directly from when connection was made. Peer cert
+         * has altName set to "example.com" */
+        cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm("LDAPS");
+        client.setSSLParameters(cliParams);
+
+        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
+        if (ret != 0) {
+            throw new Exception("Failed SSLEngine connection");
         }
     }
 
@@ -2388,7 +2639,6 @@ public class WolfSSLTrustX509Test {
             fail("X509ExtendedTrustManager basic external test failed");
         }
 
-        /* Fail if client or server encountered exception */
         Exception srvException = server.getException();
         Exception cliException = client.getException();
 

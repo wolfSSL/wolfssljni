@@ -958,7 +958,8 @@ public class WolfSSLSocketTest {
     @Test
     public void testExtendedThreadingUse()
         throws NoSuchProviderException, NoSuchAlgorithmException,
-               InterruptedException {
+               InterruptedException, KeyManagementException, KeyStoreException,
+               CertificateException, UnrecoverableKeyException, IOException {
 
         /* Number of SSLSocket client threads to start up */
         int numThreads = 50;
@@ -1697,7 +1698,7 @@ public class WolfSSLSocketTest {
         /* fail case, no root CA loaded to verify client cert */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider,
                 /* using null here for JKS, use system certs only */
-                tf.createTrustManager("SunX509", null, ctxProvider),
+                tf.createTrustManager("SunX509", (String)null, ctxProvider),
                 tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
         ss = (SSLServerSocket)ctx.getServerSocketFactory()

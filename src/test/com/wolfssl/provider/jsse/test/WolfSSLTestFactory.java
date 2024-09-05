@@ -21,6 +21,10 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import java.util.Date;
+import java.time.Instant;
+import java.time.Duration;
+import java.math.BigInteger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -29,12 +33,17 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
-import java.security.KeyManagementException;
+import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.KeyPair;
+import java.security.PublicKey;
+import java.security.PrivateKey;
 import java.security.KeyStoreException;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.X509Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.util.List;
@@ -52,7 +61,11 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLCertificate;
+import com.wolfssl.WolfSSLX509Name;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 
 /**
  * Used to create common classes among test cases
@@ -217,40 +230,43 @@ class WolfSSLTestFactory {
         in.flip();
     }
 
-    private TrustManager[] internalCreateTrustManager(String type, String file,
-            String provider) {
-        TrustManagerFactory tm;
+    private TrustManager[] internalCreateTrustManager(String type,
+        KeyStore store, String file, String provider)
+        throws NoSuchAlgorithmException, KeyStoreException, IOException,
+               CertificateException, NoSuchProviderException {
+
+        TrustManagerFactory tm = null;
         KeyStore cert = null;
 
         try {
-            if (file != null) {
+            /* Load/get correct KeyStore */
+            if ((store == null) && (file != null) && !file.isEmpty()) {
                 InputStream stream = new FileInputStream(file);
                 cert = KeyStore.getInstance(keyStoreType);
                 cert.load(stream, jksPass);
                 stream.close();
             }
+            else if (store != null) {
+                cert = store;
+            }
+
+            /* Initialize tm with KeyStore/certs */
             if (provider == null) {
                 tm = TrustManagerFactory.getInstance(type);
             }
             else {
                 tm = TrustManagerFactory.getInstance(type, provider);
             }
+
             tm.init(cert);
             return tm.getTrustManagers();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (CertificateException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchProviderException ex) {
-            Logger.getLogger(WolfSSLTestFactory.class.getName()).log(Level.SEVERE, null, ex);
+
+        } catch (NoSuchAlgorithmException | KeyStoreException |
+             IOException | CertificateException | NoSuchProviderException ex) {
+
+            ex.printStackTrace();
+            throw ex;
         }
-        return null;
     }
 
     /**
@@ -260,33 +276,62 @@ class WolfSSLTestFactory {
      * @param file file name to read from
      * @return new trustmanager [] on success and null on failure
      */
-    protected TrustManager[] createTrustManager(String type, String file) {
-        return internalCreateTrustManager(type, file, null);
+    protected TrustManager[] createTrustManager(String type, String file)
+        throws NoSuchAlgorithmException, KeyStoreException, IOException,
+               CertificateException, NoSuchProviderException {
+
+        return internalCreateTrustManager(type, null, file, null);
     }
 
     /**
-     * Using default password "wolfSSL test"
+     * Create TrustManager[] using default password "wolfSSL test", from
+     * provided JKS file path.
      *
      * @param type of key manager i.e. "SunX509"
-     * @param file file name to read from
-     * @return new trustmanager [] on success and null on failure
+     * @param file JKS file name to read from
+     * @return new TrustManager[] on success and null on failure
      */
     protected TrustManager[] createTrustManager(String type, String file,
-            String provider) {
-        return internalCreateTrustManager(type, file, provider);
+            String provider) throws NoSuchAlgorithmException, KeyStoreException,
+            IOException, CertificateException, NoSuchProviderException {
+
+        return internalCreateTrustManager(type, null, file, provider);
     }
 
-    private KeyManager[] internalCreateKeyManager(String type, String file,
-            String provider) {
-        KeyManagerFactory km;
-        KeyStore pKey;
+    /**
+     * Create TrustManager[] using default password "wolfSSL test", from
+     * provided KeyStore object.
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param store KeyStore object containing trusted cert(s)
+     * @return new TrustManager[] on success and null on failure
+     */
+    protected TrustManager[] createTrustManager(String type, KeyStore store,
+        String provider) throws NoSuchAlgorithmException, KeyStoreException,
+        IOException, CertificateException, NoSuchProviderException {
+
+        return internalCreateTrustManager(type, store, null, provider);
+    }
+
+    private KeyManager[] internalCreateKeyManager(String type, KeyStore store,
+        String file, String provider) throws NoSuchAlgorithmException,
+        KeyStoreException, IOException, CertificateException,
+        NoSuchProviderException, UnrecoverableKeyException {
+
+        KeyManagerFactory km = null;
+        KeyStore pKey = null;
 
         try {
             /* set up KeyStore */
-            InputStream stream = new FileInputStream(file);
-            pKey = KeyStore.getInstance(keyStoreType);
-            pKey.load(stream, jksPass);
-            stream.close();
+            if ((store == null) && (file != null) && !file.isEmpty()) {
+                InputStream stream = new FileInputStream(file);
+                pKey = KeyStore.getInstance(keyStoreType);
+                pKey.load(stream, jksPass);
+                stream.close();
+            }
+            else if (store != null) {
+                pKey = store;
+            }
 
             /* load private key */
             if (provider == null) {
@@ -295,51 +340,95 @@ class WolfSSLTestFactory {
             else {
                 km = KeyManagerFactory.getInstance(type, provider);
             }
+
             km.init(pKey, jksPass);
             return km.getKeyManagers();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyStoreException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (CertificateException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (UnrecoverableKeyException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchProviderException ex) {
-            Logger.getLogger(WolfSSLTestFactory.class.getName()).log(Level.SEVERE, null, ex);
+
+        } catch (NoSuchAlgorithmException | KeyStoreException |
+             IOException | CertificateException | NoSuchProviderException |
+             UnrecoverableKeyException ex) {
+
+            ex.printStackTrace();
+            throw ex;
         }
-        return null;
     }
 
     /**
-     * Using default password "wolfSSL test"
+     * Create KeyManager[] using default password "wolfSSL test" and provided
+     * path to JKS file.
      *
      * @param type of key manager i.e. "SunX509"
-     * @param file file name to read from
-     * @return new keymanager [] on success and null on failure
+     * @param file JKS file path to read from
+     *
+     * @return new KeyManager[] on success and null on failure
      */
-    protected KeyManager[] createKeyManager(String type, String file) {
-        return internalCreateKeyManager(type, file, null);
+    protected KeyManager[] createKeyManager(String type, String file)
+        throws NoSuchAlgorithmException, KeyStoreException, IOException,
+               CertificateException, NoSuchProviderException,
+               UnrecoverableKeyException {
+
+        return internalCreateKeyManager(type, null, file, null);
     }
 
     /**
-     * Using default password "wolfSSL test"
+     * Create KeyManager[] using default password "wolfSSL test" and provided
+     * KeyStore object.
      *
      * @param type of key manager i.e. "SunX509"
-     * @param file file name to read from
-     * @return new keymanager [] on success and null on failure
+     * @param store KeyStore object to read from
+     *
+     * @return new KeyManager[] on success and null on failure
+     */
+    protected KeyManager[] createKeyManager(String type, KeyStore store)
+        throws NoSuchAlgorithmException, KeyStoreException, IOException,
+               CertificateException, NoSuchProviderException,
+               UnrecoverableKeyException {
+
+        return internalCreateKeyManager(type, store, null, null);
+    }
+
+    /**
+     * Create KeyManager[] using default password "wolfSSL test", provided
+     * path to JKS file, and specifying a JSSE provider for KeyManagerFactory.
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param file JKS file path to read from
+     * @param provider Provider of KeyManagerFactory to use
+     *
+     * @return new KeyManager[] on success and null on failure
      */
     protected KeyManager[] createKeyManager(String type, String file,
-            String provider) {
-        return internalCreateKeyManager(type, file, provider);
+        String provider) throws NoSuchAlgorithmException, KeyStoreException,
+        IOException, CertificateException, NoSuchProviderException,
+        UnrecoverableKeyException {
+
+        return internalCreateKeyManager(type, null, file, provider) ;
     }
 
-    private SSLContext internalCreateSSLContext(String protocol, String provider,
-            TrustManager[] tm, KeyManager[] km) {
+    /**
+     * Create KeyManager[] using default password "wolfSSL test", provided
+     * KeyStore object, and specifying a JSSE provider for KeyManagerFactory.
+     *
+     * @param type of key manager i.e. "SunX509"
+     * @param store KeyStore object to read from
+     * @param provider Provider of KeyManagerFactory to use
+     *
+     * @return new KeyManager[] on success and null on failure
+     */
+    protected KeyManager[] createKeyManager(String type, KeyStore store,
+        String provider) throws NoSuchAlgorithmException, KeyStoreException,
+        IOException, CertificateException, NoSuchProviderException,
+        UnrecoverableKeyException {
+
+        return internalCreateKeyManager(type, store, null, provider);
+    }
+
+    private SSLContext internalCreateSSLContext(String protocol,
+        String provider, TrustManager[] tm, KeyManager[] km)
+        throws NoSuchAlgorithmException, KeyManagementException,
+               NoSuchProviderException, KeyStoreException, CertificateException,
+               UnrecoverableKeyException, IOException {
+
         SSLContext ctx = null;
         TrustManager[] localTm = tm;
         KeyManager[] localKm = km;
@@ -365,15 +454,15 @@ class WolfSSLTestFactory {
 
             ctx.init(localKm, localTm, null);
             return ctx;
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (KeyManagementException ex) {
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchProviderException ex) {
-            System.out.println("Could not find the provider : " + provider);
-            Logger.getLogger(WolfSSLEngineTest.class.getName()).log(Level.SEVERE, null, ex);
+
+        } catch (NoSuchAlgorithmException | KeyManagementException |
+                 NoSuchProviderException | KeyStoreException |
+                 IOException | CertificateException |
+                 UnrecoverableKeyException ex) {
+
+            ex.printStackTrace();
+            throw ex;
         }
-        return null;
     }
 
     /**
@@ -382,7 +471,11 @@ class WolfSSLTestFactory {
      * @param protocol to be used when creating context
      * @return new SSLContext on success and null on failure
      */
-    protected SSLContext createSSLContext(String protocol) {
+    protected SSLContext createSSLContext(String protocol)
+        throws NoSuchAlgorithmException, KeyManagementException,
+               NoSuchProviderException, KeyStoreException, CertificateException,
+               UnrecoverableKeyException, IOException {
+
         return internalCreateSSLContext(protocol, null, null, null);
     }
 
@@ -393,7 +486,11 @@ class WolfSSLTestFactory {
      * @param provider to be used when creating context
      * @return new SSLContext on success and null on failure
      */
-    protected SSLContext createSSLContext(String protocol, String provider) {
+    protected SSLContext createSSLContext(String protocol, String provider)
+        throws NoSuchAlgorithmException, KeyManagementException,
+               NoSuchProviderException, KeyStoreException, CertificateException,
+               UnrecoverableKeyException, IOException {
+
         return internalCreateSSLContext(protocol, provider, null, null);
     }
 
@@ -409,7 +506,10 @@ class WolfSSLTestFactory {
      * @return new SSLContext on success and null on failure
      */
     protected SSLContext createSSLContext(String protocol, String provider,
-            TrustManager[] tm, KeyManager[] km) {
+        TrustManager[] tm, KeyManager[] km) throws NoSuchAlgorithmException,
+        KeyManagementException, NoSuchProviderException, KeyStoreException,
+        CertificateException, UnrecoverableKeyException, IOException {
+
         return internalCreateSSLContext(protocol, provider, tm, km);
     }
 
@@ -783,6 +883,118 @@ class WolfSSLTestFactory {
         return 0;
     }
 
+    /**
+     * Helper function, populates test subjectName for cert generation.
+     * @param commonName Common Name to add to subjectName
+     * @return new WolfSSLX509Name object
+     */
+    private WolfSSLX509Name generateTestSubjectName(String commonName)
+        throws WolfSSLException {
+
+        WolfSSLX509Name subjectName = new WolfSSLX509Name();
+        subjectName.setCountryName("US");
+        subjectName.setStateOrProvinceName("Montana");
+        subjectName.setStreetAddress("12345 Test Address");
+        subjectName.setLocalityName("Bozeman");
+        subjectName.setSurname("Test Surname");
+        subjectName.setCommonName(commonName);
+        subjectName.setEmailAddress("support@example.com");
+        subjectName.setOrganizationName("wolfSSL Inc.");
+        subjectName.setOrganizationalUnitName("Test and Development");
+        subjectName.setPostalCode("59715");
+        subjectName.setUserId("TestUserID");
+
+        return subjectName;
+    }
+
+    /**
+     * Generate a JKS KeyStore object which contains a self-signed certificate
+     * which contains the provided Common Name and Alt Name, also will have
+     * basic constraints set to CA:TRUE.
+     *
+     * @param commonName Common Name to generate cert with
+     * @param altName Subject altName to generate cert with
+     *
+     * @return new KeyStore object containing newly-generated certificate
+     */
+    protected KeyStore generateSelfSignedCertJKS(String commonName,
+        String altName, boolean addPrivateKey) throws CertificateException,
+        WolfSSLException, NoSuchAlgorithmException, IOException,
+        KeyStoreException, WolfSSLJNIException {
+
+        String test_KEY_USAGE =
+            "digitalSignature,keyEncipherment,dataEncipherment";
+        String test_EXT_KEY_USAGE =
+            "clientAuth,serverAuth";
+
+        if (commonName == null) {
+            throw new CertificateException(
+                "Invalid arguments, null common name");
+        }
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+
+        /* Set notBefore/notAfter validity dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(12345));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = generateTestSubjectName(commonName);
+        x509.setSubjectName(subjectName);
+
+        /* Not setting Issuer, since generating self-signed cert */
+
+        /* Set Public Key from generated java.security.PublicKey,
+         * RSA 2048-bit for now. Add method arguments later if we need
+         * to generate other alg/sizes. */
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+        PublicKey pubKey = keyPair.getPublic();
+        x509.setPublicKey(pubKey);
+
+        /* Add Extensions */
+        x509.addExtension(WolfSSL.NID_key_usage, test_KEY_USAGE, false);
+        x509.addExtension(WolfSSL.NID_ext_key_usage, test_EXT_KEY_USAGE, false);
+        if (altName != null) {
+            x509.addExtension(WolfSSL.NID_subject_alt_name, altName, false);
+        }
+        x509.addExtension(WolfSSL.NID_basic_constraints, true, true);
+
+        /* Sign certificate, self-signed with java.security.PrivateKey.
+         * Sign with SHA-256 for now. Can add method argument later to set
+         * hash alg if needed. */
+        PrivateKey privKey = keyPair.getPrivate();
+        x509.signCert(privKey, "SHA256");
+
+        /* Convert to X509Certificate */
+        X509Certificate tmpX509 = x509.getX509Certificate();
+
+        /* Create new KeyStore, load in newly generated cert. Add PrivateKey
+         * if requested. */
+        KeyStore store = KeyStore.getInstance("JKS");
+        store.load(null, jksPass);
+
+        if (addPrivateKey) {
+            store.setKeyEntry("cert_entry", privKey, jksPass,
+                new X509Certificate[] { tmpX509 });
+        }
+        else {
+            store.setCertificateEntry("cert_entry", tmpX509);
+        }
+
+        /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        return store;
+    }
 
     /**
      * Returns the DER encoded buffer of the certificate

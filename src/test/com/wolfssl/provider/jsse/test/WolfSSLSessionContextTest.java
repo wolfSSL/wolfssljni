@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.io.IOException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLContext;
@@ -36,8 +37,12 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import java.security.Security;
 import java.security.Provider;
-import java.security.NoSuchProviderException;
+import java.security.KeyStoreException;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -72,7 +77,11 @@ public class WolfSSLSessionContextTest {
 
     @Test
     public void testGetSessionTimeout()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException,
+               NoSuchAlgorithmException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -144,7 +153,11 @@ public class WolfSSLSessionContextTest {
 
     @Test
     public void testSetSessionTimeout()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException,
+               NoSuchAlgorithmException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -253,7 +266,11 @@ public class WolfSSLSessionContextTest {
 
     @Test
     public void testSessionIDsTLS13()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException,
+               NoSuchAlgorithmException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -393,7 +410,11 @@ public class WolfSSLSessionContextTest {
 
     @Test
     public void testSessionIDs()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException,
+               NoSuchAlgorithmException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
