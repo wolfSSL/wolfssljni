@@ -725,6 +725,9 @@ public class WolfSSL {
      * @param file File to read into byte array
      *
      * @return byte array representing input File, or null if file is null
+     *
+     * @throws FileNotFoundException if file is not found
+     * @throws IOException if unable to read entire file
      */
     protected static byte[] fileToBytes(File file)
         throws FileNotFoundException, IOException {
