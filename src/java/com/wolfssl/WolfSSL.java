@@ -202,8 +202,10 @@ public class WolfSSL {
     public static final int SSL_ERROR_WANT_X509_LOOKUP = 83;
     /** I/O error, zero return, no more data */
     public static final int SSL_ERROR_ZERO_RETURN      =  6;
-    /** Generatl SSL error */
+    /** General SSL error */
     public static final int SSL_ERROR_SSL              = 85;
+    /** Error state on socket */
+    public static final int SOCKET_ERROR_E             = -308;
     /** Received fatal alert error */
     public static final int FATAL_ERROR                = -313;
     /** Peer closed socket */
