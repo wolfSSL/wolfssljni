@@ -501,7 +501,7 @@ public class WolfSSLX509Name {
         }
 
         /* TODO: wrap wolfSSL_X509_NAME_oneline() */
-        return null;
+        return "";
     }
 
     /**

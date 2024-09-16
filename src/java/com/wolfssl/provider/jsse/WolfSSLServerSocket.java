@@ -46,7 +46,6 @@ public class WolfSSLServerSocket extends SSLServerSocket {
 
     private boolean clientMode = false;
     private boolean enableSessionCreation = true;
-    private WolfSSLDebug debug;
 
     /**
      * Create new WolfSSLServerSocket

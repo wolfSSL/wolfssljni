@@ -1046,12 +1046,17 @@ public class WolfSSLEngineHelper {
          * with HAVE_SECURE_RENEGOTIATION. Some JSSE consuming apps
          * expect that secure renegotiation will be supported. */
         int ret = this.ssl.useSecureRenegotiation();
-        if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "error enabling secure renegotiation, ret = " + ret);
-        } else if (ret == 0) {
+        if (ret == WolfSSL.SSL_SUCCESS) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "enabled secure renegotiation support for session");
+        }
+        else if (ret == WolfSSL.NOT_COMPILED_IN) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "native secure renegotiation not compiled in");
+        }
+        else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "error enabling secure renegotiation, ret = " + ret);
         }
     }
 
