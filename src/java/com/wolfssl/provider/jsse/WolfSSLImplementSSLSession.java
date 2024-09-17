@@ -264,7 +264,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
             /* use pseudo session ID if session tickets are being used */
             if (this.ssl.getVersion().equals("TLSv1.3") ||
                 this.ssl.sessionTicketsEnabled()) {
-                 return this.pseudoSessionID;
+                 return this.pseudoSessionID.clone();
             }
             else {
                 return this.ssl.getSessionID();

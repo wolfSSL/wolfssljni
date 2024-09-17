@@ -511,8 +511,20 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             String caStoreDir = androidRoot.concat("etc/security/cacerts");
             File cadir = new File(caStoreDir);
             String[] cafiles = null;
+
+            if (cadir == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Unable to open etc/security/cacerts, none loaded");
+                return null;
+            }
+
             try {
                 cafiles = cadir.list();
+                if (cafiles != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Found " + cafiles.length +
+                        " CA files to load into KeyStore");
+                }
             } catch (Exception e) {
                 /* Denied access reading cacerts directory */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
@@ -520,8 +532,6 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     "CA certificates");
                 return null;
             }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Found " + cafiles.length + " CA files to load into KeyStore");
 
             /* Get factory for cert creation */
             try {
