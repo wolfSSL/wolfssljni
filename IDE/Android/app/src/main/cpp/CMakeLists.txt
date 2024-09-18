@@ -11,6 +11,10 @@ project("wolfssljni-gradle" C ASM)
 set(wolfssljni_DIR ${CMAKE_SOURCE_DIR}/../../../../../../)
 set(wolfssl_DIR    ${CMAKE_SOURCE_DIR}/wolfssl/)
 
+# set warnings as errors, used in this example project but may be different
+# in production apps/environments.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
+
 # ------------------------- wolfSSL Normal vs. FIPS Ready Selection --------------------------------
 # Select if wolfSSL is normal ("normal") or FIPS Ready ("fipsready")
 # wolfSSL FIPS Ready is available for download on the wolfssl.com download page. For more
@@ -222,7 +226,10 @@ list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_bn.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_asn1.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_certman.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_crypto.c)
+list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_load.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_misc.c)
+list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_p7p12.c)
+list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sess.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509_str.c)
 

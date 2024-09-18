@@ -8,9 +8,13 @@
 
     <Button
         android:id="@+id/button"
-        android:layout_width="match_parent"
+        android:layout_width="320dp"
         android:layout_height="wrap_content"
-        android:text="Load Cert File" />
+        android:text="Test Provider Lookup"
+        app:layout_constraintBottom_toTopOf="@+id/sample_text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/sample_text"
@@ -19,6 +23,7 @@
         android:layout_marginTop="16dp"
         android:paddingVertical="16pt"
         android:text="Hello World!"
+        android:textColor="#000000"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintHorizontal_bias="0.461"
         app:layout_constraintLeft_toLeftOf="parent"

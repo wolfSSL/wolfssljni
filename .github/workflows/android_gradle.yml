@@ -1,0 +1,52 @@
+name: Android Gradle Build test logic
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      jdk_distro:
+        required: true
+        type: string
+      jdk_version:
+        required: true
+        type: string
+
+jobs:
+  build_wolfssljni:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - name: Clone wolfssljni
+        uses: actions/checkout@v4
+
+      # Clone native wolfSSL
+      - name: Clone native wolfSSL
+        uses: actions/checkout@v4
+        with:
+          repository: 'wolfssl/wolfssl'
+          path: IDE/Android/app/src/main/cpp/wolfssl
+
+      # Copy options.h.in to blank options.h
+      - name: Create blank options.h
+        run: cp IDE/Android/app/src/main/cpp/wolfssl/wolfssl/options.h.in IDE/Android/app/src/main/cpp/wolfssl/wolfssl/options.h
+
+      # Setup Java
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.jdk_distro }}
+          java-version: ${{ inputs.jdk_version }}
+
+      # Gradle assembleDebug
+      - name: Gradle assembleDebug
+        run: cd IDE/Android && ls && ./gradlew assembleDebug
+
+      # Gradle assembleDebugUnitTest
+      - name: Gradle assembleDebugUnitTest
+        run: cd IDE/Android && ls && ./gradlew assembleDebugUnitTest
+
+      # Gradle assembleDebugAndroidTest
+      - name: Gradle assembleDebugAndroidTest
+        run: cd IDE/Android && ls && ./gradlew assembleDebugAndroidTest
+

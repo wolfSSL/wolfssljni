@@ -22,10 +22,6 @@
 
 package com.example.wolfssl;
 
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Environment;
-import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -35,17 +31,11 @@ import android.widget.TextView;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
-import com.wolfssl.provider.jsse.WolfSSLX509;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
-import java.security.cert.CertificateException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
             TextView tv = (TextView) findViewById(R.id.sample_text);
 
             try {
-                testLoadCert(tv);
+                testFindProvider(tv);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -72,23 +62,11 @@ public class MainActivity extends AppCompatActivity {
 
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText("wolfSSL JNI Android Studio Example App");
-
-        if (!Environment.isExternalStorageManager()) {
-            Intent intent = new Intent(
-                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-            Uri uri = Uri.fromParts("package", getPackageName(), null);
-            intent.setData(uri);
-            startActivity(intent);
-        }
     }
 
-    public void testLoadCert(TextView tv)
+    public void testFindProvider(TextView tv)
             throws NoSuchProviderException, NoSuchAlgorithmException,
-                   KeyStoreException, IOException, CertificateException,
                    WolfSSLException {
-        String file = "/sdcard/examples/provider/all.bks";
-        WolfSSLX509 x509;
-        KeyStore ks;
 
         WolfSSL.loadLibrary();
 
@@ -100,11 +78,8 @@ public class MainActivity extends AppCompatActivity {
             System.out.println("Unable to find wolfJSSE provider");
             return;
         }
+        else {
 
-        ks = KeyStore.getInstance("BKS");
-        ks.load(new FileInputStream(file), "wolfSSL test".toCharArray());
-
-        x509 = new WolfSSLX509(ks.getCertificate("server").getEncoded());
-        tv.setText("Server Certificate Found:\n" + x509.toString());
+        }
     }
 }
