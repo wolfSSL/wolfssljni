@@ -2376,7 +2376,7 @@ public class WolfSSLSocketTest {
 
         try {
             /* connect to invalid host/port, expect java.net.ConnectException.
-             * we do not expecdt anything to be running at localhost:12345 */
+             * we do not expect anything to be running at localhost:12345 */
             SSLSocket cs = (SSLSocket)sf.createSocket("localhost", 12345);
         } catch (ConnectException ce) {
             /* expected */
