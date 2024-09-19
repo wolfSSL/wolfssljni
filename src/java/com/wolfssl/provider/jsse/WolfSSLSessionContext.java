@@ -24,6 +24,7 @@ package com.wolfssl.provider.jsse;
 import java.util.Enumeration;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
+import com.wolfssl.WolfSSL;
 
 /**
  * WolfSSLSessionContext class
@@ -31,10 +32,27 @@ import javax.net.ssl.SSLSessionContext;
  * @author wolfSSL Inc.
  */
 public class WolfSSLSessionContext implements SSLSessionContext {
-    private WolfSSLAuthStore store;
-    private int sesTimout;
-    private int sesCache;
-    private int side;
+    private WolfSSLAuthStore store = null;
+    private int sesTimout = 0;
+    private int sesCache = 0;
+    private int side = WolfSSL.WOLFSSL_CLIENT_END;
+
+    /**
+     * Create new WolfSSLSessionContext
+     *
+     * WolfSSLAuthStore not given as parameter in this constructor, caller
+     * should explicitly set with WolfSSLSessionContext.setWolfSSLAuthStore().
+     *
+     * @param in WolfSSLAuthStore object to use with this context
+     * @param defaultCacheSize default session cache size
+     * @param side client or server side. Either WolfSSL.WOLFSSL_CLIENT_END or
+     *        WolfSSL.WOLFSSL_SERVER_END
+     */
+    public WolfSSLSessionContext(int defaultCacheSize, int side) {
+        this.sesCache  = defaultCacheSize;
+        this.sesTimout = 86400; /* this is the default value in SunJSSE too */
+        this.side      = side;
+    }
 
     /**
      * Create new WolfSSLSessionContext
@@ -52,15 +70,24 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         this.side      = side;
     }
 
+    public void setWolfSSLAuthStore(WolfSSLAuthStore store) {
+        this.store = store;
+    }
 
     @Override
     public SSLSession getSession(byte[] sessionId) {
+        if (store == null) {
+            return null;
+        }
         return store.getSession(sessionId, side);
     }
 
 
     @Override
     public Enumeration<byte[]> getIds() {
+        if (store == null) {
+            return null;
+        }
         return store.getAllIDs(side);
     }
 
@@ -70,7 +97,9 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         this.sesTimout = in;
 
         /* check for any new timeouts after timeout has been set */
-        store.updateTimeouts(in, this.side);
+        if (store != null) {
+            store.updateTimeouts(in, this.side);
+        }
     }
 
     @Override
@@ -88,7 +117,7 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         }
 
         /* resize store array if needed */
-        if (this.sesCache != in) {
+        if ((store != null) && (this.sesCache != in)) {
             store.resizeCache(in, this.side);
         }
         this.sesCache = in;

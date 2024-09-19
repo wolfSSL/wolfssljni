@@ -32,6 +32,8 @@ import com.wolfssl.WolfSSLFIPSErrorCallback;
  */
 public final class WolfSSLProvider extends Provider {
 
+    private static final long serialVersionUID = 1L;
+
     /* Keep one static reference to native wolfSSL library across
      * all WolfSSLProvider objects. */
     private static WolfSSL sslLib = null;
@@ -164,7 +166,7 @@ public final class WolfSSLProvider extends Provider {
 
         /* Store devId into static WolfSSL variable, used by
          * WolfSSLContext (SSLContext) */
-        sslLib.devId = devId;
+        WolfSSL.devId = devId;
 
     }
 
@@ -190,7 +192,7 @@ public final class WolfSSLProvider extends Provider {
         /* Call native JNI entry point to register native wolfSSL
          * CryptoDevice callback function. See native JNI function in
          * native/com_wolfssl_WolfSSL.c */
-        ret = sslLib.cryptoCbRegisterDevice(devId);
+        ret = WolfSSL.cryptoCbRegisterDevice(devId);
         if (ret != 0) {
             throw new WolfSSLException(
                 "Error registering native wolfSSL crypto callback, " +
@@ -215,7 +217,7 @@ public final class WolfSSLProvider extends Provider {
         /* Call native JNI entry point to unregister native wolfSSL
          * CryptoDevice callback function. See native JNI function in
          * native/com_wolfssl_WolfSSL.c */
-        ret = sslLib.cryptoCbUnRegisterDevice(devId);
+        ret = WolfSSL.cryptoCbUnRegisterDevice(devId);
         if (ret != 0) {
             throw new WolfSSLException(
                 "Error unregistering native wolfSSL crypto callback, " +

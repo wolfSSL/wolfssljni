@@ -64,7 +64,7 @@ public class WolfSSLUtil {
 
         String disabledAlgos =
             Security.getProperty("jdk.tls.disabledAlgorithms");
-        List disabledList = null;
+        List<?> disabledList = null;
 
         /* If system property not set, no filtering needed */
         if (disabledAlgos == null || disabledAlgos.isEmpty()) {
@@ -119,7 +119,7 @@ public class WolfSSLUtil {
 
         String enabledSuites =
             Security.getProperty("wolfjsse.enabledCipherSuites");
-        List enabledList = null;
+        List<?> enabledList = null;
 
         /* If system property not set, no filtering needed */
         if (enabledSuites == null || enabledSuites.isEmpty()) {

@@ -122,7 +122,7 @@ public class WolfSSLParametersHelper
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
                 Object obj = cls.getConstructor().newInstance();
-                Class[] paramList = new Class[3];
+                Class<?>[] paramList = new Class<?>[3];
                 paramList[0] = javax.net.ssl.SSLParameters.class;
                 paramList[1] = java.lang.reflect.Method.class;
                 paramList[2] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
@@ -200,7 +200,7 @@ public class WolfSSLParametersHelper
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
                 Object obj = cls.getConstructor().newInstance();
-                Class[] paramList = new Class[2];
+                Class<?>[] paramList = new Class<?>[2];
                 paramList[0] = javax.net.ssl.SSLParameters.class;
                 paramList[1] = com.wolfssl.provider.jsse.WolfSSLParameters.class;
                 Method mth = null;

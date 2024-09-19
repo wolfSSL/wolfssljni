@@ -97,9 +97,9 @@ public class WolfSSLAuthStore {
             store = new SessionStore<>(defaultCacheSize);
         }
         this.serverCtx = new WolfSSLSessionContext(
-                this, defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
+            defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
         this.clientCtx = new WolfSSLSessionContext(
-                this, defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
+            defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
     }
 
     /**
@@ -251,6 +251,7 @@ public class WolfSSLAuthStore {
      * @return pointer to the context set
      */
     protected WolfSSLSessionContext getServerContext() {
+        this.serverCtx.setWolfSSLAuthStore(this);
         return this.serverCtx;
     }
 
@@ -260,6 +261,7 @@ public class WolfSSLAuthStore {
      * @return pointer to the context set
      */
     protected WolfSSLSessionContext getClientContext() {
+        this.clientCtx.setWolfSSLAuthStore(this);
         return this.clientCtx;
     }
 

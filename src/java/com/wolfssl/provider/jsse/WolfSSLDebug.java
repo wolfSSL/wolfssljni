@@ -84,7 +84,9 @@ public class WolfSSLDebug {
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
      * @param string message to be printed out
      */
-    public static synchronized void log(Class cl, String tag, String string) {
+    public static synchronized <T> void log(Class<T> cl, String tag,
+        String string) {
+
         if (DEBUG) {
             System.out.println(new Timestamp(new java.util.Date().getTime()) +
                                " [wolfJSSE " + tag + ": TID " +
@@ -102,8 +104,9 @@ public class WolfSSLDebug {
      * @param in byte array to be printed as hex
      * @param sz number of bytes from in array to be printed
      */
-    public static synchronized void logHex(Class cl, String tag, String label,
-                                           byte[] in, int sz) {
+    public static synchronized <T> void logHex(Class<T> cl, String tag,
+        String label, byte[] in, int sz) {
+
         if (DEBUG) {
             int i = 0, j = 0;
             int printSz = 0;
