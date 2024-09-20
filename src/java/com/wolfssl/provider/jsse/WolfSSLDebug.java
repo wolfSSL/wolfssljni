@@ -37,9 +37,18 @@ import com.wolfssl.WolfSSLLoggingCallback;
 public class WolfSSLDebug {
 
     /**
-     * boolean to check if debug mode is on
+     * Check if debug mode is on.
+     *
+     * Is true if "wolfjsse.debug" is set to "true", otherwise false.
      */
     public static final boolean DEBUG = checkProperty();
+
+    /**
+     * Check if JSON debug mode is on.
+     *
+     * Is true if "wolfjsse.debugFormat" is set to "JSON", otherwise false.
+     */
+    public static final boolean DEBUG_JSON = jsonOutEnabled();
 
     /**
      * Error level debug message
@@ -58,11 +67,32 @@ public class WolfSSLDebug {
      */
     private static WolfSSLNativeLoggingCallback nativeLogCb = null;
 
+    /**
+     * Check if "wolfjsse.debug" System property is set to "true".
+     *
+     * @return true if set to "true", otherwise return false
+     */
     private static boolean checkProperty() {
 
         String enabled = System.getProperty("wolfjsse.debug");
 
         if ((enabled != null) && (enabled.equalsIgnoreCase("true"))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if "wolfjsse.debugFormat" is set to "JSON".
+     *
+     * @return true if set to "JSON", otherwise false.
+     */
+    private static boolean jsonOutEnabled() {
+
+        String enabled = System.getProperty("wolfjsse.debugFormat");
+
+        if ((enabled != null) && (enabled.equalsIgnoreCase("JSON"))) {
             return true;
         }
 
@@ -78,7 +108,60 @@ public class WolfSSLDebug {
     }
 
     /**
+     * Internal method to print debug message as JSON for consumption by
+     * tools such as DataDog.
+     */
+    private static synchronized void logJSON(String tag, String msg,
+        long threadID, String threadName, String className) {
+
+        System.out.printf(
+            "{\n" +
+            "    \"@timestamp\": \"%s\",\n" +
+            "    \"level\": \"%s\",\n" +
+            "    \"logger_name\": \"wolfJSSE\",\n" +
+            "    \"message\": \"%s\",\n" +
+            "    \"thread_name\": \"%s\",:\n" +
+            "    \"thread_id\": \"%s\"\n" +
+            "}\n",
+            new Timestamp(new java.util.Date().getTime()),
+            tag, "[" + className + "] " + msg,
+            threadID, threadName
+        );
+    }
+
+    /**
+     * Internal method to print debug message with byte array hex as JSON,
+     * for consumption by tools such as DataDog.
+     */
+    private static synchronized void logJSONHex(String tag, String label,
+        long threadID, String threadName, String className, byte[] in, int sz) {
+
+        /* Convert byte[] to hex string */
+        StringBuilder builder = new StringBuilder();
+        for (byte b: in) {
+            builder.append(String.format("%02X", b));
+        }
+
+        logJSON(tag, label + " [" + sz + "]: " + builder.toString(), threadID,
+                threadName, className);
+    }
+
+    /**
      * Checks if debugging is turned on and prints out the message.
+     *
+     * Output format can be controlled with the "wolfjsse.debugFormat"
+     * System property. If not set, default debug output format will be used.
+     * If set to "JSON", all debug logs will be output in the following JSON
+     * format, which can be read by DataDog:
+     *
+     *     {
+     *         "@timestamp": "2024-04-05 11:13:07.193",
+     *         "level": "INFO",
+     *         "logger_name": "wolfJSSE",
+     *         "message": "debug message",
+     *         "thread_name": "thread_name",:
+     *         "thread_id": "thread_ID"
+     *     }
      *
      * @param cl class being called from to get debug info
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
@@ -88,15 +171,39 @@ public class WolfSSLDebug {
         String string) {
 
         if (DEBUG) {
-            System.out.println(new Timestamp(new java.util.Date().getTime()) +
-                               " [wolfJSSE " + tag + ": TID " +
-                               Thread.currentThread().getId() + ": " +
-                               cl.getSimpleName() + "] " + string);
+
+            long threadID = Thread.currentThread().getId();
+            String threadName = Thread.currentThread().getName();
+            String className = cl.getSimpleName();
+
+            if (DEBUG_JSON) {
+                logJSON(tag, string, threadID, threadName, className);
+            }
+            else {
+                System.out.println(
+                    new Timestamp(new java.util.Date().getTime()) +
+                    " [wolfJSSE " + tag + ": TID " + threadID + ": " +
+                    className + "] " + string);
+            }
         }
     }
 
     /**
      * Print out a byte array in hex if debugging is enabled.
+     *
+     * Output format can be controlled with the "wolfjsse.debugFormat"
+     * System property. If not set, default debug output format will be used.
+     * If set to "JSON", all debug logs will be output in the following JSON
+     * format, which can be read by DataDog:
+     *
+     *     {
+     *         "@timestamp": "2024-04-05 11:13:07.193",
+     *         "level": "INFO",
+     *         "logger_name": "wolfJSSE",
+     *         "message": "label [sz]: array hex string",
+     *         "thread_name": "thread_name",:
+     *         "thread_id": "thread_ID"
+     *     }
      *
      * @param cl class this method is being called from
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
@@ -110,26 +217,32 @@ public class WolfSSLDebug {
         if (DEBUG) {
             int i = 0, j = 0;
             int printSz = 0;
-            long tid = Thread.currentThread().getId();
-            String clName = null;
+            long threadID = Thread.currentThread().getId();
+            String threadName = Thread.currentThread().getName();
+            String className = null;
 
             if (cl == null || in == null || sz == 0) {
                 return;
             }
-            clName = cl.getSimpleName();
+            className = cl.getSimpleName();
             printSz = Math.min(in.length, sz);
 
-            System.out.print("[wolfJSSE " + tag + ": TID " + tid + ": " +
-                             clName + "] " + label + " [" + sz + "]: ");
-            for (i = 0; i < printSz; i++) {
-                if ((i % 16) == 0) {
-                    System.out.printf("\n[wolfJSSE " + tag + ": TID " +
-                                      tid + ": " + clName + "] %06X", j * 8);
-                    j++;
-                }
-                System.out.printf(" %02X ", in[i]);
+            if (DEBUG_JSON) {
+                logJSONHex(tag, label, threadID, threadName, className, in, sz);
             }
-            System.out.println("");
+            else {
+                System.out.print("[wolfJSSE " + tag + ": TID " + threadID +
+                    ": " + className + "] " + label + " [" + sz + "]: ");
+                for (i = 0; i < printSz; i++) {
+                    if ((i % 16) == 0) {
+                        System.out.printf("\n[wolfJSSE " + tag + ": TID " +
+                            threadID + ": " + className + "] %06X", j * 8);
+                        j++;
+                    }
+                    System.out.printf(" %02X ", in[i]);
+                }
+                System.out.println("");
+            }
         }
     }
 
