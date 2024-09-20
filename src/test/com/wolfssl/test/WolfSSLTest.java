@@ -85,22 +85,22 @@ public class WolfSSLTest {
     }
 
     public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
-        tstMethod(lib.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
-        tstMethod(lib.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
-        tstMethod(lib.TLSv1_ServerMethod(), "TLSv1_ServerMethod()");
-        tstMethod(lib.TLSv1_ClientMethod(), "TLSv1_ClientMethod()");
-        tstMethod(lib.TLSv1_1_ServerMethod(), "TLSv1_1_ServerMethod()");
-        tstMethod(lib.TLSv1_1_ClientMethod(), "TLSv1_1_ClientMethod()");
-        tstMethod(lib.TLSv1_2_ServerMethod(), "TLSv1_2_ServerMethod()");
-        tstMethod(lib.TLSv1_2_ClientMethod(), "TLSv1_2_ClientMethod()");
-        tstMethod(lib.TLSv1_3_ServerMethod(), "TLSv1_3_ServerMethod()");
-        tstMethod(lib.TLSv1_3_ClientMethod(), "TLSv1_3_ClientMethod()");
-        tstMethod(lib.DTLSv1_ServerMethod(), "DTLSv1_ServerMethod()");
-        tstMethod(lib.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
-        tstMethod(lib.DTLSv1_2_ServerMethod(), "DTLSv1_2_ServerMethod()");
-        tstMethod(lib.DTLSv1_2_ClientMethod(), "DTLSv1_2_ClientMethod()");
-        tstMethod(lib.SSLv23_ServerMethod(), "SSLv23_ServerMethod()");
-        tstMethod(lib.SSLv23_ClientMethod(), "SSLv23_ClientMethod()");
+        tstMethod(WolfSSL.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
+        tstMethod(WolfSSL.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
+        tstMethod(WolfSSL.TLSv1_ServerMethod(), "TLSv1_ServerMethod()");
+        tstMethod(WolfSSL.TLSv1_ClientMethod(), "TLSv1_ClientMethod()");
+        tstMethod(WolfSSL.TLSv1_1_ServerMethod(), "TLSv1_1_ServerMethod()");
+        tstMethod(WolfSSL.TLSv1_1_ClientMethod(), "TLSv1_1_ClientMethod()");
+        tstMethod(WolfSSL.TLSv1_2_ServerMethod(), "TLSv1_2_ServerMethod()");
+        tstMethod(WolfSSL.TLSv1_2_ClientMethod(), "TLSv1_2_ClientMethod()");
+        tstMethod(WolfSSL.TLSv1_3_ServerMethod(), "TLSv1_3_ServerMethod()");
+        tstMethod(WolfSSL.TLSv1_3_ClientMethod(), "TLSv1_3_ClientMethod()");
+        tstMethod(WolfSSL.DTLSv1_ServerMethod(), "DTLSv1_ServerMethod()");
+        tstMethod(WolfSSL.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
+        tstMethod(WolfSSL.DTLSv1_2_ServerMethod(), "DTLSv1_2_ServerMethod()");
+        tstMethod(WolfSSL.DTLSv1_2_ClientMethod(), "DTLSv1_2_ClientMethod()");
+        tstMethod(WolfSSL.SSLv23_ServerMethod(), "SSLv23_ServerMethod()");
+        tstMethod(WolfSSL.SSLv23_ClientMethod(), "SSLv23_ClientMethod()");
     }
 
     public void tstMethod(long method, String name) {

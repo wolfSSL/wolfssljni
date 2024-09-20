@@ -412,7 +412,7 @@ public class WolfSSLContextTest {
         ArrayList<String> expected = new ArrayList<String>();
 
         /* already sorted highest to lowest (ie TLSv1.3, ..., TLSv1.1) */
-        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+        List<?> enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
 
         if (ctxProtocol == "TLS") {
             if (enabledNativeProtocols.contains("TLSv1.3")) {
@@ -490,7 +490,7 @@ public class WolfSSLContextTest {
 
         System.out.print("\tjdk.tls.disabledAlgorithms");
 
-        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+        List<?> enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
         if (enabledNativeProtocols == null) {
             System.out.println("\t... failed");
             fail("WolfSSL.getProtocols() returned null");
@@ -714,7 +714,7 @@ public class WolfSSLContextTest {
 
         System.out.print("\twolfjsse.enabledCipherSuites");
 
-        List enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
+        List<?> enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
         if (enabledNativeProtocols == null) {
             System.out.println("\t... failed");
             fail("WolfSSL.getProtocols() returned null");

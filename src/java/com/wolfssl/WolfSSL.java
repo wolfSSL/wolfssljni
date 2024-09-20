@@ -1683,10 +1683,10 @@ public class WolfSSL {
         synchronized(cleanupLock) {
             if (this.active == true) {
                 /* reset logging callback before calling cleanup() */
-                this.setLoggingCb(null);
+                setLoggingCb(null);
 
                 /* free resources, set state */
-                this.cleanup();
+                cleanup();
                 this.active = false;
             }
         }

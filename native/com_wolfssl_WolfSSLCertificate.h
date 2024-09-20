@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef com_wolfssl_WolfSSLCertificate_serialVersionUID
+#define com_wolfssl_WolfSSLCertificate_serialVersionUID 1LL
 #undef com_wolfssl_WolfSSLCertificate_EVP_PKEY_RSA
 #define com_wolfssl_WolfSSLCertificate_EVP_PKEY_RSA 16L
 #undef com_wolfssl_WolfSSLCertificate_EVP_PKEY_EC

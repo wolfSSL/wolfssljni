@@ -118,3 +118,18 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # ----------------------- Android Gradle build ------------------------
+  # Run Android gradle build over PR code, only running on Linux with one
+  # JDK/version for now.
+  android-gradle:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest' ]
+        jdk_version: [ '21' ]
+    name: Android Gradle (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }})
+    uses: ./.github/workflows/android_gradle.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+

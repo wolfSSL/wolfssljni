@@ -26,6 +26,9 @@ package com.wolfssl;
  */
 public class WolfSSLJNIException extends Exception {
 
+    /* Exception class is serializable */
+    private static final long serialVersionUID = 1L;
+ 
     /**
      * Create WolfSSLJNIException with reason String
      *

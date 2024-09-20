@@ -303,7 +303,7 @@ public class WolfSSLX509Test {
             store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
 
-            store.load(stream, tf.jksPass);
+            store.load(stream, WolfSSLTestFactory.jksPass);
             stream.close();
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());
             cax = new WolfSSLX509X(ca.getEncoded());
@@ -368,7 +368,7 @@ public class WolfSSLX509Test {
 
             store = KeyStore.getInstance(tf.keyStoreType);
             stream = new FileInputStream(tf.allJKS);
-            store.load(stream, tf.jksPass);
+            store.load(stream, WolfSSLTestFactory.jksPass);
             stream.close();
             server = new WolfSSLX509(store.getCertificate("server").getEncoded());
             ca = new WolfSSLX509(store.getCertificate("ca").getEncoded());

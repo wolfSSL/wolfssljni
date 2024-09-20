@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.math.BigInteger;
@@ -49,7 +50,9 @@ import java.security.cert.CertificateEncodingException;
 /**
  * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
  */
-public class WolfSSLCertificate {
+public class WolfSSLCertificate implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private boolean active = false;
     private long x509Ptr = 0;
@@ -59,13 +62,13 @@ public class WolfSSLCertificate {
     private boolean weOwnX509Ptr = false;
 
     /* lock around active state */
-    private final Object stateLock = new Object();
+    private transient final Object stateLock = new Object();
 
     /* lock around native WOLFSSL_X509 pointer use */
-    private final Object x509Lock = new Object();
+    private transient final Object x509Lock = new Object();
 
     /* cache alt names once retrieved once */
-    private Collection<List<?>> altNames = null;
+    private ArrayList<List<?>> altNames = null;
 
     /* Public key types used for certificate generation, mirrored from
      * native enum in wolfssl/openssl/evp.h */
@@ -1463,10 +1466,10 @@ public class WolfSSLCertificate {
         synchronized (x509Lock) {
             if (this.altNames != null) {
                 /* already gathered, return cached version */
-                return this.altNames;
+                return Collections.unmodifiableCollection(this.altNames);
             }
 
-            Collection<List<?>> names = new ArrayList<List<?>>();
+            ArrayList<List<?>> names = new ArrayList<List<?>>();
 
             String nextAltName = X509_get_next_altname(this.x509Ptr);
             while (nextAltName != null) {
@@ -1480,9 +1483,9 @@ public class WolfSSLCertificate {
             }
 
             /* cache altNames collection for later use */
-            this.altNames = Collections.unmodifiableCollection(names);
+            this.altNames = names;
 
-            return this.altNames;
+            return Collections.unmodifiableCollection(this.altNames);
         }
     }
 

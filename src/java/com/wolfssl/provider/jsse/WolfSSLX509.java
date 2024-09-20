@@ -57,8 +57,12 @@ import com.wolfssl.WolfSSLJNIException;
  */
 public class WolfSSLX509 extends X509Certificate {
 
+    /* X509Certificate class is serializable */
+    private static final long serialVersionUID = 1L;
+
     /** Inner WolfSSLCertificate object */
     private WolfSSLCertificate cert = null;
+
     /** Certificate extension OID values */
     private String[] extensionOid = {
         "2.5.29.15", /* key usage */
@@ -521,7 +525,7 @@ public class WolfSSLX509 extends X509Certificate {
 
             if (kf != null) {
                 spec = new X509EncodedKeySpec(der);
-                key = (PublicKey)kf.generatePublic(spec);
+                key = kf.generatePublic(spec);
             }
 
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {

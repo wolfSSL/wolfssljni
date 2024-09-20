@@ -215,7 +215,11 @@ public class WolfSSLEngineTest {
 
         ciphers = client.getSupportedCipherSuites();
         certs = server.getSession().getLocalCertificates();
-        if (certs != null) {
+        if (certs == null) {
+            error("\t... failed");
+            fail("no certs available from server SSLEngine.getSession()");
+        }
+        else {
             certType = ((X509Certificate)certs[0]).getSigAlgName();
             if (certType.contains("RSA")) {
                 /* use a ECDHE-RSA suite if available */

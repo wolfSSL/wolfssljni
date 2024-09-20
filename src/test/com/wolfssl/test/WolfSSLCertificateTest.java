@@ -574,9 +574,9 @@ public class WolfSSLCertificateTest {
             boolean[] kuse;
 
             if (WolfSSL.FileSystemEnabled() == true) {
-                ext = new WolfSSLCertificate(this.external);
+                ext = new WolfSSLCertificate(external);
             } else {
-                ext = new WolfSSLCertificate(fileToByteArray(this.external),
+                ext = new WolfSSLCertificate(fileToByteArray(external),
                                              WolfSSL.SSL_FILETYPE_ASN1);
             }
 

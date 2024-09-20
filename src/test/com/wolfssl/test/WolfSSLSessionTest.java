@@ -1102,14 +1102,14 @@ public class WolfSSLSessionTest {
 
             /* wolfSSL_SessionIsSetup() may not be available, don't treat
              * NOT_COMPILED_IN as an error */
-            ret = cliSes.sessionIsSetup(sessionPtr);
+            ret = WolfSSLSession.sessionIsSetup(sessionPtr);
             if ((ret != 1) && (ret != WolfSSL.NOT_COMPILED_IN)) {
                 throw new Exception(
                     "WolfSSLSession.sessionIsSetup() did not return 1: " + ret);
             }
 
             /* Test duplicateSession(), wraps wolfSSL_SESSION_dup() */
-            sesDup = cliSes.duplicateSession(sessionPtr);
+            sesDup = WolfSSLSession.duplicateSession(sessionPtr);
             if (sesDup == 0) {
                 throw new Exception(
                     "WolfSSLSession.duplicateSession() returned 0");
@@ -1118,7 +1118,7 @@ public class WolfSSLSessionTest {
                 throw new Exception(
                     "WolfSSLSession.duplicateSession() returned same pointer");
             }
-            cliSes.freeSession(sesDup);
+            WolfSSLSession.freeSession(sesDup);
             sesDup = 0;
 
             cliSes.shutdownSSL();
@@ -1160,7 +1160,7 @@ public class WolfSSLSessionTest {
             }
 
             /* Get WOLFSSL_SESSION pointer, free original one first */
-            cliSes.freeSession(sessionPtr);
+            WolfSSLSession.freeSession(sessionPtr);
             sessionPtr = cliSes.getSession();
             if (sessionPtr == 0) {
                 throw new Exception(
@@ -1168,7 +1168,7 @@ public class WolfSSLSessionTest {
             }
 
             /* Free WOLFSSL_SESSION pointer */
-            cliSes.freeSession(sessionPtr);
+            WolfSSLSession.freeSession(sessionPtr);
             sessionPtr = 0;
 
             /* Session should be marked as resumed */
@@ -1190,10 +1190,10 @@ public class WolfSSLSessionTest {
 
         } finally {
             if (sessionPtr != 0) {
-                cliSes.freeSession(sessionPtr);
+                WolfSSLSession.freeSession(sessionPtr);
             }
             if (sesDup != 0) {
-                cliSes.freeSession(sesDup);
+                WolfSSLSession.freeSession(sesDup);
             }
             if (cliSes != null) {
                 cliSes.freeSSL();
