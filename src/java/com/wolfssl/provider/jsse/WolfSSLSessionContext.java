@@ -43,7 +43,6 @@ public class WolfSSLSessionContext implements SSLSessionContext {
      * WolfSSLAuthStore not given as parameter in this constructor, caller
      * should explicitly set with WolfSSLSessionContext.setWolfSSLAuthStore().
      *
-     * @param in WolfSSLAuthStore object to use with this context
      * @param defaultCacheSize default session cache size
      * @param side client or server side. Either WolfSSL.WOLFSSL_CLIENT_END or
      *        WolfSSL.WOLFSSL_SERVER_END
@@ -70,6 +69,11 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         this.side      = side;
     }
 
+    /**
+     * Set WolfSSLAuthStore for this object.
+     *
+     * @param store WolfSSLAuthStore to use with this object
+     */
     public void setWolfSSLAuthStore(WolfSSLAuthStore store) {
         this.store = store;
     }

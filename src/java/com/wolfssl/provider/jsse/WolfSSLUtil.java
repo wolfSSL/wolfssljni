@@ -43,6 +43,12 @@ import com.wolfssl.WolfSSLException;
 public class WolfSSLUtil {
 
     /**
+     * Default constructor for WolfSSLUtil class.
+     */
+    public WolfSSLUtil() {
+    }
+
+    /**
      * Sanitize or filter protocol list based on system property limitations.
      *
      * Supported system properties which limit protocol list are:

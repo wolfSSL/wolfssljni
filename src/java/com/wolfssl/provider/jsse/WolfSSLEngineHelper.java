@@ -1413,6 +1413,9 @@ public class WolfSSLEngineHelper {
         return WolfSSL.SSL_FAILURE;
     }
 
+    /**
+     * Clear internal state of this WolfSSLEngineHelper.
+     */
     protected synchronized void clearObjectState() {
         this.ssl = null;
         this.session = null;
