@@ -424,7 +424,7 @@ public class WolfSSLContextTest {
             WolfSSL.WOLFSSL_ECC_SECP256R1
         };
         int[] tooLong = new int[50];
-        int[] badGroups = { (int)0xDEAD, (int)0xBEEF };
+        int[] badGroups = { 0xDEAD, 0xBEEF };
 
         System.out.print("\tsetGroups()");
         try {

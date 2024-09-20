@@ -1054,7 +1054,7 @@ public class WolfSSLSocketTest {
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
         cs.connect(new InetSocketAddress(serverSock.getLocalPort()));
 
-        final Socket server = (Socket)serverSock.accept();
+        final Socket server = serverSock.accept();
 
         ExecutorService es = Executors.newSingleThreadExecutor();
         Future<Void> serverFuture = es.submit(new Callable<Void>() {
@@ -1390,8 +1390,8 @@ public class WolfSSLSocketTest {
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
-        this.clientFlag = false;
-        this.serverFlag = false;
+        clientFlag = false;
+        serverFlag = false;
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
@@ -2398,11 +2398,13 @@ public class WolfSSLSocketTest {
 
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
 
@@ -2456,7 +2458,8 @@ public class WolfSSLSocketTest {
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         ctx = SSLContext.getInstance("TLS", ctxProvider);
 
@@ -2475,11 +2478,13 @@ public class WolfSSLSocketTest {
         /* ------------------------------------------------ */
         System.setProperty("javax.net.ssl.trustStore", "badstorepath");
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         ctx = SSLContext.getInstance("TLS", ctxProvider);
 
@@ -2498,11 +2503,13 @@ public class WolfSSLSocketTest {
         /* ------------------------------------------------ */
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", "badtype");
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         ctx = SSLContext.getInstance("TLS", ctxProvider);
 
@@ -2521,7 +2528,8 @@ public class WolfSSLSocketTest {
         /* ------------------------------------------------ */
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
@@ -2544,11 +2552,13 @@ public class WolfSSLSocketTest {
         /* ------------------------------------------------ */
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", "badpath");
         System.setProperty("javax.net.ssl.keyStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         ctx = SSLContext.getInstance("TLS", ctxProvider);
 
@@ -2567,11 +2577,13 @@ public class WolfSSLSocketTest {
         /* ------------------------------------------------ */
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
-        System.setProperty("javax.net.ssl.trustStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.trustStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         System.setProperty("javax.net.ssl.keyStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.keyStoreType", "badtype");
-        System.setProperty("javax.net.ssl.keyStorePassword", tf.jksPassStr);
+        System.setProperty("javax.net.ssl.keyStorePassword",
+            WolfSSLTestFactory.jksPassStr);
 
         ctx = SSLContext.getInstance("TLS", ctxProvider);
 

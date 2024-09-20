@@ -68,13 +68,13 @@ class WolfSSLTestFactory {
     protected String clientRSAJKS;
     protected String clientECCJKS;
     protected String clientRSAPSSJKS;
-    protected static String serverJKS;
+    protected String serverJKS;
     protected String serverRSA1024JKS;
     protected String serverRSAJKS;
     protected String serverECCJKS;
     protected String serverRSAPSSJKS;
     protected String caJKS;
-    protected static String caClientJKS;
+    protected String caClientJKS;
     protected String caServerJKS;
 
     protected String googleCACert;
@@ -858,7 +858,7 @@ class WolfSSLTestFactory {
     protected static boolean securityPropContains(String prop, String needle) {
 
         String secProp = null;
-        List propList = null;
+        List<?> propList = null;
 
         if (prop == null || needle == null) {
             return false;
