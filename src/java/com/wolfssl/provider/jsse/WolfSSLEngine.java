@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.security.cert.CertificateEncodingException;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -76,6 +75,10 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* Does TLS handshake need initialization */
     private boolean needInit = true;
+    private final Object initLock = new Object();
+
+    /* Have cert/key been loaded? */
+    private boolean certKeyLoaded = false;
 
     private boolean inBoundOpen = true;
     private boolean outBoundOpen = true;
@@ -163,23 +166,14 @@ public class WolfSSLEngine extends SSLEngine {
         this.ctx = ctx;
         this.authStore = auth;
         this.params = params.copy();
+
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE,
-                             null, ex);
-            throw new WolfSSLException("Error with init");
+            throw new WolfSSLException("Error with WolfSSLEngine init");
         }
         this.engineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
             this.params);
-
-        try {
-            this.engineHelper.LoadKeyAndCertChain(null, this);
-        } catch (CertificateEncodingException | IOException e) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "failed to load private key and/or cert chain");
-            throw new WolfSSLException(e);
-        }
     }
 
     /**
@@ -199,22 +193,62 @@ public class WolfSSLEngine extends SSLEngine {
         this.ctx = ctx;
         this.authStore = auth;
         this.params = params.copy();
+
         try {
             initSSL();
         } catch (WolfSSLJNIException ex) {
-            Logger.getLogger(WolfSSLEngine.class.getName()).log(Level.SEVERE,
-                             null, ex);
-            throw new WolfSSLException("Error with init");
+            throw new WolfSSLException("Error with WolfSSLEngine init");
         }
         this.engineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
+    }
+
+    /**
+     * Loads the key and certificate for this SSLEngine if not loaded yet.
+     *
+     * @throws SSLException on error
+     */
+    private synchronized void LoadCertAndKey() throws SSLException {
+
+        /* Load cert and key */
+        if (certKeyLoaded) {
+            return;
+        }
 
         try {
             this.engineHelper.LoadKeyAndCertChain(null, this);
-        } catch (CertificateEncodingException | IOException e) {
+        } catch (CertificateEncodingException | IOException |
+                 WolfSSLException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "failed to load private key and/or cert chain");
-            throw new WolfSSLException(e);
+            throw new SSLException(e);
+        }
+    }
+
+    /**
+     * Initialize this WolfSSLEngine prior to handshaking.
+     *
+     * Internal method, should be called before any handshake.
+     *
+     * This logic is not included directly in WolfSSLEngine constructors
+     * to avoid possible 'this' escape before subclass is fully initialized
+     * when using 'this' in LoadKeyAndCertChain().
+     *
+     * @throws SSLException if initialization fails
+     */
+    private void checkAndInitSSLEngine() throws SSLException {
+
+        synchronized (initLock) {
+
+            if (!needInit) {
+                return;
+            }
+
+            LoadCertAndKey();
+
+            this.engineHelper.initHandshake(this);
+            needInit = false;
+            closed = false; /* opened a connection */
         }
     }
 
@@ -513,6 +547,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
+
         if (in == null) {
             throw new SSLException("SSLEngine.wrap() bad arguments");
         }
@@ -523,6 +558,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer[] in, int ofst, int len,
             ByteBuffer out) throws SSLException {
+
         int ret = 0, i;
         int produced = 0;
         int consumed = 0;
@@ -608,9 +644,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (needInit) {
-            this.engineHelper.initHandshake(this);
-            needInit = false;
-            closed = false; /* opened a connection */
+            checkAndInitSSLEngine();
         }
 
         synchronized (netDataLock) {
@@ -815,10 +849,12 @@ public class WolfSSLEngine extends SSLEngine {
                 /* In 0 and ZERO_RETURN cases we may have gotten a
                  * close_notify alert, check on shutdown status */
                 case WolfSSL.SSL_ERROR_ZERO_RETURN:
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "RecvAppData(), got ZERO_RETURN");
-                    /* Fall through on purpose */
                 case 0:
+                    if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "RecvAppData(), got ZERO_RETURN");
+                    }
+
                     /* check if is shutdown message */
                     synchronized (ioLock) {
                         if (ssl.getShutdown() ==
@@ -877,6 +913,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
+
         if (out == null) {
             throw new IllegalArgumentException(
                 "SSLEngine.unwrap() bad arguments");
@@ -888,6 +925,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
+
         int i, ret = 0, sz = 0, err = 0;
         int inPosition = 0;
         int inRemaining = 0;
@@ -910,7 +948,8 @@ public class WolfSSLEngine extends SSLEngine {
 
         for (i = ofst; i < length; ++i) {
             if (out[i] == null) {
-                throw new IllegalArgumentException("SSLEngine.unwrap() bad arguments");
+                throw new IllegalArgumentException(
+                    "SSLEngine.unwrap() bad arguments");
             }
 
             if (out[i].isReadOnly()) {
@@ -996,9 +1035,7 @@ public class WolfSSLEngine extends SSLEngine {
         else {
 
             if (needInit) {
-                this.engineHelper.initHandshake(this);
-                needInit = false;
-                closed = false;
+                checkAndInitSSLEngine();
             }
 
             if (outBoundOpen == false) {
@@ -1367,7 +1404,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public void setEnabledCipherSuites(String[] suites) {
+    public synchronized void setEnabledCipherSuites(String[] suites) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnabledCipherSuites()");
         this.engineHelper.setCiphers(suites);
@@ -1398,6 +1435,14 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLSession getSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSession()");
+
+        try {
+            /* Need cert loaded for getSession().getLocalCertificates() */
+            LoadCertAndKey();
+        } catch (SSLException e) {
+            return null;
+        }
+
         return this.engineHelper.getSession();
     }
 
@@ -1500,8 +1545,7 @@ public class WolfSSLEngine extends SSLEngine {
         if (needInit == true) {
             /* will throw SSLHandshakeException if session creation is
                not allowed */
-            this.engineHelper.initHandshake(this);
-            needInit = false;
+            checkAndInitSSLEngine();
         }
 
         try {
