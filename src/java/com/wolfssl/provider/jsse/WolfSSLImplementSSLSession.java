@@ -831,6 +831,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
     }
 
+    /**
+     * Update internally-stored session values.
+     */
     protected synchronized void updateStoredSessionValues() {
 
         try {

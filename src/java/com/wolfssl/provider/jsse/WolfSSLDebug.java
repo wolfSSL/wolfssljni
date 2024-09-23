@@ -68,6 +68,12 @@ public class WolfSSLDebug {
     private static WolfSSLNativeLoggingCallback nativeLogCb = null;
 
     /**
+     * Default constructor for wolfJSSE debug class.
+     */
+    public WolfSSLDebug() {
+    }
+
+    /**
      * Check if "wolfjsse.debug" System property is set to "true".
      *
      * @return true if set to "true", otherwise return false
@@ -163,6 +169,7 @@ public class WolfSSLDebug {
      *         "thread_id": "thread_ID"
      *     }
      *
+     * @param <T> class type of cl
      * @param cl class being called from to get debug info
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
      * @param string message to be printed out
@@ -205,6 +212,7 @@ public class WolfSSLDebug {
      *         "thread_id": "thread_ID"
      *     }
      *
+     * @param <T> class type for cl
      * @param cl class this method is being called from
      * @param tag level of debug message i.e. WolfSSLDebug.INFO
      * @param label label string to print with hex

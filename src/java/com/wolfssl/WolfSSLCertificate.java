@@ -54,20 +54,23 @@ public class WolfSSLCertificate implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Flag if this class is active or not */
     private boolean active = false;
+
+    /** Internal pointer for native WOLFSSL_X509 */
     private long x509Ptr = 0;
 
-    /* Does this WolfSSLCertificate own the internal WOLFSSL_X509 pointer?
+    /** Does this WolfSSLCertificate own the internal WOLFSSL_X509 pointer?
      * If not, don't try to free native memory on free(). */
     private boolean weOwnX509Ptr = false;
 
-    /* lock around active state */
+    /** lock around active state */
     private transient final Object stateLock = new Object();
 
-    /* lock around native WOLFSSL_X509 pointer use */
+    /** lock around native WOLFSSL_X509 pointer use */
     private transient final Object x509Lock = new Object();
 
-    /* cache alt names once retrieved once */
+    /** Cache alt names once retrieved once */
     private ArrayList<List<?>> altNames = null;
 
     /* Public key types used for certificate generation, mirrored from
