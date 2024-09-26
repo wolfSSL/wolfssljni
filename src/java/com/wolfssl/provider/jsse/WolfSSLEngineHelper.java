@@ -165,7 +165,8 @@ public class WolfSSLEngineHelper {
             WolfSSLParameters params, int port, InetAddress peerAddr)
             throws WolfSSLException {
 
-        if (params == null || ssl == null || store == null || peerAddr == null || port < 0) {
+        if (params == null || ssl == null || store == null ||
+                peerAddr == null || port < 0) {
             throw new WolfSSLException("Bad argument");
         }
 
