@@ -137,7 +137,7 @@ public class WolfSSLEngineHelper {
             WolfSSLParameters params, int port, String hostname)
             throws WolfSSLException {
 
-        if (params == null || ssl == null || store == null) {
+        if (params == null || ssl == null || store == null || port < 0) {
             throw new WolfSSLException("Bad argument");
         }
 
@@ -166,7 +166,7 @@ public class WolfSSLEngineHelper {
             throws WolfSSLException {
 
         if (params == null || ssl == null || store == null ||
-            peerAddr == null) {
+                peerAddr == null || port < 0) {
             throw new WolfSSLException("Bad argument");
         }
 
