@@ -981,55 +981,72 @@ public class WolfSSLEngineTest {
         SSLEngine client;
         int ret;
 
-        /* create new SSLEngine */
         System.out.print("\tSession reuse");
 
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
-
-        server.setUseClientMode(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        ret = tf.testConnection(server, client, null, null, "Test reuse");
-        if (ret != 0) {
-            error("\t\t\t... failed");
-            fail("failed to create engine");
-        }
+        /* wolfjsse.clientSessionCache.disabled could be set in users
+         * java.security file which would cause this test to not work
+         * properly. Save their setting here, and re-enable session
+         * cache for this test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
         try {
-            /* test close connection */
-            tf.CloseConnection(server, client, false);
-        } catch (SSLException ex) {
-            error("\t\t\t... failed");
-            fail("failed to create engine");
-        }
+            /* create new SSLEngine */
+            this.ctx = tf.createSSLContext("TLS", engineProvider);
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
-        client.setEnableSessionCreation(false);
-        server.setUseClientMode(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        ret = tf.testConnection(server, client, null, null, "Test reuse");
-        if (ret != 0) {
-            error("\t\t\t... failed");
-            fail("failed to create engine");
-        }
-        try {
-            /* test close connection */
-            tf.CloseConnection(server, client, false);
-        } catch (SSLException ex) {
-            error("\t\t\t... failed");
-            fail("failed to create engine");
-        }
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            ret = tf.testConnection(server, client, null, null, "Test reuse");
+            if (ret != 0) {
+                error("\t\t\t... failed");
+                fail("failed to create engine");
+            }
 
-        if (client.getEnableSessionCreation() ||
-            !server.getEnableSessionCreation()) {
-            error("\t\t\t... failed");
-            fail("bad enabled session creation");
+            try {
+                /* test close connection */
+                tf.CloseConnection(server, client, false);
+            } catch (SSLException ex) {
+                error("\t\t\t... failed");
+                fail("failed to create engine");
+            }
+
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+            client.setEnableSessionCreation(false);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            ret = tf.testConnection(server, client, null, null, "Test reuse");
+            if (ret != 0) {
+                error("\t\t\t... failed");
+                fail("failed to create engine");
+            }
+            try {
+                /* test close connection */
+                tf.CloseConnection(server, client, false);
+            } catch (SSLException ex) {
+                error("\t\t\t... failed");
+                fail("failed to create engine");
+            }
+
+            if (client.getEnableSessionCreation() ||
+                !server.getEnableSessionCreation()) {
+                error("\t\t\t... failed");
+                fail("bad enabled session creation");
+            }
+
+            pass("\t\t\t... passed");
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
         }
-        pass("\t\t\t... passed");
     }
 
     /**

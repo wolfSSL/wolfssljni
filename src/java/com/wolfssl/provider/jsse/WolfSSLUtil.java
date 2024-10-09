@@ -248,6 +248,28 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return if session cache has been disabled in java.security
+     * with 'wolfjsse.clientSessionCache.disabled' Security property.
+     *
+     * @return true if disabled, otherwise false
+     */
+    protected static boolean sessionCacheDisabled() {
+
+        String disabled =
+            Security.getProperty("wolfjsse.clientSessionCache.disabled");
+
+        if (disabled == null || disabled.isEmpty()) {
+            return false;
+        }
+
+        if (disabled.equalsIgnoreCase("true")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Check given KeyStore against any pre-defind requirements for
      * KeyStore use, including the following.
      *

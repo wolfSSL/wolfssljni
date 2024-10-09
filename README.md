@@ -437,6 +437,17 @@ This option can be used to restrict use of the wolfJCE "WKS" KeyStore type
 to help ensure conformance to using FIPS-validated cryptography. Other
 non-wolfJCE KeyStore implementations may not use/consume FIPS validated crypto.
 
+**wolfjsse.clientSessionCache.disabled (String)** - Can be used to disable
+the Java client session cache. Disabling this will cause client-side session
+resumption to no longer resume, making all connections fall back to a full
+handshake. This should be set to the String "true" if you want to disable
+the Java client session cache. This does not need to be set to "enable" the
+cache. The Java client cache is enabled by default.
+
+```
+wolfjsse.clientSessionCache.disabled=true
+```
+
 If there are other Security properties you would like to use with wolfJSSE,
 please contact support@wolfssl.com.
 
