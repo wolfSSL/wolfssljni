@@ -1407,7 +1407,12 @@ public class WolfSSLEngineHelper {
                  * maintains session cache at native level. */
                 this.session.setResume();
             }
-            return this.authStore.addSession(this.session);
+            if (WolfSSLUtil.sessionCacheDisabled()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "not storing session in cache, cache has been disabled");
+            } else {
+                return this.authStore.addSession(this.session);
+            }
         }
 
         return WolfSSL.SSL_FAILURE;

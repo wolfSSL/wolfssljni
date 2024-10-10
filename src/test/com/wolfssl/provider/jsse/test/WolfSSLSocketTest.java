@@ -2140,70 +2140,190 @@ public class WolfSSLSocketTest {
             return;
         }
 
-        /* create new CTX */
-        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+        /* wolfjsse.clientSessionCache.disabled could be set in users
+         * java.security file which would cause this test to not work
+         * properly. Save their setting here, and re-enable session
+         * cache for this test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
-        /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-             .createServerSocket(0);
+        try {
+            /* create new CTX */
+            this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
-        SSLSocketFactory cliFactory = ctx.getSocketFactory();
+            /* create SSLServerSocket first to get ephemeral port */
+            final SSLServerSocket ss =
+                (SSLServerSocket)ctx.getServerSocketFactory()
+                    .createServerSocket(0);
 
-        SSLSocket cs = (SSLSocket)cliFactory.createSocket();
-        cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                         ss.getLocalPort()));
+            SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
-        /* start server */
-        ExecutorService es = Executors.newSingleThreadExecutor();
-        Future<Void> serverFuture = es.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                try {
-                    for (int i = 0; i < 2; i++) {
-                        SSLSocket server = (SSLSocket)ss.accept();
-                        server.startHandshake();
-                        server.close();
+            SSLSocket cs = (SSLSocket)cliFactory.createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                             ss.getLocalPort()));
+
+            /* start server */
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        for (int i = 0; i < 2; i++) {
+                            SSLSocket server = (SSLSocket)ss.accept();
+                            server.startHandshake();
+                            server.close();
+                        }
+
+                    } catch (SSLException e) {
+                        System.out.println("\t... failed");
+                        fail();
                     }
+                    return null;
+                }
+            });
 
-                } catch (SSLException e) {
+            try {
+                /* connection #1 */
+                cs.startHandshake();
+                sessionID1 = cs.getSession().getId();
+                cs.close();
+
+                /* connection #2, should resume */
+                cs = (SSLSocket)cliFactory.createSocket();
+                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                                 ss.getLocalPort()));
+                cs.startHandshake();
+                sessionID2 = cs.getSession().getId();
+                cs.close();
+
+                if (!Arrays.equals(sessionID1, sessionID2)) {
+                    /* session not resumed */
                     System.out.println("\t... failed");
                     fail();
                 }
-                return null;
-            }
-        });
 
-        try {
-            /* connection #1 */
-            cs.startHandshake();
-            sessionID1 = cs.getSession().getId();
-            cs.close();
-
-            /* connection #2, should resume */
-            cs = (SSLSocket)cliFactory.createSocket();
-            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                             ss.getLocalPort()));
-            cs.startHandshake();
-            sessionID2 = cs.getSession().getId();
-            cs.close();
-
-            if (!Arrays.equals(sessionID1, sessionID2)) {
-                /* session not resumed */
+            } catch (SSLHandshakeException e) {
                 System.out.println("\t... failed");
                 fail();
             }
 
-        } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
-            fail();
+
+            es.shutdown();
+            serverFuture.get();
+            ss.close();
+
+            System.out.println("\t... passed");
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    @Test
+    public void testSessionResumptionSysPropDisabled() throws Exception {
+
+        byte[] sessionID1 = null;
+        byte[] sessionID2 = null;
+        String protocol = null;
+
+        System.out.print("\tDisabling client session cache");
+
+        /* Use TLS 1.2, else 1.1, else 1.0, else skip */
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t\t... skipped");
+            return;
         }
 
+        /* Save original Security property value */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
 
-        es.shutdown();
-        serverFuture.get();
-        ss.close();
+        /* Disable client session cache */
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "true");
 
-        System.out.println("\t... passed");
+        try {
+            /* Create new CTX */
+            this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+            /* Create SSLServerSocket first to get ephemeral port */
+            final SSLServerSocket ss =
+                (SSLServerSocket)ctx.getServerSocketFactory()
+                    .createServerSocket(0);
+
+            SSLSocketFactory cliFactory = ctx.getSocketFactory();
+
+            SSLSocket cs = (SSLSocket)cliFactory.createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                             ss.getLocalPort()));
+
+            /* Start server */
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        for (int i = 0; i < 2; i++) {
+                            SSLSocket server = (SSLSocket)ss.accept();
+                            server.startHandshake();
+                            server.close();
+                        }
+
+                    } catch (SSLException e) {
+                        System.out.println("\t... failed");
+                        fail();
+                    }
+                    return null;
+                }
+            });
+
+            try {
+                /* connection #1 */
+                cs.startHandshake();
+                sessionID1 = cs.getSession().getId();
+                cs.close();
+
+                /* connection #2, should NOT resume */
+                cs = (SSLSocket)cliFactory.createSocket();
+                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                                 ss.getLocalPort()));
+                cs.startHandshake();
+                sessionID2 = cs.getSession().getId();
+                cs.close();
+
+                if (Arrays.equals(sessionID1, sessionID2)) {
+                    /* session resumed, but should not */
+                    System.out.println("\t... failed");
+                    fail();
+                }
+
+            } catch (SSLHandshakeException e) {
+                System.out.println("\t... failed");
+                fail();
+            }
+
+
+            es.shutdown();
+            serverFuture.get();
+            ss.close();
+
+            System.out.println("\t... passed");
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
     }
 
     @Test
@@ -2236,72 +2356,89 @@ public class WolfSSLSocketTest {
             return;
         }
 
-        /* create new CTX */
-        this.ctx = tf.createSSLContext(protocol, ctxProvider);
-
-        /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-             .createServerSocket(0);
-
-        SSLSocketFactory cliFactory = ctx.getSocketFactory();
-
-        WolfSSLSocket cs = (WolfSSLSocket)cliFactory.createSocket();
-        cs.setUseSessionTickets(true);
-        cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                         ss.getLocalPort()));
-
-        /* start server */
-        ExecutorService es = Executors.newSingleThreadExecutor();
-        Future<Void> serverFuture = es.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                try {
-                    for (int i = 0; i < 2; i++) {
-                        SSLSocket server = (SSLSocket)ss.accept();
-                        server.startHandshake();
-                        server.close();
-                    }
-
-                } catch (SSLException e) {
-                    System.out.println("\t... failed");
-                    fail();
-                }
-                return null;
-            }
-        });
+        /* wolfjsse.clientSessionCache.disabled could be set in users
+         * java.security file which would cause this test to not work
+         * properly. Save their setting here, and re-enable session
+         * cache for this test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
         try {
-            /* connection #1 */
-            cs.startHandshake();
-            sessionID1 = cs.getSession().getId();
-            cs.close();
+            /* create new CTX */
+            this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
-            /* connection #2, should resume */
-            cs = (WolfSSLSocket)cliFactory.createSocket();
+            /* create SSLServerSocket first to get ephemeral port */
+            final SSLServerSocket ss =
+                (SSLServerSocket)ctx.getServerSocketFactory()
+                    .createServerSocket(0);
+
+            SSLSocketFactory cliFactory = ctx.getSocketFactory();
+
+            WolfSSLSocket cs = (WolfSSLSocket)cliFactory.createSocket();
             cs.setUseSessionTickets(true);
             cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
                                              ss.getLocalPort()));
-            cs.startHandshake();
-            sessionID2 = cs.getSession().getId();
-            cs.close();
 
-            if (!Arrays.equals(sessionID1, sessionID2)) {
-                /* session not resumed */
+            /* start server */
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        for (int i = 0; i < 2; i++) {
+                            SSLSocket server = (SSLSocket)ss.accept();
+                            server.startHandshake();
+                            server.close();
+                        }
+
+                    } catch (SSLException e) {
+                        System.out.println("\t... failed");
+                        fail();
+                    }
+                    return null;
+                }
+            });
+
+            try {
+                /* connection #1 */
+                cs.startHandshake();
+                sessionID1 = cs.getSession().getId();
+                cs.close();
+
+                /* connection #2, should resume */
+                cs = (WolfSSLSocket)cliFactory.createSocket();
+                cs.setUseSessionTickets(true);
+                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+                                                 ss.getLocalPort()));
+                cs.startHandshake();
+                sessionID2 = cs.getSession().getId();
+                cs.close();
+
+                if (!Arrays.equals(sessionID1, sessionID2)) {
+                    /* session not resumed */
+                    System.out.println("\t... failed");
+                    fail();
+                }
+
+            } catch (SSLHandshakeException e) {
                 System.out.println("\t... failed");
                 fail();
             }
 
-        } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
-            fail();
+
+            es.shutdown();
+            serverFuture.get();
+            ss.close();
+
+            System.out.println("\t... passed");
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
         }
-
-
-        es.shutdown();
-        serverFuture.get();
-        ss.close();
-
-        System.out.println("\t... passed");
     }
 
     @Test
