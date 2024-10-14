@@ -27,6 +27,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+import java.util.List;
+
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 
@@ -85,20 +88,45 @@ public class WolfSSLTest {
     }
 
     public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
-        tstMethod(WolfSSL.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
-        tstMethod(WolfSSL.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
-        tstMethod(WolfSSL.TLSv1_ServerMethod(), "TLSv1_ServerMethod()");
-        tstMethod(WolfSSL.TLSv1_ClientMethod(), "TLSv1_ClientMethod()");
-        tstMethod(WolfSSL.TLSv1_1_ServerMethod(), "TLSv1_1_ServerMethod()");
-        tstMethod(WolfSSL.TLSv1_1_ClientMethod(), "TLSv1_1_ClientMethod()");
-        tstMethod(WolfSSL.TLSv1_2_ServerMethod(), "TLSv1_2_ServerMethod()");
-        tstMethod(WolfSSL.TLSv1_2_ClientMethod(), "TLSv1_2_ClientMethod()");
-        tstMethod(WolfSSL.TLSv1_3_ServerMethod(), "TLSv1_3_ServerMethod()");
-        tstMethod(WolfSSL.TLSv1_3_ClientMethod(), "TLSv1_3_ClientMethod()");
-        tstMethod(WolfSSL.DTLSv1_ServerMethod(), "DTLSv1_ServerMethod()");
-        tstMethod(WolfSSL.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
-        tstMethod(WolfSSL.DTLSv1_2_ServerMethod(), "DTLSv1_2_ServerMethod()");
-        tstMethod(WolfSSL.DTLSv1_2_ClientMethod(), "DTLSv1_2_ClientMethod()");
+        /* Get protocols compiled into native wolfSSL */
+        List<String> enabledProtocols = Arrays.asList(WolfSSL.getProtocols());
+
+        if (enabledProtocols.contains("SSLv3")) {
+            tstMethod(WolfSSL.SSLv3_ServerMethod(), "SSLv3_ServerMethod()");
+            tstMethod(WolfSSL.SSLv3_ClientMethod(), "SSLv3_ClientMethod()");
+        }
+        if (enabledProtocols.contains("TLSv1")) {
+            tstMethod(WolfSSL.TLSv1_ServerMethod(), "TLSv1_ServerMethod()");
+            tstMethod(WolfSSL.TLSv1_ClientMethod(), "TLSv1_ClientMethod()");
+        }
+        if (enabledProtocols.contains("TLSv1.1")) {
+            tstMethod(WolfSSL.TLSv1_1_ServerMethod(), "TLSv1_1_ServerMethod()");
+            tstMethod(WolfSSL.TLSv1_1_ClientMethod(), "TLSv1_1_ClientMethod()");
+        }
+        if (enabledProtocols.contains("TLSv1.2")) {
+            tstMethod(WolfSSL.TLSv1_2_ServerMethod(), "TLSv1_2_ServerMethod()");
+            tstMethod(WolfSSL.TLSv1_2_ClientMethod(), "TLSv1_2_ClientMethod()");
+        }
+        if (enabledProtocols.contains("TLSv1.3")) {
+            tstMethod(WolfSSL.TLSv1_3_ServerMethod(), "TLSv1_3_ServerMethod()");
+            tstMethod(WolfSSL.TLSv1_3_ClientMethod(), "TLSv1_3_ClientMethod()");
+        }
+        if (enabledProtocols.contains("DTLSv1")) {
+            tstMethod(WolfSSL.DTLSv1_ServerMethod(), "DTLSv1_ServerMethod()");
+            tstMethod(WolfSSL.DTLSv1_ClientMethod(), "DTLSv1_ClientMethod()");
+        }
+        if (enabledProtocols.contains("DTLSv1.2")) {
+            tstMethod(WolfSSL.DTLSv1_2_ServerMethod(),
+                "DTLSv1_2_ServerMethod()");
+            tstMethod(WolfSSL.DTLSv1_2_ClientMethod(),
+                "DTLSv1_2_ClientMethod()");
+        }
+        if (enabledProtocols.contains("DTLSv1.3")) {
+            tstMethod(WolfSSL.DTLSv1_3_ServerMethod(),
+                "DTLSv1_3_ServerMethod()");
+            tstMethod(WolfSSL.DTLSv1_3_ClientMethod(),
+                "DTLSv1_3_ClientMethod()");
+        }
         tstMethod(WolfSSL.SSLv23_ServerMethod(), "SSLv23_ServerMethod()");
         tstMethod(WolfSSL.SSLv23_ClientMethod(), "SSLv23_ClientMethod()");
     }

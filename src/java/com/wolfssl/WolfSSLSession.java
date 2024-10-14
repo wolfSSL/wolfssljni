@@ -2511,8 +2511,8 @@ public class WolfSSLSession {
     /**
      * Returns the SSL/TLS version being used with this session object in
      * String format.
-     * Examples include "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "DTLS", and
-     * "DTLS 1.2".
+     * Examples include "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "DTLS",
+     * "DTLS 1.2", and "DTLS 1.3.
      *
      * @return      SSL/TLS protocol version being used in String format,
      *              or "unknown".

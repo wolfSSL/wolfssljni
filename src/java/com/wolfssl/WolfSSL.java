@@ -51,7 +51,13 @@ public class WolfSSL {
         /** TLS 1.3 */
         TLSv1_3,
         /** Downgrade starting from highest supported SSL/TLS version */
-        SSLv23
+        SSLv23,
+        /** DTLS 1.0 */
+        DTLSv1,
+        /** DTLS 1.2 */
+        DTLSv1_2,
+        /** DTLS 1.3 */
+        DTLSv1_3
     }
 
     /* ------------------ wolfSSL JNI error codes ----------------------- */
@@ -1233,6 +1239,46 @@ public class WolfSSL {
      * @see     WolfSSLContext#newContext(long)
      */
     public static final native long DTLSv1_2_ClientMethod();
+
+    /**
+     * Indicates that the application will only support the DTLS 1.3 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_Method();
+
+    /**
+     * Indicates that the application is a server and will only support the
+     * DTLS 1.3 protocol.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the
+     * DTLS 1.3 protocol.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_ClientMethod();
 
     /**
      * Indicates that the application will use the highest possible SSL/TLS
