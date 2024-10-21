@@ -495,7 +495,8 @@ public class WolfSSLEngineHelper {
         for (int i = 0; i < suites.length; i++) {
             if (!supported.contains(suites[i])) {
                 throw new IllegalArgumentException("Unsupported CipherSuite: " +
-                    suites[i]);
+                    suites[i] + "(Supported: " +
+                    Arrays.toString(getAllCiphers()) + ")");
             }
         }
 
@@ -532,7 +533,8 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setProtocols(WolfSSLUtil.sanitizeProtocols(p));
+        this.params.setProtocols(
+            WolfSSLUtil.sanitizeProtocols(p, WolfSSL.TLS_VERSION.INVALID));
     }
 
     /**
@@ -541,7 +543,8 @@ public class WolfSSLEngineHelper {
      * @return String array of enabled SSL/TLS protocols
      */
     protected synchronized String[] getProtocols() {
-        return WolfSSLUtil.sanitizeProtocols(this.params.getProtocols());
+        return WolfSSLUtil.sanitizeProtocols(
+            this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
     }
 
     /**
@@ -552,7 +555,8 @@ public class WolfSSLEngineHelper {
      * @return String array of supported protocols
      */
     protected static synchronized String[] getAllProtocols() {
-        return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
+        return WolfSSLUtil.sanitizeProtocols(
+            WolfSSL.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
     }
 
     /**
@@ -751,10 +755,12 @@ public class WolfSSLEngineHelper {
         }
 
         for (i = 0; i < p.length; i++) {
-            if (p[i].equals("TLSv1.3")) {
+            /* TLS 1.3 needs to be enabled for DTLS 1.3 */
+            if (p[i].equals("TLSv1.3") || p[i].equals("DTLSv1.3")) {
                 set[0] = true;
             }
-            if (p[i].equals("TLSv1.2")) {
+            /* TLS 1.2 needs to be enabled for DTLS 1.2 */
+            if (p[i].equals("TLSv1.2") || p[i].equals("DTLSv1.2")) {
                 set[1] = true;
             }
             if (p[i].equals("TLSv1.1")) {
@@ -768,6 +774,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
+        /* Note: No SSL_OP_NO_* for DTLS in native wolfSSL */
         if (set[0] == false) {
             mask |= WolfSSL.SSL_OP_NO_TLSv1_3;
         }
@@ -1140,13 +1147,43 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalMaximumPacketSize() {
+        /* Set maximum packet size, currently only makes a differnce if
+         * DTLS is enabled and used. Calling application will set this via
+         * SSLParameters.setMaximumPacketSize(). */
+        int ret;
+        int maxPacketSize = this.params.getMaximumPacketSize();
+        if (maxPacketSize != 0) {
+            /* Zero size means use implicit sizing logic of implementation,
+             * take no special action here if 0. */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Maximum packet size found in SSLParameters: " + maxPacketSize);
+
+            ret = this.ssl.dtlsSetMTU(maxPacketSize);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "set maximum packet size (DTLS MTU): " + maxPacketSize);
+            }
+            else if (ret == WolfSSL.NOT_COMPILED_IN) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "DTLS or MTU not compiled in, skipping setting " +
+                    "max packet size");
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "error setting DTLS MTU, ret = " + ret);
+            }
+        }
+    }
+
     private void setLocalParams(SSLSocket socket, SSLEngine engine)
         throws SSLException {
 
         this.setLocalCiphers(
             WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
         this.setLocalProtocol(
-            WolfSSLUtil.sanitizeProtocols(this.params.getProtocols()));
+            WolfSSLUtil.sanitizeProtocols(
+                this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID));
         this.setLocalAuth(socket, engine);
         this.setLocalServerNames();
         this.setLocalSessionTicket();
@@ -1154,6 +1191,7 @@ public class WolfSSLEngineHelper {
         this.setLocalSecureRenegotiation();
         this.setLocalSigAlgorithms();
         this.setLocalSupportedCurves();
+        this.setLocalMaximumPacketSize();
     }
 
     /**

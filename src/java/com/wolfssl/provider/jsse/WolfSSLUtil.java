@@ -33,6 +33,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 
@@ -50,7 +51,8 @@ public class WolfSSLUtil {
     }
 
     /**
-     * Sanitize or filter protocol list based on system property limitations.
+     * Sanitize or filter protocol list based on system property limitations
+     * and current TLS/DTLS protocol being established.
      *
      * Supported system properties which limit protocol list are:
      *    - java.security.Security:
@@ -61,17 +63,18 @@ public class WolfSSLUtil {
      *
      *    jdk.tls.disabledAlgorithms="TLSv1, TLSv1.1"
      *
-     * This method force-removes DTLSv1.2 and DTLSv1.3 if the input
-     * protocols list advertises support for it. This is because native
-     * wolfSSL JNI supports DTLS but the JSSE layer does not yet. When
-     * DTLS support is added to wolfJSSE, this restriction can/will be removed.
-     *
      * @param protocols Full list of protocols to sanitize/filter, should be
      *                  in a format similar to: "TLSv1", "TLSv1.1", etc.
+     * @param currentVersion current protocol being used by the object
+     *                       that is calling this method. If WolfSSL.INVALID
+     *                       is passed in, no filtering is done on protocol
+     *                       list based on currentVersion.
      *
      * @return New filtered String array of protocol strings
      */
-    protected static String[] sanitizeProtocols(String[] protocols) {
+    protected static String[] sanitizeProtocols(String[] protocols,
+        WolfSSL.TLS_VERSION currentVersion) {
+
         ArrayList<String> filtered = new ArrayList<String>();
 
         String disabledAlgos =
@@ -83,14 +86,17 @@ public class WolfSSLUtil {
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             "jdk.tls.disabledAlgorithms: " + disabledAlgos);
 
-        /* Force remove DTLS from supported JSSE protocols. Currently only
-         * JNI layer supports DTLS, not JSSE. When JSSE layer gets DTLS
-         * support added, take this restriction out. */
-        if (disabledAlgos == null) {
-            disabledAlgos = "DTLSv1.2, DTLSv1.3";
-        }
-        else {
-            disabledAlgos += ",DTLSv1.2,DTLSv1.3";
+        /* If WolfSSL.INVALID is passed in as currentVersion, no filtering
+         * is done based on current protocol */
+        if (currentVersion != WolfSSL.TLS_VERSION.INVALID) {
+            /* Remove DTLS protocols if using TLS explicitly. Needed
+             * since native wolfSSL doesn't have protocol masks for DTLS. */
+            if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_2) {
+                disabledAlgos += ",DTLSv1.2";
+            }
+            if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_3) {
+                disabledAlgos += ",DTLSv1.3";
+            }
         }
 
         /* Remove spaces after commas, split into List */

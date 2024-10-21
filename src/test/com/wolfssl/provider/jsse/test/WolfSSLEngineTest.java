@@ -1212,6 +1212,7 @@ public class WolfSSLEngineTest {
             ByteBuffer netData = null;
             ByteBuffer peerAppData = null;
             ByteBuffer peerNetData = null;
+            boolean readAgain = false;
 
             SocketChannel sock = null;
 
@@ -1350,7 +1351,7 @@ public class WolfSSLEngineTest {
                 }
             }
 
-            /* read response */
+            /* read response (might get TLS 1.3 session ticket instead) */
             peerNetData.clear();
             int recvd = sock.read(peerNetData);
             if (recvd > 0) {
@@ -1370,11 +1371,52 @@ public class WolfSSLEngineTest {
                         throw new Exception(
                             "BUFFER_OVERFLOW during engine.unwrp()");
                     case BUFFER_UNDERFLOW:
-                        throw new Exception(
-                            "BUFFER_UNDERFLOW during engine.unwrap()");
+                        /* With TLS 1.3, we may get a session ticket
+                         * message post handshake, resulting in BUFFER_UNDERFLOW
+                         * status since we read the ticket but didn't get the
+                         * chance to read the response waiting from the peer. */
+                        sess = engine.getSession();
+                        if (sess.getProtocol().equals("TLSv1.3")) {
+                            readAgain = true;
+                            break;
+                        }
+                        else {
+                            throw new Exception(
+                                "BUFFER_UNDERFLOW during engine.unwrap()");
+                        }
                     default:
                         throw new Exception(
                             "Unknown HandshakeStatus");
+                }
+            }
+
+            if (readAgain) {
+                /* read response */
+                peerNetData.clear();
+                recvd = sock.read(peerNetData);
+                if (recvd > 0) {
+                    peerNetData.flip();
+                    result = engine.unwrap(peerNetData, peerAppData);
+                    peerNetData.compact();
+                    switch (result.getStatus()) {
+                        case OK:
+                            peerAppData.flip();
+                            /* not doing anything with returned data */
+                            break;
+                        case CLOSED:
+                            engine.closeOutbound();
+                            engine.closeInbound();
+                            break;
+                        case BUFFER_OVERFLOW:
+                            throw new Exception(
+                                "BUFFER_OVERFLOW during engine.unwrp()");
+                        case BUFFER_UNDERFLOW:
+                            throw new Exception(
+                                "BUFFER_UNDERFLOW during engine.unwrap()");
+                        default:
+                            throw new Exception(
+                                "Unknown HandshakeStatus");
+                    }
                 }
             }
 

@@ -93,10 +93,14 @@ extern "C" {
 #define com_wolfssl_WolfSSL_SOCKET_ERROR_E -308L
 #undef com_wolfssl_WolfSSL_FATAL_ERROR
 #define com_wolfssl_WolfSSL_FATAL_ERROR -313L
+#undef com_wolfssl_WolfSSL_OUT_OF_ORDER_E
+#define com_wolfssl_WolfSSL_OUT_OF_ORDER_E -373L
 #undef com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED
 #define com_wolfssl_WolfSSL_SSL_ERROR_SOCKET_PEER_CLOSED -397L
 #undef com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E
 #define com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E -405L
+#undef com_wolfssl_WolfSSL_APP_DATA_READY
+#define com_wolfssl_WolfSSL_APP_DATA_READY -441L
 #undef com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL
 #define com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL 1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_OCSP_URL_OVERRIDE
@@ -595,6 +599,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv12Enabled
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    DTLSv13Enabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_DTLSv13Enabled
   (JNIEnv *, jclass);
 
 /*

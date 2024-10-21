@@ -1568,6 +1568,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     return size;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_pending
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    /* Checks ssl for NULL internally, will return WOLFSSL_FAILURE */
+    return (jint)wolfSSL_pending(ssl);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
@@ -2414,20 +2424,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
 #if !defined(WOLFSSL_LEANPSK) && defined(WOLFSSL_DTLS)
-    jclass excClass;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
     (void)jcl;
 
     if (ssl == NULL) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            return SSL_FATAL_ERROR;
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLSession object was null in "
-                "dtlsGotTimeout()");
         return SSL_FATAL_ERROR;
     }
 
@@ -2440,22 +2441,35 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
 #endif
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtls
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsRetransmit
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
-    jclass excClass;
+#if !defined(WOLFSSL_LEANPSK) && defined(WOLFSSL_DTLS)
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
     (void)jcl;
 
     if (ssl == NULL) {
-        excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            return 0;
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLSession object was null in dtls()");
+        return SSL_FATAL_ERROR;
+    }
+
+    return wolfSSL_dtls_retransmit(ssl);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtls
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    if (ssl == NULL) {
         return 0;
     }
 
@@ -2692,6 +2706,51 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
 
         return (*jenv)->NewObject(jenv, isa, constr, port);
     }
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint mtu)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_MTU)
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    /* wolfSSL_dtls_set_mtu() checks ssl for NULL */
+    return (jint)wolfSSL_dtls_set_mtu(ssl, (unsigned short)mtu);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)mtu;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_stateStringLong
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifdef OPENSSL_EXTRA
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    const char* stateString;
+    jstring stateStr = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    stateString = wolfSSL_state_string_long(ssl);
+
+    if (stateString != NULL) {
+        stateStr = (*jenv)->NewStringUTF(jenv, stateString);
+    }
+
+    return stateStr;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sessionReused
@@ -4681,9 +4740,8 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSLSession_handshakeDone
     if (wolfSSL_is_init_finished(ssl)) {
         return JNI_TRUE;
     }
-    else {
-        return JNI_FALSE;
-    }
+
+    return JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setConnectState
@@ -5777,24 +5835,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv
     (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
     (void)jcl;
-
-    /* find exception class */
-    jclass excClass = (*jenv)->FindClass(jenv,
-            "com/wolfssl/WolfSSLJNIException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return;
-    }
 
     if (ssl != NULL) {
         /* set I/O recv callback */
         wolfSSL_SSLSetIORecv(ssl, NativeSSLIORecvCb);
-
-    } else {
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLContext object was null when setting IORecv");
     }
 }
 
@@ -5931,23 +5977,12 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIOSend
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
-    jclass excClass = NULL;
+    (void)jenv;
     (void)jcl;
-
-    /* find exception class in case we need it */
-    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-    }
 
     if (ssl != NULL) {
         /* set I/O send callback */
         wolfSSL_SSLSetIOSend(ssl, NativeSSLIOSendCb);
-
-    } else {
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLContext object was null when setting IOSend");
     }
 }
 

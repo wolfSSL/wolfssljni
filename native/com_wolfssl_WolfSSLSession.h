@@ -113,6 +113,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    pending
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_pending
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    accept
  * Signature: (JI)I
  */
@@ -277,6 +285,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetCurrentTimeout
  * Signature: (J)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGotTimeout
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsRetransmit
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsRetransmit
   (JNIEnv *, jobject, jlong);
 
 /*
@@ -893,6 +909,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_interruptBlockedIO
  * Signature: (J)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getThreadsBlockedInPoll
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setMTU
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    stateStringLong
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_stateStringLong
   (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus

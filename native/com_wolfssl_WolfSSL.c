@@ -530,6 +530,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_DTLSv13Enabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_ShaEnabled
   (JNIEnv* jenv, jclass jcl)
 {
@@ -1996,41 +2009,43 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 
     (void)jcl;
 
-    /* get the number of protocols enabled */
+    /* Get the number of protocols enabled, based on provided mask. Native
+     * wolfSSL doesn't have mask values for DTLS, so we lump them together
+     * with their corresponding TLS version, if correct defines are set. */
 #ifdef WOLFSSL_TLS13
-    if(!(mask & SSL_OP_NO_TLSv1_3))
+    if(!(mask & SSL_OP_NO_TLSv1_3)) {
         numProtocols += 1;
+    #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+        numProtocols += 1;
+    #endif
+    }
 #endif
 #ifndef WOLFSSL_NO_TLS12
-    if(!(mask & SSL_OP_NO_TLSv1_2))
+    if(!(mask & SSL_OP_NO_TLSv1_2))  {
         numProtocols += 1;
+    #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+        numProtocols += 1;
+    #endif
+    }
 #endif
 #ifndef NO_OLD_TLS
-    if(!(mask & SSL_OP_NO_TLSv1_1))
+    if(!(mask & SSL_OP_NO_TLSv1_1)) {
         numProtocols += 1;
+    }
 #ifdef WOLFSSL_ALLOW_TLSV10
-    if(!(mask & SSL_OP_NO_TLSv1))
+    if(!(mask & SSL_OP_NO_TLSv1)) {
         numProtocols += 1;
+    #ifdef WOLFSSL_DTLS
+        numProtocols += 1;
+    #endif
+    }
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 #ifdef WOLFSSL_ALLOW_SSLv3
-    if(!(mask & SSL_OP_NO_SSLv3))
+    if(!(mask & SSL_OP_NO_SSLv3)) {
         numProtocols += 1;
+    }
 #endif
-#ifdef WOLFSSL_DTLS
-    #ifndef NO_OLD_TLS
-        /* DTLS 1.0 */
-        numProtocols += 1;
-    #endif
-    #ifndef WOLFSSL_NO_TLS12
-        /* DTLS 1.2 */
-        numProtocols += 1;
-    #endif
-    #ifdef WOLFSSL_DTLS13
-        /* DTLS 1.3 */
-        numProtocols += 1;
-    #endif
-#endif /* WOLFSSL_DTLS */
 
     ret = (*jenv)->NewObjectArray(jenv, numProtocols,
             (*jenv)->FindClass(jenv, "java/lang/String"), NULL);
@@ -2104,36 +2119,39 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
-        /* DTLS 1.0 */
-        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-                (*jenv)->NewStringUTF(jenv, "DTLSv1"));
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1 string");
-            return NULL;
+        if(!(mask & SSL_OP_NO_TLSv1)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1 string");
+                return NULL;
+            }
         }
     #endif
     #ifndef WOLFSSL_NO_TLS12
-        /* DTLS 1.2 */
-        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-                (*jenv)->NewStringUTF(jenv, "DTLSv1.2"));
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.2 string");
-            return NULL;
+        if(!(mask & SSL_OP_NO_TLSv1_2)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1.2"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.2 string");
+                return NULL;
+            }
         }
     #endif
-    #ifdef WOLFSSL_DTLS13
-        /* DTLS 1.3 */
-        (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
-                (*jenv)->NewStringUTF(jenv, "DTLSv1.3"));
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.3 string");
-            return NULL;
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        if(!(mask & SSL_OP_NO_TLSv1_3)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1.3"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.3 string");
+                return NULL;
+            }
         }
     #endif
 #endif

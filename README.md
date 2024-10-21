@@ -373,9 +373,12 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ### JSSE Class Implementation Support
 
-wolfJSSE extends or implements the following JSSE classes:
+wolfJSSE extends or implements the following JSSE classes. Note that
+SSLContext `DTLSv1.3` support is only supported through the `SSLEngine`
+interface.
+
 - javax.net.ssl.SSLContextSpi
-    - SSL, TLS, DEFAULT, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3
+    - SSL, TLS, DEFAULT, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3, DTLSv1.3
 - javax.net.ssl.KeyManagerFactorySpi
     - PKIX, X509, SunX509
 - javax.net.ssl.TrustManagerFactorySpi

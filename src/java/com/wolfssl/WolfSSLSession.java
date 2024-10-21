@@ -316,6 +316,7 @@ public class WolfSSLSession {
         int timeout);
     private native int read(long ssl, ByteBuffer data, int sz, int timeout)
         throws WolfSSLException;
+    private native int pending(long ssl);
     private native int accept(long ssl, int timeout);
     private native void freeSSL(long ssl);
     private native int shutdownSSL(long ssl, int timeout);
@@ -337,6 +338,7 @@ public class WolfSSLSession {
     private native int setCipherList(long ssl, String list);
     private native int dtlsGetCurrentTimeout(long ssl);
     private native int dtlsGotTimeout(long ssl);
+    private native int dtlsRetransmit(long ssl);
     private native int dtls(long ssl);
     private native int dtlsSetPeer(long ssl, InetSocketAddress peer);
     private native InetSocketAddress dtlsGetPeer(long ssl);
@@ -419,6 +421,8 @@ public class WolfSSLSession {
     private native int hasTicket(long session);
     private native int interruptBlockedIO(long ssl);
     private native int getThreadsBlockedInPoll(long ssl);
+    private native int setMTU(long ssl, int mtu);
+    private native String stateStringLong(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -1139,7 +1143,7 @@ public class WolfSSLSession {
      *              <code>read()</code> again. Use <code>getError</code> to
      *              get a specific error code.
      *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
-     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws IllegalStateException WolfSSLSession has been freed
      * @throws SocketTimeoutException if socket timeout occurs
      * @throws SocketException Native socket select/poll() failed
      */
@@ -1253,6 +1257,29 @@ public class WolfSSLSession {
             ", err: " + getError(ret));
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_read()");
+
+        return ret;
+    }
+
+    /**
+     * Return number of bytes available on the internal output buffer that
+     * have already been decrypted and available immediately via a call to
+     * read().
+     *
+     * @return number of bytes available on success, WolfSSL.SSL_FAILURE
+     *         on error.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int pending() throws IllegalStateException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            ret = pending(this.sslPtr);
+        }
 
         return ret;
     }
@@ -2260,14 +2287,12 @@ public class WolfSSLSession {
      *         the peer. <code>NOT_COMPILED_IN</code> if wolfSSL was
      *         not compiled with DTLS support.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @throws WolfSSLJNIException Internal JNI error
      * @see    #dtlsGetCurrentTimeout()
      * @see    #dtlsGetPeer()
      * @see    #dtlsSetPeer(InetSocketAddress)
      * @see    #dtls()
      */
-    public int dtlsGotTimeout()
-        throws IllegalStateException, WolfSSLJNIException {
+    public int dtlsGotTimeout() throws IllegalStateException {
 
         confirmObjectIsActive();
 
@@ -2280,19 +2305,46 @@ public class WolfSSLSession {
     }
 
     /**
+     * When using non-blocking sockets with DTLS, this function retransmits
+     * the last handshake flight ignoring the expected timeout value and
+     * retransmit count.
+     *
+     * It is useful for applications that are using DTLS and need to manage
+     * even the timeout and retry count.
+     *
+     * @return <code>SSL_SUCCESS</code> upon success. <code>
+     *         SSL_FATAL_ERROR</code> if there have been too many
+     *         retransmissions/timeouts without getting a response from
+     *         the peer. <code>NOT_COMPILED_IN</code> if wolfSSL was
+     *         not compiled with DTLS support.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    #dtlsGetCurrentTimeout()
+     * @see    #dtlsGetPeer()
+     * @see    #dtlsSetPeer(InetSocketAddress)
+     * @see    #dtlsGotTimeout()
+     * @see    #dtls()
+     */
+    public int dtlsRetransmit() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsRetransmit(this.sslPtr);
+        }
+    }
+
+    /**
      * Used to determine if the SSL session has been configured to use DTLS.
      *
      * @return <code>1</code> if the SSL has been configured to use DTLS,
      *         otherwise, <code>0</code>.
      * @throws IllegalStateException WolfSSLContext has been freed
-     * @throws WolfSSLJNIException Internal JNI error
      * @see    #dtlsGetCurrentTimeout()
      * @see    #dtlsGetPeer()
      * @see    #dtlsGotTimeout()
      * @see    #dtlsSetPeer(InetSocketAddress)
      */
-    public int dtls()
-        throws IllegalStateException, WolfSSLJNIException {
+    public int dtls() throws IllegalStateException {
 
         confirmObjectIsActive();
 
@@ -2353,6 +2405,57 @@ public class WolfSSLSession {
 
             return dtlsGetPeer(this.sslPtr);
         }
+    }
+
+    /**
+     * Set the DTLS MTU to use.
+     *
+     * Native wolfSSL must be compiled with "--enable-dtls-mtu" in addition
+     * to "--enable-dtls".
+     *
+     * @param mtu DTLS MTU value, must be lower than MAX_RECORD_SIZE (16k)
+     *
+     * @return <code>SSL_SUCCESS</code> on success,
+     *         <code>SSL_FAILURE</code> on error, or
+     *         <code>NOT_COMPILED_IN</code> if native support has not
+     *         been compiled into native wolfSSL.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int dtlsSetMTU(int mtu) throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return setMTU(this.sslPtr, mtu);
+        }
+    }
+
+    /**
+     * Return the current handshake state of the native WOLFSSL object as
+     * a String.
+     *
+     * @return String representing current state of handshake or empty
+     *         String if not able to retrieve one.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public String getStateStringLong() throws IllegalStateException {
+
+        String state = null;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            state = stateStringLong(this.sslPtr);
+            if (state == null) {
+                /* Return empty string instead of null, may prevent some
+                 * NullPoinerExceptions from callers */
+                state = "";
+            }
+        }
+
+        return state;
     }
 
     /**
@@ -4168,8 +4271,10 @@ public class WolfSSLSession {
             /* set user I/O recv */
             internRecvSSLCb = callback;
 
-            /* register internal callback with native library */
-            setSSLIORecv(this.sslPtr);
+            if (callback != null) {
+                /* register internal callback with native library */
+                setSSLIORecv(this.sslPtr);
+            }
         }
     }
 
@@ -4206,8 +4311,10 @@ public class WolfSSLSession {
             /* set user I/O send */
             internSendSSLCb = callback;
 
-            /* register internal callback with native library */
-            setSSLIOSend(this.sslPtr);
+            if (callback != null) {
+                /* register internal callback with native library */
+                setSSLIOSend(this.sslPtr);
+            }
         }
     }
 

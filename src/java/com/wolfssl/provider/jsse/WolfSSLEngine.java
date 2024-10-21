@@ -72,6 +72,8 @@ public class WolfSSLEngine extends SSLEngine {
     private WolfSSLAuthStore authStore = null;
     private WolfSSLParameters params = null;
     private byte[] toSend = null; /* encrypted packet to send */
+    private int nativeWantsToWrite = 0;
+    private int nativeWantsToRead = 0;
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
 
     /* Does TLS handshake need initialization */
@@ -218,6 +220,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         try {
             this.engineHelper.LoadKeyAndCertChain(null, this);
+            certKeyLoaded = true;
         } catch (CertificateEncodingException | IOException |
                  WolfSSLException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -441,26 +444,43 @@ public class WolfSSLEngine extends SSLEngine {
      *         times out. This should not happen since infinite timeout is
      *         being used for these calls.
      */
-    private synchronized int DoHandshake() throws SSLException {
+    private synchronized int DoHandshake(boolean fromWrap) throws SSLException {
         int ret = WolfSSL.SSL_SUCCESS;
 
         try {
-            if (this.getUseClientMode()) {
+            /* If DTLS and calling from wrap() but HandshakeStatus is
+             * actually NEED_UNWRAP, this is a signal from the application
+             * that we need to retransmit messages */
+            if ((this.ssl.dtls() == 1) && fromWrap &&
+                (this.hs == SSLEngineResult.HandshakeStatus.NEED_UNWRAP)) {
                 synchronized (ioLock) {
-                    ret = this.ssl.connect();
-
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "ssl.connect() ret:err = " + ret + " : " +
-                        ssl.getError(ret));
+                        "Calling wrap() while status is NEED_UNWRAP, " +
+                        "retransmitting DTLS messages");
+                    ret = this.ssl.dtlsGotTimeout();
+                    if (ret == 0) {
+                        ret = WolfSSL.SSL_SUCCESS;
+                    }
                 }
             }
-            else {
-                synchronized (ioLock) {
-                    ret = this.ssl.accept();
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                if (this.getUseClientMode()) {
+                    synchronized (ioLock) {
+                        ret = this.ssl.connect();
 
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "ssl.accept() ret:err = " + ret + " : " +
-                        ssl.getError(ret));
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.connect() ret:err = " + ret + " : " +
+                            ssl.getError(ret));
+                    }
+                }
+                else {
+                    synchronized (ioLock) {
+                        ret = this.ssl.accept();
+
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "ssl.accept() ret:err = " + ret + " : " +
+                            ssl.getError(ret));
+                    }
                 }
             }
 
@@ -634,6 +654,12 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToRead: " + this.nativeWantsToRead);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
 
@@ -691,7 +717,7 @@ public class WolfSSLEngine extends SSLEngine {
         else if (produced == 0) {
             /* continue handshake or application data */
             if (!this.handshakeFinished) {
-                ret = DoHandshake();
+                ret = DoHandshake(true);
             }
             else {
                 try {
@@ -756,6 +782,12 @@ public class WolfSSLEngine extends SSLEngine {
                 "consumed: " + consumed);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "produced: " + produced);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToRead: " + this.nativeWantsToRead);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
@@ -830,10 +862,22 @@ public class WolfSSLEngine extends SSLEngine {
                  * ByteBuffer array */
                 if (out.length == 1) {
                     ret = this.ssl.read(out[0], maxOutSz, 0);
+                    if ((ret < 0) &&
+                        (ssl.getError(ret) == WolfSSL.APP_DATA_READY)) {
+                        /* If DTLS, we may need to call SSL_read() again
+                         * right away again if app data was received */
+                        ret = this.ssl.read(out[0], maxOutSz, 0);
+                    }
                 }
                 else {
                     tmp = new byte[maxOutSz];
                     ret = this.ssl.read(tmp, maxOutSz);
+                    if ((ret < 0) &&
+                        (ssl.getError(ret) == WolfSSL.APP_DATA_READY)) {
+                        /* If DTLS, we may need to call SSL_read() again
+                         * right away again if app data was received */
+                        ret = this.ssl.read(tmp, maxOutSz);
+                    }
                 }
             } catch (SocketTimeoutException | SocketException e) {
                 throw new SSLException(e);
@@ -853,6 +897,11 @@ public class WolfSSLEngine extends SSLEngine {
                 case WolfSSL.SSL_ERROR_WANT_WRITE:
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "RecvAppData(), got WANT_READ/WANT_WRITE");
+                    break;
+
+                case WolfSSL.APP_DATA_READY:
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "RecvAppData(), got APP_DATA_READY");
                     break;
 
                 /* In 0 and ZERO_RETURN cases we may have gotten a
@@ -1025,6 +1074,12 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "status: " + status);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToRead: " + this.nativeWantsToRead);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
 
@@ -1066,12 +1121,10 @@ public class WolfSSLEngine extends SSLEngine {
                 }
             }
             else {
-
                 if (this.handshakeFinished == false) {
-
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "starting or continuing handshake");
-                    ret = DoHandshake();
+                    ret = DoHandshake(false);
                 }
                 else {
                     /* If we have input data, make sure output buffer length is
@@ -1093,17 +1146,32 @@ public class WolfSSLEngine extends SSLEngine {
                         if (ret > 0) {
                             produced += ret;
                         }
-                        else {
-                            synchronized (netDataLock) {
-                                if (ret == 0 && in.remaining() > 0 &&
-                                    getTotalOutputSize(out, ofst,
-                                        length) == 0) {
-                                    /* We have more data to read, but no more
-                                     * out space left in ByteBuffer[], ask for
-                                     * more */
-                                    status =
-                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
-                                }
+
+                        /* Check for BUFFER_OVERFLOW status. This can happen
+                         * if either we have data cached internally
+                         * (in.remaining()) and we have no more output space,
+                         * or if we have more decrypted plaintext in the native
+                         * wolfSSL output buffer and ssl.pending() is > 0. */
+                        synchronized (ioLock) {
+                            if ((ret > 0) && (ssl.pending() > 0)) {
+                                status =
+                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
+                            }
+                            else if ((ret == 0) && (ssl.pending() > 0) &&
+                                getTotalOutputSize(out, ofst, length) == 0) {
+                                status =
+                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
+                            }
+                        }
+                        synchronized (netDataLock) {
+                            if (ret == 0 && in.remaining() > 0 &&
+                                getTotalOutputSize(out, ofst,
+                                    length) == 0) {
+                                /* We have more data to read, but no more
+                                 * out space left in ByteBuffer[], ask for
+                                 * more */
+                                status =
+                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
                             }
                         }
                     }
@@ -1125,7 +1193,7 @@ public class WolfSSLEngine extends SSLEngine {
                             }
                         }
                     }
-                }
+                } /* end DoHandshake() / RecvAppData() */
 
                 if (outBoundOpen == false || this.closeNotifySent) {
                     /* Mark SSLEngine status as CLOSED */
@@ -1138,9 +1206,18 @@ public class WolfSSLEngine extends SSLEngine {
                 synchronized (ioLock) {
                     err = ssl.getError(ret);
                 }
-                if (ret < 0 &&
+                if (ret < 0 && (this.ssl.dtls() == 1) &&
+                    (err == WolfSSL.OUT_OF_ORDER_E)) {
+                    /* Received out of order DTLS message. Ignore and set our
+                     * status to NEED_UNWRAP again to wait for correct data */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "out of order message, dropping and putting state " +
+                        "back to NEED_UNWRAP");
+                }
+                else if (ret < 0 &&
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
                     (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+
                     if (err == WolfSSL.UNKNOWN_ALPN_PROTOCOL_NAME_E) {
                         /* Native wolfSSL could not negotiate a common ALPN
                          * protocol */
@@ -1167,11 +1244,17 @@ public class WolfSSLEngine extends SSLEngine {
 
                 synchronized (toSendLock) {
                     synchronized (netDataLock) {
-                        if (ret < 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
+                        if (ret <= 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
                             in.remaining() == 0 && (this.toSend == null ||
                             (this.toSend != null && this.toSend.length == 0))) {
-                            /* Need more data */
-                            status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
+                            if ((this.ssl.dtls() == 0) ||
+                                this.handshakeFinished) {
+                                /* Need more data. For DTLS only set
+                                 * after handshake has completed, since
+                                 * apps expect to switch on NEED_UNWRAP
+                                 * HandshakeStatus at that point */
+                                status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
+                            }
                         }
                     }
                 }
@@ -1191,10 +1274,19 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.getUseClientMode() && this.handshakeFinished &&
                 this.ssl.hasSessionTicket() &&
                 this.sessionTicketReceived == false) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "received session ticket, returning " +
-                    "HandshakeStatus FINISHED");
-                hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                if (this.ssl.dtls() == 1 && this.toSend != null &&
+                    this.toSend.length > 0) {
+                    /* DTLS 1.3 ACK has been produced in response to
+                     * session ticket message, let's set HS status to
+                     * NEED_WRAP so application knows it needs to be sent. */
+                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "received session ticket, returning " +
+                        "HandshakeStatus FINISHED");
+                    hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                }
                 this.sessionTicketReceived = true;
             }
         }
@@ -1245,6 +1337,12 @@ public class WolfSSLEngine extends SSLEngine {
                 "consumed: " + consumed);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "produced: " + produced);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToRead: " + this.nativeWantsToRead);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "===========================================================");
         }
@@ -1306,7 +1404,9 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 synchronized (netDataLock) {
                     synchronized (ioLock) {
-                        if (ssl.handshakeDone() && this.toSend == null) {
+                        if (ssl.handshakeDone() && (this.toSend == null) &&
+                            (this.nativeWantsToWrite == 0) &&
+                            (this.nativeWantsToRead == 0)) {
                             this.handshakeFinished = true;
                             hs = SSLEngineResult.HandshakeStatus.FINISHED;
                             this.engineHelper.getSession().updateStoredSessionValues();
@@ -1335,6 +1435,9 @@ public class WolfSSLEngine extends SSLEngine {
                         }
                         else if (err == WolfSSL.SSL_ERROR_WANT_WRITE) {
                             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+                        }
+                        else if (err == WolfSSL.OUT_OF_ORDER_E) {
+                            hs = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
                         }
                         else {
                             hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
@@ -1489,7 +1592,13 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLSession getHandshakeSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeSession()");
-        return this.engineHelper.getSession();
+
+        if (!this.handshakeFinished) {
+            /* Only return handshake session during the handshake */
+            return this.engineHelper.getSession();
+        }
+
+        return null;
     }
 
     /**
@@ -1526,18 +1635,20 @@ public class WolfSSLEngine extends SSLEngine {
                 "setUseClientMode() has not been called on this SSLEngine");
         }
 
-        if (this.handshakeStartedExplicitly) {
-            /* Renegotiation (thus calling beginHandshake() multiple times)
-             * is not supported in wolfJSSE SSLEngine implementation yet. If
-             * already called once by user, throw SSLException. */
-            throw new SSLException("Renegotiation not supported");
-        }
-        else if (!this.needInit && !this.handshakeFinished) {
-            /* Handshake has started implicitly by wrap() or unwrap(). Simply
-             * return since this is the first time that the user has called
-             * beginHandshake() themselves. */
-            this.handshakeStartedExplicitly = true;
-            return;
+        synchronized (initLock) {
+            if (this.handshakeStartedExplicitly) {
+                /* Renegotiation (thus calling beginHandshake() multiple times)
+                 * is not supported in wolfJSSE SSLEngine implementation yet. If
+                 * already called once by user, throw SSLException. */
+                throw new SSLException("Renegotiation not supported");
+            }
+            else if (!this.needInit && !this.handshakeFinished) {
+                /* Handshake has started implicitly by wrap() or unwrap(). Simply
+                 * return since this is the first time that the user has called
+                 * beginHandshake() themselves. */
+                this.handshakeStartedExplicitly = true;
+                return;
+            }
         }
 
         /* No network data source yet */
@@ -1556,11 +1667,9 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException(e);
         }
 
-        if (needInit == true) {
-            /* will throw SSLHandshakeException if session creation is
-               not allowed */
-            checkAndInitSSLEngine();
-        }
+        /* will throw SSLHandshakeException if session creation is
+           not allowed */
+        checkAndInitSSLEngine();
 
         try {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1865,6 +1974,30 @@ public class WolfSSLEngine extends SSLEngine {
         byte[] prevToSend = null;
 
         synchronized (toSendLock) {
+            /* As per JSSE Reference Guide, Section 8 DTLS implementation
+             * of wrap() contains at most one record so every DTLS record
+             * can be marshaled and delivered to datagram individually. As
+             * such, if we have data wait to send before caching more */
+            /* TODO - do we need to fragment data here if larger than
+             * SSLParameters.getMaximumPacketSize() with DTLS? */
+            if (this.ssl.dtls() == 1) {
+                if (this.toSend != null) {
+                    /* Cause SSLEngine to only send one packet at a time.
+                     * Keep track if wolfSSL had wanted to send data. We will
+                     * use that information when setting the handshake
+                     * status */
+                    if (sz > 0) {
+                        this.nativeWantsToWrite = sz;
+                    }
+                    return -2;
+                }
+
+                /* Reset native wants to send data flag. We have cleared
+                 * cached data in the object, so this call of the send CB
+                 * should be with the desired native data now. */
+                this.nativeWantsToWrite = 0;
+            }
+
             /* Make copy of existing toSend array before expanding */
             if (this.toSend != null) {
                 prevToSend = this.toSend.clone();
@@ -1927,8 +2060,14 @@ public class WolfSSLEngine extends SSLEngine {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "CB Read: returning WOLFSSL_CBIO_ERR_WANT_READ");
                 }
+                if (this.ssl.dtls() == 1 && this.handshakeFinished) {
+                    this.nativeWantsToRead = 1;
+                }
                 return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
             }
+
+            /* Reset native wants to read flag */
+            this.nativeWantsToRead = 0;
 
             max = (sz < this.netData.remaining()) ? sz : this.netData.remaining();
             this.netData.get(toRead, 0, max);

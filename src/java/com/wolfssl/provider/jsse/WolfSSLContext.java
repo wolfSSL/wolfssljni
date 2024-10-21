@@ -91,7 +91,8 @@ public class WolfSSLContext extends SSLContextSpi {
            ctxAttr.version == TLS_VERSION.TLSv1_1 ||
            ctxAttr.version == TLS_VERSION.TLSv1_2 ||
            ctxAttr.version == TLS_VERSION.TLSv1_3 ||
-           ctxAttr.version == TLS_VERSION.SSLv23) {
+           ctxAttr.version == TLS_VERSION.SSLv23  ||
+           ctxAttr.version == TLS_VERSION.DTLSv1_3) {
             this.currentVersion = ctxAttr.version;
         } else {
             throw new IllegalArgumentException(
@@ -134,6 +135,11 @@ public class WolfSSLContext extends SSLContextSpi {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "creating WolfSSLContext with SSLv23");
                 break;
+            case DTLSv1_3:
+                method = WolfSSL.DTLSv1_3_Method();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "creating WolfSSLContext with DTLSv1_3");
+                break;
             default:
                 throw new IllegalArgumentException(
                     "Invalid SSL/TLS protocol version");
@@ -175,7 +181,7 @@ public class WolfSSLContext extends SSLContextSpi {
          * which have been disabled via system property get filtered in
          * WolfSSLEngineHelper.sanitizeProtocols() */
         params.setProtocols(WolfSSLUtil.sanitizeProtocols(
-            this.getProtocolsMask(ctxAttr.noOptions)));
+            this.getProtocolsMask(ctxAttr.noOptions), this.currentVersion));
 
         try {
             LoadTrustedRootCerts();
@@ -677,6 +683,20 @@ public class WolfSSLContext extends SSLContextSpi {
         }
     }
 
+    /**
+     * SSLContext implementation supporting DTLS 1.3
+     */
+    public static final class DTLSV13_Context extends WolfSSLContext {
+        /**
+         * Create new DTLSv13_Context, calls parent WolfSSLContext constructor
+         */
+        public DTLSV13_Context() {
+            super(TLS_VERSION.DTLSv1_3);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "creating new WolfSSLContext using DTLSV13_Context");
+        }
+    }
 
     /**
      * DEFAULT SSLContext class.
