@@ -24,12 +24,18 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.Provider;
 import java.security.Security;
+import java.security.KeyStoreException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 
 import javax.net.ssl.SSLContext;
@@ -77,7 +83,11 @@ public class WolfSSLSessionTest {
 
 
     @Test
-    public void testSessionTimeAndCerts() {
+    public void testSessionTimeAndCerts()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
         int ret;
         SSLSession session;
 
@@ -145,7 +155,11 @@ public class WolfSSLSessionTest {
     }
 
     @Test
-    public void testNullSession() {
+    public void testNullSession()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
         int ret;
         SSLSession session;
 
@@ -221,7 +235,11 @@ public class WolfSSLSessionTest {
 
 
     @Test
-    public void testBinding() {
+    public void testBinding()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
         int ret;
         String[] values;
         listner bound  = new listner();
@@ -368,7 +386,11 @@ public class WolfSSLSessionTest {
     }
 
     @Test
-    public void testSessionContext() {
+    public void testSessionContext()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
         int ret;
         SSLSession session;
         SSLSessionContext context;

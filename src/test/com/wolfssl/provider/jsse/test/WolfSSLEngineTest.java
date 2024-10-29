@@ -25,11 +25,15 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.UnrecoverableKeyException;
 import java.security.Provider;
 import java.security.Security;
 import java.security.cert.Certificate;
@@ -122,7 +126,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSSLEngine()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine e;
 
         /* create new SSLEngine */
@@ -142,7 +149,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSSLEngineSetCipher()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine e;
         String sup[];
         boolean ok = false;
@@ -197,7 +207,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testCipherConnection()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         String    cipher = null;
@@ -305,7 +318,9 @@ public class WolfSSLEngineTest {
     @Test
     public void testBeginHandshake()
         throws NoSuchProviderException, NoSuchAlgorithmException,
-               SSLException {
+               SSLException, KeyManagementException, KeyStoreException,
+               CertificateException, IOException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -377,7 +392,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testConnectionOutIn()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -424,7 +442,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetUseClientMode()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
 
         int ret;
         SSLEngine client;
@@ -494,7 +514,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testMutualAuth()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -569,7 +592,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetWantNeedClientAuth_ClientServerDefaultKeyManager()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
 
         int ret = 0;
         SSLContext cCtx = null;
@@ -634,7 +659,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetWantNeedClientAuth_ClientNoKeyManager()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
 
         int ret = 0;
         SSLContext cCtx = null;
@@ -700,7 +727,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetWantNeedClientAuth_ServerNoKeyManager()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
 
         int ret = 0;
         SSLContext cCtx = null;
@@ -768,7 +797,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetWantNeedClientAuth_ClientServerExternalTrustAllCerts()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, CertificateException, IOException,
+               UnrecoverableKeyException {
 
         int ret = 0;
         SSLContext cCtx = null;
@@ -864,7 +895,9 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testSetWantNeedClientAuth_ExternalTrustNoClientCerts()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, CertificateException, IOException,
+               UnrecoverableKeyException {
 
         int ret = 0;
         SSLContext cCtx = null;
@@ -976,7 +1009,10 @@ public class WolfSSLEngineTest {
 
     @Test
     public void testReuseSession()
-        throws NoSuchProviderException, NoSuchAlgorithmException {
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
         SSLEngine server;
         SSLEngine client;
         int ret;
@@ -1064,7 +1100,9 @@ public class WolfSSLEngineTest {
     @Test
     public void testExtendedThreadingUse()
         throws NoSuchProviderException, NoSuchAlgorithmException,
-               InterruptedException {
+               InterruptedException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               UnrecoverableKeyException {
 
         /* Number of SSLEngine client threads to start up */
         int numThreads = 50;

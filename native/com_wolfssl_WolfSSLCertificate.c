@@ -776,7 +776,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1check_1host
 
     hostname = (*jenv)->GetStringUTFChars(jenv, chk, 0);
     if (hostname != NULL) {
-        /* flags and peerNamePtr not used */
+        /* peerNamePtr not used */
         ret = wolfSSL_X509_check_host(x509, hostname,
             XSTRLEN(hostname), (unsigned int)flags, NULL);
     }

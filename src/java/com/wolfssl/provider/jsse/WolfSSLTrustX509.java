@@ -50,7 +50,8 @@ import java.security.cert.Certificate;
 
 /**
  * wolfSSL implementation of X509TrustManager, extends
- * X509ExtendedTrustManager for additional hostname verification for HTTPS.
+ * X509ExtendedTrustManager for additional hostname verification for
+ * HTTPS (RFC 2818) and LDAPS (RFC 2830).
  *
  * @author wolfSSL
  */
@@ -58,6 +59,11 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
     implements X509TrustManager {
 
     private KeyStore store = null;
+
+    /** X509ExtendedTrustManager hostname type HTTPS */
+    private static int HOSTNAME_TYPE_HTTPS = 1;
+    /** X509ExtendedTrustManager hostname type LDAPS */
+    private static int HOSTNAME_TYPE_LDAPS = 2;
 
     /**
      * Create new WolfSSLTrustX509 object
@@ -430,18 +436,25 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
     }
 
     /**
-     * Verify hostname using HTTPS verification method.
+     * Verify hostname using HTTPS or LDAPS verification method.
      *
-     * This method does the following operations in an attempt to verify
-     * the HTTPS type hostname:
+     * For HTTPS hostname verification (RFC 2818):
      *
-     *   1. If SNI name has been received during TLS handshake, try to
+     *   - If SNI name has been received during TLS handshake, try to
      *      first verify peer certificate against that. Skip this step when
      *      on server side verifying the client, since server does not set
      *      an SNI for the client.
-     *   2. Otherwise, try to verify certificate against SSLSocket
-     *      hostname (SSLSession.getHostName()).
-     *   3. If both of the above fail, fail hostname verification.
+     *   - Otherwise, try to verify certificate against SSLSocket or SSLEngine
+     *      hostname (getHandshakeSession().getHostName()).
+     *   - If both of the above fail, fail hostname verification.
+     *   - Hostname matching rules for HTTPS come from RFC 2818
+     *
+     * For LDAPS hostname verification (RFC 2830):
+     *
+     *   - Try to verify certificate against hostname used to create
+     *      the SSLSocket or SSLEngine, obtained via
+     *      getHandshakeSession().getPeerHost().
+     *   - Hostname matching rules for LDAPS come from RFC 2830
      *
      * @param cert peer certificate
      * @param socket SSLSocket associated with connection to peer. Only one
@@ -452,10 +465,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
      *               null.
      * @param isClient true if we are calling this from client side, otherwise
      *               false if calling from server side.
+     * @param type type of hostname to verify, options are
+     *               HOSTNAME_TYPE_HTTPS or HOSTNAME_TYPE_LDAPS
      * @throws CertificateException if hostname cannot be verified
      */
-    private void verifyHTTPSHostname(X509Certificate cert, SSLSocket socket,
-        SSLEngine engine, boolean isClient) throws CertificateException {
+    private void verifyHostnameByType(X509Certificate cert, SSLSocket socket,
+        SSLEngine engine, boolean isClient, int type)
+        throws CertificateException {
 
         String peerHost = null;
         List<SNIServerName> sniNames = null;
@@ -464,8 +480,16 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         WolfSSLCertificate peerCert = null;
         int ret = WolfSSL.SSL_FAILURE;
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "verifying HTTPS hostname");
+        if (type == HOSTNAME_TYPE_HTTPS) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "verifying hostname type HTTPS");
+        } else if (type == HOSTNAME_TYPE_LDAPS) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "verifying hostname type LDAPS");
+        } else {
+            throw new CertificateException("Unsupported hostname type, " +
+                "HTTPS and LDAPS only supported currently: " + type);
+        }
 
         /* Get session associated with SSLSocket or SSLEngine */
         try {
@@ -485,12 +509,15 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             peerHost = session.getPeerHost();
         }
 
-        /* Get SNI name if SSLSocket has received that from peer. Only check
-         * this when on the client side and verifying a server since SNI
-         * holding expected server name is available on client-side but not
-         * vice-versa */
-        if (session != null && isClient &&
-            (session instanceof ExtendedSSLSession)) {
+        /* Get SNI name if SSLSocket/SSLEngine has received that from peer.
+         * Only check this when on the client side and verifying a server since
+         * SNI holding expected server name is available on client-side but not
+         * vice-versa. Also only checked for HTTPS type, not LDAPS. As per
+         * RFC 2830, the client MUST use the server hostname it used to open
+         * the LDAP connection. */
+        if ((session != null) && isClient &&
+            (session instanceof ExtendedSSLSession) &&
+            (type == HOSTNAME_TYPE_HTTPS)) {
             sniNames = ((ExtendedSSLSession)session).getRequestedServerNames();
 
             for (SNIServerName name : sniNames) {
@@ -517,8 +544,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             throw new CertificateException(e);
         }
 
-        /* Try verifying hostname against SNI name */
-        if (isClient) {
+        /* Try verifying hostname against SNI name, if HTTPS type */
+        if (isClient && (type == HOSTNAME_TYPE_HTTPS)) {
             if (sniHostName != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "trying hostname verification against SNI: " + sniHostName);
@@ -541,13 +568,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             }
         }
 
-        /* Try verifying hostname against peerHost from SSLSocket/Engine */
+        /* Try verifying hostname against peerHost from SSLSocket/SSLEngine */
         if (peerHost != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "trying hostname verification against peer host: " +
-                peerHost);
+                "trying hostname verification against peer host: " + peerHost);
 
-            ret = peerCert.checkHost(peerHost);
+            if (type == HOSTNAME_TYPE_LDAPS) {
+                /* LDAPS requires wildcard left-most matching only */
+                ret = peerCert.checkHost(peerHost,
+                        WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY);
+            } else {
+                ret = peerCert.checkHost(peerHost);
+            }
             if (ret == WolfSSL.SSL_SUCCESS) {
                 /* Hostname successfully verified against peer host name */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -558,10 +590,16 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         }
 
         if (isClient) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "hostname verification failed for server peer cert, " +
-                "tried SNI (" + sniHostName + "), peer host (" + peerHost +
-                ")\n" + peerCert);
+            if (type == HOSTNAME_TYPE_HTTPS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "hostname verification failed for server peer cert, " +
+                    "tried SNI (" + sniHostName + "), peer host (" + peerHost +
+                    ")\n" + peerCert);
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "hostname verification failed for server peer cert, " +
+                    "peer host (" + peerHost + ")\n" + peerCert);
+            }
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "hostname verification failed for client peer cert, " +
@@ -593,7 +631,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         SSLParameters sslParams = null;
         SSLSession session = null;
 
-        /* Hostname verification only done if Socket is of SSLSocket,
+        /* Hostname verification on Socket done only if Socket is of SSLSocket,
          * not null, and connected */
         if ((socket != null) && (socket instanceof SSLSocket) &&
             (socket.isConnected())) {
@@ -614,8 +652,15 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "verifying hostname, endpoint identification " +
                         "algorithm = HTTPS");
-                    verifyHTTPSHostname(cert, (SSLSocket)socket,
-                        null, isClient);
+                    verifyHostnameByType(cert, (SSLSocket)socket,
+                        null, isClient, HOSTNAME_TYPE_HTTPS);
+                }
+                else if (endpointIdAlgo.equals("LDAPS")) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "verifying hostname, endpoint identification " +
+                        "algorithm = LDAPS");
+                    verifyHostnameByType(cert, (SSLSocket)socket,
+                        null, isClient, HOSTNAME_TYPE_LDAPS);
                 }
                 else {
                     throw new CertificateException(
@@ -647,7 +692,15 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "verifying hostname, endpoint identification " +
                         "algorithm = HTTPS");
-                    verifyHTTPSHostname(cert, null, engine, isClient);
+                    verifyHostnameByType(cert, null, engine, isClient,
+                        HOSTNAME_TYPE_HTTPS);
+                }
+                else if (endpointIdAlgo.equals("LDAPS")) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "verifying hostname, endpoint identification " +
+                        "algorithm = LDAPS");
+                    verifyHostnameByType(cert, null, engine, isClient,
+                        HOSTNAME_TYPE_LDAPS);
                 }
                 else {
                     throw new CertificateException(
@@ -708,13 +761,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
      * Try to build and validate the client certificate chain based on the
      * provided certificates and authentication type.
      *
-     * Also does hostname verification internally if Endpoint Identification
+     * Does hostname verification internally if Endpoint Identification
      * Algorithm has been set by application in SSLParameters, and that
-     * Algorithm matches "HTTPS". If that is set, hostname verification is
-     * done using SNI first then peer host value.
+     * Algorithm matches "HTTPS" or "LDAPS". If "HTTPS" is set, hostname
+     * verification is done using SNI first then peer host value.
      *
-     * Other Endpoint Identification Algorithms besides "HTTPS" are not
-     * currently supported.
+     * Other Endpoint Identification Algorithms besides "HTTPS" and "LDAPS"
+     * are not currently supported.
      *
      * @param certs peer certificate chain
      * @param type authentication type based on the client certificate

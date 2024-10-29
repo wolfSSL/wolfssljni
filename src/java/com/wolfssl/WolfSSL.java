@@ -549,6 +549,11 @@ public class WolfSSL {
      * level with WolfSSLContext.setDevId() and WolfSSLSession.setDevId() */
     public static int devId = WolfSSL.INVALID_DEVID;
 
+    /* ------------------------- Flag Values ---------------------------- */
+    /** WolfSSLCertificate.checkHost() match only wildcards in left-most
+     * position, used for LDAPS hostname verification. */
+    public static int WOLFSSL_LEFT_MOST_WILDCARD_ONLY = 0x40;
+
     /* ---------------------------- locks ------------------------------- */
 
     /* lock for cleanup */

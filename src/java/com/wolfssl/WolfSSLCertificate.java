@@ -1439,10 +1439,32 @@ public class WolfSSLCertificate implements Serializable {
      */
     public int checkHost(String hostname) throws IllegalStateException {
 
+        return checkHost(hostname, 0);
+    }
+
+    /**
+     * Checks that given hostname matches this certificate SubjectAltName
+     * or CommonName entries, behavior can be controlled via flags.
+     *
+     * @param hostname Hostname to check certificate against
+     * @param flags Flags to control hostname check behavior. Supported options
+     *        include WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY to only match
+     *        wildcards on left-most position.
+     *
+     * @return WolfSSL.SSL_SUCCESS on successful hostname match,
+     *         WolfSSL.SSL_FAILURE on invalid match or error, or
+     *         WolfSSL.NOT_COMPILED_IN if native wolfSSL has been compiled
+     *         with NO_ASN defined and native API is not available.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     */
+    public int checkHost(String hostname, long flags)
+        throws IllegalStateException {
+
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
-            return X509_check_host(this.x509Ptr, hostname, 0, 0);
+            return X509_check_host(this.x509Ptr, hostname, flags, 0);
         }
     }
 
