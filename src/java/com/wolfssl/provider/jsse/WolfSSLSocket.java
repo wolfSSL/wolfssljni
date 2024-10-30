@@ -91,6 +91,8 @@ public class WolfSSLSocket extends SSLSocket {
     protected volatile boolean connectionClosed = false;
     /** Flag representing if I/O callbacks have been set */
     private boolean ioCallbacksSet = false;
+    /** Flag representing if native fd has been set */
+    private boolean fdSet = false;
 
     /* lock for handshakInitCalled and handshakeComplete */
     private final Object handshakeLock = new Object();
@@ -502,21 +504,31 @@ public class WolfSSLSocket extends SSLSocket {
 
         synchronized (initLock) {
 
+            /* If underlying Socket connected, set fd. Check before
+             * initialized flag, since we may have already initialized
+             * certs/keys but not fd in previous call */
+            if (!this.fdSet && isConnected()) {
+                try {
+                    setFd();
+                } catch (WolfSSLException e) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Failed to set native fd, may try again later");
+                }
+            }
+
             if (isInitialized) {
                 return;
             }
 
             try {
                 /* Load private key and cert chain from WolfSSLAuthStore */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "loading private key and cert chain");
+
                 if (this.socket != null) {
                     EngineHelper.LoadKeyAndCertChain(this.socket, null);
                 } else {
                     EngineHelper.LoadKeyAndCertChain(this, null);
-                }
-
-                /* If underlying Socket connected, set fd */
-                if (isConnected()) {
-                    setFd();
                 }
 
                 isInitialized = true;
@@ -610,6 +622,9 @@ public class WolfSSLSocket extends SSLSocket {
                         "registered Socket(this.socket) with native wolfSSL");
                 }
             }
+
+            /* Mark fd set */
+            this.fdSet = true;
         }
     }
 
@@ -1715,7 +1730,7 @@ public class WolfSSLSocket extends SSLSocket {
         checkAndInitSSLSocket();
 
         if (!this.isConnected()) {
-            throw new IOException("Socket is not connected");
+            throw new SocketException("Socket is not connected");
         }
 
         if (this.isClosed()) {
@@ -1747,7 +1762,7 @@ public class WolfSSLSocket extends SSLSocket {
         checkAndInitSSLSocket();
 
         if (!this.isConnected()) {
-            throw new IOException("Socket is not connected");
+            throw new SocketException("Socket is not connected");
         }
 
         if (this.isClosed()) {
