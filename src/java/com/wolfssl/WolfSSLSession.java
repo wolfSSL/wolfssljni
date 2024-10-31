@@ -1314,7 +1314,7 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            return getSession(this.sslPtr);
+            return get1Session(this.sslPtr);
         }
     }
 
