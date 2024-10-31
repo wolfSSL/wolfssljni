@@ -256,6 +256,7 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private native long get1Session(long ssl);
     private static native int wolfsslSessionIsSetup(long ssl);
     private static native int wolfsslSessionIsResumable(long ssl);
     private static native long wolfsslSessionDup(long session);
