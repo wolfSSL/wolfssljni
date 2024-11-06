@@ -14,7 +14,7 @@
     <!-- versioning/manifest properties -->
     <property name="implementation.vendor"  value="wolfSSL Inc." />
     <property name="implementation.title"   value="wolfSSL JNI/JSSE" />
-    <property name="implementation.version" value="1.13" />
+    <property name="implementation.version" value="1.14" />
 
     <!-- set properties for this build -->
     <property name="src.dir" value="src/java/"/>
