@@ -1937,18 +1937,16 @@ public class WolfSSLSocket extends SSLSocket {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                          "thread got ioLock (shutdown)");
 
-                        synchronized (handshakeLock) {
-                            if (this.getUseClientMode() == true &&
-                                this.handshakeComplete == true) {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "saving WOLFSSL_SESSION into cache");
-                                EngineHelper.saveSession();
-                            }
-                            else {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "not saving WOLFSSL_SESSION into cache, " +
-                                    "not client or handshake not complete");
-                            }
+                        if ((this.getUseClientMode() == true) &&
+                            (handshakeFinished == true)) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "saving WOLFSSL_SESSION into cache");
+                            EngineHelper.saveSession();
+                        }
+                        else {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "not saving WOLFSSL_SESSION into cache, " +
+                                "not client or handshake not complete");
                         }
 
                         try {
@@ -2001,19 +1999,8 @@ public class WolfSSLSocket extends SSLSocket {
                             this.EngineHelper.clearObjectState();
                             this.EngineHelper = null;
 
-                            /* Release Input/OutputStream objects. Do not
-                             * close WolfSSLSocket inside stream close,
-                             * since we handle that next below and do
-                             * differently depending on if autoClose has been
-                             * set or not. */
-                            if (this.inStream != null) {
-                                this.inStream.close(false);
-                                this.inStream = null;
-                            }
-                            if (this.outStream != null) {
-                                this.outStream.close(false);
-                                this.outStream = null;
-                            }
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                "thread exiting handshakeLock (shutdown)");
 
                         } /* handshakeLock */
 
@@ -2021,6 +2008,23 @@ public class WolfSSLSocket extends SSLSocket {
                             "thread exiting ioLock (shutdown)");
 
                     } /* ioLock */
+
+                    /* Release Input/OutputStream objects. Do not close
+                     * WolfSSLSocket inside stream close, since we handle that
+                     * next below and do differently depending on if autoClose
+                     * has been set or not. */
+                    if (this.inStream != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "close(), closing InputStream");
+                        this.inStream.close(false);
+                        this.inStream = null;
+                    }
+                    if (this.outStream != null) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "close(), closing OutputStream");
+                        this.outStream.close(false);
+                        this.outStream = null;
+                    }
                 }
             }
 
@@ -2457,27 +2461,28 @@ public class WolfSSLSocket extends SSLSocket {
 
             if (isClosing.compareAndSet(false, true)) {
 
-                synchronized (this) {
-                    if (closeSocket) {
-                        if (this.socket == null || this.isClosed) {
-                            return;
-                        }
-
-                        if (this.socket.isClosed()) {
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "socket (input) already closed");
-                        }
-                        else {
-                            this.socket.close();
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "socket (input) closed: " + this.socket);
-                        }
+                if (closeSocket) {
+                    if (this.socket == null || this.isClosed) {
+                        return;
                     }
 
-                    this.socket = null;
-                    this.ssl = null;
-                    this.isClosed = true;
+                    if (this.socket.isClosed()) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (input) already closed");
+                    }
+                    else {
+                        this.socket.close();
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (input) closed: " + this.socket);
+                    }
                 }
+
+                this.socket = null;
+                this.ssl = null;
+                this.isClosed = true;
+
+                /* Reset "is closing" state to false, now closed */
+                isClosing.set(false);
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2532,6 +2537,12 @@ public class WolfSSLSocket extends SSLSocket {
 
             if (b == null) {
                 throw new NullPointerException("Input array is null");
+            }
+
+            /* check if socket is closing */
+            if (isClosing.get()) {
+                throw new SocketException(
+                    "InputStream in process of being closed");
             }
 
             /* check if socket is closed */
@@ -2670,27 +2681,28 @@ public class WolfSSLSocket extends SSLSocket {
 
             if (isClosing.compareAndSet(false, true)) {
 
-                synchronized (this) {
-                    if (closeSocket) {
-                        if (this.socket == null || this.isClosed) {
-                            return;
-                        }
-
-                        if (this.socket.isClosed()) {
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "socket (output) already closed");
-                        }
-                        else {
-                            this.socket.close();
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "socket (output) closed: " + this.socket);
-                        }
+                if (closeSocket) {
+                    if (this.socket == null || this.isClosed) {
+                        return;
                     }
 
-                    this.socket = null;
-                    this.ssl = null;
-                    this.isClosed = true;
+                    if (this.socket.isClosed()) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (output) already closed");
+                    }
+                    else {
+                        this.socket.close();
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "socket (output) closed: " + this.socket);
+                    }
                 }
+
+                this.socket = null;
+                this.ssl = null;
+                this.isClosed = true;
+
+                /* Reset "is closing" state to false, now closed */
+                isClosing.set(false);
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2707,14 +2719,14 @@ public class WolfSSLSocket extends SSLSocket {
             this.close(true);
         }
 
-        public synchronized void write(int b) throws IOException {
+        public void write(int b) throws IOException {
             byte[] data = new byte[1];
             data[0] = (byte)(b & 0xFF);
 
             this.write(data, 0, 1);
         }
 
-        public synchronized void write(byte[] b) throws IOException {
+        public void write(byte[] b) throws IOException {
             this.write(b, 0, b.length);
         }
 
@@ -2725,6 +2737,12 @@ public class WolfSSLSocket extends SSLSocket {
 
             if (b == null) {
                 throw new NullPointerException("Input array is null");
+            }
+
+            /* check if socket is closing */
+            if (isClosing.get()) {
+                throw new SocketException(
+                    "OutputStream in process of being closed");
             }
 
             /* check if socket is closed */
