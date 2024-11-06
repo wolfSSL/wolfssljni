@@ -1514,8 +1514,9 @@ public class WolfSSLTrustX509Test {
     @Test
     public void testUsingRsaPssCert()
         throws Exception {
-        /* skip if RSA_PSS is not compiled in at native level */
-        if (WolfSSL.RsaPssEnabled() == false) {
+        /* skip if RSA_PSS or TLS 1.3 are not compiled in at native level */
+        if ((WolfSSL.RsaPssEnabled() == false) ||
+            (WolfSSL.TLSv13Enabled() == false)) {
             return;
         }
 
