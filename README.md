@@ -186,7 +186,7 @@ an application can include this as a dependency in the application's
         <dependency>
             <groupId>com.wolfssl</groupId>
             <artifactId>wolfssl-jsse</artifactId>
-            <version>1.13.0-SNAPSHOT</version>
+            <version>1.14.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
     ...

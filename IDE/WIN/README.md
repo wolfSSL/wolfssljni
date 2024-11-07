@@ -137,6 +137,7 @@ section titled `/* Configuration */`:
 ```
 #define WOLFSSL_JNI
 #define HAVE_EX_DATA
+#define OPENSSL_EXTRA
 #define OPENSSL_ALL
 #define HAVE_CRL
 #define HAVE_OCSP
@@ -146,9 +147,16 @@ section titled `/* Configuration */`:
 #define HAVE_DH
 #define WOLFSSL_CERT_EXT
 #define WOLFSSL_CERT_GEN
+#define WOLFSSL_KEY_GEN
+#define WOLFSSL_CERT_REQ
+#define WOLFSSL_ALT_NAMES
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SNI
 #define HAVE_ALPN
+#define KEEP_PEER_CERT
+#define SESSION_CERTS
+#define WOLFSSL_ALT_CERT_CHAINS
+#define WOLFSSL_ALWAYS_VERIFY_CB
 ```
 
 After editing and saving the `user_settings.h` file, select one of the following
@@ -171,10 +179,13 @@ When bulding wolfSSL JNI/JSSE, the Visual Studio project file for that library
 will look in the above locations to link against the wolfSSL DLL matching
 the same build configuration.
 
-## wolfSSL FIPS 140-2 (Certificate #3389)
+## wolfSSL FIPS 140-2 (Certificate #3389, Now Historical)
+
+Please consider looking at and migrating to wolfSSL's new FIPS 140-3
+validated version of wolfCrypt. Email fips@wolfssl.com for more information.
 
 To build a wolfSSL FIPS 140-2 variant of wolfSSL for use with FIPS 140-2
-certificate #3389 or later, use the Visual Studio solution file located under
+certificate #3389, use the Visual Studio solution file located under
 the `IDE\WIN10` directory inside the wolfSSL FIPS release package:
 
 ```
@@ -216,6 +227,7 @@ and set the values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`, and
 ```
 #define WOLFSSL_JNI
 #define HAVE_EX_DATA
+#define OPENSSL_EXTRA
 #define OPENSSL_ALL
 #define HAVE_CRL
 #define HAVE_OCSP
@@ -225,9 +237,16 @@ and set the values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`, and
 #define HAVE_DH
 #define WOLFSSL_CERT_EXT
 #define WOLFSSL_CERT_GEN
+#define WOLFSSL_KEY_GEN
+#define WOLFSSL_CERT_REQ
+#define WOLFSSL_ALT_NAMES
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SNI
 #define HAVE_ALPN
+#define KEEP_PEER_CERT
+#define SESSION_CERTS
+#define WOLFSSL_ALT_CERT_CHAINS
+#define WOLFSSL_ALWAYS_VERIFY_CB
 ```
 
 6. Build the `wolfssl-fips` project, which will create a DLL in one of the
@@ -254,19 +273,20 @@ in the wolfCrypt tests successfully running.
 See the FIPS User Guide for more details on the FIPS verifyCore hash, or
 email support@wolfssl.com.
 
-## wolfSSL FIPS 140-3 (Upcoming)
+## wolfSSL FIPS 140-3 (Certificate #4718)
 
-To build a version of wolfSSL that has been submitted for FIPS 140-3, use
-the Visual Studio solution file under the `IDE\WIN10` directory inside the
-wolfSSL package:
+To build a wolfSSL FIPS 140-3 variant for use with FIPS 140-3 certificate
+#4718, use the Visual Studio solution file located in the `IDE/WIN10`
+directory inside the wolfSSL package:
 
 ```
 <wolfssl>\IDE\WIN10\wolfssl-fips.sln
 ```
 
 Follow instructions in the above section for 140-2 / 3389, except use the
-following values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`, and
-`HAVE_FIPS_VERSION_MINOR` in `user_settings.h`:
+following values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`,
+`HAVE_FIPS_VERSION_MAJOR`, `HAVE_FIPS_VERSION_MINOR`, and
+`HAVE_FIPS_VERSION_PATCH` in `user_settings.h`:
 
 ```
 #if 1
@@ -274,8 +294,12 @@ following values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`, and
 #define HAVE_FIPS
 #undef HAVE_FIPS_VERSION
 #define HAVE_FIPS_VERSION 5
+#undef HAVE_FIPS_VERSION_MAJOR
+#define HAVE_FIPS_VERSION_MAJOR 5
 #undef HAVE_FIPS_VERSION_MINOR
-#define HAVE_FIPS_VERSION_MINOR 1
+#define HAVE_FIPS_VERSION_MINOR 2
+#undef HAVE_FIPS_VERSION_PATCH
+#define HAVE_FIPS_VERSION_PATCH 0
 #endif
 ```
 
@@ -285,6 +309,7 @@ The following additional defines will also need to be added to
 ```
 #define WOLFSSL_JNI
 #define HAVE_EX_DATA
+#define OPENSSL_EXTRA
 #define OPENSSL_ALL
 #define HAVE_CRL
 #define HAVE_OCSP
@@ -294,9 +319,16 @@ The following additional defines will also need to be added to
 #define HAVE_DH
 #define WOLFSSL_CERT_EXT
 #define WOLFSSL_CERT_GEN
+#define WOLFSSL_KEY_GEN
+#define WOLFSSL_CERT_REQ
+#define WOLFSSL_ALT_NAMES
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SNI
 #define HAVE_ALPN
+#define KEEP_PEER_CERT
+#define SESSION_CERTS
+#define WOLFSSL_ALT_CERT_CHAINS
+#define WOLFSSL_ALWAYS_VERIFY_CB
 ```
 
 For additional help, contact support@wolfssl.com.

@@ -32,11 +32,11 @@
     #include <sys/time.h>
     #include <arpa/inet.h>
     #include <sys/errno.h>
-#endif
-#ifdef WOLFJNI_USE_IO_SELECT
-    #include <sys/select.h>
-#else
-    #include <poll.h>
+    #if defined(WOLFJNI_USE_IO_SELECT)
+        #include <sys/select.h>
+    #else
+        #include <poll.h>
+    #endif
 #endif
 
 #ifndef WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT
@@ -615,7 +615,8 @@ enum {
     WOLFJNI_IO_EVENT_INVALID_TIMEOUT = -17
 };
 
-#ifdef WOLFJNI_USE_IO_SELECT
+/* Windows doesn't have poll(), use select() */
+#if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
 
 /* Perform a select() call on the underlying socket to wait for socket to be
  * ready for read/write, or timeout. Note that we explicitly set the underlying
@@ -787,7 +788,7 @@ static int socketPoll(int sockfd, int timeout_ms, int rx, int tx)
     return WOLFJNI_IO_EVENT_FAIL;
 }
 
-#endif /* WOLFJNI_USE_IO_SELECT */
+#endif /* WOLFJNI_USE_IO_SELECT | USE_WINDOWS_API */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
