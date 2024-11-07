@@ -1,3 +1,70 @@
+### wolfSSL JNI Release 1.14.0 (11/7/2024)
+
+Release 1.14.0 has bug fixes and new features including:
+
+**New JSSE Functionality:**
+* Add wolfJCE WKS KeyStore type support (PR 178)
+* Add support for native `poll()` and set as default over `select()` (PR 201)
+* Add `getSSLParameters()` to SSLServerSocket implementation (PR 214)
+* Add `rsa_pss` support and tests to wolfJSSE (PR 218)
+* Add LDAPS endpoint identification to X509ExtendedTrustManager (PR 227)
+
+**JSSE System/Security Property Support:**
+* Add option to print debug logs in JSON format (`wolfjsse.debugFormat=JSON`) (PR 187)
+* Add Security property to disable Java client session cache (`wolfjsse.clientSessionCache.disabled=true`) (PR 225)
+
+**JSSE Changes:**
+* Fix for native memory leak when calling `wolfSSL_get_peer_certificate()` (PR 188)
+* Optimization to allow for easier garbage collection (PR 189)
+* Fix for SSLEngine session storage and unwrap() FINISHED state (PR 193)
+* Fix to not close SSLSocket when SSLServerSocket is closed (PR 194)
+* Fix for getting end of stream when calling InputStream.read() (PR 195)
+* Fix for throwing exceptions on KeyManagerFactory/TrustManagerFactory use before init (PR 196)
+* Fix for SSLEngine HandshakeStatus when receiving TLS 1.3 session tickets after handshake (PR 197)
+* Throw SSLException to indicate lack of renegotiation support in `SSLEngine.beginHandshake()` (PR 197)
+* Fix to mark inbound and outbound closed in SSLEngine when fatal alerts are received (PR 197)
+* Return `X509Certificate[]` from `SSLSession.getPeerCertificates()` (PR 199)
+* Remove unneeded `SSLServerSocket.close()` method (PR 200)
+* Fix `SSLSession.getLocalPrincipal()` to assume user cert is first in chain (PR 204)
+* Ensure that socket is closed if implicit handshake in `SSLSocket.getSession()` fails (PR 205)
+* If SSLSocket handshake is unsuccessful, close Socket before throwing an exception (PR 205)
+* Close SSLEngine inbound on ALPN protocol name error (PR 208)
+* Adjust client-side session resumption to check cipher suite and protocol (PR 209)
+* Pass lower level exception messages up during X509TrustManager verification (PR 211)
+* Refactor code calls not available in Android API 24 (PR 216)
+* Fix to return end of stream in `InputStream.read()` on socket error (PR 217)
+* Fix to update the TLS protocol in SSLSession after handshake completes (PR 219)
+* Fix potential deadlock on close() between SSLSocket and Input/OutputStream (PR 220)
+* Fixes for issues found with SpotBugs (PR 221)
+* Clean up ant build warnings on Corretto 20.0.1 (PR 223)
+* Error out on invalid port during creation of SSLEngine (PR 224)
+* Correct SSLSocket exception types and fix setting of native file descriptor (PR 228)
+* Fix deadlock issues between `SSLSocket close()` and `OutputStream.write()` (PR 230)
+
+**New JNI Wrapped APIs and Functionality:**
+* `wolfSSL_SessionIsSetup()` (PR 191)
+* `wolfSSL_SESSION_dup()` (PR 206)
+
+**JNI Changes:**
+* Fix for JNI example use of TLS 1.3 secret callback strings (PR 192)
+
+**Example Changes:**
+* Add Host into HTTP GET in example ClientJSSE when used with `-g` (PR 213)
+* Add example JNI-only threaded client/server applications (PR 212)
+* Add basic RMI example client and server (PR 226)
+
+**Debugging Changes:**
+* Fix typo in SSLEngine debug logs (PR 203)
+
+**Testing Changes:**
+* Run Facebook Infer on all PRs with GitHub Actions (PR 190)
+* Run TLS 1.0 and 1.1 tests if enabled in native wolfSSL even if disabled in `java.security` (PR 198)
+* Add GitHub Actions PRB test for Android gradle build (PR 222)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.13.0 (4/9/2024)
 
 Release 1.13.0 has bug fixes and new features including:
