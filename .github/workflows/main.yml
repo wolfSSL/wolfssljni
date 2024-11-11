@@ -133,3 +133,20 @@ jobs:
       jdk_distro: "zulu"
       jdk_version: ${{ matrix.jdk_version }}
 
+  # --------------------- Maven build - test pom.xml --------------------
+  # Run Maven build over PR code, running on Linux and Mac with only one
+  # JDK/version for now.
+  maven-build:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'macos-latest' ]
+        jdk_version: [ '21' ]
+        wolfssl_configure: [ '--enable-jni' ]
+    name: Maven Build (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }})
+    uses: ./.github/workflows/maven.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+

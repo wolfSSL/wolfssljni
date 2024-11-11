@@ -1,0 +1,60 @@
+name: Maven Build (pom.xml)
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      jdk_distro:
+        required: true
+        type: string
+      jdk_version:
+        required: true
+        type: string
+      wolfssl_configure:
+        required: true
+        type: string
+
+jobs:
+  build_wolfcryptjni:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build native wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: wolfSSL/wolfssl
+          ref: master
+          path: wolfssl
+          configure: ${{ inputs.wolfssl_configure }}
+          check: false
+          install: true
+
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.jdk_distro }}
+          java-version: ${{ inputs.jdk_version }}
+
+      - name: Set LD_LIBRARY_PATH
+        run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+
+      - name: Build JNI library
+        run: ./java.sh $GITHUB_WORKSPACE/build-dir
+
+      # Maven build
+      - name: mvn compile
+        run: mvn compile
+
+      - name: mvn test
+        run: mvn test
+
+      - name: mvn package
+        run: mvn package
+
+      - name: mvn clean
+        run: mvn clean
+
