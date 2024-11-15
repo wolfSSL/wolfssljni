@@ -1176,6 +1176,38 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalExtendedMasterSecret() {
+        /* Native wolfSSL enables TLS Extended Master Secret by default.
+         * Check the Java System property (jdk.tls.useExtendedMasterSecret)
+         * to see if the user has explicitly disabled it. */
+        int ret;
+        boolean useEMS = WolfSSLUtil.useExtendedMasterSecret();
+
+        if (!useEMS) {
+            ret = this.ssl.disableExtendedMasterSecret();
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "TLS Extended Master Secret disabled due to " +
+                    "jdk.tls.useExtendedMasterSecret System property");
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Failed to disable TLS Extended Master Secret, " +
+                    "ret = " + ret);
+            }
+        }
+        else {
+            if (WolfSSL.isEnabledTLSExtendedMasterSecret() == 1) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "using TLS Extended Master Secret");
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "not using TLS Extended Master Secret, not compiled in");
+            }
+        }
+    }
+
     private void setLocalParams(SSLSocket socket, SSLEngine engine)
         throws SSLException {
 
@@ -1192,6 +1224,7 @@ public class WolfSSLEngineHelper {
         this.setLocalSigAlgorithms();
         this.setLocalSupportedCurves();
         this.setLocalMaximumPacketSize();
+        this.setLocalExtendedMasterSecret();
     }
 
     /**

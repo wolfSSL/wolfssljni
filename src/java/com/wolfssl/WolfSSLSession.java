@@ -418,6 +418,7 @@ public class WolfSSLSession {
     private native int rehandshake(long ssl);
     private native int set1SigAlgsList(long ssl, String list);
     private native int useSupportedCurve(long ssl, int name);
+    private native int disableExtendedMasterSecret(long ssl);
     private native int hasTicket(long session);
     private native int interruptBlockedIO(long ssl);
     private native int getThreadsBlockedInPoll(long ssl);
@@ -2239,6 +2240,23 @@ public class WolfSSLSession {
         }
 
         return ret;
+    }
+
+    /**
+     * Disable TLS Extended Master Secret usage.
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise
+     *         negative on error.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int disableExtendedMasterSecret()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return disableExtendedMasterSecret(this.sslPtr);
+        }
     }
 
     /* ---------------- Nonblocking DTLS helper functions  -------------- */

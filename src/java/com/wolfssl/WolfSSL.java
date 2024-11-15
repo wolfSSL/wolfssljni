@@ -1663,6 +1663,14 @@ public class WolfSSL {
     public static native int isEnabledPKCallbacks();
 
     /**
+     * Checks if TLS Extended Master Secret support has been compiled into
+     * native wolfSSL library.
+     *
+     * @return 1 if available, 0 if not compiled in.
+     */
+    public static native int isEnabledTLSExtendedMasterSecret();
+
+    /**
      * Checks which protocols where built into wolfSSL
      *
      * @return an array of Strings for supported protocols

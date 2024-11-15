@@ -889,6 +889,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSupportedCurve
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    disableExtendedMasterSecret
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableExtendedMasterSecret
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    hasTicket
  * Signature: (J)I
  */

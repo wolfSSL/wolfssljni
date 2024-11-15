@@ -534,6 +534,11 @@ are enabled in different ways depending on the JDK implementation. For
 Oracle/OpenJDK and variants, this System property enables session tickets and
 was added in Java 13. Should be set to "true" to enable.
 
+**jdk.tls.useExtendedMasterSecret (boolean)** - Can be used to enable or
+disable the use of the Extended Master Secret (EMS) extension. This extension
+is enabled by default, unless explicitly disabled by setting this property to
+false.
+
 **wolfjsse.autoSNI (boolean)** - Controls automatic Server Name Indication (SNI)
 extension setting based on hostname or peer address. When set to "true", enables
 legacy behavior where SNI is automatically configured from hostname/peer information

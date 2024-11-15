@@ -287,6 +287,35 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Return if TLS Extended Master Secret support has been enabled or
+     * disabled via the following System property:
+     *
+     * jdk.tls.useExtendedMasterSecret
+     *
+     * If property is not set (null) or an empty string, we default to
+     * leaving TLS Extended Master Secret enabled.
+     *
+     * @return true if enabled, otherwise false
+     */
+    protected static boolean useExtendedMasterSecret() {
+
+        String useEMS =
+            System.getProperty("jdk.tls.useExtendedMasterSecret");
+
+        /* Native wolfSSL defaults to having extended master secret support
+         * enabled. Do the same here if property not set or empty. */
+        if (useEMS == null || useEMS.isEmpty()) {
+            return true;
+        }
+
+        if (useEMS.equalsIgnoreCase("false")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Check given KeyStore against any pre-defind requirements for
      * KeyStore use, including the following.
      *

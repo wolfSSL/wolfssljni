@@ -1115,6 +1115,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledTLSExtendedMasterSecret
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledTLSExtendedMasterSecret
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    getProtocols
  * Signature: ()[Ljava/lang/String;
  */
