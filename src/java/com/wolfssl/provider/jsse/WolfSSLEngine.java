@@ -95,6 +95,12 @@ public class WolfSSLEngine extends SSLEngine {
     /* handshake completed */
     private boolean handshakeFinished = false;
 
+    /* Last return values of ssl.connect() / ssl.accept(). Protected
+     * by ioLock. Can be used during state transitions to see if handshake
+     * has finished successfully from native wolfSSL perspective. */
+    private int lastSSLConnectRet = WolfSSL.SSL_FAILURE;
+    private int lastSSLAcceptRet = WolfSSL.SSL_FAILURE;
+
     /* closeNotify status when shutting down */
     private boolean closeNotifySent = false;
     private boolean closeNotifyReceived = false;
@@ -467,6 +473,7 @@ public class WolfSSLEngine extends SSLEngine {
                 if (this.getUseClientMode()) {
                     synchronized (ioLock) {
                         ret = this.ssl.connect();
+                        lastSSLConnectRet = ret;
 
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.connect() ret:err = " + ret + " : " +
@@ -476,6 +483,7 @@ public class WolfSSLEngine extends SSLEngine {
                 else {
                     synchronized (ioLock) {
                         ret = this.ssl.accept();
+                        lastSSLAcceptRet = ret;
 
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "ssl.accept() ret:err = " + ret + " : " +
@@ -1360,6 +1368,32 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /**
+     * Return if native ssl.connect() or ssl.accept() have finished
+     * successfully or not. Used to correctly set this.handshakeFinished
+     * from SetHandshakeStatus().
+     *
+     * Caller of this method should protect it with lock on ioLock.
+     *
+     * @return true if native handshake finished, otherwise false.
+     */
+    private boolean sslConnectAcceptSuccess() {
+        boolean client = this.engineHelper.getUseClientMode();
+
+        if (client) {
+            if (this.lastSSLConnectRet == WolfSSL.SSL_SUCCESS) {
+                return true;
+            }
+        }
+        else {
+            if (this.lastSSLAcceptRet == WolfSSL.SSL_SUCCESS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Sets handshake status after I/O operation of unwrap(), helper function.
      */
     private synchronized void SetHandshakeStatus(int ret) {
@@ -1404,9 +1438,11 @@ public class WolfSSLEngine extends SSLEngine {
             else {
                 synchronized (netDataLock) {
                     synchronized (ioLock) {
-                        if (ssl.handshakeDone() && (this.toSend == null) &&
+                        if (sslConnectAcceptSuccess() && ssl.handshakeDone() &&
+                            (this.toSend == null) &&
                             (this.nativeWantsToWrite == 0) &&
                             (this.nativeWantsToRead == 0)) {
+
                             this.handshakeFinished = true;
                             hs = SSLEngineResult.HandshakeStatus.FINISHED;
                             this.engineHelper.getSession().updateStoredSessionValues();
