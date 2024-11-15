@@ -341,6 +341,7 @@ public class WolfSSLSession {
     private native int dtlsRetransmit(long ssl);
     private native int dtls(long ssl);
     private native int dtlsSetPeer(long ssl, InetSocketAddress peer);
+    private native int sendHrrCookie(long ssl, byte[] secret);
     private native InetSocketAddress dtlsGetPeer(long ssl);
     private native int sessionReused(long ssl);
     private native long getPeerCertificate(long ssl);
@@ -2399,6 +2400,28 @@ public class WolfSSLSession {
                 "entered dtlsSetPeer(" + peer + ")");
 
             return dtlsSetPeer(this.sslPtr, peer);
+        }
+    }
+
+    /**
+     * Send a cookie with the HelloRetryRequest to avoid storing state.
+     *
+     * @param secret Secret to use when generating integrity check for cookie.
+     * A value of null indicates to generate a new random secret.
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success,
+     *         <code>WolfSSL.BAD_FUNC_ARG</code> when not using (D)TLS 1.3,
+     *         <code>WolfSSL.SIDE_ERROR</code> when called on a client.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int sendHrrCookie(byte[] secret)
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return sendHrrCookie(this.sslPtr, secret);
         }
     }
 

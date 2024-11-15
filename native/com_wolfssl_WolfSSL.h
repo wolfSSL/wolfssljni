@@ -1099,6 +1099,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledSendHrrCookie
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledSendHrrCookie
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    isEnabledAtomicUser
  * Signature: ()I
  */

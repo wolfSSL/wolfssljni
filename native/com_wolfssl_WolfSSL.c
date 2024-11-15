@@ -1969,6 +1969,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledSendHrrCookie
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
   (JNIEnv* jenv, jclass jcl)
 {

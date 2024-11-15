@@ -1648,6 +1648,14 @@ public class WolfSSL {
     public static native int isEnabledDTLS();
 
     /**
+     * Checks if (D)TLS 1.3 HRR Cookie is enabled in the native wolfSSL
+     * library. Checks if native WOLFSSL_SEND_HRR_COOKIE is defined.
+     *
+     * @return 1 if enabled, 9 if not compiled in.
+     */
+    public static native int isEnabledSendHrrCookie();
+
+    /**
      * Checks if Atomic User support is enabled in wolfSSL native library.
      *
      * @return 1 if enabled, 0 if not compiled in

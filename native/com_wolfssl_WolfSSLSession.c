@@ -2708,6 +2708,43 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
     }
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray secret)
+{
+    int ret = SSL_FAILURE;
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    byte* secretBuf = NULL;
+    word32 secretSz = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (secret != NULL) {
+        secretBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, secret, NULL);
+        secretSz = (*jenv)->GetArrayLength(jenv, secret);
+    }
+
+    ret = wolfSSL_send_hrr_cookie(ssl, secretBuf, secretSz);
+
+    if (secret != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, secret,
+            (jbyte*)secretBuf, JNI_ABORT);
+    }
+
+#else
+    ret = NOT_COMPILED_IN;
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)secret;
+#endif /* WOLFSSL_SEND_HRR_COOKIE */
+
+    return (jint)ret;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint mtu)
 {

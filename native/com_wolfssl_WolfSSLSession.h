@@ -313,6 +313,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sendHrrCookie
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
+  (JNIEnv *, jobject, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    dtlsGetPeer
  * Signature: (J)Ljava/net/InetSocketAddress;
  */
