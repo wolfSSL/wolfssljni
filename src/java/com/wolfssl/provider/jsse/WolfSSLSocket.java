@@ -1456,6 +1456,8 @@ public class WolfSSLSocket extends SSLSocket {
     @Override
     public synchronized void startHandshake() throws IOException {
         int ret;
+        int err = 0;
+        String errStr = "";
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered startHandshake(), trying to get handshakeLock");
@@ -1506,19 +1508,25 @@ public class WolfSSLSocket extends SSLSocket {
 
             try {
                 ret = EngineHelper.doHandshake(0, this.getSoTimeout());
+                err = ssl.getError(ret);
+                errStr = WolfSSL.getErrorString(err);
+
+            /* close socket if the handshake is unsuccessful */
             } catch (SocketTimeoutException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     "got socket timeout in doHandshake()");
-                /* close socket if the handshake is unsuccessful */
+                close();
+                throw e;
+
+            } catch (SSLException e) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "native handshake failed in doHandshake(): error code: " +
+                    err + ", TID " + Thread.currentThread().getId() + ")");
                 close();
                 throw e;
             }
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                int err = ssl.getError(ret);
-                String errStr = WolfSSL.getErrorString(err);
-
-                /* close socket if the handshake is unsuccessful */
                 close();
                 throw new SSLHandshakeException(errStr + " (error code: " +
                     err + ", TID " + Thread.currentThread().getId() + ")");
