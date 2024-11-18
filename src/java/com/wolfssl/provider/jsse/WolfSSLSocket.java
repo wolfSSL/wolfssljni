@@ -2070,51 +2070,7 @@ public class WolfSSLSocket extends SSLSocket {
     /**
      * Connects the underlying Socket associated with this SSLSocket.
      *
-     * @param endpoint address of peer to connect underlying Socket to
-     *
-     * @throws IOException upon error connecting Socket
-     */
-    @Override
-    public synchronized void connect(SocketAddress endpoint)
-        throws IOException {
-
-        InetSocketAddress address = null;
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered connect(SocketAddress endpoint)");
-
-        if (!(endpoint instanceof InetSocketAddress)) {
-            throw new IllegalArgumentException("endpoint is not of type " +
-                "InetSocketAddress");
-        }
-
-        if (this.socket != null) {
-            this.socket.connect(endpoint);
-        } else {
-            super.connect(endpoint);
-        }
-
-        address = (InetSocketAddress)endpoint;
-
-        /* register host/port for session resumption in case where
-           createSocket() was called without host/port, but
-           SSLSocket.connect() was explicitly called with SocketAddress */
-        if (address != null && EngineHelper != null) {
-            EngineHelper.setHostAndPort(
-                address.getAddress().getHostAddress(),
-                address.getPort());
-            EngineHelper.setPeerAddress(address.getAddress());
-        }
-
-        /* if user is calling after WolfSSLSession creation, register
-           socket fd with native wolfSSL */
-        if (ssl != null) {
-            checkAndInitSSLSocket();
-        }
-    }
-
-    /**
-     * Connects the underlying Socket associated with this SSLSocket.
+     * Also called by super.connect(SocketAddress).
      *
      * @param endpoint address of peer to connect underlying socket to
      * @param timeout timeout value to set for underlying Socket connection
