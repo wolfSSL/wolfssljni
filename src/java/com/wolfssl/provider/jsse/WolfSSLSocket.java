@@ -2442,7 +2442,6 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                this.socket = null;
                 this.isClosed = true;
 
                 /* Reset "is closing" state to false, now closed */
@@ -2661,7 +2660,6 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                this.socket = null;
                 this.isClosed = true;
 
                 /* Reset "is closing" state to false, now closed */
