@@ -31,6 +31,7 @@ import java.security.SignatureException;
 import java.util.Date;
 import javax.security.cert.*;
 
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 
 /**

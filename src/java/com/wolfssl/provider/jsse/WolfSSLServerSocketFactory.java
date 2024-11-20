@@ -27,6 +27,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import java.net.ServerSocket;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLContext;
 
 /**

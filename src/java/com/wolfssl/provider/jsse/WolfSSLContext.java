@@ -43,6 +43,7 @@ import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSL.TLS_VERSION;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

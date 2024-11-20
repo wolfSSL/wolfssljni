@@ -27,6 +27,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.ServerSocket;
@@ -41,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
@@ -930,10 +933,240 @@ public class WolfSSLSessionTest {
         System.out.println("\t... passed");
     }
 
+    /**
+     * Creates a WolfSSLContext using the certs and keys provided.
+     *
+     * @param certPath file path to local peer certificate chain, PEM format
+     * @param keyPath file path to local peer private key file
+     * @param keyFormat format of private key file, ie
+     *        WolfSSL.SSL_FILETYPE_PEM
+     * @param caCertPath file path to CA cert file used to verify peer, PEM
+     *        formatted file
+     * @param method protocol method to use for this context, ie
+     *        WolfSSL.SSLv23_ClientMethod, WolfSSL.SSLv23_ServerMethod, etc
+     */
+    private WolfSSLContext createAndSetupWolfSSLContext(
+        String certPath, String keyPath, int keyFormat,
+        String caCertPath, long method) throws Exception {
+
+        int ret;
+        WolfSSLContext ctx = null;
+
+        ctx = new WolfSSLContext(method);
+
+        ret = ctx.useCertificateChainFile(certPath);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            ctx.free();
+            throw new Exception("Failed to load certificate: " + certPath);
+        }
+
+        ret = ctx.usePrivateKeyFile(keyPath, keyFormat);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            ctx.free();
+            throw new Exception("Failed to load private key: " + keyPath);
+        }
+
+        ret = ctx.loadVerifyLocations(caCertPath, null);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            ctx.free();
+            throw new Exception("Failed to load CA certs: " + caCertPath);
+        }
+
+        return ctx;
+    }
+
     @Test
-    public void test_WolfSSLSession_getSetSession()
-        throws WolfSSLJNIException, WolfSSLException,
-               IOException {
+    public void test_WolfSSLSession_connectionWithDebug() throws Exception {
+
+        int ret = 0;
+        int err = 0;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+
+        ByteArrayOutputStream outStream = null;
+        PrintStream originalSysOut = System.out;
+
+        /* Create client/server WolfSSLContext objects, Server context
+         * must be final since used inside inner class. */
+        final WolfSSLContext srvCtx;
+        WolfSSLContext cliCtx;
+
+        System.out.print("\tTesting wolfssljni.debug");
+
+        /* Save original property value, then enable debug. Make sure
+         * connection still works with debug enabled. */
+        String originalProp = System.getProperty("wolfssljni.debug");
+        System.setProperty("wolfssljni.debug", "true");
+
+        /* Refresh debug flags, since WolfSSLDebug static class has already
+         * been intiailzed before and static class variables have been set. */
+        WolfSSLDebug.refreshDebugFlags();
+
+        try {
+            /* wolfSSL JNI debug logs are printed to stdout via
+             * System.out.println(). Redirect stdout so we can check output, and
+             * it doesn't clutter up ant test output. */
+            outStream = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(outStream));
+
+            /* Create ServerSocket first to get ephemeral port */
+            final ServerSocket srvSocket = new ServerSocket(0);
+
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.SSLv23_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.SSLv23_ClientMethod());
+
+            /* Start server */
+            try {
+                ExecutorService es = Executors.newSingleThreadExecutor();
+                Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        int ret;
+                        int err;
+                        Socket server = null;
+                        WolfSSLSession srvSes = null;
+
+                        try {
+                            server = srvSocket.accept();
+                            srvSes = new WolfSSLSession(srvCtx);
+
+                            ret = srvSes.setFd(server);
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.setFd() failed: " + ret);
+                            }
+
+                            do {
+                                ret = srvSes.accept();
+                                err = srvSes.getError(ret);
+                            } while (ret != WolfSSL.SSL_SUCCESS &&
+                                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.accept() failed: " + ret);
+                            }
+
+                            srvSes.shutdownSSL();
+                            srvSes.freeSSL();
+                            srvSes = null;
+
+                        } finally {
+                            if (srvSes != null) {
+                                srvSes.freeSSL();
+                            }
+                            if (server != null) {
+                                server.close();
+                            }
+                        }
+
+                        return null;
+                    }
+                });
+
+            } catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail();
+            }
+
+            /* Client connection */
+            try {
+                cliSock = new Socket(InetAddress.getLocalHost(),
+                    srvSocket.getLocalPort());
+
+                cliSes = new WolfSSLSession(cliCtx);
+
+                ret = cliSes.setFd(cliSock);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception(
+                        "WolfSSLSession.setFd() failed, ret = " + ret);
+                }
+
+                do {
+                    ret = cliSes.connect();
+                    err = cliSes.getError(ret);
+                } while (ret != WolfSSL.SSL_SUCCESS &&
+                       (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                        err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception(
+                        "WolfSSLSession.connect() failed: " + err);
+                }
+
+                cliSes.shutdownSSL();
+                cliSes.freeSSL();
+                cliSes = null;
+                cliSock.close();
+                cliSock = null;
+
+            } catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail();
+
+            } finally {
+                if (cliSes != null) {
+                    cliSes.freeSSL();
+                }
+                if (cliSock != null) {
+                    cliSock.close();
+                }
+            }
+
+            /* Free resources */
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+
+        } finally {
+            /* Restore original property value */
+            if (originalProp == null || originalProp.isEmpty()) {
+                System.setProperty("wolfssljni.debug", "");
+            }
+            else {
+                System.setProperty("wolfssljni.debug", originalProp);
+            }
+            WolfSSLDebug.refreshDebugFlags();
+
+            /* Restore System.out direction */
+            System.setOut(originalSysOut);
+
+            /* Verify we have debug output and some expected strings */
+            if (outStream == null) {
+                System.out.println("\t... failed");
+                fail("outStream is null but should not be");
+            }
+
+            String debugOutput = outStream.toString();
+            if (debugOutput == null || debugOutput.isEmpty()) {
+                System.out.println("\t... failed");
+                fail("Debug output was null or empty, but expected");
+            }
+            if (!debugOutput.contains("connect() ret: 1")) {
+                System.out.println("\t... failed");
+                fail("Debug output did not contain connect() success");
+            }
+            if (!debugOutput.contains("accept() ret: 1")) {
+                System.out.println("\t... failed");
+                fail("Debug output did not contain accept() success");
+            }
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void test_WolfSSLSession_getSetSession() throws Exception {
 
         int ret = 0;
         int err = 0;
@@ -942,70 +1175,22 @@ public class WolfSSLSessionTest {
         Socket cliSock = null;
         WolfSSLSession cliSes = null;
 
+        /* Create client/server WolfSSLContext objects, Server context
+         * must be final since used inside inner class. */
+        final WolfSSLContext srvCtx;
+        WolfSSLContext cliCtx;
+
         System.out.print("\tTesting get/setSession()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
 
-        /* Create client/server WolfSSLContext objects, Server context
-         * must be final since used inside inner class. */
-        final WolfSSLContext srvCtx =
-            new WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
-        WolfSSLContext cliCtx =
-            new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
-
-        /* Load certificate/key files */
-        ret = srvCtx.useCertificateChainFile(srvCert);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load server certificate!");
-        }
-
-        ret = srvCtx.usePrivateKeyFile(srvKey,
-                WolfSSL.SSL_FILETYPE_PEM);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load server private key!");
-        }
-
-        ret = cliCtx.useCertificateFile(cliCert,
-                WolfSSL.SSL_FILETYPE_PEM);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load client certificate!");
-        }
-
-        ret = cliCtx.usePrivateKeyFile(cliKey,
-                WolfSSL.SSL_FILETYPE_PEM);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load client private key!");
-        }
-
-        /* Load CA certs */
-        ret = srvCtx.loadVerifyLocations(cliCert, null);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load CA certificates!");
-        }
-
-        ret = cliCtx.loadVerifyLocations(caCert, null);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            srvCtx.free();
-            cliCtx.free();
-            System.out.println("\t... failed");
-            fail("Failed to load CA certificates!");
-        }
+        srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+            WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.SSLv23_ServerMethod());
+        cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+            WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.SSLv23_ClientMethod());
 
         /* Start server, handles 1 resumption */
         try {

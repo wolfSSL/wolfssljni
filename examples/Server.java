@@ -217,7 +217,6 @@ public class Server {
 
             /* init library */
             WolfSSL sslLib = new WolfSSL();
-            sslLib.debuggingON();
 
             /* set logging callback */
             if (logCallback == 1) {

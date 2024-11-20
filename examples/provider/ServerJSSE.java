@@ -35,7 +35,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.provider.jsse.WolfSSLDebug;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class ServerJSSE {

@@ -23,6 +23,7 @@ package com.wolfssl.provider.jsse;
 
 import java.security.Provider;
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLFIPSErrorCallback;
 

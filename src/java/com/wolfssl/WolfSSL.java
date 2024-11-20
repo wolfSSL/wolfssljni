@@ -568,7 +568,12 @@ public class WolfSSL {
      *                                      initialize correctly
      */
     public WolfSSL() throws WolfSSLException {
-        int ret = init();
+        int ret;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "initializing wolfSSL library");
+
+        ret = init();
         if (ret != SSL_SUCCESS) {
             throw new WolfSSLException("Failed to initialize wolfSSL library: "
                     + ret);
@@ -663,6 +668,9 @@ public class WolfSSL {
 
         int fipsLoaded = 0;
 
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "loading native library: wolfssl");
+
         String osName = System.getProperty("os.name");
         if (osName != null && osName.toLowerCase().contains("win")) {
             try {
@@ -680,6 +688,9 @@ public class WolfSSL {
             }
         }
 
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "loading native library: wolfssljni");
+
         /* Load wolfssljni library */
         System.loadLibrary("wolfssljni");
     }
@@ -695,6 +706,10 @@ public class WolfSSL {
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary(String libName) throws UnsatisfiedLinkError {
+
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "loading native library by name: " + libName);
+
         System.loadLibrary(libName);
     }
 
@@ -716,6 +731,10 @@ public class WolfSSL {
      */
     public static void loadLibraryAbsolute(String libPath)
         throws UnsatisfiedLinkError {
+
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "loading native library by path: " + libPath);
+
         System.load(libPath);
     }
 
@@ -1489,6 +1508,9 @@ public class WolfSSL {
      */
     public static int cryptoCbRegisterDevice(int devId) {
 
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "registering crypto cb devId: " + devId);
+
         return wc_CryptoCb_RegisterDevice(devId);
     }
 
@@ -1499,6 +1521,9 @@ public class WolfSSL {
      * @return 0 on success, negative on error.
      */
     public static int cryptoCbUnRegisterDevice(int devId) {
+
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "unregistering crypto cb devId: " + devId);
 
         wc_CryptoCb_UnRegisterDevice(devId);
 

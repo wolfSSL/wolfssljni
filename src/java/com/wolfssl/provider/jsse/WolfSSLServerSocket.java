@@ -30,6 +30,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLParameters;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLContext;
 

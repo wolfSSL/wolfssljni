@@ -48,6 +48,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLException;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLIORecvCallback;
