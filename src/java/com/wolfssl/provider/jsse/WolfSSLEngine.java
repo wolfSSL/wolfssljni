@@ -1394,7 +1394,7 @@ public class WolfSSLEngine extends SSLEngine {
     public String[] getSupportedCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedCipherSuites()");
-        return this.engineHelper.getAllCiphers();
+        return WolfSSLEngineHelper.getAllCiphers();
     }
 
     @Override
@@ -1415,7 +1415,7 @@ public class WolfSSLEngine extends SSLEngine {
     public String[] getSupportedProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
-        return this.engineHelper.getAllProtocols();
+        return WolfSSLEngineHelper.getAllProtocols();
     }
 
     @Override

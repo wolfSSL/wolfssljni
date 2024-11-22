@@ -454,7 +454,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of all supported cipher suites
      */
-    protected synchronized String[] getAllCiphers() {
+    protected static synchronized String[] getAllCiphers() {
         return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
@@ -551,7 +551,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of supported protocols
      */
-    protected synchronized String[] getAllProtocols() {
+    protected static synchronized String[] getAllProtocols() {
         return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
     }
 
