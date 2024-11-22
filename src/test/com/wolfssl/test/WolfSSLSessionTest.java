@@ -1154,11 +1154,13 @@ public class WolfSSLSessionTest {
             }
             if (!debugOutput.contains("connect() ret: 1")) {
                 System.out.println("\t... failed");
-                fail("Debug output did not contain connect() success");
+                fail("Debug output did not contain connect() success:\n" +
+                     debugOutput);
             }
             if (!debugOutput.contains("accept() ret: 1")) {
                 System.out.println("\t... failed");
-                fail("Debug output did not contain accept() success");
+                fail("Debug output did not contain accept() success:\n" +
+                     debugOutput);
             }
         }
 

@@ -65,7 +65,9 @@ public class WolfSSLDebug {
      * Will be used to determine what string gets put into log messages.
      */
     public enum Component {
+        /** wolfSSL JNI component */
         JNI("wolfJNI"),
+        /** wolfSSL JSSE component */
         JSSE("wolfJSSE");
 
         private final String componentString;
