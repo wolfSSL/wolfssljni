@@ -20,10 +20,11 @@
  */
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
-import com.wolfssl.WolfSSL;
 import java.security.Principal;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;

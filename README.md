@@ -218,6 +218,7 @@ and what each enables.
 | System Property | Default | To Enable | Description |
 | --- | --- | --- | --- |
 | wolfssl.debug | "false" | "true" | Enables native wolfSSL debug logging |
+| wolfssljni.debug | "false" | "true" | Enables wolfJNI debug logging |
 | wolfjsse.debug | "false" | "true | Enables wolfJSSE debug logging |
 | wolfjsse.debugFormat | | "JSON" | Switches debug output format |
 | wolfsslengine.debug | "false" | "true" | Enables SSLEngine debug logging |
@@ -237,6 +238,15 @@ Or these system properties can also be set programmatically at runtime, ie:
 ```
 System.setProperty("wolfjsse.debug", "true");
 System.setProperty("wolfsslengine.debug", "true);
+```
+
+If wolfSSL JNI/JSSE debug System properties are changed at runtime after
+the WolfSSLDebug class has already been initialized/used, applications need
+to refresh the debug property values inside the WolfSSLDebug class. To do so,
+after setting System properties, call:
+
+```
+WolfSSLDebug.refreshDebugFlags()
 ```
 
 JDK debug logging can be enabled using the `-Djavax.net.debug=all` option.

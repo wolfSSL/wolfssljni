@@ -21,8 +21,10 @@
 
 package com.wolfssl;
 
+import java.util.Arrays;
 import java.nio.ByteBuffer;
 import com.wolfssl.wolfcrypt.EccKey;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 
@@ -90,11 +92,21 @@ public class WolfSSLContext {
      * @throws com.wolfssl.WolfSSLException when creation of SSL context fails
      */
     public WolfSSLContext(long method) throws WolfSSLException {
+
         sslCtxPtr = newContext(method);
         if (sslCtxPtr == 0) {
             throw new WolfSSLException("Failed to create SSL Context");
         }
         this.active = true;
+
+        WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, sslCtxPtr, "creating new WolfSSLContext");
+
+        /* Enable native wolfSSL debug logging if 'wolfssl.debug'
+         * System property is set. Also attempted in WolfSSLProvider
+         * but System property may not have been set by user yet at that
+         * point. */
+        WolfSSLDebug.setNativeWolfSSLDebugging();
     }
 
     /* ------------------- private/protected methods -------------------- */
@@ -425,6 +437,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useCertificateFile(" + file + ", " + format +")");
+
             return useCertificateFile(getContextPtr(), file, format);
         }
     }
@@ -459,8 +475,12 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        synchronized (ctxLock) {
-            return usePrivateKeyFile(getContextPtr(), file, format);
+       synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered usePrivateKeyFile(" + file + ", " + format +")");
+
+             return usePrivateKeyFile(getContextPtr(), file, format);
         }
     }
 
@@ -513,6 +533,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered loadVerifyLocations(" + file + ", " + path +")");
+
             return loadVerifyLocations(getContextPtr(), file, path);
         }
     }
@@ -543,6 +567,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useCertificateChainFile(" + file + ")");
+
             return useCertificateChainFile(getContextPtr(), file);
         }
     }
@@ -588,6 +616,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setVerify(" + mode + ", " + callback + ")");
+
             setVerify(getContextPtr(), mode, callback);
         }
     }
@@ -607,6 +639,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setOptions(" + op + ")");
+
             return setOptions(getContextPtr(), op);
         }
     }
@@ -625,6 +661,9 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered getOptions()");
+
             return getOptions(getContextPtr());
         }
     }
@@ -648,6 +687,9 @@ public class WolfSSLContext {
             }
 
             synchronized (ctxLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.sslCtxPtr, "entered free()");
+
                 /* free native resources */
                 freeContext(this.sslCtxPtr);
 
@@ -689,6 +731,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered memsaveCertCache()");
+
             return memsaveCertCache(getContextPtr(), mem, sz, used);
         }
     }
@@ -724,6 +770,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered memrestoreCertCache()");
+
             return memrestoreCertCache(getContextPtr(), mem, sz);
         }
     }
@@ -748,6 +798,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered getCertCacheMemsize()");
+
             return getCertCacheMemsize(getContextPtr());
         }
     }
@@ -767,6 +821,9 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered setCacheSize()");
+
             return setCacheSize(getContextPtr(), sz);
         }
     }
@@ -784,6 +841,9 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered getCacheSize()");
+
             return getCacheSize(getContextPtr());
         }
     }
@@ -820,6 +880,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setCipherList(" + list + ")");
+
             return setCipherList(getContextPtr(), list);
         }
     }
@@ -845,6 +909,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setTmpDh(pSz: " + pSz + ", gSz: " + gSz + ")");
+
             return setTmpDH(getContextPtr(), p, pSz, g, gSz);
         }
     }
@@ -874,6 +942,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setTmpDhFile(" + fname + ", " + format + ")");
+
             return setTmpDHFile(getContextPtr(), fname, format);
         }
     }
@@ -921,6 +993,11 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered loadVerifyBuffer(sz: " + sz + ", format: " +
+                format +")");
+
             return loadVerifyBuffer(getContextPtr(), in, sz, format);
         }
     }
@@ -959,6 +1036,11 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useCertificateBuffer(sz: " + sz + ", format: " +
+                format + ")");
+
             return useCertificateBuffer(getContextPtr(), in, sz, format);
         }
     }
@@ -1000,6 +1082,11 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered usePrivateKeyBuffer(sz: " + sz + ", format: " +
+                format + ")");
+
             return usePrivateKeyBuffer(getContextPtr(), in, sz, format);
         }
     }
@@ -1041,6 +1128,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useCertificateChainBuffer(sz: " + sz + ")");
+
             return useCertificateChainBuffer(getContextPtr(), in, sz);
         }
     }
@@ -1086,6 +1177,11 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useCertificateChainBufferFormat(sz: " +
+                sz + ", format: " + format + ")");
+
             return useCertificateChainBufferFormat(
                         getContextPtr(), in, sz, format);
         }
@@ -1105,6 +1201,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setGroupMessages()");
+
             return setGroupMessages(getContextPtr());
         }
     }
@@ -1134,11 +1234,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set user I/O recv */
-        internRecvCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setIORecv(" + callback + ")");
+
+            /* set user I/O recv */
+            internRecvCb = callback;
+
+            /* register internal callback with native library */
             setIORecv(getContextPtr());
         }
     }
@@ -1168,11 +1272,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set user I/O send */
-        internSendCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setIOSend(" + callback + ")");
+
+            /* set user I/O send */
+            internSendCb = callback;
+
+            /* register internal callback with native library */
             setIOSend(getContextPtr());
         }
     }
@@ -1202,11 +1310,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set DTLS cookie generation callback */
-        internCookieCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setGenCookie(" + callback + ")");
+
+            /* set DTLS cookie generation callback */
+            internCookieCb = callback;
+
+            /* register internal callback with native library */
             setGenCookie(getContextPtr());
         }
     }
@@ -1239,6 +1351,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered enableCRL(" + options + ")");
+
             return enableCRL(getContextPtr(), options);
         }
     }
@@ -1265,6 +1381,9 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered disableCRL()");
+
             return disableCRL(getContextPtr());
         }
     }
@@ -1314,6 +1433,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered loadCRL(" + path + ", " + type + ", " + monitor);
+
             return loadCRL(getContextPtr(), path, type, monitor);
         }
     }
@@ -1341,6 +1464,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setCRLCb(" + cb + ")");
+
             return setCRLCb(getContextPtr(), cb);
         }
     }
@@ -1373,6 +1500,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered enableOCSP(" + options + ")");
+
             return enableOCSP(getContextPtr(), options);
         }
     }
@@ -1390,6 +1521,9 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered disableOCSP()");
+
             return disableOCSP(getContextPtr());
         }
     }
@@ -1417,6 +1551,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setOCSPOverrideUrl(" + url + ")");
+
             return setOCSPOverrideUrl(getContextPtr(), url);
         }
     }
@@ -1451,11 +1589,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set MAC encrypt callback */
-        internMacEncryptCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setMacEncryptCb(" + callback + ")");
+
+            /* set MAC encrypt callback */
+            internMacEncryptCb = callback;
+
+            /* register internal callback with native library */
             setMacEncryptCb(getContextPtr());
         }
     }
@@ -1491,11 +1633,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set decrypt/verify callback */
-        internDecryptVerifyCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setDecryptVerifyCb(" + callback + ")");
+
+            /* set decrypt/verify callback */
+            internDecryptVerifyCb = callback;
+
+            /* register internal callback with native library */
             setDecryptVerifyCb(getContextPtr());
         }
     }
@@ -1527,11 +1673,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set ecc sign callback */
-        internEccSignCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setEccSignCb(" + callback + ")");
+
+            /* set ecc sign callback */
+            internEccSignCb = callback;
+
+            /* register internal callback with native library */
             setEccSignCb(getContextPtr());
         }
     }
@@ -1563,11 +1713,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set ecc verify callback */
-        internEccVerifyCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setEccVerifyCb(" + callback + ")");
+
+            /* set ecc verify callback */
+            internEccVerifyCb = callback;
+
+            /* register internal callback with native library */
             setEccVerifyCb(getContextPtr());
         }
     }
@@ -1615,11 +1769,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set ecc shared secret callback */
-        internEccSharedSecretCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setEccSharedSecretCb(" + callback + ")");
+
+            /* set ecc shared secret callback */
+            internEccSharedSecretCb = callback;
+
+            /* register internal callback with native library */
             setEccSharedSecretCb(getContextPtr());
         }
     }
@@ -1651,11 +1809,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set rsa sign callback */
-        internRsaSignCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setRsaSignCb(" + callback + ")");
+
+            /* set rsa sign callback */
+            internRsaSignCb = callback;
+
+            /* register internal callback with native library */
             setRsaSignCb(getContextPtr());
         }
     }
@@ -1687,11 +1849,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set rsa verify callback */
-        internRsaVerifyCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setRsaVerifyCb(" + callback + ")");
+
+            /* set rsa verify callback */
+            internRsaVerifyCb = callback;
+
+            /* register internal callback with native library */
             setRsaVerifyCb(getContextPtr());
         }
     }
@@ -1723,11 +1889,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set rsa public encrypt callback */
-        internRsaEncCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setRsaEncCb(" + callback + ")");
+
+            /* set rsa public encrypt callback */
+            internRsaEncCb = callback;
+
+            /* register internal callback with native library */
             setRsaEncCb(getContextPtr());
         }
     }
@@ -1758,11 +1928,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set rsa private decrypt callback */
-        internRsaDecCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setRsaDecCb(" + callback + ")");
+
+            /* set rsa private decrypt callback */
+            internRsaDecCb = callback;
+
+            /* register internal callback with native library */
             setRsaDecCb(getContextPtr());
         }
     }
@@ -1797,11 +1971,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set PSK client callback */
-        internPskClientCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setPskClientCb(" + callback + ")");
+
+            /* set PSK client callback */
+            internPskClientCb = callback;
+
+            /* register internal callback with native library */
             setPskClientCb(getContextPtr());
         }
     }
@@ -1835,11 +2013,15 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
-        /* set PSK server callback */
-        internPskServerCb = callback;
-
-        /* register internal callback with native library */
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setPskServerCb(" + callback + ")");
+
+            /* set PSK server callback */
+            internPskServerCb = callback;
+
+            /* register internal callback with native library */
             setPskServerCb(getContextPtr());
         }
     }
@@ -1865,6 +2047,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered usePskIdentityHint()");
+
             return usePskIdentityHint(getContextPtr(), hint);
         }
     }
@@ -1896,6 +2082,10 @@ public class WolfSSLContext {
 
         int ret = 0;
         int curveEnum = 0;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, getContextPtr(), "entered useSupportedCurves(" +
+            Arrays.asList(curveNames) + ")");
 
         for (String curve : curveNames) {
             curveEnum = WolfSSL.getNamedGroupFromString(curve);
@@ -1960,6 +2150,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(), "entered setGroups(" +
+                Arrays.asList(groups) + ")");
+
             return setGroups(getContextPtr(), groups);
         }
     }
@@ -1981,6 +2175,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered set1SigAlgsList(" + list + ")");
+
             return set1SigAlgsList(getContextPtr(), list);
         }
     }
@@ -2001,6 +2199,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered useSecureRenegotiation()");
+
             return useSecureRenegotiation(getContextPtr());
         }
     }
@@ -2022,6 +2224,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setMinDHKeySize(" + minKeySizeBits + ")");
+
             return setMinDhKeySz(getContextPtr(), minKeySizeBits);
         }
     }
@@ -2043,6 +2249,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setMinRSAKeySize(" + minKeySizeBits + ")");
+
             return setMinRsaKeySz(getContextPtr(), minKeySizeBits);
         }
     }
@@ -2064,6 +2274,10 @@ public class WolfSSLContext {
         confirmObjectIsActive();
 
         synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setMinECCKeySize(" + minKeySizeBits + ")");
+
             return setMinEccKeySz(getContextPtr(), minKeySizeBits);
         }
     }
@@ -2082,6 +2296,10 @@ public class WolfSSLContext {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, getContextPtr(),
+            "entered setDevId(" + devId + ")");
+
         return setDevId(getContextPtr(), devId);
     }
 
@@ -2097,6 +2315,10 @@ public class WolfSSLContext {
     public void flushSessions(int tm) throws IllegalStateException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, getContextPtr(),
+            "entered flushSessions(" + tm + ")");
 
         flushSessions(getContextPtr(), tm);
     }

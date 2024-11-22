@@ -27,6 +27,7 @@ import java.security.KeyStoreException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateEncodingException;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 
 /**
@@ -61,11 +62,15 @@ public class WolfSSLCertManager {
      * @throws WolfSSLException if unable to create new manager
      */
     public WolfSSLCertManager() throws WolfSSLException {
+
         cmPtr = CertManagerNew();
         if (cmPtr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertManager");
         }
         this.active = true;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, cmPtr, "creating new WolfSSLCertManager");
     }
 
     /**
@@ -99,6 +104,10 @@ public class WolfSSLCertManager {
         confirmObjectIsActive();
 
         synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr, "entered CertManagerLoadCA(" +
+                f + ", " + d + "");
+
             return CertManagerLoadCA(this.cmPtr, f, d);
         }
     }
@@ -121,6 +130,11 @@ public class WolfSSLCertManager {
         confirmObjectIsActive();
 
         synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr,
+                "entered CertManagerLoadCABuffer(sz: " + sz +
+                ", format: " + format + "");
+
             return CertManagerLoadCABuffer(this.cmPtr, in, sz, format);
         }
     }
@@ -141,6 +155,10 @@ public class WolfSSLCertManager {
         int loadedCerts = 0;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.cmPtr,
+            "entered CertManagerLoadCAKeyStore(" + ks + ")");
 
         if (ks == null) {
             throw new WolfSSLException("Input KeyStore is null");
@@ -194,6 +212,10 @@ public class WolfSSLCertManager {
         confirmObjectIsActive();
 
         synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr,
+                "entered CertManagerUnloadCAs()");
+
             return CertManagerUnloadCAs(this.cmPtr);
         }
     }
@@ -217,6 +239,11 @@ public class WolfSSLCertManager {
         confirmObjectIsActive();
 
         synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr,
+                "entered CertManagerVerifyBuffer(sz: " + sz + ", format: " +
+                format + ")");
+
             return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
         }
     }
@@ -228,12 +255,16 @@ public class WolfSSLCertManager {
     public synchronized void free() throws IllegalStateException {
 
         synchronized (stateLock) {
+
             if (this.active == false) {
                 /* already freed, just return */
                 return;
             }
 
             synchronized (cmLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.cmPtr, "entered free()");
+
                 /* free native resources */
                 CertManagerFree(this.cmPtr);
 

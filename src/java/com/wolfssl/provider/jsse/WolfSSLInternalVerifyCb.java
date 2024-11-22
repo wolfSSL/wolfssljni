@@ -20,6 +20,7 @@
  */
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

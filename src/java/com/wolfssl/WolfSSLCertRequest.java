@@ -29,6 +29,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.ECPrivateKey;
+import com.wolfssl.WolfSSLDebug;
 
 /**
  * WolfSSLCertRequest class, wraps native X509_REQ functionality.
@@ -86,6 +87,9 @@ public class WolfSSLCertRequest {
             throw new WolfSSLException("Failed to create WolfSSLCertRequest");
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509ReqPtr, "creating new WolfSSLCertRequest");
+
         synchronized (stateLock) {
             this.active = true;
         }
@@ -128,6 +132,10 @@ public class WolfSSLCertRequest {
         confirmObjectIsActive();
 
         synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered setSubjectName(" + name + ")");
+
             /* TODO somehow lock WolfSSLX509Name object while using pointer? */
             ret = X509_REQ_set_subject_name(this.x509ReqPtr,
                     name.getNativeX509NamePtr());
@@ -163,6 +171,10 @@ public class WolfSSLCertRequest {
         int ret;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr,
+            "entered addAttribute(nid: " + nid + ", byte[])");
 
         if (nid != WolfSSL.NID_pkcs9_challengePassword &&
             nid != WolfSSL.NID_serialNumber &&
@@ -212,6 +224,10 @@ public class WolfSSLCertRequest {
         confirmObjectIsActive();
 
         synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered setVersion(" + version + ")");
+
             ret = X509_REQ_set_version(this.x509ReqPtr, version);
         }
 
@@ -245,6 +261,10 @@ public class WolfSSLCertRequest {
         byte[] fileBytes = null;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr, "entered setPublicKey(" +
+            filePath + ", type: " + keyType + ", format: " + format + ")");
 
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
@@ -288,6 +308,11 @@ public class WolfSSLCertRequest {
         int evpKeyType;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr,
+            "entered setPublicKey(byte[], type: " + keyType + ", format: " +
+            format + ")");
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -340,6 +365,10 @@ public class WolfSSLCertRequest {
         byte[] encodedKey = null;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr,
+            "entered setPublicKey(" + key + ")");
 
         if (key instanceof RSAPublicKey) {
             keyType = WolfSSL.RSAk;
@@ -413,6 +442,10 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr, "entered addExtension(nid: " +
+            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+
         if (nid != WolfSSL.NID_key_usage &&
             nid != WolfSSL.NID_subject_alt_name &&
             nid != WolfSSL.NID_ext_key_usage) {
@@ -469,6 +502,10 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr, "entered addExtension(nid: " +
+            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+
         if (nid != WolfSSL.NID_basic_constraints) {
             throw new WolfSSLException(
                 "Unsupported X509v3 extension NID: " + nid);
@@ -516,6 +553,11 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(" +
+            filePath + ", keyType: " + keyType + ", format: " + format +
+            ", digestAlg: " + digestAlg + ")");
+
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
         }
@@ -561,6 +603,11 @@ public class WolfSSLCertRequest {
         int evpKeyType;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr,
+            "entered signRequest(byte[], keyType: " + keyType + ", format: " +
+            format + ", digestAlg: " + digestAlg + ")");
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -618,6 +665,10 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(key: " +
+            key + ", digestAlg: " + digestAlg + ")");
+
         if (key == null) {
             throw new WolfSSLException("Key object is null");
         }
@@ -664,6 +715,9 @@ public class WolfSSLCertRequest {
         confirmObjectIsActive();
 
         synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr, "entered getDer()");
+
             return X509_REQ_get_der(this.x509ReqPtr);
         }
     }
@@ -681,6 +735,9 @@ public class WolfSSLCertRequest {
         confirmObjectIsActive();
 
         synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr, "entered getPem()");
+
             return X509_REQ_get_pem(this.x509ReqPtr);
         }
     }
@@ -715,12 +772,17 @@ public class WolfSSLCertRequest {
     public synchronized void free() {
 
         synchronized (stateLock) {
+
             if (this.active == false) {
                 /* already freed, just return */
                 return;
             }
 
             synchronized (x509ReqLock) {
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.x509ReqPtr, "entered free()");
+
                 /* free native resources */
                 X509_REQ_free(this.x509ReqPtr);
 

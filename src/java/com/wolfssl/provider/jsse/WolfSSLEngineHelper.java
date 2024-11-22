@@ -42,6 +42,7 @@ import java.security.cert.X509Certificate;
 import java.security.cert.CertificateEncodingException;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

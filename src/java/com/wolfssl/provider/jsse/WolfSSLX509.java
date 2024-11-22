@@ -46,6 +46,7 @@ import java.util.TreeSet;
 import java.util.List;
 import java.util.Collection;
 
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

@@ -33,6 +33,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 
 /**

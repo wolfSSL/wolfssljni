@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSL.TLS_VERSION;
 import com.wolfssl.WolfSSLSession;
 import javax.net.ssl.KeyManager;

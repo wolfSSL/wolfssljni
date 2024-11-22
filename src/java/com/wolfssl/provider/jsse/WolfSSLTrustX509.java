@@ -43,6 +43,7 @@ import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.security.auth.x500.X500Principal;
 
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.WolfSSLException;

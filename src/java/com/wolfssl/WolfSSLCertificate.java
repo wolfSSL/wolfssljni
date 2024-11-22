@@ -46,6 +46,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
+import com.wolfssl.WolfSSLDebug;
 
 /**
  * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
@@ -141,6 +142,9 @@ public class WolfSSLCertificate implements Serializable {
         /* x509Ptr has been allocated natively, mark as owned */
         this.weOwnX509Ptr = true;
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr, "creating new WolfSSLCertificate");
+
         synchronized (stateLock) {
             this.active = true;
         }
@@ -165,6 +169,10 @@ public class WolfSSLCertificate implements Serializable {
         if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr,
+            "creating new WolfSSLCertificate(byte[])");
 
         /* x509Ptr has been allocated natively, mark as owned */
         this.weOwnX509Ptr = true;
@@ -204,6 +212,10 @@ public class WolfSSLCertificate implements Serializable {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr,
+            "creating new WolfSSLCertificate(byte[], format: " + format +")");
+
         /* x509Ptr has been allocated natively, mark as owned */
         this.weOwnX509Ptr = true;
 
@@ -231,6 +243,10 @@ public class WolfSSLCertificate implements Serializable {
         if (x509Ptr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr, "creating new WolfSSLCertificate(" +
+            fileName + ")");
 
         /* x509Ptr has been allocated natively, mark as owned */
         this.weOwnX509Ptr = true;
@@ -271,6 +287,10 @@ public class WolfSSLCertificate implements Serializable {
             throw new WolfSSLException("Failed to create WolfSSLCertificate");
         }
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr, "creating new WolfSSLCertificate(" +
+            fileName + ", format: " + format + ")");
+
         /* x509Ptr has been allocated natively, mark as owned */
         this.weOwnX509Ptr = true;
 
@@ -297,6 +317,11 @@ public class WolfSSLCertificate implements Serializable {
             throw new WolfSSLException("Input pointer may not be 0/NULL");
         }
         x509Ptr = x509;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509Ptr,
+            "creating new WolfSSLCertificate(ptr, doFree: " + doFree + ")");
+
 
         if (!doFree) {
             /* x509Ptr has NOT been allocated natively, do not mark as owned.
@@ -365,6 +390,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering getSubjectName(" + name + ")");
+
             /* TODO somehow lock WolfSSLX509Name object while using pointer? */
             ret = X509_set_subject_name(this.x509Ptr,
                     name.getNativeX509NamePtr());
@@ -397,6 +426,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering getIssuerName(" + name + ")");
+
             /* TODO somehow lock WolfSSLX509Name object while using pointer? */
             ret = X509_set_issuer_name(this.x509Ptr,
                     name.getNativeX509NamePtr());
@@ -428,6 +461,10 @@ public class WolfSSLCertificate implements Serializable {
         long x509NamePtr = 0;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setIssuerName(" +
+            cert + ")");
 
         x509NamePtr = X509_get_issuer_name_ptr(cert.getX509Ptr());
         if (x509NamePtr == 0) {
@@ -468,6 +505,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setIssuerName(" +
+            cert + ")");
+
         /* Get DER encoding of certificate */
         certDer = cert.getEncoded();
 
@@ -505,6 +546,10 @@ public class WolfSSLCertificate implements Serializable {
         byte[] fileBytes = null;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setPublicKey(" +
+            filePath + ", keyType: " + keyType + ", format: " + format + ")");
 
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
@@ -548,6 +593,11 @@ public class WolfSSLCertificate implements Serializable {
         int evpKeyType;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr,
+            "entering setPublicKey(byte[], keyType: " +
+            keyType + ", format: " + format + ")");
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -601,6 +651,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setPublicKey(" +
+            key + ")");
+
         if (key instanceof RSAPublicKey) {
             keyType = WolfSSL.RSAk;
         }
@@ -639,6 +693,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setSerialNumber(" +
+            serial + ")");
+
         if (serial == null) {
             throw new WolfSSLException("Input BigInteger is null");
         }
@@ -676,6 +734,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setNotBefore(" +
+            notBefore + ")");
+
         synchronized (x509Lock) {
             ret = X509_set_notBefore(this.x509Ptr, notBefore.getTime() / 1000);
         }
@@ -702,6 +764,10 @@ public class WolfSSLCertificate implements Serializable {
         int ret = 0;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering setNotAfter(" +
+            notAfter + ")");
 
         synchronized (x509Lock) {
             ret = X509_set_notAfter(this.x509Ptr, notAfter.getTime() / 1000);
@@ -735,6 +801,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering addAltName(" +
+                name + ", type: " + type + ")");
+
             ret = X509_add_altname(this.x509Ptr, name, type);
         }
 
@@ -796,6 +866,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering addExtension(nid: " +
+            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+
         if (nid != WolfSSL.NID_key_usage &&
             nid != WolfSSL.NID_subject_alt_name &&
             nid != WolfSSL.NID_ext_key_usage) {
@@ -852,6 +926,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering addExtension(nid: " +
+            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+
         if (nid != WolfSSL.NID_basic_constraints) {
             throw new WolfSSLException(
                 "Unsupported X509v3 extension NID: " + nid);
@@ -899,6 +977,11 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering signCert(" + filePath +
+            ", keyType: " + keyType + ", format: " + format + ", digestAlg: " +
+            digestAlg + ")");
+
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
         }
@@ -944,6 +1027,11 @@ public class WolfSSLCertificate implements Serializable {
         int evpKeyType;
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr,
+            "entering signCert(byte[], keyType: " + keyType + ", format: " +
+            format + ", digestAlg: " + digestAlg + ")");
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -1000,6 +1088,10 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering signCert(" + key +
+            ", digestAlg: " + digestAlg + ")");
+
         if (key == null) {
             throw new WolfSSLException("Key object is null");
         }
@@ -1046,6 +1138,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getDer()");
+
             return X509_get_der(this.x509Ptr);
         }
     }
@@ -1063,6 +1158,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getPem()");
+
             return X509_get_pem(this.x509Ptr);
         }
     }
@@ -1079,6 +1177,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getTbs()");
+
             return X509_get_tbs(this.x509Ptr);
         }
     }
@@ -1098,7 +1199,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
-        sz = X509_get_serial_number(this.x509Ptr, out);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getSerial()");
+
+            sz = X509_get_serial_number(this.x509Ptr, out);
         }
         if (sz <= 0) {
             return null;
@@ -1123,6 +1227,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering notBefore()");
+
             nb  = X509_notBefore(this.x509Ptr);
         }
         if (nb != null) {
@@ -1152,6 +1259,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering notAfter()");
+
             nb = X509_notAfter(this.x509Ptr);
         }
         if (nb != null) {
@@ -1179,6 +1289,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getVersion()");
+
             return X509_version(this.x509Ptr);
         }
     }
@@ -1195,6 +1308,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getSignature()");
+
             return X509_get_signature(this.x509Ptr);
         }
     }
@@ -1211,6 +1327,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getSignatureType()");
+
             return X509_get_signature_type(this.x509Ptr);
         }
     }
@@ -1227,6 +1346,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getSignatureOID)");
+
             return X509_get_signature_OID(this.x509Ptr);
         }
     }
@@ -1243,6 +1365,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getPubkey()");
+
             return X509_get_pubkey(this.x509Ptr);
         }
     }
@@ -1259,6 +1384,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getPubkeyType()");
+
             return X509_get_pubkey_type(this.x509Ptr);
         }
     }
@@ -1275,6 +1403,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering isCA()");
+
             return X509_get_isCA(this.x509Ptr);
         }
     }
@@ -1291,6 +1422,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getPathLen()");
+
             return X509_get_pathLength(this.x509Ptr);
         }
     }
@@ -1307,6 +1441,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getSubject()");
+
             return X509_get_subject_name(this.x509Ptr);
         }
     }
@@ -1323,6 +1460,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getIssuer()");
+
             return X509_get_issuer_name(this.x509Ptr);
         }
     }
@@ -1345,6 +1485,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering verify(byte[], pubKeySz: " + pubKeySz + ")");
+
             ret  = X509_verify(this.x509Ptr, pubKey, pubKeySz);
         }
         if (ret == WolfSSL.SSL_SUCCESS) {
@@ -1377,6 +1521,9 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering getKeyUsage()");
+
             return X509_get_key_usage(this.x509Ptr);
         }
     }
@@ -1394,11 +1541,15 @@ public class WolfSSLCertificate implements Serializable {
 
         confirmObjectIsActive();
 
-        if (oid == null) {
-            return null;
-        }
-
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering getExtension(oid: " + oid + ")");
+
+            if (oid == null) {
+                return null;
+            }
+
             return X509_get_extension(this.x509Ptr, oid);
         }
     }
@@ -1420,6 +1571,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering getExtensionSet(oid: " + oid + ")");
+
             return X509_is_extension_set(this.x509Ptr, oid);
         }
     }
@@ -1464,6 +1619,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr, "entering checkHost(" +
+                hostname + ", flags: " + flags + ")");
+
             return X509_check_host(this.x509Ptr, hostname, flags, 0);
         }
     }
@@ -1489,6 +1648,10 @@ public class WolfSSLCertificate implements Serializable {
         confirmObjectIsActive();
 
         synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                "entering getSubjectAltNames()");
+
             if (this.altNames != null) {
                 /* already gathered, return cached version */
                 return Collections.unmodifiableCollection(this.altNames);
@@ -1533,6 +1696,9 @@ public class WolfSSLCertificate implements Serializable {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509Ptr, "entering getX509Certificate()");
 
         try {
             in = new ByteArrayInputStream(this.getDer());
@@ -1601,6 +1767,7 @@ public class WolfSSLCertificate implements Serializable {
     public synchronized void free() {
 
         synchronized (stateLock) {
+
             if (this.active == false) {
                 /* already freed, just return */
                 return;
@@ -1612,8 +1779,16 @@ public class WolfSSLCertificate implements Serializable {
             synchronized (x509Lock) {
                 /* only free native resources if we own pointer */
                 if (this.weOwnX509Ptr == true) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                        WolfSSLDebug.INFO, this.x509Ptr, "entering free()");
+
                     /* free native resources */
                     X509_free(this.x509Ptr);
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                        WolfSSLDebug.INFO, this.x509Ptr,
+                        "entering free(not freeing ptr, we do not own)");
                 }
 
                 /* free Java resources */

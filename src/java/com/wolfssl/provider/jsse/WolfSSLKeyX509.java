@@ -33,6 +33,7 @@ import java.util.Enumeration;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509ExtendedKeyManager;
+import com.wolfssl.WolfSSLDebug;
 
 /**
  * wolfSSL implementation of X509KeyManager, extends X509ExtendedKeyManager

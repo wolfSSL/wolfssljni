@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLIORecvCallback;
 import com.wolfssl.WolfSSLIOSendCallback;

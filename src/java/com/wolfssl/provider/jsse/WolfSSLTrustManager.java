@@ -39,6 +39,7 @@ import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;

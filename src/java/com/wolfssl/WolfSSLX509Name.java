@@ -20,6 +20,8 @@
  */
 package com.wolfssl;
 
+import com.wolfssl.WolfSSLDebug;
+
 /**
  * WolfSSLX509Name class, wraps native WOLFSSL_X509_NAME functionality.
  */
@@ -68,6 +70,9 @@ public class WolfSSLX509Name {
         if (x509NamePtr == 0) {
             throw new WolfSSLException("Failed to create WolfSSLX509Name");
         }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, x509NamePtr, "creating new WolfSSLX509Name");
 
         synchronized (stateLock) {
             this.active = true;
@@ -153,6 +158,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr, "entered setCountryName(" +
+            countryName + ")");
+
         addEntryByTxt("countryName", countryName);
         this.countryName = countryName;
     }
@@ -170,6 +179,10 @@ public class WolfSSLX509Name {
         throws IllegalStateException, WolfSSLException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setStateOrProvinceName(" + name + ")");
 
         addEntryByTxt("stateOrProvinceName", name);
         this.stateOrProvinceName = name;
@@ -189,6 +202,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setStreetAddress(" + address + ")");
+
         addEntryByTxt("streetAddress", address);
         this.streetAddress = address;
     }
@@ -206,6 +223,10 @@ public class WolfSSLX509Name {
         throws IllegalStateException, WolfSSLException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setLocalityName(" + name + ")");
 
         addEntryByTxt("localityName", name);
         this.localityName = name;
@@ -225,6 +246,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setSurname(" + name + ")");
+
         addEntryByTxt("surname", name);
         this.surname = name;
     }
@@ -242,6 +267,10 @@ public class WolfSSLX509Name {
         throws IllegalStateException, WolfSSLException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setCommonName(" + name + ")");
 
         addEntryByTxt("commonName", name);
         this.commonName = name;
@@ -261,6 +290,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setEmailAddress(" + email + ")");
+
         addEntryByTxt("emailAddress", email);
         this.emailAddress = email;
     }
@@ -278,6 +311,10 @@ public class WolfSSLX509Name {
         throws IllegalStateException, WolfSSLException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setOrganizationName(" + name + ")");
 
         addEntryByTxt("organizationName", name);
         this.organizationName = name;
@@ -297,6 +334,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setOrganizationalUnitName(" + name + ")");
+
         addEntryByTxt("organizationalUnitName", name);
         this.organizationalUnitName = name;
     }
@@ -314,6 +355,10 @@ public class WolfSSLX509Name {
         throws IllegalStateException, WolfSSLException {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setPostalCode(" + code + ")");
 
         addEntryByTxt("postalCode", code);
         this.postalCode = code;
@@ -333,6 +378,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered setUserId(" + id + ")");
+
         addEntryByTxt("userId", id);
         this.userId = id;
     }
@@ -348,6 +397,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getCountryName()");
+
         return this.countryName;
     }
 
@@ -361,6 +414,10 @@ public class WolfSSLX509Name {
     public synchronized String getStateOrProvinceName() {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getStateOrProvinceName()");
 
         return this.stateOrProvinceName;
     }
@@ -376,6 +433,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getStreetAddress()");
+
         return this.streetAddress;
     }
 
@@ -389,6 +450,10 @@ public class WolfSSLX509Name {
     public synchronized String getLocalityName() {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getLocalityName()");
 
         return this.localityName;
     }
@@ -404,6 +469,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getSurname()");
+
         return this.surname;
     }
 
@@ -417,6 +486,10 @@ public class WolfSSLX509Name {
     public synchronized String getCommonName() {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getCommonName()");
 
         return this.commonName;
     }
@@ -432,6 +505,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getEmailAddress()");
+
         return this.emailAddress;
     }
 
@@ -445,6 +522,10 @@ public class WolfSSLX509Name {
     public synchronized String getOrganizationName() {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getOrganizationName()");
 
         return this.organizationName;
     }
@@ -460,6 +541,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getOrganizationalUnitName()");
+
         return this.organizationalUnitName;
     }
 
@@ -474,6 +559,10 @@ public class WolfSSLX509Name {
 
         confirmObjectIsActive();
 
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getPostalCode()");
+
         return this.postalCode;
     }
 
@@ -487,6 +576,10 @@ public class WolfSSLX509Name {
     public synchronized String getUserId() {
 
         confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, this.x509NamePtr,
+            "entered getUserId()");
 
         return this.userId;
     }
@@ -516,6 +609,10 @@ public class WolfSSLX509Name {
             }
 
             synchronized (x509NameLock) {
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.x509NamePtr, "entered free()");
+
                 /* free native resources */
                 X509_NAME_free(this.x509NamePtr);
 
