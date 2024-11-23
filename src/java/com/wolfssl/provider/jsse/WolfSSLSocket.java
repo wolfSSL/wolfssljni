@@ -2501,6 +2501,8 @@ public class WolfSSLSocket extends SSLSocket {
 
                 if (closeSocket) {
                     if (this.socket == null || this.isClosed) {
+                        /* Reset "is closing" state to false and return */
+                        isClosing.set(false);
                         return;
                     }
 
@@ -2719,6 +2721,8 @@ public class WolfSSLSocket extends SSLSocket {
 
                 if (closeSocket) {
                     if (this.socket == null || this.isClosed) {
+                        /* Reset "is closing" state to false and return */
+                        isClosing.set(false);
                         return;
                     }
 
