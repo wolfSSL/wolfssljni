@@ -326,7 +326,7 @@ public class WolfSSLAuthStore {
 
         /* Return new session if in server mode, or if host is null */
         if (!clientMode || host == null) {
-            return this.getSession(ssl, clientMode);
+            return this.getSession(ssl, clientMode, host, port);
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -527,18 +527,22 @@ public class WolfSSLAuthStore {
     }
 
     /** Returns a new session, does not check/save for resumption
+     *
      * @param ssl WOLFSSL class to reference with new session
      * @param clientMode true if on client side, false if server
+     * @param host hostname of peer, or null if not available
+     * @param port port of peer
+     *
      * @return a new SSLSession on success
      */
     protected synchronized WolfSSLImplementSSLSession getSession(
-        WolfSSLSession ssl, boolean clientMode) {
+        WolfSSLSession ssl, boolean clientMode, String host, int port) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
 
         WolfSSLImplementSSLSession ses =
-            new WolfSSLImplementSSLSession(ssl, this);
+            new WolfSSLImplementSSLSession(ssl, this, host, port);
 
         ses.setValid(true);
         ses.isFromTable = false;

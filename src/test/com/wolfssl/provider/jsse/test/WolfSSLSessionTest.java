@@ -24,6 +24,13 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -38,20 +45,25 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 
+import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionBindingEvent;
 import javax.net.ssl.SSLSessionBindingListener;
 import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -63,7 +75,7 @@ public class WolfSSLSessionTest {
 
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
-        throws NoSuchProviderException {
+        throws NoSuchProviderException, WolfSSLException {
 
         System.out.println("WolfSSLImplementSSLSession Class");
 
@@ -73,12 +85,8 @@ public class WolfSSLSessionTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
-        try {
-            tf = new WolfSSLTestFactory();
-        } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+        /* Can throw WolfSSLException on error */
+        tf = new WolfSSLTestFactory();
     }
 
 
@@ -433,6 +441,162 @@ public class WolfSSLSessionTest {
         /* @TODO additional tests around setting session cache size */
         context.setSessionCacheSize(2);
         pass("\t\t... passed");
+    }
+
+    @Test
+    public void testGetSessionInSocketConnection() throws Exception {
+
+        String protocol = null;
+        SSLContext ctx = null;
+
+        System.out.print("\tTesting SSLSocket.getSession");
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        ctx = tf.createSSLContext(protocol, engineProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        final SSLSocket server = (SSLSocket)ss.accept();
+        server.setNeedClientAuth(true);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    testSSLSession(server, false);
+                    server.startHandshake();
+                    testSSLSession(server, true);
+
+                } catch (SSLException e) {
+                    error("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            testSSLSession(cs, false);
+            cs.startHandshake();
+            testSSLSession(cs, true);
+
+        } catch (SSLHandshakeException e) {
+            error("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        testSSLSession(cs, true);
+        cs.close();
+        testSSLSession(cs, true);
+        testSSLSession(server, true);
+        server.close();
+        testSSLSession(server, true);
+        ss.close();
+
+        pass("\t... passed");
+    }
+
+    /**
+     * Test SSLSocket.getSession() and calling methods on the
+     * SSLSession retrieved. */
+    private void testSSLSession(SSLSocket sock, boolean handshakeDone)
+        throws Exception {
+
+        int ret;
+        String val;
+        Certificate[] certs;
+        byte[] id;
+        SSLSession session;
+
+        if (sock == null) {
+            throw new Exception("SSLSocket was null in testSSLSession");
+        }
+
+        session = sock.getSession();
+        if (session == null) {
+            throw new Exception("SSLSocket.getSession() returned null");
+        }
+
+        val = session.getCipherSuite();
+        if (val == null || val.isEmpty()) {
+            throw new Exception(
+                "SSLSession.getCipherSuite() was null or empty");
+        }
+
+        val = session.getProtocol();
+        if (val == null || val.isEmpty()) {
+            throw new Exception(
+                "SSLSession.getProtocol() was null or empty");
+        }
+
+        val = session.getPeerHost();
+        if (handshakeDone && !sock.isClosed() &&
+            (val == null || val.isEmpty())) {
+            throw new Exception(
+                "SSLSession.getPeerHost() was null or empty");
+        }
+
+        ret = session.getPeerPort();
+        if (ret == 0) {
+            throw new Exception("SSLSession.getPeerPort() was 0");
+        }
+
+        certs = session.getLocalCertificates();
+        if (certs == null || certs.length == 0) {
+            throw new Exception(
+                "SSLSession.getLocalCertificates() was null or 0 length");
+        }
+
+        try {
+            certs = session.getPeerCertificates();
+            if (handshakeDone && (certs == null || certs.length == 0)) {
+                throw new Exception(
+                    "SSLSession.getPeerCertificates was null or 0 length");
+            }
+        } catch (SSLPeerUnverifiedException e) {
+            if (handshakeDone && !sock.isClosed()) {
+                throw new Exception(
+                    "SSLSession.getPeerCertificates threw " +
+                    "SSLPeerUnverifiedException when handshake was done: " + e);
+            }
+        }
+
+        id = session.getId();
+        if (!sock.isClosed() && (id == null || id.length == 0)) {
+            throw new Exception("SSLSession.getId() was null or 0 length");
+        }
+
+        if (!sock.isClosed() && !session.isValid()) {
+            throw new Exception("SSLSession.isValid() is false");
+        }
+
+        ret = session.getPacketBufferSize();
+        if (ret == 0) {
+            throw new Exception("SSLSession.getPacketBufferSize() is 0");
+        }
+
+        ret = session.getApplicationBufferSize();
+        if (ret == 0) {
+            throw new Exception("SSLSession.getApplicationBufferSize() is 0");
+        }
     }
 
 
