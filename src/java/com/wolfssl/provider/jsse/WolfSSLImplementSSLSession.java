@@ -147,12 +147,14 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      *
      * @param in WolfSSLSession to be used with this object
      * @param params WolfSSLAuthStore for this session
+     * @param host hostname of peer, or null if not available
+     * @param port port of peer
      */
     public WolfSSLImplementSSLSession (WolfSSLSession in,
-                                       WolfSSLAuthStore params) {
+                                       WolfSSLAuthStore params,
+                                       String host, int port) {
         this.ssl = in;
-        this.port = -1;
-        this.host = null;
+        this.host = host;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
         this.peerCerts = null;
@@ -162,6 +164,12 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
         creation = new Date();
         accessed = new Date();
+
+        if (port > 0) {
+            this.port = port;
+        } else {
+            this.port = -1;
+        }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new session (no host/port yet)");
@@ -478,7 +486,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         X509Certificate exportCert;
 
         if (ssl == null) {
-            throw new SSLPeerUnverifiedException("handshake not complete");
+            throw new SSLPeerUnverifiedException(
+                "internal WolfSSLSession null, handshake not complete or " +
+                "SSLSocket/Engine closed");
         }
 
         try {
