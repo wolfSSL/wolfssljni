@@ -1358,15 +1358,25 @@ public class WolfSSLSession {
     }
 
     /**
-     * Sets the session to be used when the SSL object is used to create
-     * a SSL/TLS connection.
-     * For session resumption, before calling <code>shutdownSSL()</code>
-     * with your session object, an application should save the session ID
-     * from the object with a call to <code>getSession()</code>, which returns
-     * a pointer to the session. Later, the application should create a new
-     * SSL session object and assign the saved session with <code>
-     * setSession()</code>. At this point, the application may call <code>
-     * connect()</code> and wolfSSL will try to resume the session.
+     * Sets the session (native WOLFSSL_SESSION) to be used with this object
+     * for session resumption.
+     *
+     * The native WOLFSSL_SESSION pointed to contains all the necessary
+     * information required to perform a session resumption and reestablishment
+     * of the connection without a new handshake.
+     * <p>
+     * To do session resumption, before calling <code>shutdownSSL()</code>
+     * with your WolfSSLSession object, save the internal session state by
+     * calling <code>getSession()</code>, which returns a pointer to the
+     * native WOLFSSL_SESSION session structure. Later, when the application
+     * is ready to resume a session, it should create a new WolfSSLSession
+     * object and assign the previously-saved session pointer by passing it
+     * to the <code>setSession(long session)</code> method. This should be
+     * done before the handshake is started for the second/resumed time. After
+     * calling <code>setSession(long session)</code>, the application may call
+     * <code>connect()</code> and wolfSSL will try to resume the session. If
+     * the session cannot be resumed, a new fresh handshake will be
+     * established.
      *
      * @param session  pointer to the native WOLFSSL_SESSION structure used
      *                 to set the session for the SSL session object.
@@ -1411,25 +1421,35 @@ public class WolfSSLSession {
     }
 
     /**
-     * Returns a pointer to the current session used in the given SSL object.
+     * Returns a pointer to the current session (native WOLFSSL_SESSION)
+     * associated with this object, or null if not available.
+     *
      * The native WOLFSSL_SESSION pointed to contains all the necessary
      * information required to perform a session resumption and reestablishment
-     * the connection without a new handshake.
+     * of the connection without a new handshake.
      * <p>
-     * For session resumption, before calling <code>shutdownSSL()</code>
-     * with your session object, an application should save the session ID
-     * from the object with a call to <code>getSession()</code>, which returns
-     * a pointer to the session. Later, the application should create a new
-     * SSL object and assign the saved session with <code>setSession</code>.
-     * At this point, the application may call <code>connect()</code> and
-     * wolfSSL will try to resume the session.
-     *
+     * To do session resumption, before calling <code>shutdownSSL()</code>
+     * with your WolfSSLSession object, save the internal session state by
+     * calling <code>getSession()</code>, which returns a pointer to the
+     * native WOLFSSL_SESSION session structure. Later, when the application
+     * is ready to resume a session, it should create a new WolfSSLSession
+     * object and assign the previously-saved session pointer by passing it
+     * to the <code>setSession(long session)</code> method. This should be
+     * done before the handshake is started for the second/resumed time. After
+     * calling <code>setSession(long session)</code>, the application may call
+     * <code>connect()</code> and wolfSSL will try to resume the session. If
+     * the session cannot be resumed, a new fresh handshake will be
+     * established.
+     * <p>
+     * <b>IMPORTANT:</b>
+     * <p>
      * The pointer (WOLFSSL_SESSION) returned by this method needs to be freed
-     * when the application is finished with it, by calling
-     * <code>freeSession(long)</code>. This will release the underlying
-     * native memory associated with this WOLFSSL_SESSION.
+     * when the application is finished with it by calling
+     * <code>freeSession(long session)</code>. This will release the underlying
+     * native memory associated with this WOLFSSL_SESSION. Failing to free
+     * the session will result in a memory leak.
      *
-     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws IllegalStateException this WolfSSLSession has been freed
      * @return      a pointer to the current SSL session object on success.
      *              <code>null</code> if <b>ssl</b> is <code>null</code>,
      *              the SSL session cache is disabled, wolfSSL doesn't have
@@ -1446,6 +1466,12 @@ public class WolfSSLSession {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr, "entered getSession()");
 
+            /* Calling get1Session() here as an indication that the native
+             * JNI level should always return a session pointer that needs
+             * to be freed by the application. This behavior can change in
+             * native wolfSSL depending on build options
+             * (ex: NO_SESSION_CACHE_REF), so JNI layer here will make that
+             * behavior consistent to the JNI/JSSE callers. */
             sessPtr = get1Session(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
