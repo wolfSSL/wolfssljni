@@ -454,7 +454,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of all supported cipher suites
      */
-    protected synchronized String[] getAllCiphers() {
+    protected static synchronized String[] getAllCiphers() {
         return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
@@ -551,7 +551,7 @@ public class WolfSSLEngineHelper {
      *
      * @return String array of supported protocols
      */
-    protected synchronized String[] getAllProtocols() {
+    protected static synchronized String[] getAllProtocols() {
         return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
     }
 
@@ -1262,6 +1262,7 @@ public class WolfSSLEngineHelper {
         int ret, err;
         byte[] serverId = null;
         String hostAddress = null;
+        String sessCacheHostname = this.hostname;
 
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -1293,7 +1294,13 @@ public class WolfSSLEngineHelper {
 
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }
-            this.session = this.authStore.getSession(ssl, this.clientMode);
+
+            if (sessCacheHostname == null && this.peerAddr != null) {
+                sessCacheHostname = this.peerAddr.getHostAddress();
+            }
+
+            this.session = this.authStore.getSession(ssl, this.clientMode,
+                sessCacheHostname, this.port);
         }
 
         if (this.clientMode) {

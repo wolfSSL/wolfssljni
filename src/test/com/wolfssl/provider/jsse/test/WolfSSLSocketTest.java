@@ -2746,6 +2746,237 @@ public class WolfSSLSocketTest {
         System.out.println("\t... passed");
     }
 
+    @Test
+    public void testSocketMethodsAfterClose() throws Exception {
+
+        String protocol = null;
+
+        System.out.print("\tTesting methods after close");
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    fail();
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+
+        } catch (SSLHandshakeException e) {
+            System.out.println("\t... failed");
+            fail();
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        /* Test calling public SSLSocket methods after close, make sure
+         * exception or return value is what we expect. */
+
+        try {
+            cs.getApplicationProtocol();
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getApplicationProtocol() exception after close()");
+        }
+
+        try {
+            cs.getEnableSessionCreation();
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getEnableSessionCreation() exception after close()");
+        }
+
+        try {
+            cs.setEnableSessionCreation(true);
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setEnableSessionCreation() exception after close()");
+        }
+
+        try {
+            if (cs.getWantClientAuth() != false) {
+                System.out.println("\t... failed");
+                fail("getWantClientAuth() not false after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getWantClientAuth() exception after close()");
+        }
+
+        try {
+            cs.setWantClientAuth(true);
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setWantClientAuth() exception after close()");
+        }
+
+        try {
+            if (cs.getNeedClientAuth() != false) {
+                System.out.println("\t... failed");
+                fail("getNeedClientAuth() not false after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getNeedClientAuth() exception after close()");
+        }
+
+        try {
+            cs.setNeedClientAuth(true);
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setNeedClientAuth() exception after close()");
+        }
+
+        try {
+            if (cs.getUseClientMode() != true) {
+                System.out.println("\t... failed");
+                fail("getUseClientMode() on client not true after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getUseClientMode() exception after close()");
+        }
+
+        try {
+            cs.setUseClientMode(true);
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setUseClientMode() exception after close()");
+        }
+
+        try {
+            if (cs.getHandshakeSession() != null) {
+                System.out.println("\t... failed");
+                fail("getHandshakeSession() not null after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getHandshakeSession() exception after close()");
+        }
+
+        try {
+            SSLSession closeSess = cs.getSession();
+            if (closeSess == null ||
+                !closeSess.getCipherSuite().equals("SSL_NULL_WITH_NULL_NULL")) {
+                System.out.println("\t... failed");
+                fail("getSession() null or wrong cipher suite after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getSession() exception after close()");
+        }
+
+        try {
+            if (cs.getEnabledProtocols() != null) {
+                System.out.println("\t... failed");
+                fail("getEnabledProtocols() not null after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getEnabledProtocols() exception after close()");
+        }
+
+        try {
+            cs.setEnabledProtocols(new String[] {"INVALID"});
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setEnabledProtocols() exception after close()");
+        }
+
+        try {
+            cs.setEnabledCipherSuites(new String[] {"INVALID"});
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("setEnabledCipherSuites() exception after close()");
+        }
+
+        try {
+            String[] suppProtos = cs.getSupportedProtocols();
+            if (suppProtos == null || suppProtos.length == 0) {
+                System.out.println("\t... failed");
+                fail("getSupportedProtocols() null or empty after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getSupportedProtocols() exception after close()");
+        }
+
+        try {
+            String[] suppSuites = cs.getSupportedCipherSuites();
+            if (suppSuites == null || suppSuites.length == 0) {
+                System.out.println("\t... failed");
+                fail("getSupportedCipherSuites() null or empty after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getSupportedCipherSuites() exception after close()");
+        }
+
+        try {
+            if (cs.getEnabledCipherSuites() != null) {
+                System.out.println("\t... failed");
+                fail("getEnabledCipherSuites() not null after close()");
+            }
+        } catch (Exception e) {
+            /* should not throw exception */
+            System.out.println("\t... failed");
+            fail("getEnabledCipherSuites() exception after close()");
+        }
+
+        System.out.println("\t... passed");
+    }
+
     /**
      * Inner class used to hold configuration options for
      * TestServer and TestClient classes.

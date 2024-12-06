@@ -41,6 +41,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
@@ -991,6 +993,11 @@ public class WolfSSLSessionTest {
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
 
+        /* Latch used to wait for server to finish handshake before
+         * test shuts down. Otherwise, we will sometimes miss debug
+         * messages from the server side. */
+        final CountDownLatch latch = new CountDownLatch(1);
+
         System.out.print("\tTesting wolfssljni.debug");
 
         /* Save original property value, then enable debug. Make sure
@@ -1063,6 +1070,8 @@ public class WolfSSLSessionTest {
                             if (server != null) {
                                 server.close();
                             }
+
+                            latch.countDown();
                         }
 
                         return null;
@@ -1129,6 +1138,10 @@ public class WolfSSLSessionTest {
             }
 
         } finally {
+
+            /* Wait for server to finish processing */
+            latch.await(10, TimeUnit.SECONDS);
+
             /* Restore original property value */
             if (originalProp == null || originalProp.isEmpty()) {
                 System.setProperty("wolfssljni.debug", "");
@@ -1154,11 +1167,13 @@ public class WolfSSLSessionTest {
             }
             if (!debugOutput.contains("connect() ret: 1")) {
                 System.out.println("\t... failed");
-                fail("Debug output did not contain connect() success");
+                fail("Debug output did not contain connect() success:\n" +
+                     debugOutput);
             }
             if (!debugOutput.contains("accept() ret: 1")) {
                 System.out.println("\t... failed");
-                fail("Debug output did not contain accept() success");
+                fail("Debug output did not contain accept() success:\n" +
+                     debugOutput);
             }
         }
 

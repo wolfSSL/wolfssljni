@@ -112,6 +112,9 @@ public class WolfSSLSocket extends SSLSocket {
     /** ALPN selector callback, if set */
     protected BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
 
+    /* true if client, otherwise false */
+    private boolean isClientMode = false;
+
     /**
      * Create new WolfSSLSocket object
      *
@@ -143,6 +146,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -183,6 +187,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -226,6 +231,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, address);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -266,6 +272,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -309,6 +316,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -366,6 +374,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, port, host);
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -411,6 +420,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, s.getPort(), s.getInetAddress());
             EngineHelper.setUseClientMode(clientMode);
+            this.isClientMode = clientMode;
 
         } catch (WolfSSLException e) {
             throw new IOException(e);
@@ -460,6 +470,7 @@ public class WolfSSLSocket extends SSLSocket {
             EngineHelper = new WolfSSLEngineHelper(this.ssl, this.authStore,
                 this.params, s.getPort(), s.getInetAddress());
             EngineHelper.setUseClientMode(false);
+            this.isClientMode = false;
 
             /* register custom receive callback to read consumed first */
             if (consumed != null) {
@@ -1030,7 +1041,8 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedCipherSuites()");
 
-        return EngineHelper.getAllCiphers();
+        /* getAllCiphers() is a static method, calling directly on class */
+        return WolfSSLEngineHelper.getAllCiphers();
     }
 
     /**
@@ -1045,6 +1057,10 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledCipherSuites()");
+
+        if (this.isClosed()) {
+            return null;
+        }
 
         return EngineHelper.getCiphers();
     }
@@ -1063,6 +1079,12 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnabledCipherSuites()");
+
+        if (this.isClosed()) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSLSocket closed, not setting enabled cipher suites");
+            return;
+        }
 
         /* sets cipher suite(s) to be used for connection */
         EngineHelper.setCiphers(suites);
@@ -1084,6 +1106,11 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getApplicationProtocol()");
+
+        /* If socket has been closed, return an empty string */
+        if (this.isClosed()) {
+            return "";
+        }
 
         return EngineHelper.getAlpnSelectedProtocolString();
     }
@@ -1252,8 +1279,9 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
 
-        /* returns all protocol version supported by native wolfSSL */
-        return EngineHelper.getAllProtocols();
+        /* returns all protocol version supported by native wolfSSL.
+        /* getAllProtocols() is a static method, calling directly on class */
+        return WolfSSLEngineHelper.getAllProtocols();
     }
 
     /**
@@ -1266,6 +1294,10 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
+
+        if (this.isClosed()) {
+            return null;
+        }
 
         /* returns protocols versions enabled for this session */
         return EngineHelper.getProtocols();
@@ -1285,6 +1317,12 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setEnabledProtocols()");
+
+        if (this.isClosed()) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSLSocket closed, not setting enabled protocols");
+            return;
+        }
 
         /* sets protocol versions to be enabled for use with this session */
         EngineHelper.setProtocols(protocols);
@@ -1337,6 +1375,15 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSession()");
 
+        if (this.isClosed()) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "SSLSocket has been closed, returning invalid session");
+
+            /* return invalid session object with cipher suite
+             * "SSL_NULL_WITH_NULL_NULL" */
+            return new WolfSSLImplementSSLSession(this.authStore);
+        }
+
         try {
             /* try to do handshake if not completed yet,
              * handles synchronization */
@@ -1380,7 +1427,7 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getHandshakeSession()");
 
-        if (this.handshakeStarted == false) {
+        if ((this.handshakeStarted == false) || this.isClosed()) {
             return null;
         }
 
@@ -1587,7 +1634,11 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setUseClientMode()");
 
-        EngineHelper.setUseClientMode(mode);
+        if (!this.isClosed()) {
+            EngineHelper.setUseClientMode(mode);
+        }
+        this.isClientMode = mode;
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "socket client mode set to: " + mode);
     }
@@ -1603,7 +1654,7 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getUseClientMode()");
 
-        return EngineHelper.getUseClientMode();
+        return this.isClientMode;
     }
 
     /**
@@ -1621,7 +1672,9 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setNeedClientAuth(need: " + String.valueOf(need) + ")");
 
-        EngineHelper.setNeedClientAuth(need);
+        if (!this.isClosed()) {
+            EngineHelper.setNeedClientAuth(need);
+        }
     }
 
     /**
@@ -1635,6 +1688,12 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getNeedClientAuth()");
+
+        /* When socket is closed, EngineHelper gets set to null. Since we
+         * don't cache needClientAuth value, return false after closure. */
+        if (this.isClosed()) {
+            return false;
+        }
 
         return EngineHelper.getNeedClientAuth();
     }
@@ -1655,7 +1714,9 @@ public class WolfSSLSocket extends SSLSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered setWantClientAuth(want: " + String.valueOf(want) + ")");
 
-        EngineHelper.setWantClientAuth(want);
+        if (!this.isClosed()) {
+            EngineHelper.setWantClientAuth(want);
+        }
     }
 
     /**
@@ -1673,6 +1734,12 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getWantClientAuth()");
+
+        /* When socket is closed, EngineHelper gets set to null. Since we
+         * don't cache wantClientAuth value, return false after closure. */
+        if (this.isClosed()) {
+            return false;
+        }
 
         return EngineHelper.getWantClientAuth();
     }
@@ -1692,7 +1759,9 @@ public class WolfSSLSocket extends SSLSocket {
             "entered setEnableSessionCreation(flag: " +
             String.valueOf(flag) + ")");
 
-        EngineHelper.setEnableSessionCreation(flag);
+        if (!this.isClosed()) {
+            EngineHelper.setEnableSessionCreation(flag);
+        }
     }
 
     /**
@@ -1705,6 +1774,10 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnableSessionCreation()");
+
+        if (this.isClosed()) {
+            return false;
+        }
 
         return EngineHelper.getEnableSessionCreation();
     }
@@ -2428,6 +2501,8 @@ public class WolfSSLSocket extends SSLSocket {
 
                 if (closeSocket) {
                     if (this.socket == null || this.isClosed) {
+                        /* Reset "is closing" state to false and return */
+                        isClosing.set(false);
                         return;
                     }
 
@@ -2442,8 +2517,6 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                this.socket = null;
-                this.ssl = null;
                 this.isClosed = true;
 
                 /* Reset "is closing" state to false, now closed */
@@ -2648,6 +2721,8 @@ public class WolfSSLSocket extends SSLSocket {
 
                 if (closeSocket) {
                     if (this.socket == null || this.isClosed) {
+                        /* Reset "is closing" state to false and return */
+                        isClosing.set(false);
                         return;
                     }
 
@@ -2662,8 +2737,6 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                this.socket = null;
-                this.ssl = null;
                 this.isClosed = true;
 
                 /* Reset "is closing" state to false, now closed */
