@@ -1644,23 +1644,18 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
                 }
             }
         } while (err == SSL_ERROR_WANT_READ);
-
-        sess = wolfSSL_get_session(ssl);
-        hasTicket = wolfSSL_SESSION_has_ticket((const WOLFSSL_SESSION*)sess);
     }
 
-    /* Only duplicate / save session if not TLS 1.3 (will be using normal
-     * session IDs), or is TLS 1.3 and we have a session ticket */
-    if (version != TLS1_3_VERSION || hasTicket == 1) {
-
-        /* wolfSSL checks ssl for NULL, returns pointer to new WOLFSSL_SESSION,
-         * Returns new duplicated WOLFSSL_SESSION. Needs to be freed with
-         * wolfSSL_SESSION_free() when finished with pointer. */
-        if (sess != NULL) {
-            /* Guarantee that we own the WOLFSSL_SESSION, make a copy */
-            dup = wolfSSL_SESSION_dup(sess);
-        }
-    }
+    /* Call wolfSSL_get1_session() to increase the ref count of the internal
+     * WOLFSSL_SESSION struct. This is needed in all build option cases,
+     * since Java callers of this function expect to explicitly free this
+     * pointer when finished with use. In some build cases, for example
+     * NO_CLIENT_CACHE or NO_SESSION_CACHE_REF, the poiner returned by
+     * wolfSSL_get_session() will be a pointer into the WOLFSSL struct, which
+     * will be freed with wolfSSL_free(). This can cause issues if the Java
+     * app expects to hold a valid session pointer for resumption and free
+     * later on. */
+    dup = wolfSSL_get1_session(ssl);
 
     if (wc_UnLockMutex(jniSessLock) != 0) {
         printf("Failed to unlock jniSessLock in get1Session()");
