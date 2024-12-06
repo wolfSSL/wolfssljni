@@ -937,7 +937,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * Return a list of all SNI server names of the requested Server Name
      * Indication (SNI) extension.
      *
-     * @return non-null immutable List of SNIServerNames. List may be emtpy
+     * @return non-null immutable List of SNIServerNames. List may be empty
      *         if no SNI names were requested.
      */
     @Override
@@ -952,7 +952,20 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         try {
-            sniRequestArr = this.ssl.getClientSNIRequest();
+            /* Return SNI name saved by Client 
+             * or return cached request name from Server
+             * Currently WolfSSL.WOLFSSL_SNI_HOST_NAME is the only
+             * supported type */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "calling getRequestedServerNames (" +
+                        this.getSideString() + ")");
+            if (this.ssl.getSide() == WolfSSL.WOLFSSL_CLIENT_END){
+                sniRequestArr = this.ssl.getClientSNIRequest();
+            } else {
+                sniRequestArr = this.ssl.getSNIRequest((byte)WolfSSL.
+                                            WOLFSSL_SNI_HOST_NAME).getBytes();
+            }
+
             if (sniRequestArr != null) {
                 SNIHostName sniName = new SNIHostName(sniRequestArr);
                 sniNames.add(sniName);
