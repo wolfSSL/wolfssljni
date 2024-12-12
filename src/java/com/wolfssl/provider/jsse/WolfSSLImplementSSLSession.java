@@ -962,8 +962,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
             if (this.ssl.getSide() == WolfSSL.WOLFSSL_CLIENT_END){
                 sniRequestArr = this.ssl.getClientSNIRequest();
             } else {
-                sniRequestArr = this.ssl.getSNIRequest((byte)WolfSSL.
-                                            WOLFSSL_SNI_HOST_NAME).getBytes();
+                sniRequestArr = this.ssl.getSNIRequestBytes((byte)WolfSSL.
+                                            WOLFSSL_SNI_HOST_NAME);
             }
 
             if (sniRequestArr != null) {

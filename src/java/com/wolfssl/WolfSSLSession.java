@@ -4105,16 +4105,16 @@ public class WolfSSLSession {
     }
 
     /**
-     * Get SNI request used for this session object.
+     * Get SNI request used for this session object as bytes.
      *
      * @param type SNI type. Currently supported type is
      *             WolfSSL.WOLFSSL_SNI_HOST_NAME.
-     * @return String representing SNI name requested in this session, or
+     * @return SNI name requested in this session as a byte array, or
      *         null if not available.
      * @throws IllegalStateException if called when WolfSSLSession is not
      *         active
      */
-    public String getSNIRequest(byte type) throws IllegalStateException {
+    public byte[] getSNIRequestBytes(byte type) throws IllegalStateException {
 
         byte[] reqBytes = null;
 
@@ -4130,10 +4130,27 @@ public class WolfSSLSession {
         }
 
         if (reqBytes != null) {
-            return reqBytes.toString();
+            return reqBytes;
         }
 
         return null;
+    }
+
+    /**
+     * Get SNI request used for this session object as String.
+     *
+     * @param type SNI type. Currently supported type is
+     *             WolfSSL.WOLFSSL_SNI_HOST_NAME.
+     * @return String representing SNI name requested in this session, or
+     *         null if not available.
+     * @throws IllegalStateException if called when WolfSSLSession is not
+     *         active
+     */
+    public String getSNIRequest(byte type) throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return new String(getSNIRequestBytes(type), StandardCharsets.UTF_8);
     }
 
     /**
