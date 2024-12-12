@@ -4147,10 +4147,15 @@ public class WolfSSLSession {
      *         active
      */
     public String getSNIRequest(byte type) throws IllegalStateException {
+        byte[] request;
 
         confirmObjectIsActive();
+        request = getSNIRequestBytes(type);
+        if (request != null){
+            return new String(request, StandardCharsets.UTF_8);
+        }
 
-        return new String(getSNIRequestBytes(type), StandardCharsets.UTF_8);
+        return null;
     }
 
     /**
