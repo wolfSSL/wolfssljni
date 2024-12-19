@@ -1382,10 +1382,6 @@ public class WolfSSLEngineHelper {
         // that the actual key size is at least 1024 bits.
         String[] cipherSuites = getCiphers();
 
-        for (String suite : cipherSuites) {
-            System.out.println(suite);
-        }
-
         if (containsDHECiphers(cipherSuites)) {
             // Get the minimum DH key size from security settings
             int minDHEKeySize;
