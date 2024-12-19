@@ -1552,7 +1552,13 @@ public class WolfSSLEngine extends SSLEngine {
         try {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "calling engineHelper.doHandshake()");
-            int ret = this.engineHelper.doHandshake(1, 0);
+
+            int ret;
+            try {
+                ret = this.engineHelper.doHandshake(1, 0);
+            } catch (WolfSSLException e) {
+                throw new SSLException("Handshake failed: " + e.getMessage(), e);
+            }
             SetHandshakeStatus(ret);
 
             /* Mark that the user has explicitly started the handshake
