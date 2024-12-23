@@ -818,15 +818,23 @@ public class WolfSSLEngine extends SSLEngine {
         int ret = 0;
         int idx = 0; /* index into out[] array */
         int err = 0;
-        byte[] tmp;
+        byte[] tmp = null;
 
-        /* create read buffer of max output size */
+        /* Calculate maximum output size across ByteBuffer arrays */
         maxOutSz = getTotalOutputSize(out, ofst, length);
-        tmp = new byte[maxOutSz];
 
         synchronized (ioLock) {
             try {
-                ret = this.ssl.read(tmp, maxOutSz);
+                /* If we only have one ByteBuffer, skip allocating
+                 * separate intermediate byte[] and write directly to underlying
+                 * ByteBuffer array */
+                if (out.length == 1) {
+                    ret = this.ssl.read(out[0], maxOutSz, 0);
+                }
+                else {
+                    tmp = new byte[maxOutSz];
+                    ret = this.ssl.read(tmp, maxOutSz);
+                }
             } catch (SocketTimeoutException | SocketException e) {
                 throw new SSLException(e);
             }
@@ -883,27 +891,32 @@ public class WolfSSLEngine extends SSLEngine {
             }
         }
         else {
-            /* write processed data into output buffers */
-            for (i = 0; i < ret;) {
-                if (idx + ofst >= length) {
-                    /* no more output buffers left */
-                    break;
-                }
+            if (out.length == 1) {
+                totalRead = ret;
+            }
+            else {
+                /* write processed data into output buffers */
+                for (i = 0; i < ret;) {
+                    if (idx + ofst >= length) {
+                        /* no more output buffers left */
+                        break;
+                    }
 
-                bufSpace = out[idx + ofst].remaining();
-                if (bufSpace == 0) {
-                    /* no more space in current out buffer, advance */
-                    idx++;
-                    continue;
-                }
+                    bufSpace = out[idx + ofst].remaining();
+                    if (bufSpace == 0) {
+                        /* no more space in current out buffer, advance */
+                        idx++;
+                        continue;
+                    }
 
-                sz = (bufSpace >= (ret - i)) ? (ret - i) : bufSpace;
-                out[idx + ofst].put(tmp, i, sz);
-                i += sz;
-                totalRead += sz;
+                    sz = (bufSpace >= (ret - i)) ? (ret - i) : bufSpace;
+                    out[idx + ofst].put(tmp, i, sz);
+                    i += sz;
+                    totalRead += sz;
 
-                if ((ret - i) > 0) {
-                    idx++; /* go to next output buffer */
+                    if ((ret - i) > 0) {
+                        idx++; /* go to next output buffer */
+                    }
                 }
             }
         }
