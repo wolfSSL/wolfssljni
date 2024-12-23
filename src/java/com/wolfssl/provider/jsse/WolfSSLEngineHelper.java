@@ -1255,9 +1255,11 @@ public class WolfSSLEngineHelper {
      * @throws SSLException if setUseClientMode() has not been called or
      *                      on native socket error
      * @throws SocketTimeoutException if socket timed out
+     *
+     * @throws WolfSSLException if it fails to check the DH key size after the handshake.
      */
     protected synchronized int doHandshake(int isSSLEngine, int timeout)
-        throws SSLException, SocketTimeoutException {
+        throws SSLException, SocketTimeoutException, WolfSSLException {
 
         int ret, err;
         byte[] serverId = null;
@@ -1343,10 +1345,13 @@ public class WolfSSLEngineHelper {
                     /* may throw SocketTimeoutException on socket timeout */
                     ret = this.ssl.connect(timeout);
 
+                    checkKeySize(ssl, this.clientMode);
                 } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "calling native wolfSSL_accept()");
                     ret = this.ssl.accept(timeout);
+
+                    checkKeySize(ssl, this.clientMode);
                 }
                 err = ssl.getError(ret);
 
@@ -1367,6 +1372,55 @@ public class WolfSSLEngineHelper {
         this.session.updateStoredSessionValues();
 
         return ret;
+    }
+
+    private void checkKeySize(WolfSSLSession ssl, boolean clientMode) throws SSLException, WolfSSLException {
+        int keySize = this.ssl.getKeySize();
+
+        /*
+         * Before we update the cached values, and return from the handshake,
+         * we check if we are running a legacy cipher suite, if so, we make sure
+         * that the actual key size is at least 1024 bits.
+        */
+        String[] cipherSuites = getCiphers();
+
+        if (containsDHECiphers(cipherSuites)) {
+            /* Get the minimum DH key size from security settings. */
+            int minDHEKeySize;
+            try {
+                minDHEKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
+
+                /*
+                 * If we're trying to use DHE with
+                 * insufficient key size, throw early. */
+                if (isLegacyDHEnabled() && keySize < minDHEKeySize) {
+                    if (clientMode) {
+                        throw new SSLHandshakeException(
+                                "DH ServerKeyExchange does not comply to algorithm constraints");
+                    } else {
+                        throw new SSLHandshakeException(
+                                "Received fatal alert: insufficient_security");
+                    }
+                }
+            } catch (WolfSSLException e) {
+                throw new WolfSSLException("Failed to check DH key size constraints: ", e);
+            }
+        }
+    }
+
+    private boolean containsDHECiphers(String[] cipherSuites) {
+        for (String suite : cipherSuites) {
+            if (suite.contains("_DHE_")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isLegacyDHEnabled() {
+        /* Check if legacy DH is enabled through system properties. */
+        String dhKeySize = System.getProperty("jdk.tls.ephemeralDHKeySize");
+        return "legacy".equals(dhKeySize);
     }
 
     /**
