@@ -1377,18 +1377,22 @@ public class WolfSSLEngineHelper {
     private void checkKeySize(WolfSSLSession ssl, boolean clientMode) throws SSLException, WolfSSLException {
         int keySize = this.ssl.getKeySize();
 
-        // Before we update the cached values, and return from the handshake, we
-        // check if we are running a legacy cipher suite, if so, we make sure
-        // that the actual key size is at least 1024 bits.
+        /*
+         * Before we update the cached values, and return from the handshake,
+         * we check if we are running a legacy cipher suite, if so, we make sure
+         * that the actual key size is at least 1024 bits.
+        */
         String[] cipherSuites = getCiphers();
 
         if (containsDHECiphers(cipherSuites)) {
-            // Get the minimum DH key size from security settings
+            /* Get the minimum DH key size from security settings. */
             int minDHEKeySize;
             try {
                 minDHEKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
 
-                // If we're trying to use DHE with insufficient key size, throw early
+                /*
+                 * If we're trying to use DHE with
+                 * insufficient key size, throw early. */
                 if (isLegacyDHEnabled() && keySize < minDHEKeySize) {
                     if (clientMode) {
                         throw new SSLHandshakeException(
@@ -1414,7 +1418,7 @@ public class WolfSSLEngineHelper {
     }
 
     private boolean isLegacyDHEnabled() {
-        // Check if legacy DH is enabled through system properties
+        /* Check if legacy DH is enabled through system properties. */
         String dhKeySize = System.getProperty("jdk.tls.ephemeralDHKeySize");
         return "legacy".equals(dhKeySize);
     }

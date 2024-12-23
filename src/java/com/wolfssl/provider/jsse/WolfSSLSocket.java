@@ -1573,10 +1573,10 @@ public class WolfSSLSocket extends SSLSocket {
                 close();
                 throw e;
             } catch (WolfSSLException e) {
-		/* close socket if the handshake is unsuccessful */
+                /* close socket if the handshake is unsuccessful */
                 close();
                 throw new SSLException("Handshake failed: " + e.getMessage(), e);
-	    }
+            }
 
             if (ret != WolfSSL.SSL_SUCCESS) {
                 close();
