@@ -28,6 +28,7 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.lang.StringBuilder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import com.wolfssl.WolfSSLException;
@@ -253,6 +254,8 @@ public class WolfSSLSession {
         int timeout);
     private native int read(long ssl, byte[] data, int offset, int sz,
         int timeout);
+    private native int read(long ssl, ByteBuffer data, int sz, int timeout)
+        throws WolfSSLException;
     private native int accept(long ssl, int timeout);
     private native void freeSSL(long ssl);
     private native int shutdownSSL(long ssl, int timeout);
@@ -1102,6 +1105,86 @@ public class WolfSSLSession {
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
         ret = read(localPtr, data, offset, sz, timeout);
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, localPtr, "read() ret: " + ret +
+            ", err: " + getError(ret));
+
+        throwExceptionFromIOReturnValue(ret, "wolfSSL_read()");
+
+        return ret;
+    }
+
+    /**
+     * Reads bytes from the SSL session and returns the read bytes into
+     * the provided ByteBuffer, using socket timeout value in milliseconds.
+     *
+     * The bytes read are removed from the internal receive buffer.
+     * <p>
+     * If necessary, <code>read()</code> will negotiate an SSL/TLS session
+     * if the handshake has not already been performed yet by <code>connect()
+     * </code> or <code>accept()</code>.
+     * <p>
+     * The SSL/TLS protocol uses SSL records which have a maximum size of
+     * 16kB. As such, wolfSSL needs to read an entire SSL record internally
+     * before it is able to process and decrypt the record. Because of this,
+     * a call to <code>read()</code> will only be able to return the
+     * maximum buffer size which has been decrypted at the time of calling.
+     * There may be additional not-yet-decrypted data waiting in the internal
+     * wolfSSL receive buffer which will be retrieved and decrypted with the
+     * next call to <code>read()</code>.
+     *
+     * @param data  ByteBuffer where the data read from the SSL connection
+     *              will be placed. position() will be updated after this
+     *              method writes data to the ByteBuffer.
+     * @param sz    number of bytes to read into <b><code>data</code></b>,
+     *              may be adjusted to the maximum space in data if that is
+     *              smaller than this size.
+     * @param timeout read timeout, milliseconds.
+     * @return      the number of bytes read upon success. <code>SSL_FAILURE
+     *              </code> will be returned upon failure which may be caused
+     *              by either a clean (close notify alert) shutdown or just
+     *              that the peer closed the connection. <code>
+     *              SSL_FATAL_ERROR</code> upon failure when either an error
+     *              occurred or, when using non-blocking sockets, the
+     *              <b>SSL_ERROR_WANT_READ</b> or <b>SSL_ERROR_WANT_WRITE</b>
+     *              error was received and the application needs to call
+     *              <code>read()</code> again. Use <code>getError</code> to
+     *              get a specific error code.
+     *              <code>BAD_FUNC_ARC</code> when bad arguments are used.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws SocketTimeoutException if socket timeout occurs
+     * @throws SocketException Native socket select/poll() failed
+     */
+    public int read(ByteBuffer data, int sz, int timeout)
+        throws IllegalStateException, SocketTimeoutException, SocketException {
+
+        int ret;
+        long localPtr;
+
+        confirmObjectIsActive();
+
+        /* Fix for Infer scan, since not synchronizing on sslLock for
+         * access to this.sslPtr, see note below */
+        synchronized (sslLock) {
+            localPtr = this.sslPtr;
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, localPtr, "entered read(ByteBuffer, " +
+            "sz: " + sz + ", timeout: " + timeout + ")");
+
+        /* not synchronizing on sslLock here since JNI read() locks
+         * session mutex around native wolfSSL_read() call. If sslLock
+         * is locked here, since we call select() inside native JNI we
+         * could timeout waiting for corresponding write() operation to
+         * occur if needed */
+        try {
+            ret = read(localPtr, data, sz, timeout);
+        } catch (WolfSSLException e) {
+            /* JNI code may throw WolfSSLException on JNI specific errors */
+            throw new SocketException(e.getMessage());
+        }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, localPtr, "read() ret: " + ret +
