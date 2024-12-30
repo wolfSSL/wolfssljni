@@ -95,7 +95,7 @@ public class WolfSSLSocket extends SSLSocket {
     /** Flag representing if native fd has been set */
     private boolean fdSet = false;
 
-    /* lock for handshakInitCalled and handshakeComplete */
+    /* Lock for handshakInitCalled and handshakeComplete */
     private final Object handshakeLock = new Object();
 
     /* protect read/write/connect/accept from multiple threads simultaneously
