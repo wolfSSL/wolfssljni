@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    newSSL
- * Signature: (J)J
+ * Signature: (JZ)J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jobject, jlong, jboolean);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
@@ -877,6 +877,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSupportedCurve
  * Signature: (J)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    interruptBlockedIO
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_interruptBlockedIO
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getThreadsBlockedInPoll
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getThreadsBlockedInPoll
   (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus

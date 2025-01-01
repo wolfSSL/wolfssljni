@@ -59,6 +59,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -116,6 +117,8 @@ import com.wolfssl.WolfSSLException;
     public void testSessionResumptionWithTicketEnabled();
     public void testDoubleSocketClose();
     public void testSocketConnectException();
+    public void testSocketCloseInterruptsWrite();
+    public void testSocketCloseInterruptsRead();
  */
 public class WolfSSLSocketTest {
 
@@ -988,7 +991,7 @@ public class WolfSSLSocketTest {
 
         /* This test hangs on Android, marking TODO for later investigation. Seems to be
          * something specific to the test code, not library proper. */
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             System.out.println("\t... skipped");
             return;
         }
@@ -2744,6 +2747,271 @@ public class WolfSSLSocketTest {
         System.clearProperty("javax.net.ssl.keyStorePassword");
 
         System.out.println("\t... passed");
+    }
+
+    /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
+     * working as expected, we will see the timeout as a hard error that
+     * this test has failed */
+    @Test(timeout = 10000)
+    public void testSocketCloseInterruptsWrite() throws Exception {
+
+        String protocol = null;
+        SSLServerSocketFactory ssf = null;
+        SSLServerSocket ss = null;
+        SSLSocketFactory sf = null;
+        boolean passed = false;
+
+        System.out.print("\tTesting close/write interrupt");
+
+        /* pipe() interrupt mechamism not implemented for Windows yet since
+         * Windows does not support Unix/Linux pipe(). Re-enable this test
+         * for Windows when that support has been added */
+        if (WolfSSLTestFactory.isWindows()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+        final CountDownLatch closeLatch = new CountDownLatch(1);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                    boolean doClose = closeLatch.await(90L, TimeUnit.SECONDS);
+                    if (!doClose) {
+                        /* Return without closing, latch not hit within
+                         * time limit */
+                        return null;
+                    }
+
+                    /* Sleep so write thread has a chance to do some
+                     * writing before interrupt */
+                    Thread.sleep(1000);
+                    cs.setSoLinger(true, 5);
+                    cs.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Server thread got SSLException when not expected");
+                }
+                return null;
+            }
+        });
+
+        byte[] tmpArr = new byte[1024];
+        Arrays.fill(tmpArr, (byte)0xA2);
+        OutputStream out = cs.getOutputStream();
+
+        try {
+            try {
+                cs.startHandshake();
+                out.write(tmpArr);
+            }
+            catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail("Exception from first out.write() when not expected");
+            }
+
+            try {
+                /* signal server thread to try and close socket */
+                closeLatch.countDown();
+
+                /* keep writing, we should get interrupted */
+                while (true) {
+                    out.write(tmpArr);
+                }
+
+            } catch (SocketException e) {
+                /* We expect SocketException with this message, error if
+                 * different than expected */
+                if (!e.getMessage().contains("Socket fd closed during poll")) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Incorrect SocketException thrown by client");
+                    throw e;
+                }
+
+                passed = true;
+            }
+        }
+        finally {
+            es.shutdown();
+            serverFuture.get();
+            if (!cs.isClosed()) {
+                cs.close();
+            }
+            if (!server.isClosed()) {
+                server.close();
+            }
+            if (!ss.isClosed()) {
+                ss.close();
+            }
+        }
+
+        if (passed) {
+            System.out.println("\t... passed");
+        }
+    }
+
+    /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
+     * working as expected, we will see the timeout as a hard error that
+     * this test has failed */
+    @Test(timeout = 10000)
+    public void testSocketCloseInterruptsRead() throws Exception {
+
+        int ret = 0;
+        String protocol = null;
+        SSLServerSocketFactory ssf = null;
+        SSLServerSocket ss = null;
+        SSLSocketFactory sf = null;
+        boolean passed = false;
+
+        System.out.print("\tTesting close/read interrupt");
+
+        /* pipe() interrupt mechamism not implemented for Windows yet since
+         * Windows does not support Unix/Linux pipe(). Re-enable this test
+         * for Windows when that support has been added */
+        if (WolfSSLTestFactory.isWindows()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+        final CountDownLatch closeLatch = new CountDownLatch(1);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                    boolean doClose = closeLatch.await(90L, TimeUnit.SECONDS);
+                    if (!doClose) {
+                        /* Return without closing, latch not hit within
+                         * time limit */
+                        return null;
+                    }
+
+                    /* Sleep to let client thread hit read call */
+                    Thread.sleep(1000);
+                    cs.setSoLinger(true, 5);
+                    cs.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Server thread got SSLException when not expected");
+                }
+                return null;
+            }
+        });
+
+        byte[] tmpArr = new byte[1024];
+        InputStream in = cs.getInputStream();
+
+        try {
+            try {
+                cs.startHandshake();
+            }
+            catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail("Exception from startHandshake() when not expected");
+            }
+
+            try {
+                /* signal server thread to try and close socket */
+                closeLatch.countDown();
+
+                while (true) {
+                    ret = in.read(tmpArr, 0, tmpArr.length);
+                    if (ret == -1) {
+                        /* end of stream */
+                        break;
+                    }
+                }
+
+            } catch (SocketException e) {
+                /* We expect SocketException with this message, error if
+                 * different than expected */
+                if (!e.getMessage().contains("Socket is closed") &&
+                    !e.getMessage().contains("Connection already shutdown") &&
+                    !e.getMessage().contains("object has been freed")) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Incorrect SocketException thrown by client");
+                    throw e;
+                }
+            }
+
+            passed = true;
+        }
+        finally {
+            es.shutdown();
+            serverFuture.get();
+            if (!cs.isClosed()) {
+                cs.close();
+            }
+            if (!server.isClosed()) {
+                server.close();
+            }
+            if (!ss.isClosed()) {
+                ss.close();
+            }
+        }
+
+        if (passed) {
+            System.out.println("\t... passed");
+        }
     }
 
     @Test

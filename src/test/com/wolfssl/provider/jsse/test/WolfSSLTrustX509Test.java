@@ -121,7 +121,7 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tTesting parse all.jks");
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             /* @TODO finding that BKS has different order of certs */
             pass("\t... skipped");
             return;
@@ -186,7 +186,7 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tTesting use before init()");
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             /* @TODO finding that BKS has different order of certs */
             pass("\t... skipped");
             return;
@@ -242,7 +242,7 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tTesting parsing server.jks");
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             /* @TODO finding that BKS has different order of certs */
             pass("\t... skipped");
             return;
@@ -312,7 +312,7 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tTesting parse all_mixed.jks");
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             /* @TODO finding that BKS has different order of certs */
             pass("\t... skipped");
             return;
@@ -570,7 +570,7 @@ public class WolfSSLTrustX509Test {
         String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
@@ -697,7 +697,7 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/ca-int-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1CertWrong = "/sdcard/" + rsaInt1CertWrong;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
@@ -825,7 +825,7 @@ public class WolfSSLTrustX509Test {
         String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
@@ -948,7 +948,7 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/server-int-ecc-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
 
@@ -1054,7 +1054,7 @@ public class WolfSSLTrustX509Test {
         String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
@@ -1180,7 +1180,7 @@ public class WolfSSLTrustX509Test {
         String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
@@ -1340,7 +1340,7 @@ public class WolfSSLTrustX509Test {
         String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String eccRootCert = "examples/certs/ca-ecc-cert.pem";
 
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
             rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
             rsaInt2Cert = "/sdcard/" + rsaInt2Cert;

@@ -1052,8 +1052,19 @@ class WolfSSLTestFactory {
      * Test if the env is Android
      * @return true if is Android system
      */
-    protected boolean isAndroid() {
+    protected static boolean isAndroid() {
         if (System.getProperty("java.runtime.name").contains("Android")) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Test if the env is Windows.
+     * @return true if Windows, otherwise false
+     */
+    protected static boolean isWindows() {
+        if (System.getProperty("os.name").startsWith("Windows")) {
             return true;
         }
         return false;

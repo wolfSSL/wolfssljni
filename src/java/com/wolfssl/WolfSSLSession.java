@@ -102,6 +102,13 @@ public class WolfSSLSession {
     /**
      * Creates a new SSL/TLS session.
      *
+     * Native session created also creates JNI SSLAppData for usage
+     * internal to wolfSSL JNI. This constructor creates a default
+     * pipe() to use for interrupting threads waiting in select()/poll()
+     * when close() is called. To skip creation of this pipe() use
+     * the WolfSSLSession(WolfSSLContext ctx, boolean setupIOPipe)
+     * constructor with 'setupIOPipe' set to false.
+     *
      * @param  ctx   WolfSSLContext object used to create SSL session.
      *
      * @throws com.wolfssl.WolfSSLException if session object creation
@@ -109,13 +116,61 @@ public class WolfSSLSession {
      */
     public WolfSSLSession(WolfSSLContext ctx) throws WolfSSLException {
 
-        sslPtr = newSSL(ctx.getContextPtr());
+        sslPtr = newSSL(ctx.getContextPtr(), true);
         if (sslPtr == 0) {
             throw new WolfSSLException("Failed to create SSL Object");
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, sslPtr, "creating new WolfSSLSession");
+            WolfSSLDebug.INFO, sslPtr,
+            "creating new WolfSSLSession (with I/O pipe)");
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
+
+        /* save context reference for I/O callbacks from JNI */
+        this.ctx = ctx;
+    }
+
+    /**
+     * Creates a new SSL/TLS session.
+     *
+     * Native session created also creates JNI SSLAppData for usage
+     * internal to wolfSSL JNI. A pipe() can be created internally to wolfSSL
+     * JNI to use for interrupting threads waiting in select()/poll()
+     * when close() is called. To skip creation of this pipe(), set
+     * 'setupIOPipe' to false.
+     *
+     * It is generally recommended to have wolfSSL JNI create the native
+     * pipe(), unless you will be operating over non-Socket I/O. For example,
+     * when this WolfSSLSession is being created from the JSSE level
+     * SSLEngine class.
+     *
+     * @param ctx         WolfSSLContext object used to create SSL session.
+     * @param setupIOPipe true to create internal IO pipe(), otherwise
+     *        false
+     *
+     * @throws com.wolfssl.WolfSSLException if session object creation
+     *                                      failed.
+     */
+    public WolfSSLSession(WolfSSLContext ctx, boolean setupIOPipe)
+        throws WolfSSLException {
+
+        sslPtr = newSSL(ctx.getContextPtr(), false);
+        if (sslPtr == 0) {
+            throw new WolfSSLException("Failed to create SSL Object");
+        }
+
+        if (setupIOPipe) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, sslPtr,
+                "creating new WolfSSLSession (with I/O pipe)");
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, sslPtr,
+                "creating new WolfSSLSession (without I/O pipe)");
+        }
 
         synchronized (stateLock) {
             this.active = true;
@@ -240,7 +295,7 @@ public class WolfSSLSession {
 
     /* ------------------ native method declarations -------------------- */
 
-    private native long newSSL(long ctx);
+    private native long newSSL(long ctx, boolean withIOPipe);
     private native int setFd(long ssl, Socket sd, int type);
     private native int setFd(long ssl, DatagramSocket sd, int type);
     private native int useCertificateFile(long ssl, String file, int format);
@@ -357,6 +412,8 @@ public class WolfSSLSession {
     private native int set1SigAlgsList(long ssl, String list);
     private native int useSupportedCurve(long ssl, int name);
     private native int hasTicket(long session);
+    private native int interruptBlockedIO(long ssl);
+    private native int getThreadsBlockedInPoll(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -4123,6 +4180,49 @@ public class WolfSSLSession {
             /* register internal callback with native library */
             setSSLIOSend(this.sslPtr);
         }
+    }
+
+    /**
+     * Interrupt native I/O operations blocked inside select()/poll().
+     *
+     * This is used by wolfJSSE when SSLSocket.close() is called, to wake up
+     * threads that are blocked in select()/poll().
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public synchronized int interruptBlockedIO()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        /* Not synchronizing on sslLock, since we want to interrupt threads
+         * blocked on I/O operations, which will already hold sslLock */
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "entered interruptBlockedIO()");
+
+        return interruptBlockedIO(this.sslPtr);
+    }
+
+    /**
+     * Get count of threads currently blocked in select() or poll()
+     * at the native JNI level.
+     *
+     * @return count of threads waiting in select() or poll()
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public synchronized int getThreadsBlockedInPoll()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "entered getThreadsBlockedInPoll()");
+
+        return getThreadsBlockedInPoll(this.sslPtr);
     }
 
     /**
