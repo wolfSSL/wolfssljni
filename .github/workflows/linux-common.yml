@@ -15,6 +15,9 @@ on:
       wolfssl_configure:
         required: true
         type: string
+      javash_cflags:
+        required: false
+        type: string
 
 jobs:
   build_wolfssljni:
@@ -51,7 +54,7 @@ jobs:
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
 
       - name: Build JNI library
-        run: ./java.sh $GITHUB_WORKSPACE/build-dir
+        run: CFLAGS=${{ inputs.javah_cflags }} ./java.sh $GITHUB_WORKSPACE/build-dir
       - name: Build JAR (ant)
         run: ant
       - name: Run Java tests (ant test)
