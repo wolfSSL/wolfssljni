@@ -468,6 +468,8 @@ public class WolfSSLSocketTest {
         TestClient client = null;
         Exception srvException = null;
         Exception cliException = null;
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
 
         System.out.print("\twolfjsse.enabledSupportedCurves");
 
@@ -488,10 +490,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -530,10 +540,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -572,10 +590,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -603,7 +629,9 @@ public class WolfSSLSocketTest {
             }
         }
 
-        /* Test with invalid property entries */
+        /* Test with invalid property entries.
+         * Only need to start client thread, since it throws exception
+         * before connecting to server. */
         {
             Security.setProperty("wolfjsse.enabledSupportedCurves",
                 "badone, badtwo");
@@ -612,19 +640,15 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
-            server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+
+            cDoneLatch = new CountDownLatch(1);
+
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
 
-            srvException = server.getException();
-            if (srvException != null) {
-                Security.setProperty("wolfjsse.enabledSupportedCurves",
-                    originalProperty);
-                throw srvException;
-            }
+            cDoneLatch.await();
 
             cliException = client.getException();
             if (cliException != null) {
@@ -633,7 +657,7 @@ public class WolfSSLSocketTest {
 
             try {
                 client.join(1000);
-                server.join(1000);
+                //server.join(1000);
 
             } catch (InterruptedException e) {
                 System.out.println("interrupt happened");
@@ -659,6 +683,9 @@ public class WolfSSLSocketTest {
     @Test
     public void testClientServerThreaded() throws Exception {
 
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
+
         System.out.print("\tTesting basic client/server");
 
         /* create new CTX */
@@ -671,12 +698,18 @@ public class WolfSSLSocketTest {
         TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
         TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
 
-        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
+        sDoneLatch = new CountDownLatch(1);
+        cDoneLatch = new CountDownLatch(1);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
         server.start();
 
-        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+            cDoneLatch);
         client.start();
 
+        cDoneLatch.await();
+        sDoneLatch.await();
 
         Exception srvException = server.getException();
         if (srvException != null) {
@@ -703,6 +736,9 @@ public class WolfSSLSocketTest {
     public void alpnClientServerRunner(TestArgs sArgs, TestArgs cArgs,
         boolean expectingException) throws Exception {
 
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
+
         if (sArgs == null || cArgs == null) {
             throw new Exception("client/server TestArgs can not be null");
         }
@@ -713,11 +749,18 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
+        sDoneLatch = new CountDownLatch(1);
+        cDoneLatch = new CountDownLatch(1);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
         server.start();
 
-        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+            cDoneLatch);
         client.start();
+
+        cDoneLatch.await();
+        sDoneLatch.await();
 
         try {
             client.join(1000);
@@ -3357,13 +3400,15 @@ public class WolfSSLSocketTest {
         private int numConnections = 1;
         WolfSSLSocketTest wst;
         SSLServerSocket ss = null;
+        CountDownLatch doneLatch = null;
 
         public TestServer(SSLContext ctx, SSLServerSocket ss,
-            TestArgs args, int numConnections) {
+            TestArgs args, int numConnections, CountDownLatch doneLatch) {
             this.ctx = ctx;
             this.ss = ss;
             this.args = args;
             this.numConnections = numConnections;
+            this.doneLatch = doneLatch;
         }
 
 
@@ -3443,6 +3488,8 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
+            } finally {
+                this.doneLatch.countDown();
             }
         }
 
@@ -3470,11 +3517,14 @@ public class WolfSSLSocketTest {
         private Exception exception = null;
         private TestArgs args = null;
         WolfSSLSocketTest wst;
+        CountDownLatch doneLatch = null;
 
-        public TestClient(SSLContext ctx, int port, TestArgs args) {
+        public TestClient(SSLContext ctx, int port, TestArgs args,
+            CountDownLatch doneLatch) {
             this.ctx = ctx;
             this.srvPort = port;
             this.args = args;
+            this.doneLatch = doneLatch;
         }
 
         @Override
@@ -3539,6 +3589,8 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
+            } finally {
+                this.doneLatch.countDown();
             }
         }
 
