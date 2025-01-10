@@ -1215,75 +1215,82 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             return -1;
         }
 
-        /* ByteBuffer.hasArray() does not throw any exceptions */
-        hasArray = (*jenv)->CallBooleanMethod(jenv, buf, hasArrayMeth);
-        if (!hasArray) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "ByteBuffer.hasArray() is false in native read()");
-            return BAD_FUNC_ARG;
-        }
-
         /* Only read up to maximum space we have in this ByteBuffer */
         maxOutputSz = (limit - position);
         if (outSz > maxOutputSz) {
             outSz = maxOutputSz;
         }
 
-        /* Get reference to underlying byte[] from ByteBuffer */
-        arrayMeth = (*jenv)->GetMethodID(jenv, buffClass, "array", "()[B");
-        if (arrayMeth == NULL) {
+        hasArray = (*jenv)->CallBooleanMethod(jenv, buf, hasArrayMeth);
+
+        if (hasArray) {
+            /* Get reference to underlying byte[] from ByteBuffer */
+            arrayMeth = (*jenv)->GetMethodID(jenv, buffClass, "array", "()[B");
+            if (arrayMeth == NULL) {
+                if ((*jenv)->ExceptionOccurred(jenv)) {
+                    (*jenv)->ExceptionDescribe(jenv);
+                    (*jenv)->ExceptionClear(jenv);
+                }
+                (*jenv)->ThrowNew(jenv, excClass,
+                                  "Failed to find ByteBuffer array() method in native read()");
+                return -1;
+            }
+            bufArr = (jbyteArray)(*jenv)->CallObjectMethod(jenv, buf, arrayMeth);
+
+            /* Get array elements */
+            data = (byte *)(*jenv)->GetByteArrayElements(jenv, bufArr, NULL);
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, excClass,
+                                  "Exception when calling ByteBuffer.array() in native read()");
+                return -1;
             }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to find ByteBuffer array() method in native read()");
-            return -1;
         }
-        bufArr = (jbyteArray)(*jenv)->CallObjectMethod(jenv, buf, arrayMeth);
-
-        /* Get array elements */
-        data = (byte*)(*jenv)->GetByteArrayElements(jenv, bufArr, NULL);
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Exception when calling ByteBuffer.array() in native read()");
-            return -1;
+        else {
+            data = (byte *)(*jenv)->GetDirectBufferAddress(jenv, buf);
+            if (data == NULL) {
+                (*jenv)->ThrowNew(jenv, excClass,
+                                  "Failed to get DirectBuffer address in native read()");
+                return BAD_FUNC_ARG;
+            }
         }
-
 
         if (data != NULL) {
             size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
-                maxOutputSz, (int)timeout);
+                                                    maxOutputSz, (int)timeout);
 
             /* Relase array elements */
-            if (size < 0) {
-                (*jenv)->ReleaseByteArrayElements(jenv, bufArr, (jbyte*)data,
-                    JNI_ABORT);
-            }
-            else {
-                /* JNI_COMMIT commits the data but does not free the local array
-                 * 0 is used here to both commit and free */
-                (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
-                    (jbyte*)data, 0);
-
-                /* Update ByteBuffer position() based on bytes written */
-                setPositionMeth = (*jenv)->GetMethodID(jenv, buffClass,
-                    "position", "(I)Ljava/nio/Buffer;");
-                if (setPositionMeth == NULL) {
-                    if ((*jenv)->ExceptionOccurred(jenv)) {
-                        (*jenv)->ExceptionDescribe(jenv);
-                        (*jenv)->ExceptionClear(jenv);
-                    }
-                    (*jenv)->ThrowNew(jenv, excClass,
-                        "Failed to set ByteBuffer position() from "
-                        "native read()");
-                    size = -1;
+            if (hasArray) {
+                if (size < 0) {
+                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr, (jbyte *)data,
+                                                      JNI_ABORT);
                 }
                 else {
-                    (*jenv)->CallVoidMethod(jenv, buf, setPositionMeth,
-                        position + size);
+                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
+                                                      (jbyte *)data, 0);
+                }
+            }
+
+            /* Note: DirectByteBuffer doesn't need releasing data */
+
+            if (size > 0) {
+                /* Update ByteBuffer position() based on bytes written */
+                setPositionMeth = (*jenv)->GetMethodID(jenv, buffClass,
+                                "position", "(I)Ljava/nio/Buffer;");
+                if (setPositionMeth == NULL) {
+                        if ((*jenv)->ExceptionOccurred(jenv)) {
+                                (*jenv)->ExceptionDescribe(jenv);
+                                (*jenv)->ExceptionClear(jenv);
+                        }
+                        (*jenv)->ThrowNew(jenv, excClass,
+                                        "Failed to set ByteBuffer position() from "
+                                        "native read()");
+                        size = -1;
+                }
+                else {
+                        (*jenv)->CallVoidMethod(jenv, buf, setPositionMeth,
+                                        position + size);
                 }
             }
         }
