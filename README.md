@@ -271,7 +271,7 @@ Debug messages will look similar to the following when output in JSON format:
 
 ```
 {
-    "@timestamp": "2024-04-05 11:13:07.193",
+    "@timestamp": "2025-04-05 11:13:07.193",
     "level": "INFO",
     "logger_name": "wolfJSSE",
     "message": "[ WolfSSLTrustManager] entered engineInit()",
