@@ -3845,12 +3845,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getSide
     (void)jenv;
     (void)jcl;
 
-#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetSide((WOLFSSL*)(uintptr_t)ssl);
-#else
-    return NOT_COMPILED_IN;
-#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_isTLSv1_11
