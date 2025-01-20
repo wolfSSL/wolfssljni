@@ -1421,7 +1421,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     jint position;
     jint limit;
     jboolean hasArray;
-    jbyteArray bufArr;
+    jbyteArray bufArr = NULL;
 
     (void)jcl;
 
