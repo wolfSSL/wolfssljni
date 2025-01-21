@@ -59,6 +59,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -116,6 +117,8 @@ import com.wolfssl.WolfSSLException;
     public void testSessionResumptionWithTicketEnabled();
     public void testDoubleSocketClose();
     public void testSocketConnectException();
+    public void testSocketCloseInterruptsWrite();
+    public void testSocketCloseInterruptsRead();
  */
 public class WolfSSLSocketTest {
 
@@ -465,6 +468,8 @@ public class WolfSSLSocketTest {
         TestClient client = null;
         Exception srvException = null;
         Exception cliException = null;
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
 
         System.out.print("\twolfjsse.enabledSupportedCurves");
 
@@ -485,10 +490,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -527,10 +540,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -569,10 +590,18 @@ public class WolfSSLSocketTest {
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
 
             srvException = server.getException();
             if (srvException != null) {
@@ -600,7 +629,9 @@ public class WolfSSLSocketTest {
             }
         }
 
-        /* Test with invalid property entries */
+        /* Test with invalid property entries.
+         * Only need to start client thread, since it throws exception
+         * before connecting to server. */
         {
             Security.setProperty("wolfjsse.enabledSupportedCurves",
                 "badone, badtwo");
@@ -609,19 +640,15 @@ public class WolfSSLSocketTest {
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
 
-            TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
-            server = new TestServer(this.ctx, ss, sArgs, 1);
-            server.start();
-            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+
+            cDoneLatch = new CountDownLatch(1);
+
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
             client.start();
 
-            srvException = server.getException();
-            if (srvException != null) {
-                Security.setProperty("wolfjsse.enabledSupportedCurves",
-                    originalProperty);
-                throw srvException;
-            }
+            cDoneLatch.await();
 
             cliException = client.getException();
             if (cliException != null) {
@@ -630,7 +657,7 @@ public class WolfSSLSocketTest {
 
             try {
                 client.join(1000);
-                server.join(1000);
+                //server.join(1000);
 
             } catch (InterruptedException e) {
                 System.out.println("interrupt happened");
@@ -656,6 +683,9 @@ public class WolfSSLSocketTest {
     @Test
     public void testClientServerThreaded() throws Exception {
 
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
+
         System.out.print("\tTesting basic client/server");
 
         /* create new CTX */
@@ -668,12 +698,18 @@ public class WolfSSLSocketTest {
         TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
         TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
 
-        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
+        sDoneLatch = new CountDownLatch(1);
+        cDoneLatch = new CountDownLatch(1);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
         server.start();
 
-        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+            cDoneLatch);
         client.start();
 
+        cDoneLatch.await();
+        sDoneLatch.await();
 
         Exception srvException = server.getException();
         if (srvException != null) {
@@ -700,6 +736,9 @@ public class WolfSSLSocketTest {
     public void alpnClientServerRunner(TestArgs sArgs, TestArgs cArgs,
         boolean expectingException) throws Exception {
 
+        CountDownLatch sDoneLatch = null;
+        CountDownLatch cDoneLatch = null;
+
         if (sArgs == null || cArgs == null) {
             throw new Exception("client/server TestArgs can not be null");
         }
@@ -710,11 +749,18 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
 
-        TestServer server = new TestServer(this.ctx, ss, sArgs, 1);
+        sDoneLatch = new CountDownLatch(1);
+        cDoneLatch = new CountDownLatch(1);
+
+        TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
         server.start();
 
-        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs);
+        TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+            cDoneLatch);
         client.start();
+
+        cDoneLatch.await();
+        sDoneLatch.await();
 
         try {
             client.join(1000);
@@ -988,7 +1034,7 @@ public class WolfSSLSocketTest {
 
         /* This test hangs on Android, marking TODO for later investigation. Seems to be
          * something specific to the test code, not library proper. */
-        if (tf.isAndroid()) {
+        if (WolfSSLTestFactory.isAndroid()) {
             System.out.println("\t... skipped");
             return;
         }
@@ -2746,6 +2792,271 @@ public class WolfSSLSocketTest {
         System.out.println("\t... passed");
     }
 
+    /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
+     * working as expected, we will see the timeout as a hard error that
+     * this test has failed */
+    @Test(timeout = 10000)
+    public void testSocketCloseInterruptsWrite() throws Exception {
+
+        String protocol = null;
+        SSLServerSocketFactory ssf = null;
+        SSLServerSocket ss = null;
+        SSLSocketFactory sf = null;
+        boolean passed = false;
+
+        System.out.print("\tTesting close/write interrupt");
+
+        /* pipe() interrupt mechamism not implemented for Windows yet since
+         * Windows does not support Unix/Linux pipe(). Re-enable this test
+         * for Windows when that support has been added */
+        if (WolfSSLTestFactory.isWindows()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+        final CountDownLatch closeLatch = new CountDownLatch(1);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                    boolean doClose = closeLatch.await(90L, TimeUnit.SECONDS);
+                    if (!doClose) {
+                        /* Return without closing, latch not hit within
+                         * time limit */
+                        return null;
+                    }
+
+                    /* Sleep so write thread has a chance to do some
+                     * writing before interrupt */
+                    Thread.sleep(1000);
+                    cs.setSoLinger(true, 5);
+                    cs.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Server thread got SSLException when not expected");
+                }
+                return null;
+            }
+        });
+
+        byte[] tmpArr = new byte[1024];
+        Arrays.fill(tmpArr, (byte)0xA2);
+        OutputStream out = cs.getOutputStream();
+
+        try {
+            try {
+                cs.startHandshake();
+                out.write(tmpArr);
+            }
+            catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail("Exception from first out.write() when not expected");
+            }
+
+            try {
+                /* signal server thread to try and close socket */
+                closeLatch.countDown();
+
+                /* keep writing, we should get interrupted */
+                while (true) {
+                    out.write(tmpArr);
+                }
+
+            } catch (SocketException e) {
+                /* We expect SocketException with this message, error if
+                 * different than expected */
+                if (!e.getMessage().contains("Socket fd closed during poll")) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Incorrect SocketException thrown by client");
+                    throw e;
+                }
+
+                passed = true;
+            }
+        }
+        finally {
+            es.shutdown();
+            serverFuture.get();
+            if (!cs.isClosed()) {
+                cs.close();
+            }
+            if (!server.isClosed()) {
+                server.close();
+            }
+            if (!ss.isClosed()) {
+                ss.close();
+            }
+        }
+
+        if (passed) {
+            System.out.println("\t... passed");
+        }
+    }
+
+    /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
+     * working as expected, we will see the timeout as a hard error that
+     * this test has failed */
+    @Test(timeout = 10000)
+    public void testSocketCloseInterruptsRead() throws Exception {
+
+        int ret = 0;
+        String protocol = null;
+        SSLServerSocketFactory ssf = null;
+        SSLServerSocket ss = null;
+        SSLSocketFactory sf = null;
+        boolean passed = false;
+
+        System.out.print("\tTesting close/read interrupt");
+
+        /* pipe() interrupt mechamism not implemented for Windows yet since
+         * Windows does not support Unix/Linux pipe(). Re-enable this test
+         * for Windows when that support has been added */
+        if (WolfSSLTestFactory.isWindows()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        } else {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* create new CTX */
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        /* create SSLServerSocket first to get ephemeral port */
+        ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+        final CountDownLatch closeLatch = new CountDownLatch(1);
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+
+                    boolean doClose = closeLatch.await(90L, TimeUnit.SECONDS);
+                    if (!doClose) {
+                        /* Return without closing, latch not hit within
+                         * time limit */
+                        return null;
+                    }
+
+                    /* Sleep to let client thread hit read call */
+                    Thread.sleep(1000);
+                    cs.setSoLinger(true, 5);
+                    cs.close();
+
+                } catch (SSLException e) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Server thread got SSLException when not expected");
+                }
+                return null;
+            }
+        });
+
+        byte[] tmpArr = new byte[1024];
+        InputStream in = cs.getInputStream();
+
+        try {
+            try {
+                cs.startHandshake();
+            }
+            catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail("Exception from startHandshake() when not expected");
+            }
+
+            try {
+                /* signal server thread to try and close socket */
+                closeLatch.countDown();
+
+                while (true) {
+                    ret = in.read(tmpArr, 0, tmpArr.length);
+                    if (ret == -1) {
+                        /* end of stream */
+                        break;
+                    }
+                }
+
+            } catch (SocketException e) {
+                /* We expect SocketException with this message, error if
+                 * different than expected */
+                if (!e.getMessage().contains("Socket is closed") &&
+                    !e.getMessage().contains("Connection already shutdown") &&
+                    !e.getMessage().contains("object has been freed")) {
+                    System.out.println("\t... failed");
+                    e.printStackTrace();
+                    fail("Incorrect SocketException thrown by client");
+                    throw e;
+                }
+            }
+
+            passed = true;
+        }
+        finally {
+            es.shutdown();
+            serverFuture.get();
+            if (!cs.isClosed()) {
+                cs.close();
+            }
+            if (!server.isClosed()) {
+                server.close();
+            }
+            if (!ss.isClosed()) {
+                ss.close();
+            }
+        }
+
+        if (passed) {
+            System.out.println("\t... passed");
+        }
+    }
+
     @Test
     public void testSocketMethodsAfterClose() throws Exception {
 
@@ -3089,13 +3400,15 @@ public class WolfSSLSocketTest {
         private int numConnections = 1;
         WolfSSLSocketTest wst;
         SSLServerSocket ss = null;
+        CountDownLatch doneLatch = null;
 
         public TestServer(SSLContext ctx, SSLServerSocket ss,
-            TestArgs args, int numConnections) {
+            TestArgs args, int numConnections, CountDownLatch doneLatch) {
             this.ctx = ctx;
             this.ss = ss;
             this.args = args;
             this.numConnections = numConnections;
+            this.doneLatch = doneLatch;
         }
 
 
@@ -3175,6 +3488,8 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
+            } finally {
+                this.doneLatch.countDown();
             }
         }
 
@@ -3202,11 +3517,14 @@ public class WolfSSLSocketTest {
         private Exception exception = null;
         private TestArgs args = null;
         WolfSSLSocketTest wst;
+        CountDownLatch doneLatch = null;
 
-        public TestClient(SSLContext ctx, int port, TestArgs args) {
+        public TestClient(SSLContext ctx, int port, TestArgs args,
+            CountDownLatch doneLatch) {
             this.ctx = ctx;
             this.srvPort = port;
             this.args = args;
+            this.doneLatch = doneLatch;
         }
 
         @Override
@@ -3271,6 +3589,8 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 this.exception = e;
+            } finally {
+                this.doneLatch.countDown();
             }
         }
 

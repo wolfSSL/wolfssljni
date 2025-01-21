@@ -363,7 +363,7 @@ public class WolfSSLX509Test {
                     break;
                 }
             }
-            if (sigProvider == null || tf.isAndroid()) {
+            if (sigProvider == null || WolfSSLTestFactory.isAndroid()) {
                 pass("\t\t\t... skipped");
                 return;
             }
@@ -511,7 +511,7 @@ public class WolfSSLX509Test {
            }
 
            /* Android KeyStore formats x509 getName() differently than peer getName() */
-           if (!tf.isAndroid()) {
+           if (!WolfSSLTestFactory.isAndroid()) {
                if (!x509.getSubjectDN().getName().equals(
                        peer.getSubjectDN().getName())) {
                    error("\t\t... failed");

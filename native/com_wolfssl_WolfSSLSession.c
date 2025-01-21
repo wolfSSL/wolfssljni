@@ -72,8 +72,17 @@ static jobject g_crlCbIfaceObj;
  * function calls. Stored inside WOLFSSL app data, set with
  * wolfSSL_set_app_data(), retrieved with wolfSSL_get_app_data().
  * Global callback objects are created with NewGlobalRef(), then freed
- * inside freeSSL() with DeleteGlobalRef(). */
+ * inside freeSSL() with DeleteGlobalRef().
+ *
+ * interruptFds[2] is a pipe() used for non-Windows platforms. This pipe is
+ * used to interrupt threads blocked inside select()/poll() when a separate
+ * Java thread calls close() on the SSLSocket. */
 typedef struct SSLAppData {
+    int threadsInPoll;               /* number of threads in poll/select() */
+#ifndef USE_WINDOWS_API
+    int interruptFds[2];             /* pipe for interrupting socketSelect() */
+    wolfSSL_Mutex* pollCountLock;    /* lock around threadsInPoll */
+#endif
     wolfSSL_Mutex* jniSessLock;      /* WOLFSSL session lock */
     jobject* g_verifySSLCbIfaceObj;  /* Java verify callback [global ref] */
 } SSLAppData;
@@ -191,13 +200,116 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     return retval;
 }
 
+#ifndef USE_WINDOWS_API
+
+/* Close interrupt pipe() descriptors and reset back to -1. */
+static void closeInterruptPipe(SSLAppData* appData)
+{
+    if (appData != NULL) {
+        if (appData->interruptFds[0] != -1) {
+            close(appData->interruptFds[0]);
+            appData->interruptFds[0] = -1;
+        }
+        if (appData->interruptFds[1] != -1) {
+            close(appData->interruptFds[1]);
+            appData->interruptFds[1] = -1;
+        }
+    }
+}
+
+/* Signal to threads blocked in select() or poll() to wake up, by writing
+ * one byte to the appData.interruptFds[1] pipe. */
+static void writeToInterruptPipe(SSLAppData* appData)
+{
+    if (appData != NULL) {
+        if (appData->interruptFds[1] != -1) {
+            write(appData->interruptFds[1], "1", 1);
+        }
+    }
+}
+
+#endif /* !USE_WINDOWS_API */
+
+/* Return number of threads waiting in poll()/select() */
+static int threadsWaitingInPollSelect(SSLAppData* appData)
+{
+    int ret = 0;
+#ifndef USE_WINDOWS_API
+    wolfSSL_Mutex* pollCountLock = NULL;
+
+    if (appData != NULL) {
+        pollCountLock = appData->pollCountLock;
+        if (pollCountLock != NULL) {
+            if (wc_LockMutex(pollCountLock) == 0) {
+                ret = appData->threadsInPoll;
+                wc_UnLockMutex(pollCountLock);
+            }
+        }
+    }
+#endif
+    return ret;
+}
+
+static void incrementThreadPollCount(SSLAppData* appData)
+{
+#ifndef USE_WINDOWS_API
+    wolfSSL_Mutex* pollCountLock = NULL;
+
+    if (appData == NULL) {
+        return;
+    }
+
+    pollCountLock = appData->pollCountLock;
+    if (pollCountLock == NULL) {
+        return;
+    }
+
+    if (wc_LockMutex(pollCountLock) != 0) {
+        return;
+    }
+
+    appData->threadsInPoll++;
+
+    wc_UnLockMutex(pollCountLock);
+#endif
+}
+
+static void decrementThreadPollCount(SSLAppData* appData)
+{
+#ifndef USE_WINDOWS_API
+    wolfSSL_Mutex* pollCountLock = NULL;
+
+    if (appData == NULL) {
+        return;
+    }
+
+    pollCountLock = appData->pollCountLock;
+    if (pollCountLock == NULL) {
+        return;
+    }
+
+    if (wc_LockMutex(pollCountLock) != 0) {
+        return;
+    }
+
+    if (appData->threadsInPoll > 0) {
+        appData->threadsInPoll--;
+    }
+
+    wc_UnLockMutex(pollCountLock);
+#endif
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
-  (JNIEnv* jenv, jobject jcl, jlong ctx)
+  (JNIEnv* jenv, jobject jcl, jlong ctx, jboolean withIOPipe)
 {
     int ret;
     jlong sslPtr = 0;
     jobject* g_cachedSSLObj = NULL;
     wolfSSL_Mutex* jniSessLock = NULL;
+#ifndef USE_WINDOWS_API
+    wolfSSL_Mutex* pollCountLock = NULL;
+#endif
     SSLAppData* appData = NULL;
 
     if (jenv == NULL) {
@@ -251,11 +363,71 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
         wc_InitMutex(jniSessLock);
         appData->jniSessLock = jniSessLock;
 
+        /* set up interrupt pipe for SSLSocket.close() to use if/when needed.
+         * currently only non-Windows platforms supported due to Windows not
+         * supporting direct/same pipe() operation. Make read pipe non
+         * blocking since byte read from it could have already been taken
+         * out by either reader/writer thread before the other has a chance
+         * to read it. But, we only use it for waking us up and don't care
+         * much about actually reading the byte passed over the pipe. */
+        appData->threadsInPoll = 0;
+#ifndef USE_WINDOWS_API
+        pollCountLock = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), NULL,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (pollCountLock == NULL) {
+            printf("error mallocing pollCountLock in newSSL for SSLAppData\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
+        wc_InitMutex(pollCountLock);
+        appData->pollCountLock = pollCountLock;
+
+        appData->interruptFds[0] = -1;
+        appData->interruptFds[1] = -1;
+
+        if (withIOPipe == JNI_TRUE) {
+            ret = pipe(appData->interruptFds);
+            if (ret == -1) {
+                printf("error setting up pipe() for interruptFds[] in newSSL\n");
+                (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+                XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+                return SSL_FAILURE;
+            }
+
+            ret = fcntl(appData->interruptFds[0], F_SETFL,
+                    fcntl(appData->interruptFds[0], F_GETFL, 0) | O_NONBLOCK);
+            if (ret < 0) {
+                printf("error setting interruptFds[0] non-blocking in newSSL\n");
+                closeInterruptPipe(appData);
+                (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+                XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+                return SSL_FAILURE;
+            }
+        }
+#endif /* !USE_WINDOWS_API */
+
         /* cache associated WolfSSLSession jobject in native WOLFSSL */
         ret = wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, g_cachedSSLObj);
         if (ret != SSL_SUCCESS) {
             printf("error storing jobject in wolfSSL native session\n");
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+        #ifndef USE_WINDOWS_API
+            closeInterruptPipe(appData);
+            XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+            XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
@@ -267,6 +439,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
                 (WOLFSSL*)(uintptr_t)sslPtr, appData) != SSL_SUCCESS) {
             printf("error setting WOLFSSL app data in newSSL\n");
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+        #ifndef USE_WINDOWS_API
+            closeInterruptPipe(appData);
+            XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -637,16 +813,21 @@ enum {
  *                   supported, since not supported on Java Socket.
  * @param rx         set to 1 to monitor readability on socket descriptor,
  *                   otherwise 0 to monitor writability
+ * @param shutdown   Is this being called from shutdownSSL()? Don't select
+ *                   on interruptFds in that case, since we already know
+ *                   we are closing in that case.
  *
  * @return possible return values are:
  *         WOLFJNI_IO_EVENT_FAIL
  *         WOLFJNI_IO_EVENT_ERROR
+ *         WOLFJNI_IO_EVENT_FD_CLOSED
  *         WOLFJNI_IO_EVENT_TIMEOUT
  *         WOLFJNI_IO_EVENT_RECV_READY
  *         WOLFJNI_IO_EVENT_SEND_READY
  *         WOLFJNI_IO_EVENT_INVALID_TIMEOUT
  */
-static int socketSelect(int sockfd, int timeout_ms, int rx)
+static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
+    int shutdown)
 {
     fd_set fds, errfds;
     fd_set* recvfds = NULL;
@@ -654,10 +835,17 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
     int nfds = sockfd + 1;
     int result = 0;
     struct timeval timeout;
+#ifndef USE_WINDOWS_API
+    char tmpBuf[1];
+#endif
 
     /* Java Socket does not support negative timeouts, sanitize */
     if (timeout_ms < 0) {
         return WOLFJNI_IO_EVENT_INVALID_TIMEOUT;
+    }
+
+    if (appData == NULL) {
+        return WOLFJNI_IO_EVENT_ERROR;
     }
 
 #ifndef USE_WINDOWS_API
@@ -666,8 +854,20 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
         timeout.tv_sec = timeout_ms / 1000;
         timeout.tv_usec = (timeout_ms % 1000) * 1000;
 
+        /* file/socket descriptors */
         FD_ZERO(&fds);
         FD_SET(sockfd, &fds);
+#ifndef USE_WINDOWS_API
+        if ((shutdown == 0) && (appData->interruptFds[0] != -1)) {
+            FD_SET(appData->interruptFds[0], &fds);
+            /* nfds should be set to the highest number descriptor plus 1 */
+            if (appData->interruptFds[0] > sockfd) {
+                nfds = appData->interruptFds[0] + 1;
+            }
+        }
+#endif /* !USE_WINDOWS_API */
+
+        /* error descriptors */
         FD_ZERO(&errfds);
         FD_SET(sockfd, &errfds);
 
@@ -677,11 +877,13 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
             sendfds = &fds;
         }
 
+        incrementThreadPollCount(appData);
         if (timeout_ms == 0) {
             result = select(nfds, recvfds, sendfds, &errfds, NULL);
         } else {
             result = select(nfds, recvfds, sendfds, &errfds, &timeout);
         }
+        decrementThreadPollCount(appData);
 
         if (result == 0) {
             return WOLFJNI_IO_EVENT_TIMEOUT;
@@ -692,9 +894,26 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
                 } else {
                     return WOLFJNI_IO_EVENT_SEND_READY;
                 }
-            } else if (FD_ISSET(sockfd, &errfds)) {
+            }
+            else if (FD_ISSET(sockfd, &errfds)) {
                 return WOLFJNI_IO_EVENT_ERROR;
             }
+#ifndef USE_WINDOWS_API
+            else if ((shutdown == 0) && (appData->interruptFds[0] != -1) &&
+                     (FD_ISSET(appData->interruptFds[0], &fds))) {
+                /* We got interrupted by our interrupt fd, due to a Java
+                 * thread calling SSLSocket.close(). Try to read byte that
+                 * was placed on our interruptFds[0] descriptor, but not
+                 * an error if not there. Another read/write() may have
+                 * already read it off. We just want to be interrupted,
+                 * byte value does not matter. */
+                do {
+                    read(appData->interruptFds[0], tmpBuf, 1);
+                } while (errno == EINTR);
+
+                return WOLFJNI_IO_EVENT_FD_CLOSED;
+            }
+#endif /* !USE_WINDOWS_API */
         }
 
 #ifndef USE_WINDOWS_API
@@ -725,6 +944,9 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
  *                   otherwise 0 to ignore readability events
  * @param tx         set to 1 to monitor writability on socket descriptor,
  *                   otherwise 0 to ignore writability events
+ * @param shutdown   Is this being called from shutdownSSL()? Don't poll
+ *                   on interruptFds in that case, since we already know
+ *                   we are closing in that case.
  *
  * @return possible return values are:
  *         WOLFJNI_IO_EVENT_FAIL
@@ -736,11 +958,18 @@ static int socketSelect(int sockfd, int timeout_ms, int rx)
  *         WOLFJNI_IO_EVENT_POLLHUP
  *         WOLFJNI_IO_EVENT_INVALID_TIMEOUT
  */
-static int socketPoll(int sockfd, int timeout_ms, int rx, int tx)
+static int socketPoll(SSLAppData* appData, int sockfd, int timeout_ms,
+    int rx, int tx, int shutdown)
 {
     int ret;
+    int nfds = 2;
     int timeout;
-    struct pollfd fds[1];
+    struct pollfd fds[2];
+    char tmpBuf[1];
+
+    if (appData == NULL) {
+        return WOLFJNI_IO_EVENT_ERROR;
+    }
 
     /* Sanitize timeout and convert from Java to poll() expectations */
     timeout = timeout_ms;
@@ -750,35 +979,62 @@ static int socketPoll(int sockfd, int timeout_ms, int rx, int tx)
         timeout = -1;
     }
 
+    /* fd for socket I/O */
     fds[0].fd = sockfd;
     fds[0].events = 0;
     if (tx) {
-        fds[0].events |= POLLOUT;
+        fds[0].events |= POLLOUT | POLLPRI;
     }
     if (rx) {
-        fds[0].events |= POLLIN;
+        fds[0].events |= POLLIN | POLLPRI;
+    }
+
+    if ((shutdown == 0) && (appData->interruptFds[0] != -1)) {
+        /* fd for interrupt / signaling SSLSocket.close() */
+        fds[1].fd = appData->interruptFds[0];
+        fds[1].events = POLLIN | POLLPRI;
+    }
+    else {
+        nfds--;
     }
 
     do {
-        ret = poll(fds, 1, timeout);
+        incrementThreadPollCount(appData);
+        ret = poll(fds, nfds, timeout);
+        decrementThreadPollCount(appData);
         if (ret == 0) {
             return WOLFJNI_IO_EVENT_TIMEOUT;
 
-        } else if (ret > 0) {
-            if (fds[0].revents & POLLIN ||
+        }
+        else if (ret > 0) {
+            if ((shutdown == 0) && (appData->interruptFds[0] != -1) &&
+                (fds[1].revents & POLLIN)) {
+                /* received data on interrupt pipe, read and return
+                 * that descriptor is closed (closing) */
+                do {
+                    read(appData->interruptFds[0], tmpBuf, 1);
+                } while (errno == EINTR);
+
+                return WOLFJNI_IO_EVENT_FD_CLOSED;
+            }
+            else if (fds[0].revents & POLLIN ||
                 fds[0].revents & POLLPRI) {         /* read possible */
                 return WOLFJNI_IO_EVENT_RECV_READY;
 
-            } else if (fds[0].revents & POLLOUT) {  /* write possible */
+            }
+            else if (fds[0].revents & POLLOUT) {  /* write possible */
                 return WOLFJNI_IO_EVENT_SEND_READY;
 
-            } else if (fds[0].revents & POLLNVAL) { /* fd not open */
+            }
+            else if (fds[0].revents & POLLNVAL) { /* fd not open */
                 return WOLFJNI_IO_EVENT_FD_CLOSED;
 
-            } else if (fds[0].revents & POLLERR) {  /* exceptional error */
+            }
+            else if (fds[0].revents & POLLERR) {  /* exceptional error */
                 return WOLFJNI_IO_EVENT_ERROR;
 
-            } else if (fds[0].revents & POLLHUP) {  /* sock disconnected */
+            }
+            else if (fds[0].revents & POLLHUP) {  /* sock disconnected */
                 return WOLFJNI_IO_EVENT_POLLHUP;
             }
         }
@@ -795,7 +1051,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
 {
     int ret = 0, err = 0, sockfd = 0;
     int pollRx = 0;
+#if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
+#endif
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -852,14 +1110,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
             if (err == SSL_ERROR_WANT_READ) {
                 pollRx = 1;
             }
+        #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
             else if (err == SSL_ERROR_WANT_WRITE) {
                 pollTx = 1;
             }
+        #endif
 
         #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
-            ret = socketSelect(sockfd, (int)timeout, pollRx);
+            ret = socketSelect(appData, sockfd, (int)timeout, pollRx, 0);
         #else
-            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+            ret = socketPoll(appData, sockfd, (int)timeout, pollRx, pollTx, 0);
         #endif
             if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                 (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -898,7 +1158,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
     byte* data = NULL;
     int ret = SSL_FAILURE, err, sockfd;
     int pollRx = 0;
+#if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
+#endif
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -963,14 +1225,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write
                 if (err == SSL_ERROR_WANT_READ) {
                     pollRx = 1;
                 }
+            #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
                 else if (err == SSL_ERROR_WANT_WRITE) {
                     pollTx = 1;
                 }
+            #endif
 
             #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
-                ret = socketSelect(sockfd, (int)timeout, pollRx);
+                ret = socketSelect(appData, sockfd, (int)timeout, pollRx, 0);
             #else
-                ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+                ret = socketPoll(appData, sockfd, (int)timeout, pollRx,
+                    pollTx, 0);
             #endif
                 if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                     (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -1017,7 +1282,9 @@ static int SSLReadNonblockingWithSelectPoll(WOLFSSL* ssl, byte* out,
 {
     int size, ret, err, sockfd;
     int pollRx = 0;
+#if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
+#endif
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
 
@@ -1065,14 +1332,16 @@ static int SSLReadNonblockingWithSelectPoll(WOLFSSL* ssl, byte* out,
             if (err == SSL_ERROR_WANT_READ) {
                 pollRx = 1;
             }
+        #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
             else if (err == SSL_ERROR_WANT_WRITE) {
                 pollTx = 1;
             }
+        #endif
 
         #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
-            ret = socketSelect(sockfd, timeout, pollRx);
+            ret = socketSelect(appData, sockfd, timeout, pollRx, 0);
         #else
-            ret = socketPoll(sockfd, timeout, pollRx, pollTx);
+            ret = socketPoll(appData, sockfd, timeout, pollRx, pollTx, 0);
         #endif
             if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                 (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -1152,7 +1421,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     jint position;
     jint limit;
     jboolean hasArray;
-    jbyteArray bufArr;
+    jbyteArray bufArr = NULL;
 
     (void)jcl;
 
@@ -1304,7 +1573,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
 {
     int ret = 0, err, sockfd;
     int pollRx = 0;
+#if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
+#endif
     wolfSSL_Mutex* jniSessLock = NULL;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -1361,14 +1632,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
             if (err == SSL_ERROR_WANT_READ) {
                 pollRx = 1;
             }
+        #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
             else if (err == SSL_ERROR_WANT_WRITE) {
                 pollTx = 1;
             }
+        #endif
 
         #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
-            ret = socketSelect(sockfd, (int)timeout, pollRx);
+            ret = socketSelect(appData, sockfd, (int)timeout, pollRx, 0);
         #else
-            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+            ret = socketPoll(appData, sockfd, (int)timeout, pollRx, pollTx, 0);
         #endif
             if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                 (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -1441,6 +1714,16 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
             XFREE(g_cachedVerifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             g_cachedVerifyCb = NULL;
         }
+#ifndef USE_WINDOWS_API
+        if (appData->pollCountLock != NULL) {
+            wc_FreeMutex(appData->pollCountLock);
+            XFREE(appData->pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            appData->pollCountLock = NULL;
+        }
+
+        /* close pipe() descriptors */
+        closeInterruptPipe(appData);
+#endif
         /* free appData */
         XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         appData = NULL;
@@ -1553,7 +1836,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
 {
     int ret = 0, err, sockfd;
     int pollRx = 0;
+#if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
+#endif
     wolfSSL_Mutex* jniSessLock;
     SSLAppData* appData = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
@@ -1610,14 +1895,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
             if (err == SSL_ERROR_WANT_READ) {
                 pollRx = 1;
             }
+        #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
             else if (err == SSL_ERROR_WANT_WRITE) {
                 pollTx = 1;
             }
+        #endif
 
         #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
-            ret = socketSelect(sockfd, (int)timeout, pollRx);
+            ret = socketSelect(appData, sockfd, (int)timeout, pollRx, 1);
         #else
-            ret = socketPoll(sockfd, (int)timeout, pollRx, pollTx);
+            ret = socketPoll(appData, sockfd, (int)timeout, pollRx, pollTx, 1);
         #endif
             if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                 (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -1822,11 +2109,11 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_get1Session
 
             #if defined(WOLFJNI_USE_IO_SELECT) || defined(USE_WINDOWS_API)
                 /* Default to select() on Windows or if WOLFJNI_USE_IO_SELECT */
-                ret = socketSelect(sockfd,
-                        (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1);
-            #else
-                ret = socketPoll(sockfd,
+                ret = socketSelect(appData, sockfd,
                         (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1, 0);
+            #else
+                ret = socketPoll(appData, sockfd,
+                        (int)WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT, 1, 0, 0);
             #endif
                 if ((ret == WOLFJNI_IO_EVENT_RECV_READY) ||
                     (ret == WOLFJNI_IO_EVENT_SEND_READY)) {
@@ -3558,12 +3845,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getSide
     (void)jenv;
     (void)jcl;
 
-#ifdef ATOMIC_USER
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetSide((WOLFSSL*)(uintptr_t)ssl);
-#else
-    return NOT_COMPILED_IN;
-#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_isTLSv1_11
@@ -5443,6 +5726,51 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
     (void)sessionPtr;
     return (jint)WolfSSL.SSL_FAILURE;
 #endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_interruptBlockedIO
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifndef USE_WINDOWS_API
+    SSLAppData* appData = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
+    (void)jenv;
+    (void)jcl;
+
+#ifndef USE_WINDOWS_API
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* signal any blocked threads in select()/poll() to wake up, so we
+     * don't have a deadlock when trying to lock jniSessLock next */
+    writeToInterruptPipe(appData);
+    writeToInterruptPipe(appData);
+
+#endif /* USE_WINDOWS_API */
+
+    return SSL_SUCCESS;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getThreadsBlockedInPoll
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    SSLAppData* appData = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    (void)jenv;
+    (void)jcl;
+
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return 0;
+    }
+
+    return (jint)threadsWaitingInPollSelect(appData);
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv

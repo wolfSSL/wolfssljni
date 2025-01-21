@@ -2011,6 +2011,10 @@ public class WolfSSLSocket extends SSLSocket {
                     handshakeFinished = this.handshakeComplete;
                 }
 
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "signaling any blocked I/O threads to wake up");
+                ssl.interruptBlockedIO();
+
                 /* Try TLS shutdown procedure, only if handshake has finished */
                 if (ssl != null && handshakeFinished) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2036,12 +2040,15 @@ public class WolfSSLSocket extends SSLSocket {
                         }
 
                         try {
+                            /* Use SO_LINGER value when calling
+                             * shutdown here, since we are closing the
+                             * socket */
                             if (this.socket != null) {
                                 ret = ssl.shutdownSSL(
-                                    this.socket.getSoTimeout());
+                                    this.socket.getSoLinger());
                             } else {
                                 ret = ssl.shutdownSSL(
-                                    super.getSoTimeout());
+                                    super.getSoLinger());
                             }
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2065,9 +2072,7 @@ public class WolfSSLSocket extends SSLSocket {
                             /* Release native verify callback (JNI global) */
                             this.EngineHelper.unsetVerifyCallback();
 
-                            /* Connection is closed, free native WOLFSSL session
-                             * to release native memory earlier than garbage
-                             * collector might with finalize(). */
+                            /* Close ConsumedRecvCtx data stream */
                             Object readCtx = this.ssl.getIOReadCtx();
                             if (readCtx != null &&
                                 readCtx instanceof ConsumedRecvCtx) {
@@ -2076,14 +2081,6 @@ public class WolfSSLSocket extends SSLSocket {
                                   "calling ConsumedRecvCtx.closeDataStreams()");
                                 rctx.closeDataStreams();
                             }
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "calling this.ssl.freeSSL()");
-                            this.ssl.freeSSL();
-                            this.ssl = null;
-
-                            /* Reset internal WolfSSLEngineHelper to null */
-                            this.EngineHelper.clearObjectState();
-                            this.EngineHelper = null;
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 "thread exiting handshakeLock (shutdown)");
@@ -2112,6 +2109,33 @@ public class WolfSSLSocket extends SSLSocket {
                         this.outStream = null;
                     }
                 }
+
+                /* Free this.ssl here instead of above for use cases
+                 * where a SSLSocket is created then closed()'d before
+                 * connected or handshake is done. freeSSL() will
+                 * release interruptFds[] pipe() and free up descriptor. */
+                synchronized (ioLock) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "thread got ioLock (freeSSL)");
+
+                    /* Connection is closed, free native WOLFSSL session
+                     * to release native memory earlier than garbage
+                     * collector might with finalize(), if we don't
+                     * have any threads still waiting in poll/select. */
+                    if (this.ssl.getThreadsBlockedInPoll() == 0) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "calling this.ssl.freeSSL()");
+                        this.ssl.freeSSL();
+                        this.ssl = null;
+                    }
+
+                    /* Reset internal WolfSSLEngineHelper to null */
+                    this.EngineHelper.clearObjectState();
+                    this.EngineHelper = null;
+
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "thread exiting ioLock (shutdown)");
+                } /* ioLock */
             }
 
             if (this.autoClose) {
@@ -2687,7 +2711,11 @@ public class WolfSSLSocket extends SSLSocket {
                 throw e;
 
             } catch (IllegalStateException e) {
-                throw new IOException(e);
+                /* SSLSocket.close() may have already called freeSSL(),
+                 * thus causing a 'WolfSSLSession object has been freed'
+                 * IllegalStateException to be thrown from
+                 * WolfSSLSession.read(). Return as a SocketException here. */
+                throw new SocketException(e.getMessage());
             }
 
             /* return number of bytes read */

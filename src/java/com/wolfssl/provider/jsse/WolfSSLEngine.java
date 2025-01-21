@@ -313,7 +313,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         /* will throw WolfSSLException if issue creating WOLFSSL */
-        ssl = new WolfSSLSession(ctx);
+        ssl = new WolfSSLSession(ctx, false);
 
         enableExtraDebug();
         enableIODebug();

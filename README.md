@@ -108,6 +108,44 @@ $ ./examples/provider/ServerJSSE.sh
 $ ./examples/provider/ClientJSSE.sh
 ```
 
+### java.sh Script Options
+
+The `java.sh` script compiles the native JNI sources into a shared library named
+either `libwolfssljni.so` (Linux/Unix) or `libwolfssljni.dylib` (MacOS).
+Compiling on Linux/Unix and Mac OSX are currently supported.
+
+This script will attempt to auto-detect the `JAVA_HOME` location if not set.
+To explicitly use a Java home location, set the `JAVA_HOME` environment variable
+prior to running this script.
+
+This script will try to link against a wolfSSL library installed to the
+default location of `/usr/local`. This script accepts two arguments on the
+command line. The first argument can point to a custom wolfSSL installation
+location. A custom install location would match the directory set at wolfSSL
+`./configure --prefix=<DIR>`.
+
+The second argument represents the wolfSSL library name that should be
+linked against. This is helpful if a non-standard library name has been
+used with wolfSSL, for example the `./configure --with-libsuffix` option
+has been used to add a suffix to the wolfSSL library name. Note that to
+use this argument, an installation location must be specified via the
+first argument.
+
+For example, if wolfSSL was configured with `--with-libsuffix=jsse`, then
+this script could be called like so using the default installation
+path of `/usr/local`:
+
+```
+java.sh /usr/local wolfssljsse
+```
+
+`java.sh` can use preset `CFLAGS` defines, if set in the environment variable
+prior to running the script, for example:
+
+```
+CFLAGS=-DWOLFJNI_USE_IO_SELECT java.sh
+```
+
 ## Building with Maven
 
 wolfJSSE supports building and packaging with Maven, for those projects that

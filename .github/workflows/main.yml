@@ -120,6 +120,27 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # -------------------- WOLFJNI_USE_IO_SELECT sanity check --------------------
+  # Only check one Linux and Mac JDK version as a sanity check.
+  # Using Zulu, but this can be expanded if needed.
+  linux-zulu-ioselect:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'macos-latest' ]
+        jdk_version: [ '11' ]
+        wolfssl_configure: [
+            '--enable-jni',
+        ]
+        javash_cflags: [ '-DWOLFJNI_USE_IO_SELECT' ]
+    name: ${{ matrix.os }} (Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}}, ${{ matrix.javash_cflags }})
+    uses: ./.github/workflows/linux-common.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+      javash_cflags: ${{ matrix.javash_cflags }}
+
   # ------------------ Facebook Infer static analysis -------------------
   # Run Facebook infer over PR code, only running on Linux with one
   # JDK/version for now.
