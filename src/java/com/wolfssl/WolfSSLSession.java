@@ -1349,18 +1349,18 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#newContext(long)
      * @see    WolfSSLContext#free()
      */
-    public synchronized void freeSSL()
+    public void freeSSL()
         throws IllegalStateException, WolfSSLJNIException {
 
-        synchronized (stateLock) {
-            if (this.active == false) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, "entered freeSSL(), already freed");
-                /* already freed, just return */
-                return;
-            }
+        synchronized (sslLock) {
+            synchronized (stateLock) {
+                if (this.active == false) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                        WolfSSLDebug.INFO, "entered freeSSL(), already freed");
+                    /* already freed, just return */
+                    return;
+                }
 
-            synchronized (sslLock) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr, "entered freeSSL()");
 
@@ -2867,7 +2867,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      * @see    WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      */
-    public synchronized void setIOReadCtx(Object ctx)
+    public void setIOReadCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2886,7 +2886,7 @@ public class WolfSSLSession {
      * @return Object that was set with setIOReadCtx().
      * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public synchronized Object getIOReadCtx()
+    public Object getIOReadCtx()
         throws IllegalStateException {
 
         confirmObjectIsActive();
@@ -2918,7 +2918,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setIOSend(WolfSSLIOSendCallback)
      * @see    WolfSSLContext#setIORecv(WolfSSLIORecvCallback)
      */
-    public synchronized void setIOWriteCtx(Object ctx)
+    public void setIOWriteCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2937,7 +2937,7 @@ public class WolfSSLSession {
      * @return Object that was set with setIOWriteCtx().
      * @throws IllegalStateException WolfSSLContext has been freed
      */
-    public synchronized Object getIOWriteCtx()
+    public Object getIOWriteCtx()
         throws IllegalStateException {
 
         confirmObjectIsActive();
@@ -2964,7 +2964,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setGenCookie(WolfSSLGenCookieCallback)
      */
-    public synchronized void setGenCookieCtx(Object ctx)
+    public void setGenCookieCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3541,7 +3541,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setMacEncryptCb(WolfSSLMacEncryptCallback)
      */
-    public synchronized void setMacEncryptCtx(Object ctx)
+    public void setMacEncryptCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3565,7 +3565,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
      */
-    public synchronized void setDecryptVerifyCtx(Object ctx)
+    public void setDecryptVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3588,7 +3588,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
      */
-    public synchronized void setEccSignCtx(Object ctx)
+    public void setEccSignCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3612,7 +3612,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
      */
-    public synchronized void setEccVerifyCtx(Object ctx)
+    public void setEccVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3637,7 +3637,7 @@ public class WolfSSLSession {
      * @see    WolfSSLContext#setEccSignCb(WolfSSLEccSignCallback)
      * @see    WolfSSLContext#setEccVerifyCb(WolfSSLEccVerifyCallback)
      */
-    public synchronized void setEccSharedSecretCtx(Object ctx)
+    public void setEccSharedSecretCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3661,7 +3661,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaSignCb(WolfSSLRsaSignCallback)
      */
-    public synchronized void setRsaSignCtx(Object ctx)
+    public void setRsaSignCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3686,7 +3686,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaVerifyCb(WolfSSLRsaVerifyCallback)
      */
-    public synchronized void setRsaVerifyCtx(Object ctx)
+    public void setRsaVerifyCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3711,7 +3711,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaEncCb(WolfSSLRsaEncCallback)
      */
-    public synchronized void setRsaEncCtx(Object ctx)
+    public void setRsaEncCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3736,7 +3736,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    WolfSSLContext#setRsaDecCb(WolfSSLRsaDecCallback)
      */
-    public synchronized void setRsaDecCtx(Object ctx)
+    public void setRsaDecCtx(Object ctx)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3782,7 +3782,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentity()
      * @see    WolfSSLSession#getPskIdentityHint()
      */
-    public synchronized void setPskClientCb(WolfSSLPskClientCallback callback)
+    public void setPskClientCb(WolfSSLPskClientCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -3827,7 +3827,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getPskIdentity()
      * @see    WolfSSLSession#getPskIdentityHint()
      */
-    public synchronized void setPskServerCb(WolfSSLPskServerCallback callback)
+    public void setPskServerCb(WolfSSLPskServerCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -4126,7 +4126,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setIOSend(WolfSSLIOSendCallback)
      */
-    public synchronized void setIORecv(WolfSSLIORecvCallback callback)
+    public void setIORecv(WolfSSLIORecvCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -4164,7 +4164,7 @@ public class WolfSSLSession {
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setIORecv(WolfSSLIORecvCallback)
      */
-    public synchronized void setIOSend(WolfSSLIOSendCallback callback)
+    public void setIOSend(WolfSSLIOSendCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -4237,7 +4237,7 @@ public class WolfSSLSession {
      * @throws IllegalStateException if called when WolfSSLSession is not
      *         active
      */
-    public synchronized int useSNI(byte type, byte[] data)
+    public int useSNI(byte type, byte[] data)
         throws IllegalStateException {
 
         int ret;
@@ -4268,7 +4268,7 @@ public class WolfSSLSession {
      * @throws IllegalStateException if called when WolfSSLSession is not
      *         active
      */
-    public synchronized byte[] getClientSNIRequest()
+    public byte[] getClientSNIRequest()
         throws IllegalStateException {
 
         confirmObjectIsActive();
@@ -4347,7 +4347,7 @@ public class WolfSSLSession {
      * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
      * @throws IllegalStateException WolfSSLSession has been freed
      */
-    public synchronized int useSessionTicket()
+    public int useSessionTicket()
         throws IllegalStateException {
 
         int ret;
@@ -4441,8 +4441,11 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.sslPtr, "entered useALPN(String[], int)");
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered useALPN(String[], int)");
+        }
 
         if (protocols == null) {
             return WolfSSL.BAD_FUNC_ARG;
@@ -4493,8 +4496,11 @@ public class WolfSSLSession {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.sslPtr, "entered getAlpnSelectedString()");
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered getAlpnSelectedString()");
+        }
 
         alpnSelectedBytes = getAlpnSelected();
 
