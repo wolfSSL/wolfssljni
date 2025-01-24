@@ -40,6 +40,8 @@ $ mv wolfssl-X.X.X wolfssljni/IDE/Android/app/src/main/cpp/wolfssl
 ```
 $ cd /IDE/Android/app/src/main/cpp/
 $ git clone https://github.com/wolfssl/wolfssl
+$ cd wolfssl
+$ ./autogen.sh
 $ cp wolfssl/options.h.in wolfssl/options.h
 ```
 

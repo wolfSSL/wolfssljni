@@ -52,6 +52,22 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private void setDisplayText(String s)
+    {
+        runOnUiThread(() -> {
+            TextView tv = (TextView) findViewById(R.id.sample_text);
+            tv.setText(s);
+        });
+    }
+
+    private void appendDisplayText(String s)
+    {
+        runOnUiThread(() -> {
+            TextView tv = (TextView) findViewById(R.id.sample_text);
+            tv.append(s);
+        });
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,8 +76,7 @@ public class MainActivity extends AppCompatActivity {
         Button button = (Button) findViewById(R.id.button);
         button.setOnClickListener(buttonListener);
 
-        TextView tv = (TextView) findViewById(R.id.sample_text);
-        tv.setText("wolfSSL JNI Android Studio Example App");
+        setDisplayText("wolfSSL JNI Android Studio Example App\n");
     }
 
     public void testFindProvider(TextView tv)
@@ -71,15 +86,18 @@ public class MainActivity extends AppCompatActivity {
         WolfSSL.loadLibrary();
 
         /* create new SSLEngine */
-        Security.addProvider(new WolfSSLProvider());
+        Security.insertProviderAt(new WolfSSLProvider(), 1);
 
         Provider p = Security.getProvider("wolfJSSE");
         if (p == null) {
-            System.out.println("Unable to find wolfJSSE provider");
-            return;
+            appendDisplayText("Unable to find wolfJSSE provider\n");
         }
         else {
-
+            appendDisplayText("Successfully found wolfJSSE provider\n");
         }
+
+        appendDisplayText("\n");
+        appendDisplayText("For more detailed example, see:\n");
+        appendDisplayText("github.com/wolfssl/wolfssl-examples\n");
     }
 }
