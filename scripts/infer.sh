@@ -39,6 +39,7 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSLCertRequest.java \
     src/java/com/wolfssl/WolfSSLCertificate.java \
     src/java/com/wolfssl/WolfSSLContext.java \
+    src/java/com/wolfssl/WolfSSLDebug.java \
     src/java/com/wolfssl/WolfSSLDecryptVerifyCallback.java \
     src/java/com/wolfssl/WolfSSLEccSharedSecretCallback.java \
     src/java/com/wolfssl/WolfSSLEccSignCallback.java \
@@ -52,6 +53,7 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSLLoggingCallback.java \
     src/java/com/wolfssl/WolfSSLMacEncryptCallback.java \
     src/java/com/wolfssl/WolfSSLMissingCRLCallback.java \
+    src/java/com/wolfssl/WolfSSLNativeLoggingCallback.java \
     src/java/com/wolfssl/WolfSSLPskClientCallback.java \
     src/java/com/wolfssl/WolfSSLPskServerCallback.java \
     src/java/com/wolfssl/WolfSSLRsaDecCallback.java \
@@ -69,7 +71,6 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/provider/jsse/WolfSSLAuthStore.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLContext.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLCustomUser.java \
-    src/java/com/wolfssl/provider/jsse/WolfSSLDebug.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLEngine.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLEngineHelper.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLGenericHostName.java \
@@ -77,7 +78,6 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/provider/jsse/WolfSSLInternalVerifyCb.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLKeyManager.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLKeyX509.java \
-    src/java/com/wolfssl/provider/jsse/WolfSSLNativeLoggingCallback.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLParametersHelper.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLParameters.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLProvider.java \
@@ -104,8 +104,10 @@ if [ "$RETVAL" == '0' ] && [ "$KEEP" == 'no' ]; then
     rm -r ./infer-out
 fi
 
-if [ "$RETVAL" == '2' ]; then
+if [ "$RETVAL" == '1' ] || [ "$RETVAL" == '2' ]; then
     # GitHub Actions expects return of 1 to mark step as failure
     exit 1
 fi
+
+exit 0
 

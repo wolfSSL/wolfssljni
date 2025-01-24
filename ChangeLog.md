@@ -1,3 +1,38 @@
+### wolfSSL JNI Release 1.15.0 (01/24/2025)
+
+Release 1.15.0 has bug fixes and new features including:
+
+**JSSE System/Security Property Support:**
+* Addition of JNI-level debug system property (`wolfssljni.debug=true`) (PR 235)
+
+**JSSE Changes:**
+* Fix to close Socket when SSLSocket startHandshake() fails (PR 234)
+* Fixes for potential NullPointerException in SSLSocket Input/OutputStream (PR 233)
+* Add ability for `SSLSession.getRequestedServerNames()` to return SNI request on server side (PR 240)
+* Add check for legacy DHE keys, for cipher suites using keys less than 1024 bits (PR 243)
+* Optimize `byte[]` creation in `SSLEngine` when receiving app data (PR 244, 250)
+* Add ability for `SSLSocket.close()` to interrupt `read()/write()` operations waiting in `select()/poll()` (PR 246)
+
+**JNI Changes:**
+* Always call `wolfSSL_get1_session()` inside `WolfSSLSession.getSession()` (PR 236)
+* Call `wc_RunAllCast_fips()` with wolfCrypt FIPS builds if available (PR 247)
+* Add ability to pass `CFLAGS` to `java.sh` (ie: `CFLAGS="-DTEST_DEFINE" ./java.sh`) (PR 248)
+* Remove incorrect `ATOMIC_USER` preprocessor gate around native `wolfSSL_GetSide()` (PR 246)
+
+**Example Changes:**
+* Updated Android Studio example project, define `WOLFSSL_CERT_REQ` (PR 234)
+* Update Android Studio CMakeLists.txt with `WOLFSSL_CUSTOM_CONFIG` definition (PR 239)
+
+**Testing Changes:**
+* Add GitHub Actions PRB test for Maven (Linux, macOS) builds (PR 232)
+* Add tests of `SSLSession` state at various points throughout the handshake (PR 233)
+* Add GitHub Actions PRB test for `--enable-jni CFLAGS="-DNO_SESSION_CACHE_REF"` build (PR 236)
+* Add GitHub Actions PRB test for `-DWOLFJNI_USE_IO_SELECT` (PR 246)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.14.0 (11/7/2024)
 
 Release 1.14.0 has bug fixes and new features including:

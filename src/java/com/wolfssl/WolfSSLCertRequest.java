@@ -172,9 +172,11 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr,
-            "entered addAttribute(nid: " + nid + ", byte[])");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered addAttribute(nid: " + nid + ", byte[])");
+        }
 
         if (nid != WolfSSL.NID_pkcs9_challengePassword &&
             nid != WolfSSL.NID_serialNumber &&
@@ -262,9 +264,11 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr, "entered setPublicKey(" +
-            filePath + ", type: " + keyType + ", format: " + format + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr, "entered setPublicKey(" +
+                filePath + ", type: " + keyType + ", format: " + format + ")");
+        }
 
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
@@ -309,10 +313,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr,
-            "entered setPublicKey(byte[], type: " + keyType + ", format: " +
-            format + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered setPublicKey(byte[], type: " + keyType + ", format: " +
+                format + ")");
+        }
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -366,9 +372,11 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr,
-            "entered setPublicKey(" + key + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered setPublicKey(" + key + ")");
+        }
 
         if (key instanceof RSAPublicKey) {
             keyType = WolfSSL.RSAk;
@@ -442,9 +450,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr, "entered addExtension(nid: " +
-            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered addExtension(nid: " + nid + ", value: " + value +
+                ", isCritical: " + isCritical + ")");
+        }
 
         if (nid != WolfSSL.NID_key_usage &&
             nid != WolfSSL.NID_subject_alt_name &&
@@ -502,9 +513,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr, "entered addExtension(nid: " +
-            nid + ", value: " + value + ", isCritical: " + isCritical + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered addExtension(nid: " + nid + ", value: " + value +
+                ", isCritical: " + isCritical + ")");
+        }
 
         if (nid != WolfSSL.NID_basic_constraints) {
             throw new WolfSSLException(
@@ -553,10 +567,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(" +
-            filePath + ", keyType: " + keyType + ", format: " + format +
-            ", digestAlg: " + digestAlg + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(" +
+                filePath + ", keyType: " + keyType + ", format: " + format +
+                ", digestAlg: " + digestAlg + ")");
+        }
 
         if (filePath == null || filePath.isEmpty()) {
             throw new WolfSSLException("File path is null or empty");
@@ -604,10 +620,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr,
-            "entered signRequest(byte[], keyType: " + keyType + ", format: " +
-            format + ", digestAlg: " + digestAlg + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered signRequest(byte[], keyType: " + keyType +
+                ", format: " + format + ", digestAlg: " + digestAlg + ")");
+        }
 
         if (key == null || key.length == 0) {
             throw new WolfSSLException("Key array is null or empty");
@@ -665,9 +683,12 @@ public class WolfSSLCertRequest {
 
         confirmObjectIsActive();
 
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(key: " +
-            key + ", digestAlg: " + digestAlg + ")");
+        synchronized (x509ReqLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                "entered signRequest(key: " + key + ", digestAlg: " +
+                digestAlg + ")");
+        }
 
         if (key == null) {
             throw new WolfSSLException("Key object is null");
