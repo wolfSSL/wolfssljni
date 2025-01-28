@@ -3315,7 +3315,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     /* find internal ecc shared secret callback */
     ret = GetMethodIDFromObject(jenv, ctxRef,
             "internalEccSharedSecretCallback",
-            "(Lcom/wolfssl/WolfSSLSession;Lcom/wolfssl/wolfcrypt/EccKey;"
+            "(Lcom/wolfssl/WolfSSLSession;Lcom/wolfssl/WolfCryptEccKey;"
             "Ljava/nio/ByteBuffer;[JLjava/nio/ByteBuffer;[JI)I",
             &eccSharedSecretMethodId);
 
@@ -3329,34 +3329,36 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     /* SETUP: otherKey - holds server's public key on client end, otherwise
      * holds server's private key on server end. */
 
-    /* find EccKey class */
-    eccKeyClass = (*jenv)->FindClass(jenv, "com/wolfssl/wolfcrypt/EccKey");
+    /* find WolfCryptEccKey class */
+    eccKeyClass = (*jenv)->FindClass(jenv,
+        "com/wolfssl/WolfCryptEccKey");
     if (!eccKeyClass) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error finding EccKey class for ECC shared secret callback",
-                needsDetach);
+            "Error finding WolfCryptEccKey class for ECC "
+            "shared secret callback",
+            needsDetach);
         return -1;
     }
 
-    /* find EccKey constructor */
+    /* find WolfCryptEccKey constructor */
     eccKeyMethodId = (*jenv)->GetMethodID(jenv, eccKeyClass,
                                           "<init>", "(J)V");
     if (!eccKeyMethodId) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error getting EccKey constructor method ID in "
+                "Error getting WolfCryptEccKey constructor method ID in "
                 "ECC shared secret callback", needsDetach);
         return -1;
     }
 
-    /* create new EccKey object to return otherKey */
+    /* create new WolfCryptEccKey object to return otherKey */
     eccKeyObject = (*jenv)->NewObject(jenv, eccKeyClass, eccKeyMethodId,
                                       (jlong)(uintptr_t)otherKey);
     if (!eccKeyObject) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error creating EccKey object in native ECC "
+                "Error creating WolfCryptEccKey object in native ECC "
                 "shared secret callback", needsDetach);
         return -1;
     }

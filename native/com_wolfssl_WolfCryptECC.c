@@ -1,4 +1,4 @@
-/* com_wolfssl_wolfcrypt_ECC.c
+/* com_wolfssl_WolfCryptECC.c
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -28,9 +28,9 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 
-#include "com_wolfssl_wolfcrypt_ECC.h"
+#include "com_wolfssl_WolfCryptECC.h"
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doVerify
   (JNIEnv* jenv, jobject jcl, jobject sig, jlong sigSz, jobject hash,
    jlong hashSz, jobject keyDer, jlong keySz, jintArray result)
 {
@@ -89,7 +89,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doVerify
     return ret;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_ECC_doSign
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
   (JNIEnv* jenv, jobject jcl, jobject in, jlong inSz, jobject out,
    jlongArray outSz, jobject keyDer, jlong keySz)
 {

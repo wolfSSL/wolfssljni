@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 class MyEccVerifyCallback implements WolfSSLEccVerifyCallback
 {
@@ -34,7 +33,7 @@ class MyEccVerifyCallback implements WolfSSLEccVerifyCallback
         System.out.println("---------- Entered MyEccVerifyCallback ----------");
 
         int ret = -1;
-        ECC ecc = new ECC();
+        WolfCryptECC ecc = new WolfCryptECC();
         MyEccVerifyCtx eccVerifyCtx = (MyEccVerifyCtx)ctx;
 
         ret = ecc.doVerify(sig, sigSz, hash, hashSz, keyDer, keySz, result);

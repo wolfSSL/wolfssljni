@@ -27,25 +27,25 @@ import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.wolfcrypt.ECC;
+import com.wolfssl.WolfCryptECC;
 
 public class WolfCryptECCTest {
 
-    ECC ecc;
+    WolfCryptECC ecc;
 
     @Test
     public void testECC() throws WolfSSLException {
 
-        System.out.println("ECC Class");
+        System.out.println("WolfCryptECC Class");
 
         test_ECC_new();
     }
 
     public void test_ECC_new() {
 
-        System.out.print("\tECC()");
-        ecc = new ECC();
-        System.out.println("\t\t\t\t... passed");
+        System.out.print("\tWolfCryptECC()");
+        ecc = new WolfCryptECC();
+        System.out.println("\t\t\t... passed");
     }
 }
 

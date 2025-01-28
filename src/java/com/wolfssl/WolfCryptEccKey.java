@@ -1,4 +1,4 @@
-/* EccKey.java
+/* WolfCryptEccKey.java
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,16 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-package com.wolfssl.wolfcrypt;
+package com.wolfssl;
 
 import com.wolfssl.WolfSSLException;
 
 /**
  * Wraps a native ecc_key structure pointer.
  *
+ * This class was previously named 'EccKey' and was renamed to 'WolfCryptEccKey'
+ * to avoid naming conflicts with the wolfCrypt JNI/JCE package name space.
+ * Apart from the name change, the class behavior and use remains the same.
+ *
  * @author  wolfSSL
  */
-public class EccKey {
+public class WolfCryptEccKey {
 
     /* internal ecc_key structure pointer */
     private long eccKeyPtr;
@@ -37,13 +41,13 @@ public class EccKey {
     private boolean active = false;
 
     /**
-     * Create new EccKey object, wrapping native ecc_key with pointer
+     * Create new WolfCryptEccKey object, wrapping native ecc_key with pointer
      * keyPtr.
      *
      * @param keyPtr  pointer to native ecc_key structure
      * @throws com.wolfssl.WolfSSLException if key object creation failed
      */
-    public EccKey(long keyPtr) throws WolfSSLException {
+    public WolfCryptEccKey(long keyPtr) throws WolfSSLException {
         if (keyPtr == 0) {
             throw new WolfSSLException("NULL ecc_key pointer not allowed");
         } else {
@@ -119,5 +123,5 @@ public class EccKey {
         super.finalize();
     }
 
-} /* end EccKey */
+} /* end WolfCryptEccKey */
 

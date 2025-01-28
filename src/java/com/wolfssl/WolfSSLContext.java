@@ -23,7 +23,7 @@ package com.wolfssl;
 
 import java.util.Arrays;
 import java.nio.ByteBuffer;
-import com.wolfssl.wolfcrypt.EccKey;
+import com.wolfssl.WolfCryptEccKey;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
@@ -237,7 +237,7 @@ public class WolfSSLContext {
     }
 
     private int internalEccSharedSecretCallback(WolfSSLSession ssl,
-            EccKey otherKey, ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+            WolfCryptEccKey otherKey, ByteBuffer pubKeyDer, long[] pubKeyDerSz,
             ByteBuffer out, long[] outSz, int side)
     {
         int ret;

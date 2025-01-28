@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.*;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 class MyRsaEncCallback implements WolfSSLRsaEncCallback
 {
@@ -34,7 +33,7 @@ class MyRsaEncCallback implements WolfSSLRsaEncCallback
         System.out.println("---------- Entering MyRsaEncCallback ----------");
         int ret = -1;
 
-        RSA rsa = new RSA();
+        WolfCryptRSA rsa = new WolfCryptRSA();
         MyRsaEncCtx rsaEncCtx = (MyRsaEncCtx)ctx;
 
         ret = rsa.doEnc(in, inSz, out, outSz, keyDer, keySz);

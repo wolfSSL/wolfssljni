@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.*;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 class MyRsaSignCallback implements WolfSSLRsaSignCallback
 {
@@ -34,7 +33,7 @@ class MyRsaSignCallback implements WolfSSLRsaSignCallback
         System.out.println("---------- Entering MyRsaSignCallback ----------");
         int ret = -1;
 
-        RSA rsa = new RSA();
+        WolfCryptRSA rsa = new WolfCryptRSA();
         MyRsaSignCtx rsaSignCtx = (MyRsaSignCtx)ctx;
 
         ret = rsa.doSign(in, inSz, out, outSz, keyDer, keySz);

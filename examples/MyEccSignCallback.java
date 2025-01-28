@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 class MyEccSignCallback implements WolfSSLEccSignCallback
 {
@@ -34,7 +33,7 @@ class MyEccSignCallback implements WolfSSLEccSignCallback
         System.out.println("---------- Entered MyEccSignCallback ----------");
 
         int ret = -1;
-        ECC ecc = new ECC();
+        WolfCryptECC ecc = new WolfCryptECC();
         MyEccSignCtx eccSignCtx = (MyEccSignCtx)ctx;
 
         ret = ecc.doSign(in, inSz, out, outSz, keyDer, keySz);

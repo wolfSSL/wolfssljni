@@ -1,4 +1,4 @@
-/* RSA.java
+/* WolfCryptRSA.java
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-package com.wolfssl.wolfcrypt;
+package com.wolfssl;
 
 import java.nio.ByteBuffer;
 
@@ -29,12 +29,17 @@ import java.nio.ByteBuffer;
  * written to be used with this package's example RSA public key callbacks.
  * Usage can be found in examples/Client.java and examples/Server.java.
  *
+ * This class was previously named 'RSA' and was renamed to 'WolfCryptRSA'
+ * to avoid naming conflicts with the 'RSA' class in the wolfCrypt JNI/JCE
+ * package. Apart from the name change, the class behavior and use
+ * remains the same.
+ *
  * @author  wolfSSL
  */
-public class RSA {
+public class WolfCryptRSA {
 
-    /** Default RSA constructor */
-    public RSA() { }
+    /** Default WolfCryptRSA constructor */
+    public WolfCryptRSA() { }
 
     /**
      * RSA sign, wraps native wolfCrypt operation.
