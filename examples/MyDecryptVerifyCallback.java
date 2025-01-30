@@ -30,6 +30,11 @@ import javax.crypto.Cipher;
 import java.nio.ByteBuffer;
 import com.wolfssl.*;
 
+/*
+ * Example Decrypt Verify callback implementation.
+ * NOTE: if native HAVE_ENCRYPT_THEN_MAC is defined, the VerifyDecrypt
+ * callback needs to be used.
+ */
 class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
 {
     public int decryptVerifyCallback(WolfSSLSession ssl, ByteBuffer decOut,
@@ -115,23 +120,18 @@ class MyDecryptVerifyCallback implements WolfSSLDecryptVerifyCallback
             ssl.setTlsHmacInner(myInner, macInSz, macContent, macVerify);
             int hmacType = ssl.getHmacType();
 
-            switch (hmacType) {
-                case WolfSSL.SHA:
-                    hmacString = "HmacSHA1";
-                    break;
-                case WolfSSL.SHA256:
-                    hmacString = "HmacSHA256";
-                    break;
-                case WolfSSL.SHA384:
-                    hmacString = "HmacSHA384";
-                    break;
-                case WolfSSL.SHA512:
-                    hmacString = "HmacSHA512";
-                    break;
-                default:
-                    System.out.println("Unsupported HMAC hash type in " +
-                            "MyDecryptVerifyCallback");
-                    return -1;
+            if (hmacType == WolfSSL.SHA) {
+                hmacString = "HmacSHA1";
+            } else if (hmacType == WolfSSL.SHA256) {
+                hmacString = "HmacSHA256";
+            } else if (hmacType == WolfSSL.SHA384) {
+                hmacString = "HmacSHA384";
+            } else if (hmacType == WolfSSL.SHA512) {
+                hmacString = "HmacSHA512";
+            } else {
+                System.out.println("Unsupported HMAC hash type in " +
+                        "MyDecryptVerifyCallback: " + hmacType);
+                return -1;
             }
 
             /* get Hmac SHA-1 key */

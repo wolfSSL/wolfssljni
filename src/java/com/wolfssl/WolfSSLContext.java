@@ -48,9 +48,10 @@ public class WolfSSLContext {
     /* user-registered DTLS cookie generation callback */
     private WolfSSLGenCookieCallback internCookieCb = null;
 
-    /* user-registered MAC/encrypt and decrypt/verify callbacks */
+    /* user-registered MAC/encrypt, dec/verify, verify/dec callbacks */
     private WolfSSLMacEncryptCallback internMacEncryptCb = null;
     private WolfSSLDecryptVerifyCallback internDecryptVerifyCb = null;
+    private WolfSSLVerifyDecryptCallback internVerifyDecryptCb = null;
 
     /* user-registered ECC sign/verify callbacks */
     private WolfSSLEccSignCallback internEccSignCb = null;
@@ -147,6 +148,11 @@ public class WolfSSLContext {
         return internDecryptVerifyCb;
     }
 
+    /* used by JNI native verify/decrypt Cb */
+    synchronized WolfSSLVerifyDecryptCallback getInternVerifyDecryptCb() {
+        return internVerifyDecryptCb;
+    }
+
     /* this will be registered with native wolfSSL library */
     private int internalIORecvCallback(WolfSSLSession ssl, byte[] buf, int sz)
     {
@@ -206,6 +212,20 @@ public class WolfSSLContext {
         ret = internDecryptVerifyCb.decryptVerifyCallback(ssl, decOut,
                 decIn, decSz, content, verify, padSz,
                 ssl.getDecryptVerifyCtx());
+
+        return ret;
+    }
+
+    private int internalVerifyDecryptCallback(WolfSSLSession ssl,
+            ByteBuffer decOut, byte[] decIn, long decSz, int content,
+            int macVerify, long[] padSz)
+    {
+        int ret;
+
+        /* call user-registered verify/decrypt method */
+        ret = internVerifyDecryptCb.verifyDecryptCallback(ssl, decOut,
+                decIn, decSz, content, macVerify, padSz,
+                ssl.getVerifyDecryptCtx());
 
         return ret;
     }
@@ -385,6 +405,7 @@ public class WolfSSLContext {
     private native int setOCSPOverrideUrl(long ctx, String url);
     private native void setMacEncryptCb(long ctx);
     private native void setDecryptVerifyCb(long ctx);
+    private native void setVerifyDecryptCb(long ctx);
     private native void setEccSignCb(long ctx);
     private native void setEccVerifyCb(long ctx);
     private native void setEccSharedSecretCb(long ctx);
@@ -1583,6 +1604,7 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
+     * @see    #setVerifyDecryptCb(WolfSSLVerifyDecryptCallback)
      */
     public synchronized void setMacEncryptCb(WolfSSLMacEncryptCallback callback)
         throws IllegalStateException, WolfSSLJNIException {
@@ -1626,6 +1648,7 @@ public class WolfSSLContext {
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #setMacEncryptCb(WolfSSLMacEncryptCallback)
+     * @see    #setVerifyDecryptCb(WolfSSLVerifyDecryptCallback)
      */
     public synchronized void setDecryptVerifyCb(
         WolfSSLDecryptVerifyCallback callback)
@@ -1643,6 +1666,51 @@ public class WolfSSLContext {
 
             /* register internal callback with native library */
             setDecryptVerifyCb(getContextPtr());
+        }
+    }
+
+    /**
+     * Allows caller to set the Atomic Record Processing Verify/Decrypt
+     * Callback.
+     * The callback should return 0 for success, or a negative value for
+     * an error. The <b>ssl</b> and <b>ctx</b> pointers are available
+     * for the users convenience. <b>decOut</b> is the output buffer
+     * where the result of the decryption should be stored. <b>decIn</b>
+     * is the encrypted input buffer and <b>decInSz</b> notes the size of the
+     * buffer. <b>context</b> and <b>macVerify</b> are needed for
+     * setTlsHmacInner() and can be passed along as-is. <b>padSz</b> is
+     * an output variable, where the first element in the array should be set
+     * with the total value of the padding. That is, the mac size plus any
+     * padding and pad bytes. An example callback can be found in
+     * examples/MyVerifyDecryptCallback.java.
+     *
+     * @param callback  object to be registered as the verify/decrypt
+     *                  callback for the WolfSSL context. The signature of
+     *                  this object and corresponding method must match that
+     *                  as shown in
+     *                  WolfSSLVerifyDecryptCallback.java, inside
+     *                  verifyDecryptCallback().
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setMacEncryptCb(WolfSSLMacEncryptCallback)
+     * @see    #setDecryptVerifyCb(WolfSSLDecryptVerifyCallback)
+     */
+    public synchronized void setVerifyDecryptCb(
+        WolfSSLVerifyDecryptCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                "entered setVerifyDecryptCb(" + callback + ")");
+
+            /* set verify/decrypt callback */
+            internVerifyDecryptCb = callback;
+
+            /* register internal callback with native library */
+            setVerifyDecryptCb(getContextPtr());
         }
     }
 

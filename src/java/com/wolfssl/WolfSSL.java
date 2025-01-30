@@ -394,17 +394,19 @@ public class WolfSSL {
     /** TLS 1.3 secret callback function failure */
     public static final int TLS13_SECRET_CB_E = -438;
 
-    /* hmac codes, from wolfssl/wolfcrypt/hmac.h */
+    /* HMAC codes, from wolfssl/wolfcrypt/hmac.h. These values
+     * are set via JNI calls in static class block since they can change
+     * depending on if wolfSSL is a FIPS or non-FIPS build. */
     /** Md5 HMAC type */
-    public static final int MD5   = 0;
+    public static int MD5;
     /** SHA-1 HMAC type */
-    public static final int SHA   = 1;
+    public static int SHA;
     /** SHA2-256 HMAC type */
-    public static final int SHA256 = 2;
+    public static int SHA256;
     /** SHA2-512 HMAC type */
-    public static final int SHA512 = 4;
+    public static int SHA512;
     /** SHA2-384 HMAC type */
-    public static final int SHA384 = 5;
+    public static int SHA384;
 
     /* key types */
     /** DSA key type */
@@ -579,7 +581,7 @@ public class WolfSSL {
                     + ret);
         }
 
-        /* initialize enum values */
+        /* initialize cipher enum values */
         wolfssl_aes         = getBulkCipherAlgorithmEnumAES();
         wolfssl_cipher_null = getBulkCipherAlgorithmEnumNULL();
         wolfssl_rc4         = getBulkCipherAlgorithmEnumRC4();
@@ -589,6 +591,13 @@ public class WolfSSL {
         wolfssl_des40       = getBulkCipherAlgorithmEnumDES40();
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
+
+        /* initialize cipher enum values */
+        MD5    = getHmacEnumMD5();
+        SHA    = getHmacEnumSHA1();
+        SHA256 = getHmacEnumSHA256();
+        SHA384 = getHmacEnumSHA384();
+        SHA512 = getHmacEnumSHA512();
 
         /* initialize TLS 1.3 secret callback ID enums */
         CLIENT_EARLY_TRAFFIC_SECRET =
@@ -630,6 +639,12 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumAESCCM();
     static native int getBulkCipherAlgorithmEnumCHACHA();
     static native int getBulkCipherAlgorithmEnumCAMELLIA();
+
+    static native int getHmacEnumMD5();
+    static native int getHmacEnumSHA1();
+    static native int getHmacEnumSHA256();
+    static native int getHmacEnumSHA384();
+    static native int getHmacEnumSHA512();
 
     static native int getTls13SecretEnum_CLIENT_EARLY_TRAFFIC_SECRET();
     static native int getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET();
@@ -931,13 +946,21 @@ public class WolfSSL {
 
     /**
      * Tests if native wolfSSL has been compiled with HAVE_SECRET_CALLBACK
-     * default. If defined, will compile in APIs to support SSL/TLS secret
+     * If defined, will compile in APIs to support SSL/TLS secret
      * callback support.
      *
      * @return true if enabled, otherwise false if HAVE_SECRET_CALLBACK
      *         has not been defind.
      */
     public static native boolean secretCallbackEnabled();
+
+    /**
+     * Tests if native wolfSSL has been compiled with HAVE_ENCRYPT_THEN_MAC.
+     *
+     * @return true if enabled, otherwise false if HAVE_ENCRYPT_THEN_MAC
+     *         has not been defined.
+     */
+    public static native boolean encryptThenMacEnabled();
 
     /* ---------------- native SSL/TLS version functions ---------------- */
 

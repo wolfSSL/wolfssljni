@@ -203,16 +203,6 @@ extern "C" {
 #define com_wolfssl_WolfSSL_NO_PASSWORD -176L
 #undef com_wolfssl_WolfSSL_TLS13_SECRET_CB_E
 #define com_wolfssl_WolfSSL_TLS13_SECRET_CB_E -438L
-#undef com_wolfssl_WolfSSL_MD5
-#define com_wolfssl_WolfSSL_MD5 0L
-#undef com_wolfssl_WolfSSL_SHA
-#define com_wolfssl_WolfSSL_SHA 1L
-#undef com_wolfssl_WolfSSL_SHA256
-#define com_wolfssl_WolfSSL_SHA256 2L
-#undef com_wolfssl_WolfSSL_SHA512
-#define com_wolfssl_WolfSSL_SHA512 4L
-#undef com_wolfssl_WolfSSL_SHA384
-#define com_wolfssl_WolfSSL_SHA384 5L
 #undef com_wolfssl_WolfSSL_DSAk
 #define com_wolfssl_WolfSSL_DSAk 515L
 #undef com_wolfssl_WolfSSL_RSAk
@@ -437,6 +427,46 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCHACHA
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELLIA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getHmacEnumMD5
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumMD5
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getHmacEnumSHA1
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA1
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getHmacEnumSHA256
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA256
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getHmacEnumSHA384
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA384
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getHmacEnumSHA512
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA512
   (JNIEnv *, jclass);
 
 /*
@@ -685,6 +715,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionTicketEnabled
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_secretCallbackEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    encryptThenMacEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_encryptThenMacEnabled
   (JNIEnv *, jclass);
 
 /*

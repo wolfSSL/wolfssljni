@@ -342,6 +342,51 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELL
     return wolfssl_camellia;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumMD5
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_MD5;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA1
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA256
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA256;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA384
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA384;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA512
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA512;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1EARLY_1TRAFFIC_1SECRET
   (JNIEnv* jenv, jclass jcl)
 {
@@ -674,6 +719,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_secretCallbackEnabled
     (void)jcl;
 
 #ifdef HAVE_SECRET_CALLBACK
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_encryptThenMacEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef HAVE_ENCRYPT_THEN_MAC
     return JNI_TRUE;
 #else
     return JNI_FALSE;

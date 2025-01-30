@@ -57,23 +57,18 @@ class MyMacEncryptCallback implements WolfSSLMacEncryptCallback
             }
 
             int hmacType = ssl.getHmacType();
-            switch (hmacType) {
-                case WolfSSL.SHA:
-                    hmacString = "HmacSHA1";
-                    break;
-                case WolfSSL.SHA256:
-                    hmacString = "HmacSHA256";
-                    break;
-                case WolfSSL.SHA384:
-                    hmacString = "HmacSHA384";
-                    break;
-                case WolfSSL.SHA512:
-                    hmacString = "HmacSHA512";
-                    break;
-                default:
-                    System.out.println("Unsupported HMAC hash type in " +
-                            "MyMacEncryptCallback");
-                    return -1;
+            if (hmacType == WolfSSL.SHA) {
+                hmacString = "HmacSHA1";
+            } else if (hmacType == WolfSSL.SHA256) {
+                hmacString = "HmacSHA256";
+            } else if (hmacType == WolfSSL.SHA384) {
+                hmacString = "HmacSHA384";
+            } else if (hmacType == WolfSSL.SHA512) {
+                hmacString = "HmacSHA512";
+            } else {
+                System.out.println("Unsupported HMAC hash type in " +
+                        "MyMacEncryptCallback");
+                return -1;
             }
 
             /* hmac, not needed if aead mode */

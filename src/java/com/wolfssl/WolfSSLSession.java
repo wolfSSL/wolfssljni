@@ -52,6 +52,7 @@ public class WolfSSLSession {
     private Object genCookieCtx;
     private Object macEncryptCtx;
     private Object decryptVerifyCtx;
+    private Object verifyDecryptCtx;
     private Object eccSignCtx;
     private Object eccVerifyCtx;
     private Object eccSharedSecretCtx;
@@ -197,6 +198,10 @@ public class WolfSSLSession {
 
     synchronized Object getDecryptVerifyCtx() {
         return this.decryptVerifyCtx;
+    }
+
+    synchronized Object getVerifyDecryptCtx() {
+        return this.verifyDecryptCtx;
     }
 
     synchronized Object getEccSignCtx() {
@@ -3576,6 +3581,30 @@ public class WolfSSLSession {
                 "entered setDecryptVerifyCtx(" + ctx + ")");
 
             decryptVerifyCtx = ctx;
+        }
+    }
+
+    /**
+     * Allows caller to set the Atomic User Record Processing Verify/Decrypt
+     * Callback Context.
+     *
+     * @param ctx   context object to be registered with the SSL session's
+     *              verify/decrypt method.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLContext#setVerifyDecryptCb(WolfSSLVerifyDecryptCallback)
+     */
+    public void setVerifyDecryptCtx(Object ctx)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered setVerifyDecryptCtx(" + ctx + ")");
+
+            verifyDecryptCtx = ctx;
         }
     }
 
