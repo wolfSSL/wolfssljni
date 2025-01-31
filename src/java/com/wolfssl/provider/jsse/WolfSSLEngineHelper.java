@@ -876,7 +876,6 @@ public class WolfSSLEngineHelper {
      * what String.
      */
     private void setLocalServerNames() {
-
         /* Do not add SNI if system property has been set to false */
         boolean enableSNI =
             checkBooleanProperty("jsse.enableSNIExtension", true);
@@ -885,6 +884,13 @@ public class WolfSSLEngineHelper {
          * reverse DNS lookups? */
         boolean trustNameService =
             checkBooleanProperty("jdk.tls.trustNameService", false);
+
+        /*
+         * Check if automatic SNI setting is enabled via Security property.
+         * This allows users to enable legacy hostname-based SNI behavior
+         * through java.security configuration rather than JVM arguments. */
+        boolean autoSNI = "true".equalsIgnoreCase(
+            Security.getProperty("wolfjsse.autoSNI"));
 
         if (!enableSNI) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -904,8 +910,7 @@ public class WolfSSLEngineHelper {
                 if (sni != null) {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
                 }
-
-            } else {
+            } else if (autoSNI) {
                 if (this.peerAddr != null && trustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "setting SNI extension with " +
@@ -914,8 +919,7 @@ public class WolfSSLEngineHelper {
 
                     this.ssl.useSNI((byte)0,
                         this.peerAddr.getHostName().getBytes());
-                }
-                else if (this.hostname != null) {
+                } else if (this.hostname != null) {
                     if (peerAddr != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "jdk.tls.trustNameService not set to true, " +
@@ -930,12 +934,13 @@ public class WolfSSLEngineHelper {
                             "hostname: " + this.hostname);
                     }
                     this.ssl.useSNI((byte)0, this.hostname.getBytes());
-
-                }
-                else {
+                } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "hostname and peerAddr are null, not setting SNI");
                 }
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "No SNI configured through SSLParameters, not setting SNI");
             }
         }
     }
