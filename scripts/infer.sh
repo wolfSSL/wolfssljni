@@ -63,11 +63,12 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSLSession.java \
     src/java/com/wolfssl/WolfSSLTls13SecretCallback.java \
     src/java/com/wolfssl/WolfSSLVerifyCallback.java \
+    src/java/com/wolfssl/WolfSSLVerifyDecryptCallback.java \
     src/java/com/wolfssl/WolfSSLX509Name.java \
     src/java/com/wolfssl/WolfSSLX509StoreCtx.java \
-    src/java/com/wolfssl/wolfcrypt/ECC.java \
-    src/java/com/wolfssl/wolfcrypt/EccKey.java \
-    src/java/com/wolfssl/wolfcrypt/RSA.java \
+    src/java/com/wolfssl/WolfCryptECC.java \
+    src/java/com/wolfssl/WolfCryptEccKey.java \
+    src/java/com/wolfssl/WolfCryptRSA.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLAuthStore.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLContext.java \
     src/java/com/wolfssl/provider/jsse/WolfSSLCustomUser.java \

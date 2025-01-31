@@ -342,6 +342,51 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELL
     return wolfssl_camellia;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumMD5
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_MD5;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA1
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA256
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA256;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA384
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA384;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA512
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return WC_HASH_TYPE_SHA512;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1EARLY_1TRAFFIC_1SECRET
   (JNIEnv* jenv, jclass jcl)
 {
@@ -680,6 +725,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_secretCallbackEnabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_encryptThenMacEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef HAVE_ENCRYPT_THEN_MAC
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {
@@ -972,8 +1030,13 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getErrorString
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
   (JNIEnv* jenv, jclass jcl)
 {
+    int ret = WOLFSSL_SUCCESS;
     (void)jenv;
     (void)jcl;
+
+    /* Call wolfSSL_Cleanup() first since it may use the logging callback,
+     * before we free that next. */
+    ret = wolfSSL_Cleanup();
 
     /* release global logging callback object if registered */
     if (g_loggingCbIfaceObj != NULL) {
@@ -989,7 +1052,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
     }
 #endif
 
-    return wolfSSL_Cleanup();
+    return ret;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_debuggingON
@@ -1061,20 +1124,24 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
     if (vmret == JNI_EDETACHED) {
-#ifdef __ANDROID__
-        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
-#else
-        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
-#endif
-        /* (*jenv) may be NULL if JVM is shutting down */
-        if ((vmret != JNI_OK) || (jenv == NULL) || (*jenv == NULL)) {
-            printf("Failed to attach to thread in NativeLoggingCallback\n");
-            return;
-        }
-        needsDetach = 1;
+        /* If the JVM is shutting down, we may reach this point. One cause
+         * of this can be if wolfSSL_Cleanup() is called from the atexit()
+         * handler that native wolfSSL registers. wolfSSL_Cleanup() then does
+         * some logging (WOLFSSL_ENTER) which reaches this code. Just return
+         * since trying to re-attach was not working for these cases.*/
+        return;
 
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM in NativeLoggingCallback\n");
+        return;
+    }
+
+    /* if g_loggingCbIfaceObj has been released (part of wolfSSL_Cleanup()),
+     * just return and skip this log */
+    if (g_loggingCbIfaceObj == NULL) {
+        if (needsDetach == 1) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return;
     }
 

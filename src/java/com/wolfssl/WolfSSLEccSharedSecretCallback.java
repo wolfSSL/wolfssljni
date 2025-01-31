@@ -22,7 +22,7 @@
 package com.wolfssl;
 
 import java.nio.ByteBuffer;
-import com.wolfssl.wolfcrypt.EccKey;
+import com.wolfssl.WolfCryptEccKey;
 
 /**
  * wolfSSL ECC Shared Secret Callback Interface.
@@ -62,8 +62,8 @@ public interface WolfSSLEccSharedSecretCallback {
      * @return            <b><code>0</code></b> upon success,
      *                    otherwise a negative value on error.
      */
-    public int eccSharedSecretCallback(WolfSSLSession ssl, EccKey otherKey,
-            ByteBuffer pubKeyDer, long[] pubKeyDerSz, ByteBuffer out,
-            long[] outSz, int side, Object ctx);
+    public int eccSharedSecretCallback(WolfSSLSession ssl,
+            WolfCryptEccKey otherKey, ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+            ByteBuffer out, long[] outSz, int side, Object ctx);
 }
 

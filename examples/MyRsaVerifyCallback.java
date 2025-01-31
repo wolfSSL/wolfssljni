@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.*;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 class MyRsaVerifyCallback implements WolfSSLRsaVerifyCallback
 {
@@ -34,7 +33,7 @@ class MyRsaVerifyCallback implements WolfSSLRsaVerifyCallback
         System.out.println("---------- Entered MyRsaVerifyCallback ----------");
         int ret = -1;
 
-        RSA rsa = new RSA();
+        WolfCryptRSA rsa = new WolfCryptRSA();
         MyRsaVerifyCtx rsaVerifyCtx = (MyRsaVerifyCtx)ctx;
 
         ret = rsa.doVerify(sig, sigSz, out, outSz, keyDer, keySz);

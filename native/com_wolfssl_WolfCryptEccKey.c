@@ -1,4 +1,4 @@
-/* com_wolfssl_wolfcrypt_EccKey.c
+/* com_wolfssl_WolfCryptEccKey.c
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -28,9 +28,9 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include "com_wolfssl_wolfcrypt_EccKey.h"
+#include "com_wolfssl_WolfCryptEccKey.h"
 
-JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPublicKeyToDer
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPublicKeyToDer
   (JNIEnv* jenv, jobject jcl, jlong eccKey)
 {
     jclass excClass;
@@ -94,7 +94,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPublicKeyToDer
 #endif /* HAVE_ECC */
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToDer
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToDer
   (JNIEnv* jenv, jobject jcl, jlong eccKey)
 {
     jclass excClass;
@@ -158,7 +158,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToDe
 #endif /* HAVE_ECC */
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_wolfcrypt_EccKey_EccPrivateKeyToPKCS8
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToPKCS8
   (JNIEnv* jenv, jobject jcl, jlong eccKey)
 {
     jclass excClass;

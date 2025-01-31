@@ -362,6 +362,12 @@ public class Client {
                 MyDecryptVerifyCallback dvcb = new MyDecryptVerifyCallback();
                 sslCtx.setMacEncryptCb(mecb);
                 sslCtx.setDecryptVerifyCb(dvcb);
+
+                if (WolfSSL.encryptThenMacEnabled()) {
+                    MyVerifyDecryptCallback vdcb =
+                        new MyVerifyDecryptCallback();
+                    sslCtx.setVerifyDecryptCb(vdcb);
+                }
             }
 
             /* register public key callbacks, ctx setup is later */
@@ -521,6 +527,11 @@ public class Client {
                 MyAtomicDecCtx decCtx = new MyAtomicDecCtx();
                 ssl.setMacEncryptCtx(encCtx);
                 ssl.setDecryptVerifyCtx(decCtx);
+
+                if (WolfSSL.encryptThenMacEnabled()) {
+                    MyAtomicDecCtx vdCtx = new MyAtomicDecCtx();
+                    ssl.setVerifyDecryptCtx(vdCtx);
+                }
             }
 
             if (pkCallbacks == 1) {

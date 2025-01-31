@@ -1,4 +1,4 @@
-/* com_wolfssl_wolfcrypt_RSA.c
+/* com_wolfssl_WolfCryptRSA.c
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -27,9 +27,9 @@
 #endif
 #include <wolfssl/wolfcrypt/rsa.h>
 
-#include "com_wolfssl_wolfcrypt_RSA.h"
+#include "com_wolfssl_WolfCryptRSA.h"
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doSign
   (JNIEnv* jenv, jobject jcl, jobject in, jlong inSz, jobject out,
    jintArray outSz, jobject keyDer, jlong keySz)
 {
@@ -94,7 +94,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doSign
     return ret;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doVerify
   (JNIEnv* jenv, jobject jcl, jobject sig, jlong sigSz, jobject out,
    jlong outSz, jobject keyDer, jlong keySz)
 {
@@ -150,7 +150,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doVerify
     return ret;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
   (JNIEnv* jenv, jobject jcl, jobject in, jlong inSz, jobject out,
    jintArray outSz, jobject keyDer, jlong keySz)
 {
@@ -214,7 +214,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doEnc
     return ret;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_wolfcrypt_RSA_doDec
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doDec
   (JNIEnv* jenv, jobject jcl, jobject in, jlong inSz, jobject out,
    jlong outSz, jobject keyDer, jlong keySz)
 {

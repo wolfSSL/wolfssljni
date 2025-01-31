@@ -23,7 +23,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import com.wolfssl.*;
-import com.wolfssl.wolfcrypt.*;
 
 import java.security.KeyFactory;
 import java.security.interfaces.ECPublicKey;
@@ -47,9 +46,9 @@ import java.util.Arrays;
  */
 class MyEccSharedSecretCallback implements WolfSSLEccSharedSecretCallback
 {
-    public int eccSharedSecretCallback(WolfSSLSession ssl, EccKey otherKey,
-            ByteBuffer pubKeyDer, long[] pubKeyDerSz, ByteBuffer out,
-            long[] outSz, int side, Object ctx) {
+    public int eccSharedSecretCallback(WolfSSLSession ssl,
+            WolfCryptEccKey otherKey, ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+            ByteBuffer out, long[] outSz, int side, Object ctx) {
 
         int ret = -1;
         ECPublicKey ecPubKey = null;

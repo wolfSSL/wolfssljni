@@ -54,6 +54,9 @@ int  NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
 int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         const unsigned char* decIn, unsigned int decSz, int content,
         int verify, unsigned int* padSz, void* ctx);
+int  NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
+        const unsigned char* decIn, unsigned int decSz, int content,
+        int macVerify, unsigned int* padSz, void* ctx);
 int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         unsigned char* out, unsigned int* outSz, const unsigned char* keyDer,
         unsigned int keySz, void* ctx);
@@ -1979,7 +1982,38 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setDecryptVerifyCb
     } else {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Input WolfSSLContext object was null when "
-                "setting MacDecrypt");
+                "setting DecryptVerify");
+    }
+#else
+        (*jenv)->ThrowNew(jenv, excClass,
+                "wolfSSL not compiled with ATOMIC_USER");
+#endif /* ATOMIC_USER */
+}
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setVerifyDecryptCb
+  (JNIEnv* jenv, jobject jcl, jlong ctx)
+{
+    jclass excClass = NULL;
+    (void)jcl;
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+#ifdef ATOMIC_USER
+    if(ctx) {
+        /* set verify/decrypt callback */
+        wolfSSL_CTX_SetVerifyDecryptCb((WOLFSSL_CTX*)(uintptr_t)ctx,
+                NativeVerifyDecryptCb);
+
+    } else {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Input WolfSSLContext object was null when "
+                "setting VerifyDecrypt");
     }
 #else
         (*jenv)->ThrowNew(jenv, excClass,
@@ -2465,6 +2499,266 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         retval = (*jenv)->CallIntMethod(jenv, ctxRef, decryptVerifyMethodId,
                 (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
                 content, verify, j_padSz);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            (*jenv)->DeleteLocalRef(jenv, j_padSz);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        if (retval == 0) {
+            /* copy j_padSz into padSz */
+            (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, ctxRef);
+                (*jenv)->DeleteLocalRef(jenv, decOutBB);
+                (*jenv)->DeleteLocalRef(jenv, j_decIn);
+                (*jenv)->DeleteLocalRef(jenv, j_padSz);
+                if (needsDetach)
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                return -1;
+            }
+            *padSz = (unsigned int)tmpVal;
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, decOutBB);
+        (*jenv)->DeleteLocalRef(jenv, j_decIn);
+        (*jenv)->DeleteLocalRef(jenv, j_padSz);
+    }
+
+    /* delete local refs, detach JNIEnv from thread */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
+
+    return retval;
+}
+
+int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
+        const unsigned char* decIn, unsigned int decSz, int content,
+        int macVerify, unsigned int* padSz, void* ctx)
+{
+    jint       retval = 0;
+    jint       vmret  = 0;
+
+    JNIEnv*    jenv;                  /* JNI environment */
+    jclass     excClass;              /* WolfSSLJNIException class */
+    int        needsDetach = 0;       /* Should we explicitly detach? */
+    int        hmacSize = 0;          /* WOLFSSL HMAC digest size */
+
+    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jclass     sessClass;             /* WolfSSLSession class */
+    jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
+    jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
+
+    jobject    ctxRef;                /* WolfSSLContext object */
+    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  verifyDecryptMethodId;
+
+    jbyteArray j_decIn;
+    jlongArray j_padSz;
+
+    jobject    decOutBB = NULL;
+    jlong      tmpVal = 0;
+
+    (void)ctx;
+
+    if (!g_vm || !ssl || !decOut || !decIn || !padSz) {
+        return -1;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -1;
+        }
+        needsDetach = 1;
+    } else if (vmret != JNI_OK) {
+        return -1;
+    }
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Can't get native WolfSSLSession object reference in "
+                "NativeVerifyDecryptCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeVerifyDecryptCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+            "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext field ID "
+            "in NativeVerifyDecryptCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr",
+        "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get getAssociatedContextPtr() method ID "
+            "in NativeVerifyDecryptCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+            getCtxMethodId);
+    CheckException(jenv);
+    if (!ctxRef) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeVerifyDecryptCb");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext class reference "
+            "in NativeVerifyDecryptCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    /* call internal verify/decrypt callback */
+    verifyDecryptMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalVerifyDecryptCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
+
+    if (!verifyDecryptMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+                "Error getting internalVerifyDecryptCallback method "
+                "from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
+    }
+
+    if (retval == 0) {
+
+        /* Get WOLFSSL HMAC digest size, decOut holds decSz + hmacSize */
+        hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
+
+        /* create ByteBuffer to wrap decOut */
+        decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut, decSz + hmacSize);
+        if (!decOutBB) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create decOut ByteBuffer");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create jbyteArray to hold decIn */
+        j_decIn = (*jenv)->NewByteArray(jenv, decSz);
+        if (!j_decIn) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create decIn ByteArray");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* create jlongArray to hold padSz, since we need to use it as
+         * an OUTPUT parameter from Java. Only needs to have 1 element */
+        j_padSz = (*jenv)->NewLongArray(jenv, 1);
+        if (!j_padSz) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                    "failed to create padSz longArray");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
+            return -1;
+        }
+
+        /* call Java verify/decrypt callback, java layer handles
+         * adding verify/decrypt CTX reference */
+        retval = (*jenv)->CallIntMethod(jenv, ctxRef, verifyDecryptMethodId,
+                (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
+                content, macVerify, j_padSz);
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -3315,7 +3609,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     /* find internal ecc shared secret callback */
     ret = GetMethodIDFromObject(jenv, ctxRef,
             "internalEccSharedSecretCallback",
-            "(Lcom/wolfssl/WolfSSLSession;Lcom/wolfssl/wolfcrypt/EccKey;"
+            "(Lcom/wolfssl/WolfSSLSession;Lcom/wolfssl/WolfCryptEccKey;"
             "Ljava/nio/ByteBuffer;[JLjava/nio/ByteBuffer;[JI)I",
             &eccSharedSecretMethodId);
 
@@ -3329,34 +3623,36 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     /* SETUP: otherKey - holds server's public key on client end, otherwise
      * holds server's private key on server end. */
 
-    /* find EccKey class */
-    eccKeyClass = (*jenv)->FindClass(jenv, "com/wolfssl/wolfcrypt/EccKey");
+    /* find WolfCryptEccKey class */
+    eccKeyClass = (*jenv)->FindClass(jenv,
+        "com/wolfssl/WolfCryptEccKey");
     if (!eccKeyClass) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error finding EccKey class for ECC shared secret callback",
-                needsDetach);
+            "Error finding WolfCryptEccKey class for ECC "
+            "shared secret callback",
+            needsDetach);
         return -1;
     }
 
-    /* find EccKey constructor */
+    /* find WolfCryptEccKey constructor */
     eccKeyMethodId = (*jenv)->GetMethodID(jenv, eccKeyClass,
                                           "<init>", "(J)V");
     if (!eccKeyMethodId) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error getting EccKey constructor method ID in "
+                "Error getting WolfCryptEccKey constructor method ID in "
                 "ECC shared secret callback", needsDetach);
         return -1;
     }
 
-    /* create new EccKey object to return otherKey */
+    /* create new WolfCryptEccKey object to return otherKey */
     eccKeyObject = (*jenv)->NewObject(jenv, eccKeyClass, eccKeyMethodId,
                                       (jlong)(uintptr_t)otherKey);
     if (!eccKeyObject) {
         CheckException(jenv);
         throwWolfSSLJNIExceptionWithMsg(jenv,
-                "Error creating EccKey object in native ECC "
+                "Error creating WolfCryptEccKey object in native ECC "
                 "shared secret callback", needsDetach);
         return -1;
     }

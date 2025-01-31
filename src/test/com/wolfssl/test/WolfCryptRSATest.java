@@ -27,25 +27,25 @@ import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.wolfcrypt.RSA;
+import com.wolfssl.WolfCryptRSA;
 
 public class WolfCryptRSATest {
 
-    RSA rsa;
+    WolfCryptRSA rsa;
 
     @Test
     public void testRSA() throws WolfSSLException {
 
-        System.out.println("RSA Class");
+        System.out.println("WolfCryptRSA Class");
 
         test_RSA_new();
     }
 
     public void test_RSA_new() {
 
-        System.out.print("\tRSA()");
-        rsa = new RSA();
-        System.out.println("\t\t\t\t... passed");
+        System.out.print("\tWolfCryptRSA()");
+        rsa = new WolfCryptRSA();
+        System.out.println("\t\t\t... passed");
     }
 }
 

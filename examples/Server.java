@@ -362,6 +362,12 @@ public class Server {
                     new MyDecryptVerifyCallback();
                 sslCtx.setMacEncryptCb(mecb);
                 sslCtx.setDecryptVerifyCb(dvcb);
+
+                if (WolfSSL.encryptThenMacEnabled()) {
+                    MyVerifyDecryptCallback vdc =
+                        new MyVerifyDecryptCallback();
+                    sslCtx.setVerifyDecryptCb(vdc);
+                }
             }
 
             /* register public key callbacks, ctx setup later */
@@ -515,6 +521,11 @@ public class Server {
                     MyAtomicDecCtx decCtx = new MyAtomicDecCtx();
                     ssl.setMacEncryptCtx(encCtx);
                     ssl.setDecryptVerifyCtx(decCtx);
+
+                    if (WolfSSL.encryptThenMacEnabled()) {
+                        MyAtomicDecCtx vdCtx = new MyAtomicDecCtx();
+                        ssl.setVerifyDecryptCtx(vdCtx);
+                    }
                 }
 
                 if (pkCallbacks == 1) {
@@ -566,7 +577,7 @@ public class Server {
                          (err == WolfSSL.SSL_ERROR_WANT_READ ||
                           err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-                if (input.length > 0) {
+                if (insz > 0) {
                     String cliMsg = new String(input, 0, insz);
                     System.out.println("client says: " + cliMsg);
                 } else {

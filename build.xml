@@ -148,9 +148,9 @@
             <class name="com.wolfssl.WolfSSLContext"/>
             <class name="com.wolfssl.WolfSSLSession"/>
             <class name="com.wolfssl.WolfSSLX509StoreCtx"/>
-            <class name="com.wolfssl.wolfcrypt.ECC"/>
-            <class name="com.wolfssl.wolfcrypt.EccKey"/>
-            <class name="com.wolfssl.wolfcrypt.RSA"/>
+            <class name="com.wolfssl.WolfCryptECC"/>
+            <class name="com.wolfssl.WolfCryptEccKey"/>
+            <class name="com.wolfssl.WolfCryptRSA"/>
         </javah>
     </target>
 
@@ -177,7 +177,6 @@
             </manifest>
             <fileset dir="${build.dir}">
                 <include name="com/wolfssl/*.class"/>
-                <include name="com/wolfssl/wolfcrypt/*.class"/>
             </fileset>
         </jar>
     </target>

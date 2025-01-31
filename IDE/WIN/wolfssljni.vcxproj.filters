@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\native\com_wolfssl_wolfcrypt_ECC.c">
+    <ClCompile Include="..\..\native\com_wolfssl_WolfCryptECC.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\native\com_wolfssl_wolfcrypt_EccKey.c">
+    <ClCompile Include="..\..\native\com_wolfssl_WolfCryptEccKey.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\native\com_wolfssl_wolfcrypt_RSA.c">
+    <ClCompile Include="..\..\native\com_wolfssl_WolfCryptRSA.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSL.c">
@@ -53,13 +53,13 @@
     <ClInclude Include="..\..\native\com_wolfssl_globals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\native\com_wolfssl_wolfcrypt_ECC.h">
+    <ClInclude Include="..\..\native\com_wolfssl_WolfCryptECC.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\native\com_wolfssl_wolfcrypt_EccKey.h">
+    <ClInclude Include="..\..\native\com_wolfssl_WolfCryptEccKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\native\com_wolfssl_wolfcrypt_RSA.h">
+    <ClInclude Include="..\..\native\com_wolfssl_WolfCryptRSA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSL.h">
