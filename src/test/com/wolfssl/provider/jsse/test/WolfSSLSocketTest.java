@@ -3287,6 +3287,102 @@ public class WolfSSLSocketTest {
 
         System.out.println("\t... passed");
     }
+    @Test
+    public void testAutoSNIProperty() throws Exception {
+        System.out.print("\tTesting autoSNI property");
+
+        /* Save original Security property value */
+        String originalProp = Security.getProperty("wolfjsse.autoSNI");
+
+        try {
+            /* Test with autoSNI enabled */
+            Security.setProperty("wolfjsse.autoSNI", "true");
+
+            /* Create new CTX */
+            this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+            /* Create SSLServerSocket first to get ephemeral port */
+            SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            /* Set up test arguments without explicit SNI configuration.
+            * With autoSNI=true, SNI should be automatically set based on hostname */
+            TestArgs sArgs = new TestArgs(null,
+                            null, true,
+                            true,
+                            true,
+                            null);
+            TestArgs cArgs = new TestArgs(null,
+                            null,
+                            false,
+                            false,
+                            true,
+                            null);
+
+            CountDownLatch sDoneLatch = new CountDownLatch(1);
+            CountDownLatch cDoneLatch = new CountDownLatch(1);
+
+            TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
+            server.start();
+
+            TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
+            client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
+
+            Exception srvException = server.getException();
+            if (srvException != null) {
+                throw srvException;
+            }
+
+            Exception cliException = client.getException();
+            if (cliException != null) {
+                throw cliException;
+            }
+
+            /* Test with autoSNI disabled */
+            Security.setProperty("wolfjsse.autoSNI", "false");
+
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+            sDoneLatch = new CountDownLatch(1);
+            cDoneLatch = new CountDownLatch(1);
+
+            server = new TestServer(this.ctx, ss, sArgs,
+                            1, sDoneLatch);
+            server.start();
+
+            client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
+                cDoneLatch);
+            client.start();
+
+            cDoneLatch.await();
+            sDoneLatch.await();
+
+            srvException = server.getException();
+            if (srvException != null) {
+                throw srvException;
+            }
+
+            cliException = client.getException();
+            if (cliException != null) {
+                throw cliException;
+            }
+
+            System.out.println("\t\t... passed");
+
+        } finally {
+            /* Restore original property value */
+            if (originalProp != null) {
+                Security.setProperty("wolfjsse.autoSNI", originalProp);
+            } else {
+                Security.setProperty("wolfjsse.autoSNI", "true");
+            }
+        }
+    }
 
     /**
      * Inner class used to hold configuration options for

@@ -531,6 +531,12 @@ are enabled in different ways depending on the JDK implementation. For
 Oracle/OpenJDK and variants, this System property enables session tickets and
 was added in Java 13. Should be set to "true" to enable.
 
+**wolfjsse.autoSNI (boolean)** - Controls automatic Server Name Indication (SNI)
+extension setting based on hostname or peer address. When set to "true", enables
+legacy behavior where SNI is automatically configured from hostname/peer information
+even without explicit SSLParameters configuration. Default value is "false", where
+SNI is only set when explicitly configured through SSLParameters.
+
 If there are other System properties you would like to use with wolfJSSE,
 please contact support@wolfssl.com.
 
