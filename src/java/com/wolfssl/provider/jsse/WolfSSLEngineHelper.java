@@ -890,7 +890,23 @@ public class WolfSSLEngineHelper {
          * This allows users to enable legacy hostname-based SNI behavior
          * through java.security configuration rather than JVM arguments. */
         boolean autoSNI = "true".equalsIgnoreCase(
-            Security.getProperty("wolfjsse.autoSNI"));
+                        Security.getProperty("wolfjsse.autoSNI"));
+
+        /* Detect HttpsURLConnection usage by checking:
+         * - Client mode is set (client-side connection)
+         * - Has hostname from URL
+         * - Has peer address from socket
+         * - No explicit SNI configuration
+         * This pattern is unique to HttpsURLConnection initialization
+         */
+        boolean isHttpsConnection = this.clientMode &&
+                this.hostname != null &&
+                this.peerAddr != null &&
+                this.params.getServerNames() == null;
+
+        /* Enable SNI if explicitly requested via property or if
+         * HttpsURLConnection is detected */
+        autoSNI = autoSNI || isHttpsConnection;
 
         if (!enableSNI) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
