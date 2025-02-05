@@ -321,6 +321,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getDtlsMacDropCount
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsMacDropCount
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getDtlsReplayDropCount
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsReplayDropCount
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    dtlsGetPeer
  * Signature: (J)Ljava/net/InetSocketAddress;
  */

@@ -1020,6 +1020,8 @@ public class WolfSSLEngine extends SSLEngine {
         int inRemaining = 0;
         int consumed = 0;
         int produced = 0;
+        long dtlsPrevDropCount = 0;
+        long dtlsCurrDropCount = 0;
         byte[] tmp;
 
         /* Set initial status for SSLEngineResult return */
@@ -1147,6 +1149,13 @@ public class WolfSSLEngine extends SSLEngine {
                 }
             }
             else {
+                /* Get previous DTLS drop count, before we process any
+                 * incomming data. Allows us to set BUFFER_UNDERFLOW status
+                 * (or not if packet decrypt failed and was dropped) */
+                synchronized (ioLock) {
+                    dtlsPrevDropCount = ssl.getDtlsMacDropCount();
+                }
+
                 if (this.handshakeFinished == false) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "starting or continuing handshake");
@@ -1163,6 +1172,7 @@ public class WolfSSLEngine extends SSLEngine {
                         status = SSLEngineResult.Status.BUFFER_OVERFLOW;
                     }
                     else {
+
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             "receiving application data");
                         ret = RecvAppData(out, ofst, length);
@@ -1268,13 +1278,22 @@ public class WolfSSLEngine extends SSLEngine {
                     }
                 }
 
+                /* Get DTLS drop count after data has been processed. To be
+                 * used below when setting BUFFER_UNDERFLOW status. */
+                synchronized (ioLock) {
+                    dtlsCurrDropCount = ssl.getDtlsMacDropCount();
+                }
+
+                /* Detect if we need to set BUFFER_UNDERFLOW */
                 synchronized (toSendLock) {
                     synchronized (netDataLock) {
                         if (ret <= 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
                             in.remaining() == 0 && (this.toSend == null ||
                             (this.toSend != null && this.toSend.length == 0))) {
+
                             if ((this.ssl.dtls() == 0) ||
-                                this.handshakeFinished) {
+                                (this.handshakeFinished &&
+                                 (dtlsPrevDropCount == dtlsCurrDropCount))) {
                                 /* Need more data. For DTLS only set
                                  * after handshake has completed, since
                                  * apps expect to switch on NEED_UNWRAP

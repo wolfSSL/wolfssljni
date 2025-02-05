@@ -2745,6 +2745,46 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
     return (jint)ret;
 }
 
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsMacDropCount
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    word32 dropCount = 0;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_DROP_STATS)
+    int ret = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    /* checks ssl for NULL internally */
+    ret = wolfSSL_dtls_get_drop_stats(ssl, &dropCount, NULL);
+    if (ret != WOLFSSL_SUCCESS) {
+        return (jlong)ret;
+    }
+#endif
+    (void)jenv;
+    (void)jcl;
+
+    return (jlong)dropCount;
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsReplayDropCount
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    word32 dropCount = 0;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_DROP_STATS)
+    int ret = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    /* checks ssl for NULL internally */
+    ret = wolfSSL_dtls_get_drop_stats(ssl, NULL, &dropCount);
+    if (ret != WOLFSSL_SUCCESS) {
+        return (jlong)ret;
+    }
+#endif
+    (void)jenv;
+    (void)jcl;
+
+    return (jlong)dropCount;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint mtu)
 {

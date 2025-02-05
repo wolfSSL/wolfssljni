@@ -342,6 +342,8 @@ public class WolfSSLSession {
     private native int dtls(long ssl);
     private native int dtlsSetPeer(long ssl, InetSocketAddress peer);
     private native int sendHrrCookie(long ssl, byte[] secret);
+    private native long getDtlsMacDropCount(long ssl);
+    private native long getDtlsReplayDropCount(long ssl);
     private native InetSocketAddress dtlsGetPeer(long ssl);
     private native int sessionReused(long ssl);
     private native long getPeerCertificate(long ssl);
@@ -2422,6 +2424,48 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             return sendHrrCookie(this.sslPtr, secret);
+        }
+    }
+
+    /**
+     * Get the number of DTLS packets that have been dropped due
+     * to verify MAC decrypt errors.
+     *
+     * Native wolfSSL must be compiled with WOLFSSL_DTLS_DROP_STATS
+     * defined for this functionality to be available, otherwise this
+     * method will return 0.
+     *
+     * @return number of dropped packets
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public long getDtlsMacDropCount() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return getDtlsMacDropCount(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get the number of DTLS packets that have been dropped due to
+     * receiving a replayed / duplicated packet.
+     *
+     * Native wolfSSL must be compiled with WOLFSSL_DTLS_DROP_STATS
+     * defined for this functionality to be available, otherwise this
+     * method will return 0.
+     *
+     * @return number of dropped packets
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public long getDtlsReplayDropCount() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return getDtlsReplayDropCount(this.sslPtr);
         }
     }
 
