@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.ssl.SSLParameters;
+import com.wolfssl.provider.jsse.WolfSSLJDK8Helper;
 
 /**
  * WolfSSLParametersHelper class
