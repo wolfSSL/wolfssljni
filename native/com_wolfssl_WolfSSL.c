@@ -1162,11 +1162,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
     return ret;
 }
 
+/**
+ * Native wolfSSL logging callback.
+ *
+ * We skip throwing exceptions in this function and just move on without
+ * printing the log. Otherwise, our non-important exception here could cause
+ * bad things to happen at the Java level - ie, causing the
+ * certificate verify callback to fail unnecessarily.
+ */
 void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 {
     JNIEnv*   jenv = NULL;
     jint      vmret  = 0;
-    jclass    excClass;
     jclass    logClass;
     jmethodID logMethod;
     jstring   logMsg;
@@ -1197,17 +1204,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
         return;
     }
 
-    /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        if (needsDetach == 1) {
-            (*g_vm)->DetachCurrentThread(g_vm);
-        }
-        return;
-    }
-
     /* check if our stored object reference is valid */
     refcheck = (*jenv)->GetObjectRefType(jenv, g_loggingCbIfaceObj);
     if (refcheck == 2) {
@@ -1219,9 +1215,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLLoggingCallback class reference");
 
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -1237,8 +1230,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting loggingCallback method from JNI");
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -1255,22 +1246,16 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
 
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "Error calling logging callback from JNI");
+            /* Not throwing exception, just move on without printing the log.
+             * Otherwise, our non-important exception here could cause
+             * bad things to happen at the Java level - ie, causing the
+             * certificate verify callback to fail unnecessarily. */
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
             return;
         }
 
-    } else {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeLoggingCallback");
     }
 
     if (needsDetach == 1) {
