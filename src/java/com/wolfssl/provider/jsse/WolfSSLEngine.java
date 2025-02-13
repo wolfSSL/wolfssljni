@@ -426,6 +426,33 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /**
+     * Returns if current error in WOLFSSL session should be considered
+     * fatal. Used in ClosingConnection() for detection of storing
+     * client cache entry.
+     *
+     * @param ssl WOLFSSL session to check error on
+     *
+     * @return true if error is not fatal, false if fatal
+     */
+    private synchronized boolean sslErrorNotFatal(WolfSSLSession ssl) {
+
+        int err;
+
+        if (ssl == null) {
+            return false;
+        }
+
+        err = ssl.getError(0);
+        if (err == 0 ||
+            err == WolfSSL.SSL_ERROR_WANT_READ ||
+            err == WolfSSL.SSL_ERROR_WANT_WRITE) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Handles logic during shutdown
      *
      * @return WolfSSL.SSL_SUCCESS on success, zero or negative on error
@@ -445,9 +472,16 @@ public class WolfSSLEngine extends SSLEngine {
          * not have an active error state, and the session has not been
          * stored previously. */
         synchronized (ioLock) {
-            if (this.handshakeFinished && (ssl.getError(0) == 0) &&
+            if (this.handshakeFinished && sslErrorNotFatal(ssl) &&
                 !this.sessionStored) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "saving WOLFSSL_SESSION into cache");
                 this.engineHelper.saveSession();
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "not saving WOLFSSL_SESSION into cache, " +
+                    "handshake not complete or already stored");
             }
         }
 
