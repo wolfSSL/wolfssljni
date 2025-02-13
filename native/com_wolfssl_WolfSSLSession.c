@@ -63,6 +63,12 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
 int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
     int secretSz, void* ctx);
 
+#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+/* Session ticket callback prototype */
+int NativeSessionTicketCb(WOLFSSL *ssl, const unsigned char* ticket,
+    int ticketLen, void* ctx);
+#endif
+
 #ifdef HAVE_CRL
 /* global object refs for CRL callback */
 static jobject g_crlCbIfaceObj;
@@ -5622,6 +5628,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTls13SecretCb
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicketCb
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int ret = SSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Java layer handles setting and giving back user CTX */
+    ret = wolfSSL_set_SessionTicket_cb(ssl, NativeSessionTicketCb, NULL);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 #if defined(WOLFSSL_TLS13) && !defined(WOLFCRYPT_ONLY) && \
     defined(HAVE_SECRET_CALLBACK)
 
@@ -5752,6 +5782,146 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
 
         /* Delete local refs */
         (*jenv)->DeleteLocalRef(jenv, secretArr);
+    }
+
+    /* Detach JNIEnv from thread */
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return (int)retval;
+}
+
+#endif /* WOLFSSL_TLS13 && !WOLFCRYPT_ONLY && HAVE_SECRET_CALLBACK */
+
+#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+
+int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
+    int ticketLen, void* ctx)
+{
+    JNIEnv* jenv;                   /* JNI environment */
+    jclass  excClass;               /* WolfSSLJNIException class */
+    int     needsDetach = 0;        /* Should we explicitly detach? */
+    jint    retval = 0;
+    jint    vmret = 0;
+
+    jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
+    jclass    sslClass;             /* WolfSSLSession class */
+    jmethodID sessTicketCbMethodId; /* internalTls13SecretCallback ID */
+    jbyteArray ticketArr = NULL;
+
+    if (g_vm == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -1;
+        }
+        needsDetach = 1;
+    }
+    else if (vmret != JNI_OK) {
+        return -1;
+    }
+
+    /* Find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* Get stored WolfSSLSession object */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession object reference in "
+            "NativeSessionTicketCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* Lookup WolfSSLSession class from object */
+    sslClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (sslClass == NULL) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLSession class reference in "
+            "NativeSessionTicketCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* Call internal TLS 1.3 secret callback */
+    sessTicketCbMethodId = (*jenv)->GetMethodID(jenv, sslClass,
+        "internalSessionTicketCallback", "(Lcom/wolfssl/WolfSSLSession;[B)I");
+    if (sessTicketCbMethodId == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalSessionTicketCallback method from JNI");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    if (ticketLen > 0) {
+        /* Create jbyteArray to hold session ticket */
+        ticketArr = (*jenv)->NewByteArray(jenv, ticketLen);
+        if (ticketArr == NULL) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Error creating new jbyteArray in NativeSessionTicketCb");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return -1;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, ticketArr, 0, ticketLen,
+            (jbyte*)ticket);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return -1;
+        }
+
+        /* Call Java session ticket callback, ignore native CTX since Java
+         * handles it */
+        retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+            sessTicketCbMethodId, (jobject)(*g_cachedSSLObj), ticketArr);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Exception while calling internalSessionTicketCallback()");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return -1;
+        }
+
+        /* Delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, ticketArr);
     }
 
     /* Detach JNIEnv from thread */

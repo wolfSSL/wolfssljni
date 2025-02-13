@@ -865,6 +865,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTls13SecretCb
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSessionTicketCb
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicketCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    keepArrays
  * Signature: (J)V
  */

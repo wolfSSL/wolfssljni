@@ -62,6 +62,7 @@ public class WolfSSLSession {
     private Object rsaDecCtx;
     private Object alpnSelectArg;
     private Object tls13SecretCtx;
+    private Object sessionTicketCtx;
 
     /* reference to the associated WolfSSLContext */
     private WolfSSLContext ctx = null;
@@ -80,9 +81,13 @@ public class WolfSSLSession {
      * ALPN select callback */
     private WolfSSLALPNSelectCallback internAlpnSelectCb;
 
-    /* user-registered TLS 1.3 secret callbcak, called by internal
+    /* user-registered TLS 1.3 secret callback, called by internal
      * WolfSSLSession TLS 1.3 secret callback */
     private WolfSSLTls13SecretCallback internTls13SecretCb;
+
+    /* user-registered session ticket callback, called by internal
+     * WolfSSLSession session ticket callback */
+    private WolfSSLSessionTicketCallback internSessionTicketCb;
 
     /* have session tickets been enabled for this session? Default to false. */
     private boolean sessionTicketsEnabled = false;
@@ -282,6 +287,13 @@ public class WolfSSLSession {
             this.tls13SecretCtx);
     }
 
+    private int internalSessionTicketCallback(WolfSSLSession ssl, byte[] ticket)
+    {
+        /* call user-registered session ticket callback */
+        return internSessionTicketCb.sessionTicketCallback(ssl, ticket,
+            this.sessionTicketCtx);
+    }
+
     /**
      * Verifies that the current WolfSSLSession object is active.
      *
@@ -415,6 +427,7 @@ public class WolfSSLSession {
     private native int useALPN(long ssl, String protocols, int options);
     private native int setALPNSelectCb(long ssl);
     private native int setTls13SecretCb(long ssl);
+    private native int setSessionTicketCb(long ssl);
     private native void keepArrays(long ssl);
     private native byte[] getClientRandom(long ssl);
     private native int useSecureRenegotiation(long ssl);
@@ -4813,6 +4826,47 @@ public class WolfSSLSession {
 
                 /* Set TLS 1.3 secret ctx Object, returned to user in cb */
                 this.tls13SecretCtx = ctx;
+            }
+        }
+
+        return ret;
+    }
+
+    /**
+     * Register session ticket callback.
+     *
+     * The callback registered by this method is called by native wolfSSL
+     * when a session ticket is received from the peer.
+     *
+     * @param cb callback to be registered with this SSL session
+     * @param ctx Object that will be passed back to user inside callback
+     *
+     * @return <code>SSL_SUCCESS</code> on success. <code>
+     *        NOT_COMPILED_IN</code> if wolfSSL was not compiled with
+     *        session ticket support, and other negative value on error.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public int setSessionTicketCb(WolfSSLSessionTicketCallback cb, Object ctx)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr, "entered setSessionTicketCb(" +
+                cb + ", ctx: " + ctx + ")");
+
+            ret = setSessionTicketCb(this.sslPtr);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Set session ticket callback */
+                internSessionTicketCb = cb;
+
+                /* Set session ticket ctx Object, returned to user in cb */
+                this.sessionTicketCtx = ctx;
             }
         }
 

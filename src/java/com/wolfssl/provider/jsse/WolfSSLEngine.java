@@ -29,6 +29,7 @@ import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLALPNSelectCallback;
+import com.wolfssl.WolfSSLSessionTicketCallback;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
@@ -111,11 +112,16 @@ public class WolfSSLEngine extends SSLEngine {
     /* TLS 1.3 session ticket received (on client side) */
     private boolean sessionTicketReceived = false;
 
+    /* Number of session tickets received, incremented in
+     * SessionTicketCB callback */
+    private int sessionTicketCount = 0;
+
     /* client/server mode has been set */
     private boolean clientModeSet = false;
 
     private SendCB sendCb = null;
     private RecvCB recvCb = null;
+    private SessionTicketCB sessTicketCb = null;
 
     private ByteBuffer netData = null;
     private final Object netDataLock = new Object();
@@ -306,6 +312,12 @@ public class WolfSSLEngine extends SSLEngine {
             ssl.setIOSend(sendCb);
             ssl.setIOReadCtx(this);
             ssl.setIOWriteCtx(this);
+
+            /* Session ticket callback */
+            if (sessTicketCb == null) {
+                sessTicketCb = new SessionTicketCB();
+            }
+            ssl.setSessionTicketCb(sessTicketCb, this);
         }
     }
 
@@ -337,6 +349,9 @@ public class WolfSSLEngine extends SSLEngine {
         }
         if (recvCb == null) {
             recvCb = new RecvCB();
+        }
+        if (sessTicketCb == null) {
+            sessTicketCb = new SessionTicketCB();
         }
 
         /* will throw WolfSSLException if issue creating WOLFSSL */
@@ -1022,6 +1037,7 @@ public class WolfSSLEngine extends SSLEngine {
         int produced = 0;
         long dtlsPrevDropCount = 0;
         long dtlsCurrDropCount = 0;
+        int prevSessionTicketCount = 0;
         byte[] tmp;
 
         /* Set initial status for SSLEngineResult return */
@@ -1149,11 +1165,13 @@ public class WolfSSLEngine extends SSLEngine {
                 }
             }
             else {
-                /* Get previous DTLS drop count, before we process any
-                 * incomming data. Allows us to set BUFFER_UNDERFLOW status
-                 * (or not if packet decrypt failed and was dropped) */
+                /* Get previous DTLS drop count and session ticket count,
+                 * before we process any incomming data. Allows us to set
+                 * BUFFER_UNDERFLOW status (or not if packet decrypt failed
+                 * and was dropped) */
                 synchronized (ioLock) {
                     dtlsPrevDropCount = ssl.getDtlsMacDropCount();
+                    prevSessionTicketCount = this.sessionTicketCount;
                 }
 
                 if (this.handshakeFinished == false) {
@@ -1284,12 +1302,17 @@ public class WolfSSLEngine extends SSLEngine {
                     dtlsCurrDropCount = ssl.getDtlsMacDropCount();
                 }
 
-                /* Detect if we need to set BUFFER_UNDERFLOW */
+                /* Detect if we need to set BUFFER_UNDERFLOW.
+                 * If we consume data in unwrap() but it's just a session
+                 * ticket, we don't set BUFFER_UNDERFLOW and just continue
+                 * on to set status as OK. */
                 synchronized (toSendLock) {
                     synchronized (netDataLock) {
                         if (ret <= 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
                             in.remaining() == 0 && (this.toSend == null ||
-                            (this.toSend != null && this.toSend.length == 0))) {
+                            (this.toSend != null && this.toSend.length == 0))
+                            && (prevSessionTicketCount ==
+                                    this.sessionTicketCount)) {
 
                             if ((this.ssl.dtls() == 0) ||
                                 (this.handshakeFinished &&
@@ -2154,6 +2177,32 @@ public class WolfSSLEngine extends SSLEngine {
         }
     }
 
+    /**
+     * Internal session ticket callback. Called when native wolfSSL
+     * receives a session ticket from peer.
+     *
+     * @param ticket byte array containing session ticket data
+     *
+     * @return 0 on success, negative value on error
+     */
+    protected synchronized int internalSessionTicketCb(byte[] ticket) {
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "entered internalSessionTicketCb()");
+
+        if (ticket != null) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Session ticket received, length = " + ticket.length);
+            if (ticket.length > 0) {
+                this.sessionTicketCount++;
+            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Total session tickets received by this SSLEngine: " +
+                this.sessionTicketCount);
+        }
+
+        return 0;
+    }
+
     private class SendCB implements WolfSSLIOSendCallback {
 
         protected SendCB() {
@@ -2178,6 +2227,17 @@ public class WolfSSLEngine extends SSLEngine {
             return ((WolfSSLEngine)engine).internalRecvCb(out, sz);
         }
 
+    }
+
+    private class SessionTicketCB implements WolfSSLSessionTicketCallback {
+
+        protected SessionTicketCB() {
+        }
+
+        public int sessionTicketCallback(WolfSSLSession ssl, byte[] ticket,
+                                         Object engine) {
+            return ((WolfSSLEngine)engine).internalSessionTicketCb(ticket);
+        }
     }
 
     @SuppressWarnings("deprecation")
