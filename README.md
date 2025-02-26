@@ -373,9 +373,12 @@ Additional instructions can be found on the wolfSSL.com website:
 
 ### JSSE Class Implementation Support
 
-wolfJSSE extends or implements the following JSSE classes:
+wolfJSSE extends or implements the following JSSE classes. Note that
+SSLContext `DTLSv1.3` support is only supported through the `SSLEngine`
+interface.
+
 - javax.net.ssl.SSLContextSpi
-    - SSL, TLS, DEFAULT, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3
+    - SSL, TLS, DEFAULT, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3, DTLSv1.3
 - javax.net.ssl.KeyManagerFactorySpi
     - PKIX, X509, SunX509
 - javax.net.ssl.TrustManagerFactorySpi
@@ -530,6 +533,11 @@ KeyStore password to use when loading KeyStore inside TrustManager objects.
 are enabled in different ways depending on the JDK implementation. For
 Oracle/OpenJDK and variants, this System property enables session tickets and
 was added in Java 13. Should be set to "true" to enable.
+
+**jdk.tls.useExtendedMasterSecret (boolean)** - Can be used to enable or
+disable the use of the Extended Master Secret (EMS) extension. This extension
+is enabled by default, unless explicitly disabled by setting this property to
+false.
 
 **wolfjsse.autoSNI (boolean)** - Controls automatic Server Name Indication (SNI)
 extension setting based on hostname or peer address. When set to "true", enables

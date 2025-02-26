@@ -134,6 +134,10 @@ public final class WolfSSLProvider extends Provider {
             put("SSLContext.TLSv1.3",
                     "com.wolfssl.provider.jsse.WolfSSLContext$TLSV13_Context");
         }
+        if (WolfSSL.DTLSv13Enabled()) {
+            put("SSLContext.DTLSv1.3",
+                    "com.wolfssl.provider.jsse.WolfSSLContext$DTLSV13_Context");
+        }
         put("SSLContext.SSL",
                 "com.wolfssl.provider.jsse.WolfSSLContext$TLSV23_Context");
         put("SSLContext.TLS",

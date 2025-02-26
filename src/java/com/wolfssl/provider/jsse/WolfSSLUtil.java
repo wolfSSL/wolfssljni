@@ -33,6 +33,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
 
@@ -50,7 +51,8 @@ public class WolfSSLUtil {
     }
 
     /**
-     * Sanitize or filter protocol list based on system property limitations.
+     * Sanitize or filter protocol list based on system property limitations
+     * and current TLS/DTLS protocol being established.
      *
      * Supported system properties which limit protocol list are:
      *    - java.security.Security:
@@ -63,25 +65,39 @@ public class WolfSSLUtil {
      *
      * @param protocols Full list of protocols to sanitize/filter, should be
      *                  in a format similar to: "TLSv1", "TLSv1.1", etc.
+     * @param currentVersion current protocol being used by the object
+     *                       that is calling this method. If WolfSSL.INVALID
+     *                       is passed in, no filtering is done on protocol
+     *                       list based on currentVersion.
      *
      * @return New filtered String array of protocol strings
      */
-    protected static String[] sanitizeProtocols(String[] protocols) {
+    protected static String[] sanitizeProtocols(String[] protocols,
+        WolfSSL.TLS_VERSION currentVersion) {
+
         ArrayList<String> filtered = new ArrayList<String>();
 
         String disabledAlgos =
             Security.getProperty("jdk.tls.disabledAlgorithms");
         List<?> disabledList = null;
 
-        /* If system property not set, no filtering needed */
-        if (disabledAlgos == null || disabledAlgos.isEmpty()) {
-            return protocols;
-        }
-
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             "sanitizing enabled protocols");
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             "jdk.tls.disabledAlgorithms: " + disabledAlgos);
+
+        /* If WolfSSL.INVALID is passed in as currentVersion, no filtering
+         * is done based on current protocol */
+        if (currentVersion != WolfSSL.TLS_VERSION.INVALID) {
+            /* Remove DTLS protocols if using TLS explicitly. Needed
+             * since native wolfSSL doesn't have protocol masks for DTLS. */
+            if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_2) {
+                disabledAlgos += ",DTLSv1.2";
+            }
+            if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_3) {
+                disabledAlgos += ",DTLSv1.3";
+            }
+        }
 
         /* Remove spaces after commas, split into List */
         disabledAlgos = disabledAlgos.replaceAll(", ",",");
@@ -268,6 +284,35 @@ public class WolfSSLUtil {
         }
 
         return false;
+    }
+
+    /**
+     * Return if TLS Extended Master Secret support has been enabled or
+     * disabled via the following System property:
+     *
+     * jdk.tls.useExtendedMasterSecret
+     *
+     * If property is not set (null) or an empty string, we default to
+     * leaving TLS Extended Master Secret enabled.
+     *
+     * @return true if enabled, otherwise false
+     */
+    protected static boolean useExtendedMasterSecret() {
+
+        String useEMS =
+            System.getProperty("jdk.tls.useExtendedMasterSecret");
+
+        /* Native wolfSSL defaults to having extended master secret support
+         * enabled. Do the same here if property not set or empty. */
+        if (useEMS == null || useEMS.isEmpty()) {
+            return true;
+        }
+
+        if (useEMS.equalsIgnoreCase("false")) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

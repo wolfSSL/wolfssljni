@@ -24,10 +24,8 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -39,11 +37,8 @@ import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
-import java.security.KeyStore;
 import java.util.Random;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.net.Socket;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
@@ -51,10 +46,8 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
-import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
@@ -65,8 +58,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import org.junit.Rule;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.rules.Timeout;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import java.util.Arrays;
+
+import com.wolfssl.provider.jsse.WolfSSLEngine;
 
 /**
  *
@@ -75,26 +75,31 @@ import org.junit.Test;
 public class WolfSSLEngineTest {
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     public final static String engineProvider = "wolfJSSE";
-    private static boolean extraDebug = false;
     private static WolfSSLTestFactory tf;
 
     private SSLContext ctx = null;
     private static String allProtocols[] = {
+        "TLS",
         "TLSv1",
         "TLSv1.1",
         "TLSv1.2",
         "TLSv1.3",
-        "TLS"
+        "TLS",
+        "DTLSv1.3"
     };
 
     private static ArrayList<String> enabledProtocols =
         new ArrayList<String>();
 
+    /**
+     * Global timeout for all tests in this class.
+     */
+    @Rule
+    public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
+
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
-        throws NoSuchProviderException {
-
-        SSLContext ctx;
+        throws NoSuchProviderException, WolfSSLException {
 
         System.out.println("WolfSSLEngine Class");
 
@@ -107,7 +112,7 @@ public class WolfSSLEngineTest {
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
-                ctx = SSLContext.getInstance(allProtocols[i], "wolfJSSE");
+                SSLContext.getInstance(allProtocols[i], "wolfJSSE");
                 enabledProtocols.add(allProtocols[i]);
 
             } catch (NoSuchAlgorithmException e) {
@@ -118,8 +123,8 @@ public class WolfSSLEngineTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+            throw e;
         }
     }
 
@@ -164,49 +169,88 @@ public class WolfSSLEngineTest {
             return;
         }
 
-        this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
-        e = this.ctx.createSSLEngine();
-        if (e == null) {
-            error("\t\t... failed");
-            fail("failed to create engine");
-            return;
-        }
+        for (int i = 0; i < enabledProtocols.size(); i++) {
 
-        sup = e.getSupportedProtocols();
-        for (String x : sup) {
-            if (x.equals("TLSv1.2")) {
-                ok = true;
+            /* 'TLS' is not a 'supported' protocol from
+             * SSLEngine.getSupportedProtocols(). That list returns
+             * Strings such as: TLSv1, TLSv1.2, DTLSv1.3, etc. */
+            if (enabledProtocols.get(i).equals("TLS")) {
+                continue;
+            }
+
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider);
+
+            e = this.ctx.createSSLEngine();
+            if (e == null) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+                return;
+            }
+
+            sup = e.getSupportedProtocols();
+            for (String x : sup) {
+                if (x.equals(enabledProtocols.get(i))) {
+                    ok = true;
+                }
+            }
+            if (!ok) {
+                error("\t\t... failed");
+                fail("failed to find " + enabledProtocols.get(i) +
+                     " in supported protocols");
+            }
+
+            sup = e.getEnabledProtocols();
+            for (String x : sup) {
+                if (x.equals(enabledProtocols.get(i))) {
+                    ok = true;
+                }
+            }
+            if (!ok) {
+                error("\t\t... failed");
+                fail("failed to find " + enabledProtocols.get(i) +
+                     " in enabled protocols");
+            }
+
+            /* check supported cipher suites */
+            sup = e.getSupportedCipherSuites();
+            e.setEnabledCipherSuites(new String[] {sup[0]});
+            if (e.getEnabledCipherSuites() == null ||
+                    !sup[0].equals(e.getEnabledCipherSuites()[0])) {
+                error("\t\t... failed");
+                fail("unexpected empty cipher list");
             }
         }
-        if (!ok) {
-            error("\t\t... failed");
-            fail("failed to find TLSv1.2 in supported protocols");
-        }
 
-        sup = e.getEnabledProtocols();
-        for (String x : sup) {
-            if (x.equals("TLSv1.2")) {
-                ok = true;
-            }
-        }
-        if (!ok) {
-            error("\t\t... failed");
-            fail("failed to find TLSv1.2 in enabled protocols");
-        }
-
-        /* check supported cipher suites */
-        sup = e.getSupportedCipherSuites();
-        e.setEnabledCipherSuites(new String[] {sup[0]});
-        if (e.getEnabledCipherSuites() == null ||
-                !sup[0].equals(e.getEnabledCipherSuites()[0])) {
-            error("\t\t... failed");
-            fail("unexpected empty cipher list");
-        }
         pass("\t\t... passed");
     }
 
     @Test
-    public void testCipherConnection()
+    public void testCipherConnectionTLS()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
+        synchronized (WolfSSLTestFactory.jdkTlsDisabledAlgorithmsLock) {
+            for (int i = 0; i < enabledProtocols.size(); i++) {
+                if (enabledProtocols.get(i).equals("TLS")) {
+                    /* 'TLS' is not a 'supported' protocol from
+                     * SSLEngine.getSupportedProtocols(). That list returns
+                     * Strings such as: TLSv1, TLSv1.2, DTLSv1.3, etc. */
+                    continue;
+                }
+
+                testCipherConnectionByProtocol(enabledProtocols.get(i));
+            }
+        }
+    }
+
+    /**
+     * Test the connection using the given protocol.
+     *
+     * Private method, called by testCipherConnectionTLS()
+     */
+    private void testCipherConnectionByProtocol(String protocol)
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException, CertificateException,
                IOException, UnrecoverableKeyException {
@@ -214,15 +258,15 @@ public class WolfSSLEngineTest {
         SSLEngine server;
         SSLEngine client;
         String    cipher = null;
-        int ret, i;
+        int ret;
         String[] ciphers;
         String   certType;
         Certificate[] certs;
 
         /* create new SSLEngine */
-        System.out.print("\tBasic ciphersuiet connection");
+        System.out.print("\tBasic connection: " + protocol);
 
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        this.ctx = tf.createSSLContext(protocol, engineProvider);
         server = this.ctx.createSSLEngine();
         client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
@@ -258,7 +302,7 @@ public class WolfSSLEngineTest {
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
         ret = tf.testConnection(server, client, new String[] { cipher },
-                new String[] { "TLSv1.2" }, "Test cipher suite");
+                new String[] { protocol }, "Test cipher suite");
         if (ret != 0) {
             error("\t... failed");
             fail("failed to create engine");
@@ -281,26 +325,24 @@ public class WolfSSLEngineTest {
             error("\t... failed");
             fail("invalid client mode");
         }
-        pass("\t... passed");
 
-        System.out.print("\tclose connection");
+        /* Test closing connection */
         try {
-            /* test close connection */
             tf.CloseConnection(server, client, false);
         } catch (SSLException ex) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("failed to create engine");
         }
 
         /* check if inbound is still open */
         if (!server.isInboundDone() || !client.isInboundDone()) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("inbound is not done");
         }
 
         /* check if outbound is still open */
         if (!server.isOutboundDone() || !client.isOutboundDone()) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("outbound is not done");
         }
 
@@ -308,11 +350,11 @@ public class WolfSSLEngineTest {
         try {
             server.closeInbound();
         } catch (SSLException ex) {
-            error("\t\t... failed");
+            error("\t... failed");
             fail("close inbound failure");
         }
 
-        pass("\t\t... passed");
+        pass("\t... passed");
     }
 
     @Test
@@ -328,63 +370,71 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tbeginHandshake()");
 
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
+        for (int i = 0; i < enabledProtocols.size(); i++) {
 
-        /* Calling beginHandshake() before setUseClientMode() should throw
-         * IllegalStateException */
-        try {
-            server.beginHandshake();
-            error("\t\t... failed");
-            fail("beginHandshake() before setUseClientMode() should throw " +
-                 "IllegalStateException");
-        } catch (IllegalStateException e) {
-            /* expected */
-        }
-        try {
-            client.beginHandshake();
-            error("\t\t... failed");
-            fail("beginHandshake() before setUseClientMode() should throw " +
-                 "IllegalStateException");
-        } catch (IllegalStateException e) {
-            /* expected */
-        }
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider);
 
-        /* Set client/server mode, disable auth to simplify tests below */
-        server.setUseClientMode(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine(
+                "wolfSSL begin handshake test", 11111);
 
-        try {
-            server.beginHandshake();
-            client.beginHandshake();
-        } catch (SSLException e) {
-            error("\t\t... failed");
-            fail("failed to begin handshake");
-        }
+            /* Calling beginHandshake() before setUseClientMode() should throw
+             * IllegalStateException */
+            try {
+                server.beginHandshake();
+                error("\t\t... failed");
+                fail("beginHandshake() before setUseClientMode() should " +
+                     "throw IllegalStateException");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
 
-        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
-        if (ret != 0) {
-            error("\t\t... failed");
-            fail("failed to create engine");
-        }
+            try {
+                client.beginHandshake();
+                error("\t\t... failed");
+                fail("beginHandshake() before setUseClientMode() should " +
+                     "throw IllegalStateException");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
 
-        /* Calling beginHandshake() again should throw SSLException
-         * since renegotiation is not yet supported in wolfJSSE */
-        try {
-            server.beginHandshake();
-            error("\t\t... failed");
-            fail("beginHandshake() called again should throw SSLException");
-        } catch (SSLException e) {
-            /* expected */
-        }
-        try {
-            client.beginHandshake();
-            error("\t\t... failed");
-            fail("beginHandshake() called again should throw SSLException");
-        } catch (SSLException e) {
-            /* expected */
+            /* Set client/server mode, disable auth to simplify tests below */
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+
+            try {
+                server.beginHandshake();
+                client.beginHandshake();
+            } catch (SSLException e) {
+                error("\t\t... failed");
+                fail("failed to begin handshake");
+            }
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test in/out bound");
+            if (ret != 0) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+            }
+
+            /* Calling beginHandshake() again should throw SSLException
+             * since renegotiation is not yet supported in wolfJSSE */
+            try {
+                server.beginHandshake();
+                error("\t\t... failed");
+                fail("beginHandshake() called again should throw SSLException");
+            } catch (SSLException e) {
+                /* expected */
+            }
+            try {
+                client.beginHandshake();
+                error("\t\t... failed");
+                fail("beginHandshake() called again should throw SSLException");
+            } catch (SSLException e) {
+                /* expected */
+            }
         }
 
         pass("\t\t... passed");
@@ -403,38 +453,45 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tisIn/OutboundDone()");
 
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL in/out test", 11111);
+        for (int i = 0; i < enabledProtocols.size(); i++) {
 
-        server.setUseClientMode(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
-        if (ret != 0) {
-            error("\t\t... failed");
-            fail("failed to create engine");
-        }
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider);
 
-        /* check if inbound is still open */
-        if (server.isInboundDone() && client.isInboundDone()) {
-            error("\t\t... failed");
-            fail("inbound done too early");
-        }
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL in/out test", 11111);
 
-        /* check if outbound is still open */
-        if (server.isOutboundDone() && client.isOutboundDone()) {
-            error("\t\t... failed");
-            fail("outbound done too early");
-        }
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
 
-        /* close inbound before peer responded to shutdown should fail */
-        try {
-            server.closeInbound();
-            error("\t\t... failed");
-            fail("was able to incorrectly close inbound");
-        } catch (SSLException ex) {
-            /* expected to fail here */
+            ret = tf.testConnection(server, client, null, null,
+                "Test in/out bound");
+            if (ret != 0) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+            }
+
+            /* check if inbound is still open */
+            if (server.isInboundDone() && client.isInboundDone()) {
+                error("\t\t... failed");
+                fail("inbound done too early");
+            }
+
+            /* check if outbound is still open */
+            if (server.isOutboundDone() && client.isOutboundDone()) {
+                error("\t\t... failed");
+                fail("outbound done too early");
+            }
+
+            /* close inbound before peer responded to shutdown should fail */
+            try {
+                server.closeInbound();
+                error("\t\t... failed");
+                fail("was able to incorrectly close inbound");
+            } catch (SSLException ex) {
+                /* expected to fail here */
+            }
         }
 
         pass("\t\t... passed");
@@ -446,67 +503,71 @@ public class WolfSSLEngineTest {
                KeyManagementException, KeyStoreException, CertificateException,
                IOException, UnrecoverableKeyException {
 
-        int ret;
         SSLEngine client;
         SSLEngine server;
 
         System.out.print("\tsetUseClientMode()");
 
-        /* expected to fail, not calling setUseClientMode() */
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
-        server.setWantClientAuth(false);
-        server.setNeedClientAuth(false);
-        try {
-            ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t\t... failed");
-            fail("did not fail without setUseClientMode()");
-        } catch (IllegalStateException e) {
-            /* expected */
-        }
+        for (int i = 0; i < enabledProtocols.size(); i++) {
 
-        /* expected to fail, only calling client.setUseClientMode() */
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
-        server.setWantClientAuth(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        try {
-            ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t\t... failed");
-            fail("did not fail without server.setUseClientMode()");
-        } catch (IllegalStateException e) {
-            /* expected */
-        }
+            /* expected to fail, not calling setUseClientMode() */
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider);
 
-        /* expected to fail, only calling client.setUseClientMode() */
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
-        server.setWantClientAuth(false);
-        server.setNeedClientAuth(false);
-        server.setUseClientMode(false);
-        try {
-            ret = tf.testConnection(server, client, null, null, "Testing");
-            error("\t\t... failed");
-            fail("did not fail without client.setUseClientMode()");
-        } catch (IllegalStateException e) {
-            /* expected */
-        }
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+            server.setWantClientAuth(false);
+            server.setNeedClientAuth(false);
+            try {
+                tf.testConnection(server, client, null, null, "Testing");
+                error("\t\t... failed");
+                fail("did not fail without setUseClientMode()");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
 
-        /* expected to succeed, both setUseClientMode() set */
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL test", 11111);
-        server.setWantClientAuth(false);
-        server.setNeedClientAuth(false);
-        client.setUseClientMode(true);
-        server.setUseClientMode(false);
-        try {
-            ret = tf.testConnection(server, client, null, null, "Testing");
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-            error("\t\t... failed");
-            fail("failed with setUseClientMode(), should succeed");
+            /* expected to fail, only calling client.setUseClientMode() */
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+            server.setWantClientAuth(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            try {
+                tf.testConnection(server, client, null, null, "Testing");
+                error("\t\t... failed");
+                fail("did not fail without server.setUseClientMode()");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
+
+            /* expected to fail, only calling client.setUseClientMode() */
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+            server.setWantClientAuth(false);
+            server.setNeedClientAuth(false);
+            server.setUseClientMode(false);
+            try {
+                tf.testConnection(server, client, null, null, "Testing");
+                error("\t\t... failed");
+                fail("did not fail without client.setUseClientMode()");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
+
+            /* expected to succeed, both setUseClientMode() set */
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+            server.setWantClientAuth(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            try {
+                tf.testConnection(server, client, null, null, "Testing");
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+                error("\t\t... failed");
+                fail("failed with setUseClientMode(), should succeed");
+            }
         }
 
         pass("\t\t... passed");
@@ -525,42 +586,50 @@ public class WolfSSLEngineTest {
         /* create new SSLEngine */
         System.out.print("\tMutual authentication");
 
-        /* success case */
-        this.ctx = tf.createSSLContext("TLS", engineProvider);
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL auth test", 11111);
+        for (int i = 0; i < enabledProtocols.size(); i++) {
 
-        server.setWantClientAuth(true);
-        server.setNeedClientAuth(true);
-        client.setUseClientMode(true);
-        server.setUseClientMode(false);
-        ret = tf.testConnection(server, client, null, null, "Test mutual auth");
-        if (ret != 0) {
-            error("\t\t... failed");
-            fail("failed to create connection with engine");
-        }
+            /* success case */
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider);
 
-        /* want client auth should be overwritten by need client auth */
-        if (!server.getNeedClientAuth() || server.getWantClientAuth()) {
-            error("\t\t... failed");
-            fail("failed with mutual auth getter check");
-        }
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL auth test", 11111);
 
-        /* fail case */
-        this.ctx = tf.createSSLContext("TLS", engineProvider,
+            server.setWantClientAuth(true);
+            server.setNeedClientAuth(true);
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            ret = tf.testConnection(server, client, null, null,
+                "Test mutual auth");
+            if (ret != 0) {
+                error("\t\t... failed");
+                fail("failed to create connection with engine");
+            }
+
+            /* want client auth should be overwritten by need client auth */
+            if (!server.getNeedClientAuth() || server.getWantClientAuth()) {
+                error("\t\t... failed");
+                fail("failed with mutual auth getter check");
+            }
+
+            /* fail case */
+            this.ctx = tf.createSSLContext(
+                enabledProtocols.get(i), engineProvider,
                 tf.createTrustManager("SunX509", tf.serverJKS, engineProvider),
                 tf.createKeyManager("SunX509", tf.serverJKS, engineProvider));
-        server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL auth fail test", 11111);
+            server = this.ctx.createSSLEngine();
+            client = this.ctx.createSSLEngine("wolfSSL auth fail test", 11111);
 
-        server.setWantClientAuth(true);
-        server.setNeedClientAuth(true);
-        client.setUseClientMode(true);
-        server.setUseClientMode(false);
-        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
-        if (ret == 0) {
-            error("\t\t... failed");
-            fail("failed to create engine");
+            server.setWantClientAuth(true);
+            server.setNeedClientAuth(true);
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            ret = tf.testConnection(server, client, null, null,
+                "Test in/out bound");
+            if (ret == 0) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+            }
         }
 
         pass("\t\t... passed");
@@ -626,31 +695,36 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tsetWantClientAuth(default KM)");
 
-        for (PeerAuthConfig c : configsDefaultManagers) {
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            for (PeerAuthConfig c : configsDefaultManagers) {
 
-            sCtx = tf.createSSLContext("TLS", engineProvider);
-            server = sCtx.createSSLEngine();
-            server.setUseClientMode(false);
-            server.setWantClientAuth(c.serverWantClientAuth);
-            server.setNeedClientAuth(c.serverNeedClientAuth);
+                sCtx = tf.createSSLContext(
+                    enabledProtocols.get(i), engineProvider);
+                server = sCtx.createSSLEngine();
+                server.setUseClientMode(false);
+                server.setWantClientAuth(c.serverWantClientAuth);
+                server.setNeedClientAuth(c.serverNeedClientAuth);
 
-            cCtx = tf.createSSLContext("TLS", engineProvider);
-            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
-            client.setUseClientMode(true);
-            client.setWantClientAuth(c.clientWantClientAuth);
-            client.setNeedClientAuth(c.clientNeedClientAuth);
+                cCtx = tf.createSSLContext(
+                    enabledProtocols.get(i), engineProvider);
+                client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+                client.setUseClientMode(true);
+                client.setWantClientAuth(c.clientWantClientAuth);
+                client.setNeedClientAuth(c.clientNeedClientAuth);
 
-            ret = tf.testConnection(server, client, null, null, "Test");
-            if ((c.expectSuccess && ret != 0) ||
-                (!c.expectSuccess && ret == 0)) {
-                error("\t... failed");
-                fail("SSLEngine want/needClientAuth failed: \n" +
-                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
-                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
-                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
-                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
-                     "\n  expectSuccess = " + c.expectSuccess +
-                     "\n  got ret = " + ret);
+                ret = tf.testConnection(server, client, null, null, "Test");
+                if ((c.expectSuccess && ret != 0) ||
+                    (!c.expectSuccess && ret == 0)) {
+                    error("\t... failed");
+                    fail("SSLEngine want/needClientAuth failed: \n" +
+                         "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                         "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                         "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                         "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                         "\n  expectSuccess = " + c.expectSuccess +
+                         "\n  got ret = " + ret +
+                         "\n  protocol = " + enabledProtocols.get(i));
+                }
             }
         }
 
@@ -692,33 +766,39 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tsetWantClientAuth(no client KM)");
 
-        for (PeerAuthConfig c : configs) {
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            for (PeerAuthConfig c : configs) {
 
-            sCtx = tf.createSSLContext("TLS", engineProvider);
-            server = sCtx.createSSLEngine();
-            server.setUseClientMode(false);
-            server.setWantClientAuth(c.serverWantClientAuth);
-            server.setNeedClientAuth(c.serverNeedClientAuth);
+                sCtx = tf.createSSLContext(
+                    enabledProtocols.get(i), engineProvider);
+                server = sCtx.createSSLEngine();
+                server.setUseClientMode(false);
+                server.setWantClientAuth(c.serverWantClientAuth);
+                server.setNeedClientAuth(c.serverNeedClientAuth);
 
-            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                tf.createTrustManager("SunX509", tf.clientJKS, engineProvider),
-                null);
-            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
-            client.setUseClientMode(true);
-            client.setWantClientAuth(c.clientWantClientAuth);
-            client.setNeedClientAuth(c.clientNeedClientAuth);
+                cCtx = tf.createSSLContextNoDefaults(
+                    enabledProtocols.get(i), engineProvider,
+                    tf.createTrustManager("SunX509", tf.clientJKS,
+                        engineProvider),
+                    null);
+                client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+                client.setUseClientMode(true);
+                client.setWantClientAuth(c.clientWantClientAuth);
+                client.setNeedClientAuth(c.clientNeedClientAuth);
 
-            ret = tf.testConnection(server, client, null, null, "Test");
-            if ((c.expectSuccess && ret != 0) ||
-                (!c.expectSuccess && ret == 0)) {
-                error("\t... failed");
-                fail("SSLEngine want/needClientAuth failed: \n" +
-                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
-                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
-                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
-                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
-                     "\n  expectSuccess = " + c.expectSuccess +
-                     "\n  got ret = " + ret);
+                ret = tf.testConnection(server, client, null, null, "Test");
+                if ((c.expectSuccess && ret != 0) ||
+                    (!c.expectSuccess && ret == 0)) {
+                    error("\t... failed");
+                    fail("SSLEngine want/needClientAuth failed: \n" +
+                         "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                         "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                         "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                         "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                         "\n  expectSuccess = " + c.expectSuccess +
+                         "\n  got ret = " + ret +
+                         "\n  protocol = " + enabledProtocols.get(i));
+                }
             }
         }
 
@@ -762,33 +842,39 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tsetWantClientAuth(no server KM)");
 
-        for (PeerAuthConfig c : configs) {
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            for (PeerAuthConfig c : configs) {
 
-            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                tf.createTrustManager("SunX509", tf.clientJKS, engineProvider),
-                null);
-            server = sCtx.createSSLEngine();
-            server.setUseClientMode(false);
-            server.setWantClientAuth(c.serverWantClientAuth);
-            server.setNeedClientAuth(c.serverNeedClientAuth);
+                sCtx = tf.createSSLContextNoDefaults(enabledProtocols.get(i),
+                    engineProvider,
+                    tf.createTrustManager("SunX509", tf.clientJKS,
+                        engineProvider),
+                    null);
+                server = sCtx.createSSLEngine();
+                server.setUseClientMode(false);
+                server.setWantClientAuth(c.serverWantClientAuth);
+                server.setNeedClientAuth(c.serverNeedClientAuth);
 
-            cCtx = tf.createSSLContext("TLS", engineProvider);
-            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
-            client.setUseClientMode(true);
-            client.setWantClientAuth(c.clientWantClientAuth);
-            client.setNeedClientAuth(c.clientNeedClientAuth);
+                cCtx = tf.createSSLContext(enabledProtocols.get(i),
+                    engineProvider);
+                client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+                client.setUseClientMode(true);
+                client.setWantClientAuth(c.clientWantClientAuth);
+                client.setNeedClientAuth(c.clientNeedClientAuth);
 
-            ret = tf.testConnection(server, client, null, null, "Test");
-            if ((c.expectSuccess && ret != 0) ||
-                (!c.expectSuccess && ret == 0)) {
-                error("\t... failed");
-                fail("SSLEngine want/needClientAuth failed: \n" +
-                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
-                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
-                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
-                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
-                     "\n  expectSuccess = " + c.expectSuccess +
-                     "\n  got ret = " + ret);
+                ret = tf.testConnection(server, client, null, null, "Test");
+                if ((c.expectSuccess && ret != 0) ||
+                    (!c.expectSuccess && ret == 0)) {
+                    error("\t... failed");
+                    fail("SSLEngine want/needClientAuth failed: \n" +
+                         "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                         "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                         "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                         "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                         "\n  expectSuccess = " + c.expectSuccess +
+                         "\n  got ret = " + ret +
+                         "\n  protocol = " + enabledProtocols.get(i));
+                }
             }
         }
 
@@ -858,35 +944,42 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tsetWantClientAuth(ext KM all)");
 
-        for (PeerAuthConfig c : configsDefaultManagers) {
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            for (PeerAuthConfig c : configsDefaultManagers) {
 
-            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
-            server = sCtx.createSSLEngine();
-            server.setUseClientMode(false);
-            server.setWantClientAuth(c.serverWantClientAuth);
-            server.setNeedClientAuth(c.serverNeedClientAuth);
+                sCtx = tf.createSSLContextNoDefaults(enabledProtocols.get(i),
+                    engineProvider,
+                    trustAllCerts,
+                    tf.createKeyManager("SunX509", tf.clientJKS,
+                        engineProvider));
+                server = sCtx.createSSLEngine();
+                server.setUseClientMode(false);
+                server.setWantClientAuth(c.serverWantClientAuth);
+                server.setNeedClientAuth(c.serverNeedClientAuth);
 
-            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
-            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
-            client.setUseClientMode(true);
-            client.setWantClientAuth(c.clientWantClientAuth);
-            client.setNeedClientAuth(c.clientNeedClientAuth);
+                cCtx = tf.createSSLContextNoDefaults(enabledProtocols.get(i),
+                    engineProvider,
+                    trustAllCerts,
+                    tf.createKeyManager("SunX509", tf.clientJKS,
+                        engineProvider));
+                client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+                client.setUseClientMode(true);
+                client.setWantClientAuth(c.clientWantClientAuth);
+                client.setNeedClientAuth(c.clientNeedClientAuth);
 
-            ret = tf.testConnection(server, client, null, null, "Test");
-            if ((c.expectSuccess && ret != 0) ||
-                (!c.expectSuccess && ret == 0)) {
-                error("\t... failed");
-                fail("SSLEngine want/needClientAuth failed: \n" +
-                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
-                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
-                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
-                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
-                     "\n  expectSuccess = " + c.expectSuccess +
-                     "\n  got ret = " + ret);
+                ret = tf.testConnection(server, client, null, null, "Test");
+                if ((c.expectSuccess && ret != 0) ||
+                    (!c.expectSuccess && ret == 0)) {
+                    error("\t... failed");
+                    fail("SSLEngine want/needClientAuth failed: \n" +
+                         "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                         "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                         "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                         "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                         "\n  expectSuccess = " + c.expectSuccess +
+                         "\n  got ret = " + ret +
+                         "\n  protocol = " + enabledProtocols.get(i));
+                }
             }
         }
 
@@ -971,35 +1064,42 @@ public class WolfSSLEngineTest {
 
         System.out.print("\tsetWantClientAuth(ext KM no)");
 
-        for (PeerAuthConfig c : configsDefaultManagers) {
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            for (PeerAuthConfig c : configsDefaultManagers) {
 
-            sCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                trustNoClientCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
-            server = sCtx.createSSLEngine();
-            server.setUseClientMode(false);
-            server.setWantClientAuth(c.serverWantClientAuth);
-            server.setNeedClientAuth(c.serverNeedClientAuth);
+                sCtx = tf.createSSLContextNoDefaults(enabledProtocols.get(i),
+                    engineProvider,
+                    trustNoClientCerts,
+                    tf.createKeyManager("SunX509", tf.clientJKS,
+                        engineProvider));
+                server = sCtx.createSSLEngine();
+                server.setUseClientMode(false);
+                server.setWantClientAuth(c.serverWantClientAuth);
+                server.setNeedClientAuth(c.serverNeedClientAuth);
 
-            cCtx = tf.createSSLContextNoDefaults("TLS", engineProvider,
-                trustNoClientCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, engineProvider));
-            client = cCtx.createSSLEngine("wolfSSL test case", 11111);
-            client.setUseClientMode(true);
-            client.setWantClientAuth(c.clientWantClientAuth);
-            client.setNeedClientAuth(c.clientNeedClientAuth);
+                cCtx = tf.createSSLContextNoDefaults(enabledProtocols.get(i),
+                    engineProvider,
+                    trustNoClientCerts,
+                    tf.createKeyManager("SunX509", tf.clientJKS,
+                        engineProvider));
+                client = cCtx.createSSLEngine("wolfSSL test case", 11111);
+                client.setUseClientMode(true);
+                client.setWantClientAuth(c.clientWantClientAuth);
+                client.setNeedClientAuth(c.clientNeedClientAuth);
 
-            ret = tf.testConnection(server, client, null, null, "Test");
-            if ((c.expectSuccess && ret != 0) ||
-                (!c.expectSuccess && ret == 0)) {
-                error("\t... failed");
-                fail("SSLEngine want/needClientAuth failed: \n" +
-                     "\n  cWantClientAuth = " + c.clientWantClientAuth +
-                     "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
-                     "\n  sWantClientAuth = " + c.serverWantClientAuth +
-                     "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
-                     "\n  expectSuccess = " + c.expectSuccess +
-                     "\n  got ret = " + ret);
+                ret = tf.testConnection(server, client, null, null, "Test");
+                if ((c.expectSuccess && ret != 0) ||
+                    (!c.expectSuccess && ret == 0)) {
+                    error("\t... failed");
+                    fail("SSLEngine want/needClientAuth failed: \n" +
+                         "\n  cWantClientAuth = " + c.clientWantClientAuth +
+                         "\n  cNeedClientAuth = " + c.clientNeedClientAuth +
+                         "\n  sWantClientAuth = " + c.serverWantClientAuth +
+                         "\n  sNeedClientAuth = " + c.serverNeedClientAuth +
+                         "\n  expectSuccess = " + c.expectSuccess +
+                         "\n  got ret = " + ret +
+                         "\n  protocol = " + enabledProtocols.get(i));
+                }
             }
         }
 
@@ -1028,51 +1128,56 @@ public class WolfSSLEngineTest {
         Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
         try {
-            /* create new SSLEngine */
-            this.ctx = tf.createSSLContext("TLS", engineProvider);
-            server = this.ctx.createSSLEngine();
-            client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+            for (int i = 0; i < enabledProtocols.size(); i++) {
+                /* create new SSLEngine */
+                this.ctx = tf.createSSLContext(enabledProtocols.get(i),
+                    engineProvider);
+                server = this.ctx.createSSLEngine();
+                client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
 
-            server.setUseClientMode(false);
-            server.setNeedClientAuth(false);
-            client.setUseClientMode(true);
-            ret = tf.testConnection(server, client, null, null, "Test reuse");
-            if (ret != 0) {
-                error("\t\t\t... failed");
-                fail("failed to create engine");
-            }
+                server.setUseClientMode(false);
+                server.setNeedClientAuth(false);
+                client.setUseClientMode(true);
+                ret = tf.testConnection(server, client, null, null,
+                    "Test reuse");
+                if (ret != 0) {
+                    error("\t\t\t... failed");
+                    fail("failed to create engine");
+                }
 
-            try {
-                /* test close connection */
-                tf.CloseConnection(server, client, false);
-            } catch (SSLException ex) {
-                error("\t\t\t... failed");
-                fail("failed to create engine");
-            }
+                try {
+                    /* test close connection */
+                    tf.CloseConnection(server, client, false);
+                } catch (SSLException ex) {
+                    error("\t\t\t... failed");
+                    fail("failed to create engine");
+                }
 
-            server = this.ctx.createSSLEngine();
-            client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
-            client.setEnableSessionCreation(false);
-            server.setUseClientMode(false);
-            server.setNeedClientAuth(false);
-            client.setUseClientMode(true);
-            ret = tf.testConnection(server, client, null, null, "Test reuse");
-            if (ret != 0) {
-                error("\t\t\t... failed");
-                fail("failed to create engine");
-            }
-            try {
-                /* test close connection */
-                tf.CloseConnection(server, client, false);
-            } catch (SSLException ex) {
-                error("\t\t\t... failed");
-                fail("failed to create engine");
-            }
+                server = this.ctx.createSSLEngine();
+                client = this.ctx.createSSLEngine("wolfSSL client test", 11111);
+                client.setEnableSessionCreation(false);
+                server.setUseClientMode(false);
+                server.setNeedClientAuth(false);
+                client.setUseClientMode(true);
+                ret = tf.testConnection(server, client, null, null,
+                    "Test reuse");
+                if (ret != 0) {
+                    error("\t\t\t... failed");
+                    fail("failed to create engine");
+                }
+                try {
+                    /* test close connection */
+                    tf.CloseConnection(server, client, false);
+                } catch (SSLException ex) {
+                    error("\t\t\t... failed");
+                    fail("failed to create engine");
+                }
 
-            if (client.getEnableSessionCreation() ||
-                !server.getEnableSessionCreation()) {
-                error("\t\t\t... failed");
-                fail("bad enabled session creation");
+                if (client.getEnableSessionCreation() ||
+                    !server.getEnableSessionCreation()) {
+                    error("\t\t\t... failed");
+                    fail("bad enabled session creation");
+                }
             }
 
             pass("\t\t\t... passed");
@@ -1212,6 +1317,7 @@ public class WolfSSLEngineTest {
             ByteBuffer netData = null;
             ByteBuffer peerAppData = null;
             ByteBuffer peerNetData = null;
+            boolean readAgain = false;
 
             SocketChannel sock = null;
 
@@ -1331,7 +1437,7 @@ public class WolfSSLEngineTest {
                     case OK:
                         netData.flip();
                         while (netData.hasRemaining()) {
-                            int sent = sock.write(netData);
+                            sock.write(netData);
                         }
                         break;
                     case CLOSED:
@@ -1350,7 +1456,7 @@ public class WolfSSLEngineTest {
                 }
             }
 
-            /* read response */
+            /* read response (might get TLS 1.3 session ticket instead) */
             peerNetData.clear();
             int recvd = sock.read(peerNetData);
             if (recvd > 0) {
@@ -1370,11 +1476,52 @@ public class WolfSSLEngineTest {
                         throw new Exception(
                             "BUFFER_OVERFLOW during engine.unwrp()");
                     case BUFFER_UNDERFLOW:
-                        throw new Exception(
-                            "BUFFER_UNDERFLOW during engine.unwrap()");
+                        /* With TLS 1.3, we may get a session ticket
+                         * message post handshake, resulting in BUFFER_UNDERFLOW
+                         * status since we read the ticket but didn't get the
+                         * chance to read the response waiting from the peer. */
+                        sess = engine.getSession();
+                        if (sess.getProtocol().equals("TLSv1.3")) {
+                            readAgain = true;
+                            break;
+                        }
+                        else {
+                            throw new Exception(
+                                "BUFFER_UNDERFLOW during engine.unwrap()");
+                        }
                     default:
                         throw new Exception(
                             "Unknown HandshakeStatus");
+                }
+            }
+
+            if (readAgain) {
+                /* read response */
+                peerNetData.clear();
+                recvd = sock.read(peerNetData);
+                if (recvd > 0) {
+                    peerNetData.flip();
+                    result = engine.unwrap(peerNetData, peerAppData);
+                    peerNetData.compact();
+                    switch (result.getStatus()) {
+                        case OK:
+                            peerAppData.flip();
+                            /* not doing anything with returned data */
+                            break;
+                        case CLOSED:
+                            engine.closeOutbound();
+                            engine.closeInbound();
+                            break;
+                        case BUFFER_OVERFLOW:
+                            throw new Exception(
+                                "BUFFER_OVERFLOW during engine.unwrp()");
+                        case BUFFER_UNDERFLOW:
+                            throw new Exception(
+                                "BUFFER_UNDERFLOW during engine.unwrap()");
+                        default:
+                            throw new Exception(
+                                "Unknown HandshakeStatus");
+                    }
                 }
             }
 
@@ -1470,20 +1617,23 @@ public class WolfSSLEngineTest {
         SSLEngine engine;
         SSLSession session;
 
-        System.out.print("\tTesting getAppBufferSize");
+        System.out.print("\tgetApplicationBufferSize()");
 
         try {
-            /* create SSLContext */
-            this.ctx = tf.createSSLContext("TLS", engineProvider);
+            for (int i = 0; i < enabledProtocols.size(); i++) {
+                this.ctx = tf.createSSLContext(enabledProtocols.get(i),
+                    engineProvider);
 
-            engine = this.ctx.createSSLEngine("test", 11111);
-            session = engine.getSession();
-            appBufSz = session.getApplicationBufferSize();
+                engine = this.ctx.createSSLEngine("test", 11111);
+                session = engine.getSession();
+                appBufSz = session.getApplicationBufferSize();
 
-            /* expected to be 16384 */
-            if (appBufSz != 16384) {
-                error("\t... failed");
-                fail("got incorrect application buffer size");
+                /* expected to be 16384 */
+                if (appBufSz != 16384) {
+                    error("\t... failed");
+                    fail("got incorrect application buffer size (" +
+                        enabledProtocols.get(i) + ")");
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1501,28 +1651,31 @@ public class WolfSSLEngineTest {
         SSLEngine engine;
         SSLSession session;
 
-        System.out.print("\tTesting getPacketBufferSize");
+        System.out.print("\tgetPacketBufferSize()");
 
         try {
-            /* create SSLContext */
-            this.ctx = tf.createSSLContext("TLS", engineProvider);
+            for (int i = 0; i < enabledProtocols.size(); i++) {
+                this.ctx = tf.createSSLContext(enabledProtocols.get(i),
+                    engineProvider);
 
-            engine = this.ctx.createSSLEngine("test", 11111);
-            session = engine.getSession();
-            packetBufSz = session.getPacketBufferSize();
+                engine = this.ctx.createSSLEngine("test", 11111);
+                session = engine.getSession();
+                packetBufSz = session.getPacketBufferSize();
 
-            /* expected to be 18437 */
-            if (packetBufSz != 18437) {
-                error("\t... failed");
-                fail("got incorrect packet buffer size");
+                /* expected to be 18437 */
+                if (packetBufSz != 18437) {
+                    error("\t\t... failed");
+                    fail("got incorrect packet buffer size (" +
+                        enabledProtocols.get(i) + ")");
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            error("\t... failed");
+            error("\t\t... failed");
             fail("unexpected Exception during getPacketBufferSize test");
         }
 
-        pass("\t... passed");
+        pass("\t\t... passed");
     }
 
     @Test
@@ -1539,9 +1692,6 @@ public class WolfSSLEngineTest {
 
         /* big input buffer to test, 16k */
         byte[] bigInput = new byte[16384];
-
-        SSLEngineResult cResult;
-        SSLEngineResult sResult;
 
         System.out.print("\tTesting large data transfer");
 
@@ -1578,14 +1728,14 @@ public class WolfSSLEngineTest {
             while (!(client.isOutboundDone() && client.isInboundDone()) &&
                    !(server.isOutboundDone() && server.isInboundDone())) {
 
-                cResult = client.wrap(cOut, clientToServer);
-                sResult = server.wrap(sOut, serverToClient);
+                client.wrap(cOut, clientToServer);
+                server.wrap(sOut, serverToClient);
 
                 clientToServer.flip();
                 serverToClient.flip();
 
-                cResult = client.unwrap(serverToClient, cIn);
-                sResult = server.unwrap(clientToServer, sIn);
+                client.unwrap(serverToClient, cIn);
+                server.unwrap(clientToServer, sIn);
 
                 clientToServer.compact();
                 serverToClient.compact();
@@ -1649,12 +1799,6 @@ public class WolfSSLEngineTest {
         ByteBuffer clientToServer;
         ByteBuffer serverToClient;
 
-        byte[] input1Buf = "Hello client, ".getBytes();
-        byte[] input2Buf = "from server".getBytes();
-
-        SSLEngineResult cResult;
-        SSLEngineResult sResult;
-
         System.out.print("\tTesting split input data");
 
         try {
@@ -1694,14 +1838,14 @@ public class WolfSSLEngineTest {
             while (!(client.isOutboundDone() && client.isInboundDone()) &&
                    !(server.isOutboundDone() && server.isInboundDone())) {
 
-                cResult = client.wrap(cOutBuffs, clientToServer);
-                sResult = server.wrap(sOutBuffs, serverToClient);
+                client.wrap(cOutBuffs, clientToServer);
+                server.wrap(sOutBuffs, serverToClient);
 
                 clientToServer.flip();
                 serverToClient.flip();
 
-                cResult = client.unwrap(serverToClient, cIn);
-                sResult = server.unwrap(clientToServer, sIn);
+                client.unwrap(serverToClient, cIn);
+                server.unwrap(clientToServer, sIn);
 
                 clientToServer.compact();
                 serverToClient.compact();
@@ -1741,6 +1885,141 @@ public class WolfSSLEngineTest {
             fail("failed split input test with Exception");
         }
         pass("\t... passed");
+    }
+
+    @Test
+    public void testDTLSv13Engine()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, IOException,
+               CertificateException, UnrecoverableKeyException {
+
+        System.out.print("\tDTLSv1.3 basic connection");
+
+        /* Skip if DTLSv1.3 not enabled */
+        if (!enabledProtocols.contains("DTLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        SSLEngine client = null;
+        SSLEngine server = null;
+
+        try {
+            /* Create SSLContext */
+            this.ctx = tf.createSSLContext("DTLSv1.3", engineProvider);
+
+            /* Create client engine */
+            client = this.ctx.createSSLEngine("wolfSSL client", 11111);
+            client.setUseClientMode(true);
+
+            /* Create server engine */
+            server = this.ctx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(true);
+
+            /* Test buffer sizes */
+            SSLSession session = client.getSession();
+            assertTrue(session.getApplicationBufferSize() > 0);
+            assertTrue(session.getPacketBufferSize() > 0);
+
+            /* Test handshake with small app data */
+            tf.testConnection(client, server, null, null, "Test Message");
+
+            /* Test handshake with large app data */
+            byte[] largeData = new byte[16384];
+            new Random().nextBytes(largeData);
+            tf.testConnection(client, server, null, null, new String(largeData));
+
+            pass("\t... passed");
+
+        } catch (Exception e) {
+            error("\t... failed");
+            e.printStackTrace();
+            fail("Failed DTLSv1.3 test with exception: " + e);
+        }
+    }
+
+    /**
+     * Internal helper method for testDTLSv13EngineResumeSession.
+     */
+    private void dtls13ResumeTest(String con1Host, String con2Host,
+        boolean expectResume) throws Exception {
+
+        SSLEngine client1 = null;
+        SSLEngine client2 = null;
+        SSLEngine server1 = null;
+        SSLEngine server2 = null;
+        boolean resumed = false;
+
+        /* Create SSLContext */
+        SSLContext dtlsCtx = tf.createSSLContext("DTLSv1.3", engineProvider);
+
+        /* First connection */
+        client1 = dtlsCtx.createSSLEngine(con1Host, 11111);
+        client1.setUseClientMode(true);
+        server1 = dtlsCtx.createSSLEngine();
+        server1.setUseClientMode(false);
+        server1.setNeedClientAuth(true);
+
+        /* First handshake */
+        tf.testConnection(client1, server1, null, null, "First Connection");
+
+        /* Second connection */
+        client2 = dtlsCtx.createSSLEngine(con2Host, 11111);
+        client2.setUseClientMode(true);
+        server2 = dtlsCtx.createSSLEngine();
+        server2.setUseClientMode(false);
+        server2.setNeedClientAuth(true);
+
+        /* Second handshake */
+        tf.testConnection(client2, server2, null, null, "Second Connection");
+
+        /* Verify session was resumed */
+        WolfSSLEngine we = (WolfSSLEngine)client2;
+        resumed = we.sessionResumed();
+
+        if (expectResume && !resumed) {
+            throw new Exception(
+                "Session was not resumed, but should have been");
+        }
+        else if (!expectResume && resumed) {
+            throw new Exception(
+                "Session was resumed, but should not have been");
+        }
+    }
+
+    /**
+     * Test that SSLEngine with DTLSv1.3 resumes (and not) as expected.
+     */
+    @Test
+    public void testDTLSv13EngineResumeSession()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, IOException,
+               CertificateException, UnrecoverableKeyException {
+
+        System.out.print("\tDTLSv1.3 session resumption");
+
+        /* Skip if DTLSv1.3 not enabled */
+        if (!enabledProtocols.contains("DTLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        try {
+
+            /* Test expected resumption case */
+            dtls13ResumeTest("wolfSSL client", "wolfSSL client", true);
+            /* Test expected not resumption case */
+            dtls13ResumeTest("wolfSSL client", "wolfSSL client 2", false);
+
+            pass("\t... passed");
+
+        } catch (Exception e) {
+            error("\t... failed");
+            e.printStackTrace();
+            fail("Failed DTLSv1.3 session resumption test " +
+                 "with exception: " + e);
+        }
     }
 }
 

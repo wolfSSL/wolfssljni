@@ -530,6 +530,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv13Enabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_DTLSv13Enabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_ShaEnabled
   (JNIEnv* jenv, jclass jcl)
 {
@@ -747,7 +760,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)(uintptr_t)wolfSSLv3_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -760,7 +773,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ClientMethod
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     return (jlong)(uintptr_t)wolfSSLv3_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -773,7 +786,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1Method
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(uintptr_t)wolfTLSv1_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -786,7 +799,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ServerMethod
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(uintptr_t)wolfTLSv1_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -799,7 +812,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_1ClientMethod
 #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
     return (jlong)(uintptr_t)wolfTLSv1_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -812,7 +825,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1Method
 #ifndef NO_OLD_TLS
     return (jlong)(uintptr_t)wolfTLSv1_1_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -825,7 +838,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ServerMethod
 #ifndef NO_OLD_TLS
     return (jlong)(uintptr_t)wolfTLSv1_1_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -838,7 +851,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_11_1ClientMethod
 #ifndef NO_OLD_TLS
     return (jlong)(uintptr_t)wolfTLSv1_1_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -878,7 +891,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1Method
 #ifdef WOLFSSL_TLS13
     return (jlong)(uintptr_t)wolfTLSv1_3_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -891,7 +904,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1ServerMethod
 #ifdef WOLFSSL_TLS13
     return (jlong)(uintptr_t)wolfTLSv1_3_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -904,7 +917,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_TLSv1_13_1ClientMethod
 #ifdef WOLFSSL_TLS13
     return (jlong)(uintptr_t)wolfTLSv1_3_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -917,7 +930,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1Method
 #if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(uintptr_t)wolfDTLSv1_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -930,7 +943,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ClientMethod
 #if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(uintptr_t)wolfDTLSv1_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -943,7 +956,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_1ServerMethod
 #if defined(WOLFSSL_DTLS) && !defined(NO_OLD_TLS)
     return (jlong)(uintptr_t)wolfDTLSv1_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -956,7 +969,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1Method
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(uintptr_t)wolfDTLSv1_2_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -969,7 +982,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ClientMethod
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(uintptr_t)wolfDTLSv1_2_client_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
 #endif
 }
 
@@ -982,7 +995,46 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_12_1ServerMethod
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
     return (jlong)(uintptr_t)wolfDTLSv1_2_server_method();
 #else
-    return NOT_COMPILED_IN;
+    return 0;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_13_1Method
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    return (jlong)(uintptr_t)wolfDTLSv1_3_method();
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_13_1ServerMethod
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    return (jlong)(uintptr_t)wolfDTLSv1_3_server_method();
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_DTLSv1_13_1ClientMethod
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    return (jlong)(uintptr_t)wolfDTLSv1_3_client_method();
+#else
+    return 0;
 #endif
 }
 
@@ -1110,11 +1162,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setLoggingCb
     return ret;
 }
 
+/**
+ * Native wolfSSL logging callback.
+ *
+ * We skip throwing exceptions in this function and just move on without
+ * printing the log. Otherwise, our non-important exception here could cause
+ * bad things to happen at the Java level - ie, causing the
+ * certificate verify callback to fail unnecessarily.
+ */
 void NativeLoggingCallback(const int logLevel, const char *const logMessage)
 {
     JNIEnv*   jenv = NULL;
     jint      vmret  = 0;
-    jclass    excClass;
     jclass    logClass;
     jmethodID logMethod;
     jstring   logMsg;
@@ -1145,17 +1204,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
         return;
     }
 
-    /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        if (needsDetach == 1) {
-            (*g_vm)->DetachCurrentThread(g_vm);
-        }
-        return;
-    }
-
     /* check if our stored object reference is valid */
     refcheck = (*jenv)->GetObjectRefType(jenv, g_loggingCbIfaceObj);
     if (refcheck == 2) {
@@ -1167,9 +1215,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLLoggingCallback class reference");
 
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -1185,8 +1230,6 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting loggingCallback method from JNI");
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -1203,22 +1246,16 @@ void NativeLoggingCallback(const int logLevel, const char *const logMessage)
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
 
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "Error calling logging callback from JNI");
+            /* Not throwing exception, just move on without printing the log.
+             * Otherwise, our non-important exception here could cause
+             * bad things to happen at the Java level - ie, causing the
+             * certificate verify callback to fail unnecessarily. */
             if (needsDetach == 1) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
             return;
         }
 
-    } else {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeLoggingCallback");
     }
 
     if (needsDetach == 1) {
@@ -1652,7 +1689,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
         return NULL;
     }
 
-    if (protocolVersion < 0 || protocolVersion > 5) {
+    if (protocolVersion < 0 || protocolVersion > 8) {
         printf("Input protocol version invalid: %d\n", protocolVersion);
         return NULL;
     }
@@ -1683,6 +1720,23 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
         case 5:
             method = wolfSSLv23_client_method();
             break;
+#ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
+        case 6:
+            method = wolfDTLSv1_client_method();
+            break;
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
+        case 7:
+            method = wolfDTLSv1_2_client_method();
+            break;
+    #endif
+    #ifdef WOLFSSL_DTLS13
+        case 8:
+            method = wolfDTLSv1_3_client_method();
+            break;
+    #endif
+#endif
         default:
             printf("Input protocol version invalid: %d\n", protocolVersion);
             return NULL;
@@ -1900,6 +1954,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledDTLS
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledSendHrrCookie
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledAtomicUser
   (JNIEnv* jenv, jclass jcl)
 {
@@ -1926,6 +1993,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledTLSExtendedMasterSecret
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
   (JNIEnv* jenv, jclass jcl)
 {
@@ -1940,26 +2020,42 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 
     (void)jcl;
 
-    /* get the number of protocols enabled */
+    /* Get the number of protocols enabled, based on provided mask. Native
+     * wolfSSL doesn't have mask values for DTLS, so we lump them together
+     * with their corresponding TLS version, if correct defines are set. */
 #ifdef WOLFSSL_TLS13
-    if(!(mask & SSL_OP_NO_TLSv1_3))
+    if(!(mask & SSL_OP_NO_TLSv1_3)) {
         numProtocols += 1;
+    #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+        numProtocols += 1;
+    #endif
+    }
 #endif
 #ifndef WOLFSSL_NO_TLS12
-    if(!(mask & SSL_OP_NO_TLSv1_2))
+    if(!(mask & SSL_OP_NO_TLSv1_2))  {
         numProtocols += 1;
+    #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12)
+        numProtocols += 1;
+    #endif
+    }
 #endif
 #ifndef NO_OLD_TLS
-    if(!(mask & SSL_OP_NO_TLSv1_1))
+    if(!(mask & SSL_OP_NO_TLSv1_1)) {
         numProtocols += 1;
+    }
 #ifdef WOLFSSL_ALLOW_TLSV10
-    if(!(mask & SSL_OP_NO_TLSv1))
+    if(!(mask & SSL_OP_NO_TLSv1)) {
         numProtocols += 1;
+    #ifdef WOLFSSL_DTLS
+        numProtocols += 1;
+    #endif
+    }
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 #ifdef WOLFSSL_ALLOW_SSLv3
-    if(!(mask & SSL_OP_NO_SSLv3))
+    if(!(mask & SSL_OP_NO_SSLv3)) {
         numProtocols += 1;
+    }
 #endif
 
     ret = (*jenv)->NewObjectArray(jenv, numProtocols,
@@ -2030,6 +2126,45 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
             return NULL;
         }
     }
+#endif
+
+#ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
+        if(!(mask & SSL_OP_NO_TLSv1)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1 string");
+                return NULL;
+            }
+        }
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
+        if(!(mask & SSL_OP_NO_TLSv1_2)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1.2"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.2 string");
+                return NULL;
+            }
+        }
+    #endif
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        if(!(mask & SSL_OP_NO_TLSv1_3)) {
+            (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
+                    (*jenv)->NewStringUTF(jenv, "DTLSv1.3"));
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.3 string");
+                return NULL;
+            }
+        }
+    #endif
 #endif
     return ret;
 }

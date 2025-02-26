@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.math.BigInteger;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -44,13 +43,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -97,6 +93,12 @@ class WolfSSLTestFactory {
     protected final static char[] jksPass = jksPassStr.toCharArray();
     protected String keyStoreType = "JKS";
     private boolean extraDebug = false;
+
+    /**
+     * Shared lock for synchronization around tests that modify or use the Java
+     * Security property: jdk.tls.disabledAlgorithms
+     */
+    public static final Object jdkTlsDisabledAlgorithmsLock = new Object();
 
     protected WolfSSLTestFactory() throws WolfSSLException {
         /* wolfJSSE example Java KeyStore files, containing:
@@ -585,166 +587,200 @@ class WolfSSLTestFactory {
         */
     }
 
+    /**
+     * Run SSLEngine delegated tasks.
+     *
+     * wolfJSSE doesn't use delegated tasks, but we use this for
+     * compatibility so tests can be switched and run against different
+     * providers.
+     */
+    private void runDelegatedTasks(SSLEngine engine) {
+        Runnable run;
+
+        while ((run = engine.getDelegatedTask()) != null) {
+            run.run();
+        }
+    }
 
     /**
-     * Engine connection. Makes server/client handshake in memory
+     * Helper method to verify received data, called by testConnection().
+     */
+    private boolean verifyReceivedData(ByteBuffer buf, String expected) {
+        buf.flip();
+        byte[] b = new byte[buf.remaining()];
+        buf.get(b);
+        String received = new String(b, StandardCharsets.UTF_8).trim();
+        return expected.equals(received);
+    }
+
+    /**
+     * Does SSL/TLS handshake between two SSLEngine objects, then
+     * sends application data from client to server and vice versa.
+     * Application data received by client/server is compared to
+     * original sent as a sanity check.
+     *
      * @param server SSLEngine for server side of connection
      * @param client SSLEngine for client side of connection
-     * @param cipherSuites cipher suites to use can be null
+     * @param cipherSuites cipher suites to use, can be null
      * @param protocols TLS protocols to use i.e. TLSv1.2, can be null
-     * @param appData message to send after handshake, can be null
-     * @return
+     * @param appData message to send after handshake, can be null to not
+     *                send any data.
+     *
+     * @return 0 on success, -1 on error. Any exceptions thrown
+     *         inside the body of this method are caught and converted into
+     *         a -1 return.
      */
     protected int testConnection(SSLEngine server, SSLEngine client,
-            String[] cipherSuites, String[] protocols, String appData) {
-        ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
-        ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
+        String[] cipherSuites, String[] protocols, String appData) {
+
+        /* Max loop protection against infinite loops */
+        int loops = 0;
+        int maxLoops = 50;
+        boolean handshakeComplete = false;
+
+        /* Allocate buffers large enough for protocol packets */
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(
+            server.getSession().getPacketBufferSize());
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+
+        /* Application data buffers */
         ByteBuffer toSendCli = ByteBuffer.wrap(appData.getBytes());
         ByteBuffer toSendSer = ByteBuffer.wrap(appData.getBytes());
-        ByteBuffer serPlain = ByteBuffer.allocate(server.getSession().getApplicationBufferSize());
-        ByteBuffer cliPlain = ByteBuffer.allocate(client.getSession().getApplicationBufferSize());
-        boolean done = false;
+        ByteBuffer serPlain = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+        ByteBuffer cliPlain = ByteBuffer.allocate(
+            client.getSession().getApplicationBufferSize());
 
+        /* Configure protocols and cipher suites if specified */
         if (cipherSuites != null) {
             server.setEnabledCipherSuites(cipherSuites);
             client.setEnabledCipherSuites(cipherSuites);
         }
-
         if (protocols != null) {
             server.setEnabledProtocols(protocols);
             client.setEnabledProtocols(protocols);
         }
 
-        while (!done) {
+        while (!handshakeComplete && loops++ < maxLoops) {
             try {
-                Runnable run;
-                SSLEngineResult result;
-                HandshakeStatus s;
+                HandshakeStatus clientStatus = client.getHandshakeStatus();
+                HandshakeStatus serverStatus = server.getHandshakeStatus();
 
-                result = client.wrap(toSendCli, cliToSer);
-                if (extraDebug) {
-                    System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-//                        + " sequence # = " + result.sequenceNumber());
-                }
-                while ((run = client.getDelegatedTask()) != null) {
-                    run.run();
-                }
-
-                result = server.wrap(toSendSer, serToCli);
-                if (extraDebug) {
-                    System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-                }
-                while ((run = server.getDelegatedTask()) != null) {
-                    run.run();
+                /* client wrap() */
+                if (clientStatus == HandshakeStatus.NEED_WRAP ||
+                    (clientStatus == HandshakeStatus.NOT_HANDSHAKING &&
+                     toSendCli.hasRemaining())) {
+                    SSLEngineResult result = client.wrap(toSendCli, cliToSer);
+                    runDelegatedTasks(client);
+                    if (result.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        return -1;
+                    }
+                    if (extraDebug) {
+                        System.out.println("[client wrap] " + result);
+                    }
                 }
 
-                if (extraDebug) {
-                    s = client.getHandshakeStatus();
-                    System.out.println("client status = " + s.toString());
-                    s = server.getHandshakeStatus();
-                    System.out.println("server status = " + s.toString());
+                /* server wrap() */
+                if (serverStatus == HandshakeStatus.NEED_WRAP ||
+                    (serverStatus == HandshakeStatus.NOT_HANDSHAKING &&
+                     toSendSer.hasRemaining())) {
+                    SSLEngineResult result = server.wrap(toSendSer, serToCli);
+                    runDelegatedTasks(server);
+                    if (result.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        return -1;
+                    }
+                    if (extraDebug) {
+                        System.out.println("[server wrap] " + result);
+                    }
                 }
 
+                /* flip buffers for unwrap() */
                 cliToSer.flip();
                 serToCli.flip();
 
-                if (extraDebug) {
-                    if (cliToSer.remaining() > 0) {
-                        System.out.println("Client -> Server");
-                        printHex(cliToSer);
+                /* client unwrap() */
+                if ((clientStatus == HandshakeStatus.NEED_UNWRAP ||
+                     clientStatus == HandshakeStatus.NOT_HANDSHAKING) &&
+                    serToCli.hasRemaining()) {
+                    SSLEngineResult result = client.unwrap(serToCli, cliPlain);
+                    runDelegatedTasks(client);
+                    if (result.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        return -1;
                     }
-
-                    if (serToCli.remaining() > 0) {
-                        System.out.println("Server -> Client");
-                        printHex(serToCli);
+                    if (extraDebug) {
+                        System.out.println("[client unwrap] " + result);
                     }
-
-                    System.out.println("cliToSer remaining = " + cliToSer.remaining());
-                    System.out.println("serToCli remaining = " + serToCli.remaining());
-                }
-                result = client.unwrap(serToCli, cliPlain);
-                if (extraDebug) {
-                    System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
-                }
-                while ((run = client.getDelegatedTask()) != null) {
-                    run.run();
                 }
 
-
-                result = server.unwrap(cliToSer, serPlain);
-                if (extraDebug) {
-                    System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
+                /* server unwrap() */
+                if ((serverStatus == HandshakeStatus.NEED_UNWRAP ||
+                     serverStatus == HandshakeStatus.NOT_HANDSHAKING) &&
+                    cliToSer.hasRemaining()) {
+                    SSLEngineResult result = server.unwrap(cliToSer, serPlain);
+                    runDelegatedTasks(server);
+                    if (result.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        return -1;
+                    }
+                    if (extraDebug) {
+                        System.out.println("[server unwrap] " + result);
+                    }
                 }
-                while ((run = server.getDelegatedTask()) != null) {
-                    run.run();
-                }
 
+                /* compact network buffers */
                 cliToSer.compact();
                 serToCli.compact();
 
-                if (extraDebug) {
-                    s = client.getHandshakeStatus();
-                    System.out.println("client status = " + s.toString());
-                    s = server.getHandshakeStatus();
-                    System.out.println("server status = " + s.toString());
-                }
+                /* Check if handshake is complete and data exchanged */
+                if (!toSendCli.hasRemaining() && !toSendSer.hasRemaining() &&
+                    client.getHandshakeStatus() ==
+                        HandshakeStatus.NOT_HANDSHAKING &&
+                    server.getHandshakeStatus() ==
+                        HandshakeStatus.NOT_HANDSHAKING) {
 
-                if (toSendCli.remaining() == 0 && toSendSer.remaining() == 0) {
-                    byte[] b;
-                    String st;
-
-                    /* check what the client received */
-                    cliPlain.rewind();
-                    b = new byte[cliPlain.remaining()];
-                    cliPlain.get(b);
-                    st = new String(b, StandardCharsets.UTF_8).trim();
-                    if (!appData.equals(st)) {
+                    /* Verify received data matches expected */
+                    if (!verifyReceivedData(cliPlain, appData) ||
+                        !verifyReceivedData(serPlain, appData)) {
                         return -1;
                     }
-
-                    /* check what the server received */
-                    serPlain.rewind();
-                    b = new byte[serPlain.remaining()];
-                    serPlain.get(b);
-                    st = new String(b, StandardCharsets.UTF_8).trim();
-                    if (!appData.equals(st)) {
-                        return -1;
-                    }
-
-                    done = true;
+                    handshakeComplete = true;
                 }
 
             } catch (SSLException ex) {
                 return -1;
             }
         }
-        return 0;
+
+        return handshakeComplete ? 0 : -1;
     }
 
     /**
-     * Close down an engine connection
+     * Close down an SSLEngine connection.
+     *
      * @param server
      * @param client
      * @param earlyClose
-     * @return
+     *
+     * @return 0 on success, negative on error
+     *
      * @throws SSLException
      */
-    public int CloseConnection(SSLEngine server, SSLEngine client, boolean earlyClose) throws SSLException {
-        ByteBuffer serToCli = ByteBuffer.allocateDirect(server.getSession().getPacketBufferSize());
-        ByteBuffer cliToSer = ByteBuffer.allocateDirect(client.getSession().getPacketBufferSize());
-        ByteBuffer empty = ByteBuffer.allocate(server.getSession().getPacketBufferSize());
+    public int CloseConnection(SSLEngine server, SSLEngine client,
+        boolean earlyClose) throws SSLException {
+
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(
+            server.getSession().getPacketBufferSize());
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(
+            server.getSession().getPacketBufferSize());
         SSLEngineResult result;
         HandshakeStatus s;
         boolean passed;
-        Runnable run;
 
         /* Close outBound to begin process of sending close_notify alert */
         client.closeOutbound();
@@ -755,13 +791,13 @@ class WolfSSLTestFactory {
         /* Generate close_notify alert */
         result = client.wrap(empty, cliToSer);
         if (extraDebug) {
-            System.out.println("[client wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
+            System.out.println(
+                "[client wrap] consumed = " + result.bytesConsumed() +
+                " produced = " + result.bytesProduced() +
+                " status = " + result.getStatus().name());
         }
-        while ((run = client.getDelegatedTask()) != null) {
-            run.run();
-        }
+        runDelegatedTasks(client);
+
         s = client.getHandshakeStatus();
         if (extraDebug) {
             System.out.println("client status = " + s.toString());
@@ -812,17 +848,17 @@ class WolfSSLTestFactory {
         result = server.unwrap(cliToSer, empty);
         cliToSer.compact();
         if (extraDebug) {
-            System.out.println("[server unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
+            System.out.println(
+                "[server unwrap] consumed = " + result.bytesConsumed() +
+                " produced = " + result.bytesProduced() +
+                " status = " + result.getStatus().name());
         }
         if (result.getStatus().name().equals("CLOSED")) {
             /* odd case where server tries to send "empty" if not set close */
             server.closeOutbound();
         }
-        while ((run = server.getDelegatedTask()) != null) {
-            run.run();
-        }
+        runDelegatedTasks(server);
+
         s = server.getHandshakeStatus();
         if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
             throw new SSLException("Server unwrap consumed/produced error");
@@ -836,13 +872,13 @@ class WolfSSLTestFactory {
         result = server.wrap(empty, serToCli);
         serToCli.flip();
         if (extraDebug) {
-            System.out.println("[server wrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
+            System.out.println(
+                "[server wrap] consumed = " + result.bytesConsumed() +
+                " produced = " + result.bytesProduced() +
+                " status = " + result.getStatus().name());
         }
-        while ((run = server.getDelegatedTask()) != null) {
-            run.run();
-        }
+        runDelegatedTasks(server);
+
         s = server.getHandshakeStatus();
         if (result.bytesProduced() <= 0 || result.bytesConsumed() != 0) {
             throw new SSLException("Server wrap consumed/produced error");
@@ -859,13 +895,13 @@ class WolfSSLTestFactory {
         result = client.unwrap(serToCli, empty);
         serToCli.compact();
         if (extraDebug) {
-            System.out.println("[client unwrap] consumed = " + result.bytesConsumed() +
-                        " produced = " + result.bytesProduced() +
-                        " status = " + result.getStatus().name());
+            System.out.println(
+                "[client unwrap] consumed = " + result.bytesConsumed() +
+                " produced = " + result.bytesProduced() +
+                " status = " + result.getStatus().name());
         }
-        while ((run = client.getDelegatedTask()) != null) {
-            run.run();
-        }
+        runDelegatedTasks(client);
+
         s = client.getHandshakeStatus();
         if (result.bytesProduced() != 0 || result.bytesConsumed() <= 0) {
             throw new SSLException("Client unwrap consumed/produced error");

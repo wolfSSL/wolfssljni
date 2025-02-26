@@ -222,10 +222,15 @@ public class Client {
 
             /* sort out DTLS versus TLS versions */
             if (doDTLS == 1) {
-                if (sslVersion == 3)
+                if (sslVersion == 4) {
+                    sslVersion = -3;
+                }
+                else if (sslVersion == 3) {
                     sslVersion = -2;
-                else
+                }
+                else {
                     sslVersion = -1;
+                }
             }
 
             /* init library */
@@ -259,6 +264,9 @@ public class Client {
                     break;
                 case -2:
                     method = WolfSSL.DTLSv1_2_ClientMethod();
+                    break;
+                case -3:
+                    method = WolfSSL.DTLSv1_3_ClientMethod();
                     break;
                 default:
                     System.err.println("Bad SSL version");
@@ -786,7 +794,7 @@ public class Client {
         System.out.println("-d\t\tDisable peer checks");
         if (WolfSSL.isEnabledDTLS() == 1)
             System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 " +
-                    "(default), -v 3 for DTLSv1.2");
+                    "(default), -v 3 for DTLSv1.2, -v 4 for DTLSv1.3");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
         if (WolfSSL.isEnabledOCSP() == 1) {

@@ -51,7 +51,13 @@ public class WolfSSL {
         /** TLS 1.3 */
         TLSv1_3,
         /** Downgrade starting from highest supported SSL/TLS version */
-        SSLv23
+        SSLv23,
+        /** DTLS 1.0 */
+        DTLSv1,
+        /** DTLS 1.2 */
+        DTLSv1_2,
+        /** DTLS 1.3 */
+        DTLSv1_3
     }
 
     /* ------------------ wolfSSL JNI error codes ----------------------- */
@@ -208,10 +214,14 @@ public class WolfSSL {
     public static final int SOCKET_ERROR_E             = -308;
     /** Received fatal alert error */
     public static final int FATAL_ERROR                = -313;
+    /** Out of order message */
+    public static final int OUT_OF_ORDER_E             = -373;
     /** Peer closed socket */
     public static final int SSL_ERROR_SOCKET_PEER_CLOSED = -397;
     /** Unrecognized ALPN protocol name */
     public static final int UNKNOWN_ALPN_PROTOCOL_NAME_E = -405;
+    /** DTLS application data ready for read */
+    public static final int APP_DATA_READY = -441;
 
     /* extra definitions from ssl.h */
     /** CertManager: check all cert CRLs */
@@ -839,6 +849,13 @@ public class WolfSSL {
     public static native boolean TLSv13Enabled();
 
     /**
+     * Tests if DTLS 1.3 has been compiled into the native wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean DTLSv13Enabled();
+
+    /**
      * Tests if SHA-1 is enabled in the native wolfSSL library.
      *
      * @return true if enabled, otherwise false if not compiled in.
@@ -1235,6 +1252,46 @@ public class WolfSSL {
     public static final native long DTLSv1_2_ClientMethod();
 
     /**
+     * Indicates that the application will only support the DTLS 1.3 protocol.
+     * Application is side-independent at this time, and client/server side
+     * will be determined at connect/accept stage.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_Method();
+
+    /**
+     * Indicates that the application is a server and will only support the
+     * DTLS 1.3 protocol.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_ServerMethod();
+
+    /**
+     * Indicates that the application is a client and will only support the
+     * DTLS 1.3 protocol.
+     * This method allocates memory for and initializes a new native
+     * WOLFSSL_METHOD structure to be used when creating the SSL/TLS
+     * context with newContext().
+     *
+     * @return  A pointer to the created WOLFSSL_METHOD structure if
+     *          successful, null on failure.
+     * @see     WolfSSLContext#newContext(long)
+     */
+    public static final native long DTLSv1_3_ClientMethod();
+
+    /**
      * Indicates that the application will use the highest possible SSL/TLS
      * version from SSL 3.0 up to TLS 1.2, but is side-independent at creation
      * time. Client/server side will be determined at connect/accept stage.
@@ -1591,6 +1648,14 @@ public class WolfSSL {
     public static native int isEnabledDTLS();
 
     /**
+     * Checks if (D)TLS 1.3 HRR Cookie is enabled in the native wolfSSL
+     * library. Checks if native WOLFSSL_SEND_HRR_COOKIE is defined.
+     *
+     * @return 1 if enabled, 9 if not compiled in.
+     */
+    public static native int isEnabledSendHrrCookie();
+
+    /**
      * Checks if Atomic User support is enabled in wolfSSL native library.
      *
      * @return 1 if enabled, 0 if not compiled in
@@ -1604,6 +1669,14 @@ public class WolfSSL {
      * @return 1 if enabled, 0 if not compiled in
      */
     public static native int isEnabledPKCallbacks();
+
+    /**
+     * Checks if TLS Extended Master Secret support has been compiled into
+     * native wolfSSL library.
+     *
+     * @return 1 if available, 0 if not compiled in.
+     */
+    public static native int isEnabledTLSExtendedMasterSecret();
 
     /**
      * Checks which protocols where built into wolfSSL

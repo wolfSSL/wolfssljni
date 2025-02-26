@@ -21,9 +21,11 @@
 package com.wolfssl.provider.jsse;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.ssl.SSLParameters;
+import com.wolfssl.provider.jsse.WolfSSLJDK8Helper;
 
 /**
  * WolfSSLParametersHelper class
@@ -37,6 +39,8 @@ public class WolfSSLParametersHelper
     private static Method setApplicationProtocols = null;
     private static Method getEndpointIdentificationAlgorithm = null;
     private static Method setEndpointIdentificationAlgorithm = null;
+    private static Method getMaximumPacketSize = null;
+    private static Method setMaximumPacketSize = null;
 
     /** Default WolfSSLParametersHelper constructor */
     public WolfSSLParametersHelper() { }
@@ -72,6 +76,12 @@ public class WolfSSLParametersHelper
                                     continue;
                                 case "setEndpointIdentificationAlgorithm":
                                     setEndpointIdentificationAlgorithm = m;
+                                    continue;
+                                case "getMaximumPacketSize":
+                                    getMaximumPacketSize = m;
+                                    continue;
+                                case "setMaximumPacketSize":
+                                    setMaximumPacketSize = m;
                                     continue;
                                 default:
                                     continue;
@@ -112,15 +122,17 @@ public class WolfSSLParametersHelper
             ret.setWantClientAuth(in.getWantClientAuth());
         }
 
-        /* Methods added as of JDK 1.8, older JDKs will not have them. Using
-         * Java reflection to detect availability. */
-
+        /* Methods added as of JDK 1.8 that rely on specific classes that
+         * do not existing in older JDKs. Since older JDKs will not have them,
+         * use Java reflection to detect availability in helper class. */
         if (setServerNames != null || setApplicationProtocols != null ||
             setEndpointIdentificationAlgorithm != null) {
 
             try {
-                /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
-                Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
+                /* load WolfSSLJDK8Helper at runtime, not compiled
+                 * on older JDKs */
+                Class<?> cls = Class.forName(
+                    "com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
                 Object obj = cls.getConstructor().newInstance();
                 Class<?>[] paramList = new Class<?>[3];
                 paramList[0] = javax.net.ssl.SSLParameters.class;
@@ -133,17 +145,32 @@ public class WolfSSLParametersHelper
                     mth.invoke(obj, ret, setServerNames, in);
                 }
                 if (setApplicationProtocols != null) {
-                    mth = cls.getDeclaredMethod("setApplicationProtocols", paramList);
+                    mth = cls.getDeclaredMethod(
+                        "setApplicationProtocols", paramList);
                     mth.invoke(obj, ret, setApplicationProtocols, in);
                 }
                 if (setEndpointIdentificationAlgorithm != null) {
-                    mth = cls.getDeclaredMethod("setEndpointIdentificationAlgorithm", paramList);
-                    mth.invoke(obj, ret, setEndpointIdentificationAlgorithm, in);
+                    mth = cls.getDeclaredMethod(
+                        "setEndpointIdentificationAlgorithm", paramList);
+                    mth.invoke(obj, ret,
+                        setEndpointIdentificationAlgorithm, in);
                 }
 
             } catch (Exception e) {
                 /* ignore, class not found */
             }
+        }
+
+        /* Methods added in later versions of SSLParameters which do not
+         * use any additional classes. Since no unique class names, these
+         * are called here directly instead of placed into a separate helper
+         * class. */
+        try {
+            if (setMaximumPacketSize != null) {
+                setMaximumPacketSize.invoke(ret, in.getMaximumPacketSize());
+            }
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            /* Not available, just ignore and continue */
         }
 
         /* The following SSLParameters features are not yet supported
@@ -191,14 +218,15 @@ public class WolfSSLParametersHelper
             out.setWantClientAuth(in.getWantClientAuth());
         }
 
-        /* Methods added as of JDK 1.8, older JDKs will not have them. Using
-         * Java reflection to detect availability. */
-
+        /* Methods added as of JDK 1.8 that rely on specific classes that
+         * do not existing in older JDKs. Since older JDKs will not have them,
+         * use Java reflection to detect availability in helper class. */
         if (getServerNames != null || getApplicationProtocols != null ||
             getEndpointIdentificationAlgorithm != null) {
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
-                Class<?> cls = Class.forName("com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
+                Class<?> cls = Class.forName(
+                    "com.wolfssl.provider.jsse.WolfSSLJDK8Helper");
                 Object obj = cls.getConstructor().newInstance();
                 Class<?>[] paramList = new Class<?>[2];
                 paramList[0] = javax.net.ssl.SSLParameters.class;
@@ -210,17 +238,32 @@ public class WolfSSLParametersHelper
                     mth.invoke(obj, in, out);
                 }
                 if (getApplicationProtocols != null) {
-                    mth = cls.getDeclaredMethod("getApplicationProtocols", paramList);
+                    mth = cls.getDeclaredMethod(
+                        "getApplicationProtocols", paramList);
                     mth.invoke(obj, in, out);
                 }
                 if (getEndpointIdentificationAlgorithm != null) {
-                    mth = cls.getDeclaredMethod("getEndpointIdentificationAlgorithm", paramList);
+                    mth = cls.getDeclaredMethod(
+                        "getEndpointIdentificationAlgorithm", paramList);
                     mth.invoke(obj, in, out);
                 }
 
             } catch (Exception e) {
                 /* ignore, class not found */
             }
+        }
+
+        /* Methods added in later versions of SSLParameters which do not
+         * use any additional classes. Since no unique class names, these
+         * are called here directly instead of placed into a separate helper
+         * class. */
+        try {
+            if (getMaximumPacketSize != null) {
+                int maxPacketSz = (int)getMaximumPacketSize.invoke(in);
+                out.setMaximumPacketSize(maxPacketSz);
+            }
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            /* Not available, just ignore and continue */
         }
 
         /* The following SSLParameters features are not yet supported

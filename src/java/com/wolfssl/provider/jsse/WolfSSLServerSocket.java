@@ -211,7 +211,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getSupportedProtocols()");
 
-        return WolfSSLUtil.sanitizeProtocols(params.getProtocols());
+        return WolfSSLUtil.sanitizeProtocols(
+            params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
     }
 
     @Override
@@ -220,7 +221,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "entered getEnabledProtocols()");
 
-        return WolfSSLUtil.sanitizeProtocols(params.getProtocols());
+        return WolfSSLUtil.sanitizeProtocols(
+            params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
     }
 
     @Override
@@ -242,7 +244,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         List<String> supported;
 
         supported = Arrays.asList(
-            WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols()));
+            WolfSSLUtil.sanitizeProtocols(
+                WolfSSL.getProtocols(), WolfSSL.TLS_VERSION.INVALID));
 
         for (int i = 0; i < protocols.length; i++) {
             if (!supported.contains(protocols[i])) {

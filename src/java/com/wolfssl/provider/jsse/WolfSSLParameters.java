@@ -49,6 +49,8 @@ final class WolfSSLParameters {
     String[] applicationProtocols = new String[0];
     private boolean useSessionTickets = false;
     private byte[] alpnProtocols = null;
+    /* Default to 0, means use implicit implementation size */
+    private int maxPacketSize = 0;
 
     /* create duplicate copy of these parameters */
     protected synchronized WolfSSLParameters copy() {
@@ -62,6 +64,7 @@ final class WolfSSLParameters {
         cp.endpointIdAlgorithm = this.endpointIdAlgorithm;
         cp.setApplicationProtocols(this.applicationProtocols);
         cp.useCipherSuiteOrder = this.useCipherSuiteOrder;
+        cp.maxPacketSize = this.maxPacketSize;
 
         if (alpnProtocols != null && alpnProtocols.length != 0) {
             cp.setAlpnProtocols(this.alpnProtocols);
@@ -212,6 +215,14 @@ final class WolfSSLParameters {
         else {
             this.applicationProtocols = protocols.clone();
         }
+    }
+
+    int getMaximumPacketSize() {
+        return this.maxPacketSize;
+    }
+
+    void setMaximumPacketSize(int maximumPacketSize) {
+        this.maxPacketSize = maximumPacketSize;
     }
 }
 
