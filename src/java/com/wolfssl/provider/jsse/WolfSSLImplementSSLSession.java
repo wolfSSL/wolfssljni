@@ -116,6 +116,31 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     private static final Object sesPtrLock = new Object();
 
     /**
+     * Stored SNI server names from original session, used during resumption
+     */
+    private List<SNIServerName> sniServerNames = null;
+
+    /**
+     * Store SNI server names for this session for later resumption
+     * @param serverNames list of SNI server names to store
+     */
+    public synchronized void setSNIServerNames(List<SNIServerName> serverNames) {
+        if (serverNames != null && !serverNames.isEmpty()) {
+            this.sniServerNames = new ArrayList<>(serverNames);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "Stored SNI server names for session resumption");
+        }
+    }
+
+    /**
+     * Get stored SNI server names for this session
+     * @return list of stored SNI server names, may be null
+     */
+    public synchronized List<SNIServerName> getSNIServerNames() {
+        return this.sniServerNames;
+    }
+
+    /**
      * Create new WolfSSLImplementSSLSession
      *
      * @param in WolfSSLSession to be used with this object
@@ -846,12 +871,26 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * Update internally-stored session values.
      */
     protected synchronized void updateStoredSessionValues() {
-
         try {
             this.protocol = this.ssl.getVersion();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "Not able to update stored WOLFSSL protocol");
+        }
+
+        /* Also store SNI server names if not already set */
+        if (this.sniServerNames == null || this.sniServerNames.isEmpty()) {
+            try {
+                List<SNIServerName> names = this.getRequestedServerNames();
+                if (names != null && !names.isEmpty()) {
+                    this.sniServerNames = new ArrayList<>(names);
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Extracted SNI server names from session");
+                }
+            } catch (UnsupportedOperationException ex) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "Error extracting SNI server names: " + ex.getMessage());
+            }
         }
     }
 

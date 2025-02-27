@@ -2073,6 +2073,17 @@ public class WolfSSLEngine extends SSLEngine {
             "entered setSSLParameters()");
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
+
+            /* Store SNI server names in the session for potential resumption */
+            if (params.getServerNames() != null && !params.getServerNames().isEmpty()) {
+                WolfSSLImplementSSLSession session =
+                    (WolfSSLImplementSSLSession)this.getSession();
+                if (session != null) {
+                    session.setSNIServerNames(params.getServerNames());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Captured SNI server names for session caching");
+                }
+            }
         }
     }
 
