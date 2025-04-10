@@ -2836,6 +2836,28 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_stateStringLong
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getMaxOutputSize
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifndef NO_TLS
+    int ret;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+
+    if (jenv == NULL || ssl == NULL) {
+        return 0;
+    }
+
+    ret = wolfSSL_GetMaxOutputSize(ssl);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sessionReused
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

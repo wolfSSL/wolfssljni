@@ -440,6 +440,7 @@ public class WolfSSLSession {
     private native int getThreadsBlockedInPoll(long ssl);
     private native int setMTU(long ssl, int mtu);
     private native String stateStringLong(long ssl);
+    private native int getMaxOutputSize(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2554,6 +2555,35 @@ public class WolfSSLSession {
         }
 
         return state;
+    }
+
+    /**
+     * Return max record layer size plaintext input size
+     *
+     * @return max record layer size plaintext input size in bytes, or
+     *         negative value on error.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int getMaxOutputSize() throws IllegalStateException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered getOutputSize()");
+
+            ret = getMaxOutputSize(this.sslPtr);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "max output size: " + ret);
+        }
+
+        return ret;
     }
 
     /**

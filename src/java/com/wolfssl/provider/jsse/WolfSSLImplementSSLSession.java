@@ -760,15 +760,52 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         return this.port;
     }
 
+    /**
+     * Can be called by SSLEngine consumers to determine maximum
+     * output buffer size, to be used for buffer allocations.
+     *
+     * @return maximum output buffer size
+     */
     @Override
     public int getPacketBufferSize() {
-        /* Match conscrypt's calculations here for maximum potential
-         * SSL/TLS record length. Used by SSLEngine consumers to allocate
-         * output buffer size.
+
+        /* JSSE implementations seem to set the SSL/TLS maximum packet size
+         * (record size) differently.
+         *
+         * Conscrypt calculates this as 18437 bytes:
          *
          * type(1) + version(2) + length(2) + 2^14 plaintext +
-         * max compression overhead (1024) + max AEAD overhead (1024) */
-        return 18437;
+         * max compression overhead (1024) + max AEAD overhead (1024)
+         *
+         * wolfJSSE originally matched the Conscrypt value, but it conflicts
+         * with the maximum allowed/used by the tls-channel project, which
+         * we have a few customers using. tls-channel uses a maximum size of
+         * 17k.
+         *
+         * Native wolfSSL has the wolfSSL_GetMaxOutputSize() function, but
+         * it only works post-handshake. getPacketBufferSize() can be called
+         * pre-handshake, so we set a default value here that matches
+         * the upper limit for tls-channel, which is 17k, then if
+         * wolfSSL_GetMaxOutputSize() is larger, we increase to that value.
+         */
+        int nativeMax;
+        int ret = 17 * 1024;
+
+        /* Try to get maximum TLS record size from native wolfSSL */
+        if (ssl != null) {
+            nativeMax = ssl.getMaxOutputSize();
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "ssl.getMaxOutputSize() returned: " + nativeMax);
+
+            if ((nativeMax > 0) && (nativeMax > ret)) {
+                ret = nativeMax;
+            }
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            "getPacketBufferSize() returning: " + ret);
+
+        return ret;
     }
 
     @Override

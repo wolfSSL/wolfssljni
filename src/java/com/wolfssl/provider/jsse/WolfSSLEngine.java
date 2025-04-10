@@ -756,6 +756,10 @@ public class WolfSSLEngine extends SSLEngine {
         /* Force out buffer to be large enough to hold max packet size */
         if (out.remaining() <
             this.engineHelper.getSession().getPacketBufferSize()) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "out.remaining() too small (" +
+                out.remaining() + "), need at least: " +
+                this.engineHelper.getSession().getPacketBufferSize());
             return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
         }
 
@@ -1064,7 +1068,7 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer[] out,
             int ofst, int length) throws SSLException {
 
-        int i, ret = 0, sz = 0, err = 0;
+        int i, ret = 0, err = 0;
         int inPosition = 0;
         int inRemaining = 0;
         int consumed = 0;
@@ -1072,7 +1076,6 @@ public class WolfSSLEngine extends SSLEngine {
         long dtlsPrevDropCount = 0;
         long dtlsCurrDropCount = 0;
         int prevSessionTicketCount = 0;
-        byte[] tmp;
 
         /* Set initial status for SSLEngineResult return */
         Status status = SSLEngineResult.Status.OK;
