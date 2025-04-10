@@ -126,6 +126,10 @@ public class WolfSSLEngine extends SSLEngine {
     private ByteBuffer netData = null;
     private final Object netDataLock = new Object();
 
+    /* Single buffer used to hold application data to be sent, allocated once
+     * inside SendAppData, of size SSLSession.getApplicationBufferSize() */
+    private ByteBuffer staticAppDataBuf = null;
+
     /* Locks for synchronization */
     private final Object ioLock = new Object();
     private final Object toSendLock = new Object();
@@ -590,17 +594,23 @@ public class WolfSSLEngine extends SSLEngine {
         int[] pos = new int[len];   /* in[] positions */
         int[] limit = new int[len]; /* in[] limits */
 
-        /* get total input data size, store input array positions */
+        /* Get total input data size, store input array positions */
         for (i = ofst; i < ofst + len; i++) {
             totalIn += in[i].remaining();
             pos[i] = in[i].position();
             limit[i] = in[i].limit();
         }
 
-        /* only send up to maximum app data size chunk */
-        sendSz = Math.min(totalIn,
-            this.engineHelper.getSession().getApplicationBufferSize());
-        dataBuf = ByteBuffer.allocate(sendSz);
+        /* Allocate static buffer for application data, clear before use */
+        sendSz = this.engineHelper.getSession().getApplicationBufferSize();
+        if (this.staticAppDataBuf == null) {
+            /* allocate static buffer for application data */
+            this.staticAppDataBuf = ByteBuffer.allocateDirect(sendSz);
+        }
+        this.staticAppDataBuf.clear();
+
+        /* Only send up to maximum app data size chunk */
+        sendSz = Math.min(totalIn, sendSz);
 
         /* gather byte array of sendSz bytes from input buffers */
         inputLeft = sendSz;
@@ -608,7 +618,7 @@ public class WolfSSLEngine extends SSLEngine {
             int bufChunk = Math.min(in[i].remaining(), inputLeft);
 
             in[i].limit(in[i].position() + bufChunk);       /* set limit */
-            dataBuf.put(in[i]);                             /* get data */
+            this.staticAppDataBuf.put(in[i]);               /* get data */
             inputLeft -= bufChunk;
             in[i].limit(limit[i]);                          /* reset limit */
 
@@ -618,8 +628,8 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         dataArr = new byte[sendSz];
-        dataBuf.rewind();
-        dataBuf.get(dataArr);
+        this.staticAppDataBuf.rewind();
+        this.staticAppDataBuf.get(dataArr);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                          "calling ssl.write() with size: " + sendSz);
@@ -2294,6 +2304,11 @@ public class WolfSSLEngine extends SSLEngine {
         if (this.ssl != null) {
             this.ssl.freeSSL();
             this.ssl = null;
+        }
+        /* Clear our reference to static application direct ByteBuffer */
+        if (this.staticAppDataBuf != null) {
+            this.staticAppDataBuf.clear();
+            this.staticAppDataBuf = null;
         }
         super.finalize();
     }
