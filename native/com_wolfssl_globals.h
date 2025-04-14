@@ -25,7 +25,19 @@
 #define _Included_com_wolfssl_globals
 
 /* global JavaVM reference for JNIEnv lookup */
-extern JavaVM*  g_vm;
+extern JavaVM* g_vm;
+
+/* Cache static jmethodIDs for performance, since they are guaranteed to be the
+ * same across all threads once cached. Initialized in JNI_OnLoad() and freed in
+ * JNI_OnUnload(). */
+extern jmethodID g_sslIORecvMethodId;         /* WolfSSLSession.internalIOSSLRecvCallback */
+extern jmethodID g_sslIOSendMethodId;         /* WolfSSLSession.internalIOSSLSendCallback */
+extern jmethodID g_bufferPositionMethodId;    /* ByteBuffer.position() */
+extern jmethodID g_bufferLimitMethodId;       /* ByteBuffer.limit() */
+extern jmethodID g_bufferHasArrayMethodId;    /* ByteBuffer.hasArray() */
+extern jmethodID g_bufferArrayMethodId;       /* ByteBuffer.array() */
+extern jmethodID g_bufferSetPositionMethodId; /* ByteBuffer.position(int) */
+extern jmethodID g_verifyCallbackMethodId;  /* WolfSSLVerifyCallback.verifyCallback */
 
 /* struct to hold I/O class, object refs */
 typedef struct {
@@ -39,4 +51,3 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         unsigned char* key, unsigned int max_key_len);
 
 #endif
-

@@ -103,8 +103,6 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     jint      vmret  = 0;
     jint      retval = -1;
     jclass    excClass;
-    jclass    verifyClass = NULL;
-    jmethodID verifyMethod;
     jobjectRefType refcheck;
     SSLAppData* appData;            /* WOLFSSL app data, stored verify cb obj */
     jobject* g_verifySSLCbIfaceObj;  /* Global jobject, stored in app data */
@@ -156,34 +154,20 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     refcheck = (*jenv)->GetObjectRefType(jenv, *g_verifySSLCbIfaceObj);
     if (refcheck == 2) {
 
-        /* lookup WolfSSLVerifyCallback class from global object ref */
-        verifyClass = (*jenv)->GetObjectClass(jenv, *g_verifySSLCbIfaceObj);
-        if (!verifyClass) {
+        if (!g_verifyCallbackMethodId) {
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
 
             (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLVerifyCallback class reference");
+                "verifyCallback method ID is null in NativeSSLVerifyCallback");
             return -107;
         }
 
-        verifyMethod = (*jenv)->GetMethodID(jenv, verifyClass,
-                                            "verifyCallback", "(IJ)I");
-        if (verifyMethod == 0) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting verifyCallback method from JNI");
-            return -108;
-        }
-
         retval = (*jenv)->CallIntMethod(jenv, *g_verifySSLCbIfaceObj,
-                verifyMethod, preverify_ok, (jlong)(uintptr_t)store);
+                g_verifyCallbackMethodId, preverify_ok,
+                (jlong)(uintptr_t)store);
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             /* exception occurred on the Java side during method call */
@@ -1415,14 +1399,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     int outSz = length;
     byte* data = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
-
     jclass excClass;
-    jclass buffClass;
-    jmethodID positionMeth;
-    jmethodID limitMeth;
-    jmethodID hasArrayMeth;
-    jmethodID arrayMeth;
-    jmethodID setPositionMeth;
 
     jint position;
     jint limit;
@@ -1444,51 +1421,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             return -1;
         }
 
-        /* Get ByteBuffer class */
-        buffClass = (*jenv)->GetObjectClass(jenv, buf);
-        if (buffClass == NULL) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to find ByteBuffer class in native read()");
-            return -1;
-        }
-
         /* Get ByteBuffer position */
-        positionMeth = (*jenv)->GetMethodID(jenv, buffClass, "position", "()I");
-        if (positionMeth == NULL) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to find ByteBuffer position() method in native read()");
-            return -1;
-        }
-        position = (*jenv)->CallIntMethod(jenv, buf, positionMeth);
+        position = (*jenv)->CallIntMethod(jenv, buf, g_bufferPositionMethodId);
 
         /* Get ByteBuffer limit */
-        limitMeth = (*jenv)->GetMethodID(jenv, buffClass, "limit", "()I");
-        if (limitMeth == NULL) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to find ByteBuffer limit() method in native read()");
-            return -1;
-        }
-        limit = (*jenv)->CallIntMethod(jenv, buf, limitMeth);
+        limit = (*jenv)->CallIntMethod(jenv, buf, g_bufferLimitMethodId);
 
         /* Get and call ByteBuffer.hasArray() before calling array() */
-        hasArrayMeth = (*jenv)->GetMethodID(jenv, buffClass, "hasArray", "()Z");
-        if (hasArrayMeth == NULL) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to find ByteBuffer hasArray() method in native read()");
-            return -1;
-        }
+        hasArray = (*jenv)->CallBooleanMethod(jenv, buf,
+            g_bufferHasArrayMethodId);
 
         /* Only read up to maximum space we have in this ByteBuffer */
         maxOutputSz = (limit - position);
@@ -1496,21 +1437,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             outSz = maxOutputSz;
         }
 
-        hasArray = (*jenv)->CallBooleanMethod(jenv, buf, hasArrayMeth);
-
         if (hasArray) {
             /* Get reference to underlying byte[] from ByteBuffer */
-            arrayMeth = (*jenv)->GetMethodID(jenv, buffClass, "array", "()[B");
-            if (arrayMeth == NULL) {
-                if ((*jenv)->ExceptionOccurred(jenv)) {
-                    (*jenv)->ExceptionDescribe(jenv);
-                    (*jenv)->ExceptionClear(jenv);
-                }
-                (*jenv)->ThrowNew(jenv, excClass,
-                                  "Failed to find ByteBuffer array() method in native read()");
-                return -1;
-            }
-            bufArr = (jbyteArray)(*jenv)->CallObjectMethod(jenv, buf, arrayMeth);
+            bufArr = (jbyteArray)(*jenv)->CallObjectMethod(jenv, buf,
+                g_bufferArrayMethodId);
 
             /* Get array elements */
             data = (byte *)(*jenv)->GetByteArrayElements(jenv, bufArr, NULL);
@@ -1518,7 +1448,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
                 (*jenv)->ThrowNew(jenv, excClass,
-                                  "Exception when calling ByteBuffer.array() in native read()");
+                    "Exception when calling ByteBuffer.array() in native read()");
                 return -1;
             }
         }
@@ -1526,24 +1456,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             data = (byte *)(*jenv)->GetDirectBufferAddress(jenv, buf);
             if (data == NULL) {
                 (*jenv)->ThrowNew(jenv, excClass,
-                                  "Failed to get DirectBuffer address in native read()");
+                    "Failed to get DirectBuffer address in native read()");
                 return BAD_FUNC_ARG;
             }
         }
 
         if (data != NULL) {
             size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
-                                                    maxOutputSz, (int)timeout);
+                maxOutputSz, (int)timeout);
 
             /* Relase array elements */
             if (hasArray) {
                 if (size < 0) {
-                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr, (jbyte *)data,
-                                                      JNI_ABORT);
+                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
+                        (jbyte *)data, JNI_ABORT);
                 }
                 else {
                     (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
-                                                      (jbyte *)data, 0);
+                        (jbyte *)data, 0);
                 }
             }
 
@@ -1551,22 +1481,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
 
             if (size > 0) {
                 /* Update ByteBuffer position() based on bytes written */
-                setPositionMeth = (*jenv)->GetMethodID(jenv, buffClass,
-                                "position", "(I)Ljava/nio/Buffer;");
-                if (setPositionMeth == NULL) {
-                        if ((*jenv)->ExceptionOccurred(jenv)) {
-                                (*jenv)->ExceptionDescribe(jenv);
-                                (*jenv)->ExceptionClear(jenv);
-                        }
-                        (*jenv)->ThrowNew(jenv, excClass,
-                                        "Failed to set ByteBuffer position() from "
-                                        "native read()");
-                        size = -1;
-                }
-                else {
-                        (*jenv)->CallVoidMethod(jenv, buf, setPositionMeth,
-                                        position + size);
-                }
+                (*jenv)->CallVoidMethod(jenv, buf, g_bufferSetPositionMethodId,
+                    position + size);
             }
         }
     }
@@ -6143,8 +6059,6 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
-    jclass     sslClass;              /* WolfSSLSession class */
-    jmethodID  recvCbMethodId;        /* internalIORecvCallback ID */
     jbyteArray inData;
 
     if (!g_vm || !ssl || !buf || !ctx) {
@@ -6189,28 +6103,9 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return 0;
     }
 
-    /* lookup WolfSSLSession class from object */
-    sslClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
-    if (!sslClass) {
+    if (!g_sslIORecvMethodId) {
         (*jenv)->ThrowNew(jenv, excClass,
-            "Can't get native WolfSSLSession class reference in "
-            "NativeSSLIORecvCb");
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
-    /* call internal I/O recv callback */
-    recvCbMethodId = (*jenv)->GetMethodID(jenv, sslClass,
-            "internalIOSSLRecvCallback",
-            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-    if (!recvCbMethodId) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-        (*jenv)->ThrowNew(jenv, excClass,
-            "Error getting internalIORecvCallback method from JNI");
+            "Cached recv callback method ID is null in internalIORecvCallback");
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -6229,7 +6124,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     /* call Java send callback, ignore native ctx since Java
      * handles it */
     retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
-            recvCbMethodId, (jobject)(*g_cachedSSLObj), inData, (jint)sz);
+            g_sslIORecvMethodId, (jobject)(*g_cachedSSLObj), inData, (jint)sz);
 
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
@@ -6285,8 +6180,6 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
-    jclass     sslClass;              /* WolfSSLSession class */
-    jmethodID  sendCbMethodId;        /* internalIOSendCallback ID */
     jbyteArray outData;               /* jbyteArray for data to send */
 
     if (!g_vm || !ssl || !buf || !ctx) {
@@ -6331,27 +6224,14 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return 0;
     }
 
-    /* lookup WolfSSLSession class from object */
-    sslClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
-    if (!sslClass) {
-        (*jenv)->ThrowNew(jenv, excClass,
-            "Can't get native WolfSSLSession class reference");
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
     /* call internal I/O send callback */
-    sendCbMethodId = (*jenv)->GetMethodID(jenv, sslClass,
-            "internalIOSSLSendCallback",
-            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-    if (!sendCbMethodId) {
+    if (!g_sslIOSendMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting internalIOSendCallback method from JNI");
+                "internalIOSendCallback method ID is null in internalIOSendCb");
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -6382,7 +6262,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         /* call Java send callback, ignore native ctx since Java
          * handles it */
         retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
-            sendCbMethodId, (jobject)(*g_cachedSSLObj), outData, (jint)sz);
+            g_sslIOSendMethodId, (jobject)(*g_cachedSSLObj), outData, (jint)sz);
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
