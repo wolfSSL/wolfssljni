@@ -181,6 +181,32 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
     g_verifyCallbackMethodId = NULL;
 }
 
+/**
+ * Throw WolfSSLJNIException
+ */
+void throwWolfSSLJNIException(JNIEnv* jenv, const char* msg)
+{
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if (excClass == NULL) {
+        /* Unable to find exception class, give up trying to throw */
+        return;
+    }
+    (*jenv)->ThrowNew(jenv, excClass, msg);
+}
+
+/**
+ * Throw WolfSSLException
+ */
+void throwWolfSSLException(JNIEnv* jenv, const char* msg)
+{
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    if (excClass == NULL) {
+        /* Unable to find exception class, give up trying to throw */
+        return;
+    }
+    (*jenv)->ThrowNew(jenv, excClass, msg);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
   (JNIEnv* jenv, jobject jcl)
 {

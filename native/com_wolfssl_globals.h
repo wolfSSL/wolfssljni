@@ -50,4 +50,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
 unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         unsigned char* key, unsigned int max_key_len);
 
+/* Helper functions to throw exceptions */
+void throwWolfSSLJNIException(JNIEnv* jenv, const char* msg);
+void throwWolfSSLException(JNIEnv* jenv, const char* msg);
+
 #endif
