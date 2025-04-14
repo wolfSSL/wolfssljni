@@ -72,7 +72,6 @@ public class WolfSSLEngine extends SSLEngine {
     private com.wolfssl.WolfSSLContext ctx = null;
     private WolfSSLAuthStore authStore = null;
     private WolfSSLParameters params = null;
-    private byte[] toSend = null; /* encrypted packet to send */
     private int nativeWantsToWrite = 0;
     private int nativeWantsToRead = 0;
     private HandshakeStatus hs = SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
@@ -129,6 +128,18 @@ public class WolfSSLEngine extends SSLEngine {
     /* Single buffer used to hold application data to be sent, allocated once
      * inside SendAppData, of size SSLSession.getApplicationBufferSize() */
     private ByteBuffer staticAppDataBuf = null;
+
+    /* Default size of internalIOSendBuf, 16k to match TLS record size.
+     * TODO - add upper bound on I/O send buf resize allocations. */
+    private static final int INTERNAL_IOSEND_BUF_SZ = 16 * 1024;
+    /* static buffer used to hold encrypted data to be sent, allocated inside
+     * internalSendCb() and expanded only if needed. Synchronize on toSendLock
+     * when accessing this buffer. */
+    private byte[] internalIOSendBuf = new byte[INTERNAL_IOSEND_BUF_SZ];
+    /* Total size of internalIOSendBuf */
+    private int internalIOSendBufSz = INTERNAL_IOSEND_BUF_SZ;
+    /* Offset into internalIOSendBuf to start writing data */
+    private int internalIOSendBufOffset = 0;
 
     /* Locks for synchronization */
     private final Object ioLock = new Object();
@@ -377,19 +388,18 @@ public class WolfSSLEngine extends SSLEngine {
         int sendSz = 0;
 
         synchronized (toSendLock) {
-            if (this.toSend != null) {
-                sendSz = Math.min(this.toSend.length, out.remaining());
-                out.put(this.toSend, 0, sendSz);
+            if (this.internalIOSendBuf != null) {
+                sendSz = Math.min(this.internalIOSendBufOffset, out.remaining());
+                out.put(this.internalIOSendBuf, 0, sendSz);
 
-                if (sendSz != this.toSend.length) {
-                    /* resize and adjust remaining toSend data */
-                    byte[] tmp = new byte[this.toSend.length - sendSz];
-                    System.arraycopy(this.toSend, sendSz, tmp, 0,
-                                     this.toSend.length - sendSz);
-                    this.toSend = tmp;
+                if (sendSz != this.internalIOSendBufOffset) {
+                    System.arraycopy(this.internalIOSendBuf, sendSz,
+                             this.internalIOSendBuf, 0,
+                             this.internalIOSendBufOffset - sendSz);
                 }
                 else {
-                    this.toSend = null;
+                    /* reset internalIOSendBufOffset to zero, no data left */
+                    this.internalIOSendBufOffset = 0;
                 }
             }
         }
@@ -411,7 +421,7 @@ public class WolfSSLEngine extends SSLEngine {
             this.closeNotifySent = true;
             this.closeNotifyReceived = true;
             this.inBoundOpen = false;
-            if (this.toSend == null || this.toSend.length == 0) {
+            if (this.internalIOSendBufOffset == 0) {
                 /* Don't close outbound if we have a close_notify alert
                  * send back to peer. Native wolfSSL may have already generated
                  * it and is reflected in SSL_SENT_SHUTDOWN flag, but we
@@ -717,13 +727,8 @@ public class WolfSSLEngine extends SSLEngine {
                 "out.position(): " + out.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "out.limit(): " + out.limit());
-            if (this.toSend != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: " + this.toSend.length);
-            } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: 0");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -846,13 +851,8 @@ public class WolfSSLEngine extends SSLEngine {
                 "out.position(): " + out.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "out.limit(): " + out.limit());
-            if (this.toSend != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: " + this.toSend.length);
-            } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: 0");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1143,13 +1143,8 @@ public class WolfSSLEngine extends SSLEngine {
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "ofst: " + ofst + ", length: " + length);
-            if (this.toSend != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: " + this.toSend.length);
-            } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: 0");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1187,7 +1182,7 @@ public class WolfSSLEngine extends SSLEngine {
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
         }
         else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
-                 (this.toSend != null) && (this.toSend.length > 0)) {
+                 this.internalIOSendBufOffset > 0) {
             /* Already have data buffered to send and in NEED_WRAP state,
              * just return so wrap() can be called */
             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
@@ -1356,10 +1351,10 @@ public class WolfSSLEngine extends SSLEngine {
                 synchronized (toSendLock) {
                     synchronized (netDataLock) {
                         if (ret <= 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
-                            in.remaining() == 0 && (this.toSend == null ||
-                            (this.toSend != null && this.toSend.length == 0))
-                            && (prevSessionTicketCount ==
-                                    this.sessionTicketCount)) {
+                            in.remaining() == 0 &&
+                            (this.internalIOSendBufOffset == 0) &&
+                            (prevSessionTicketCount ==
+                                this.sessionTicketCount)) {
 
                             if ((this.ssl.dtls() == 0) ||
                                 (this.handshakeFinished &&
@@ -1389,8 +1384,7 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.getUseClientMode() && this.handshakeFinished &&
                 this.ssl.hasSessionTicket() &&
                 this.sessionTicketReceived == false) {
-                if (this.ssl.dtls() == 1 && this.toSend != null &&
-                    this.toSend.length > 0) {
+                if (this.ssl.dtls() == 1 && this.internalIOSendBufOffset > 0) {
                     /* DTLS 1.3 ACK has been produced in response to
                      * session ticket message, let's set HS status to
                      * NEED_WRAP so application knows it needs to be sent. */
@@ -1427,13 +1421,8 @@ public class WolfSSLEngine extends SSLEngine {
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "ofst: " + ofst + ", length: " + length);
-            if (this.toSend != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: " + this.toSend.length);
-            } else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "toSend.length: 0");
-            }
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1513,12 +1502,12 @@ public class WolfSSLEngine extends SSLEngine {
             err = ssl.getError(ret);
         }
 
-        /* Lock access to this.toSend and this.toRead */
+        /* Lock access to this.internalIOSendBuf and this.toRead */
         synchronized (toSendLock) {
             if (this.handshakeFinished == true) {
                 /* close_notify sent by wolfSSL but not across transport yet */
                 if (this.closeNotifySent == true &&
-                    this.toSend != null && this.toSend.length > 0) {
+                    this.internalIOSendBufOffset > 0) {
                     hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                 }
                 /* close_notify received, need to send one back */
@@ -1546,7 +1535,7 @@ public class WolfSSLEngine extends SSLEngine {
                 synchronized (netDataLock) {
                     synchronized (ioLock) {
                         if (sslConnectAcceptSuccess() && ssl.handshakeDone() &&
-                            (this.toSend == null) &&
+                            (this.internalIOSendBufOffset == 0) &&
                             (this.nativeWantsToWrite == 0) &&
                             (this.nativeWantsToRead == 0)) {
 
@@ -1565,7 +1554,7 @@ public class WolfSSLEngine extends SSLEngine {
                         }
                         /* give priority of WRAP/UNWRAP to state of our internal
                          * I/O data buffers first, then wolfSSL err status */
-                        else if (this.toSend != null && this.toSend.length > 0) {
+                        else if (this.internalIOSendBufOffset > 0) {
                             hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                         }
                         else if (this.netData != null &&
@@ -2124,8 +2113,6 @@ public class WolfSSLEngine extends SSLEngine {
      * @return number of bytes placed into send queue
      */
     protected synchronized int internalSendCb(byte[] in, int sz) {
-        int totalSz = sz, idx = 0;
-        byte[] prevToSend = null;
 
         synchronized (toSendLock) {
             /* As per JSSE Reference Guide, Section 8 DTLS implementation
@@ -2135,7 +2122,8 @@ public class WolfSSLEngine extends SSLEngine {
             /* TODO - do we need to fragment data here if larger than
              * SSLParameters.getMaximumPacketSize() with DTLS? */
             if (this.ssl.dtls() == 1) {
-                if (this.toSend != null) {
+                if ((this.internalIOSendBuf != null) &&
+                    (this.internalIOSendBufOffset > 0)) {
                     /* Cause SSLEngine to only send one packet at a time.
                      * Keep track if wolfSSL had wanted to send data. We will
                      * use that information when setting the handshake
@@ -2152,22 +2140,32 @@ public class WolfSSLEngine extends SSLEngine {
                 this.nativeWantsToWrite = 0;
             }
 
-            /* Make copy of existing toSend array before expanding */
-            if (this.toSend != null) {
-                prevToSend = this.toSend.clone();
-                totalSz += this.toSend.length;
+            if (sz <= 0) {
+                /* No data to send */
+                return 0;
             }
 
-            /* Allocate new array to hold data to be sent */
-            this.toSend = new byte[totalSz];
-
-            /* Copy existing toSend data over */
-            if (prevToSend != null) {
-                System.arraycopy(prevToSend, 0, this.toSend, idx,
-                                 prevToSend.length);
-                idx += prevToSend.length;
+            /* If we have more data than internal static buffer,
+             * grow buffer 2x (or up to sz needed) and copy data over */
+            if ((this.internalIOSendBufSz -
+                    this.internalIOSendBufOffset) < sz) {
+                /* Allocate new buffer to hold data to be sent */
+                int newSz = this.internalIOSendBufSz * 2;
+                if (newSz < sz) {
+                    newSz = sz;
+                }
+                byte[] newBuf = new byte[newSz];
+                System.arraycopy(this.internalIOSendBuf, 0,
+                                 newBuf, 0,
+                                 this.internalIOSendBufOffset);
+                this.internalIOSendBuf = newBuf;
+                this.internalIOSendBufSz = newSz;
             }
-            System.arraycopy(in, 0, this.toSend, idx, sz);
+
+            /* Add data to end of internal static buffer */
+            System.arraycopy(in, 0, this.internalIOSendBuf,
+                             this.internalIOSendBufOffset, sz);
+            this.internalIOSendBufOffset += sz;
         }
 
         if (ioDebugEnabled == true) {

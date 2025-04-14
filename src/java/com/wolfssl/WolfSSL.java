@@ -626,6 +626,9 @@ public class WolfSSL {
             getTls13SecretEnum_EXPORTER_SECRET();
 
         this.active = true;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, "wolfSSL library initialization done");
     }
 
     /* ------------------- private/protected methods -------------------- */
