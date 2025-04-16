@@ -55,7 +55,13 @@ static jobject g_loggingCbIfaceObj;
 
 /* global method IDs we can cache for performance */
 jmethodID g_sslIORecvMethodId = NULL;
+jmethodID g_sslIORecvMethodId_BB = NULL;
 jmethodID g_sslIOSendMethodId = NULL;
+jmethodID g_sslIOSendMethodId_BB = NULL;
+jmethodID g_isArrayIORecvCallbackSet = NULL;
+jmethodID g_isArrayIOSendCallbackSet = NULL;
+jmethodID g_isByteBufferIORecvCallbackSet = NULL;
+jmethodID g_isByteBufferIOSendCallbackSet = NULL;
 jmethodID g_bufferPositionMethodId = NULL;
 jmethodID g_bufferLimitMethodId = NULL;
 jmethodID g_bufferHasArrayMethodId = NULL;
@@ -99,10 +105,54 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
     g_sslIORecvMethodId = (*env)->GetMethodID(env, sslClass,
         "internalIOSSLRecvCallback",
         "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (g_sslIORecvMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIORecvMethodId_BB = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLRecvCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;I)I");
+    if (g_sslIORecvMethodId_BB == NULL) {
+        return JNI_ERR;
+    }
 
     g_sslIOSendMethodId = (*env)->GetMethodID(env, sslClass,
         "internalIOSSLSendCallback",
         "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (g_sslIOSendMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIOSendMethodId_BB = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLSendCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;I)I");
+    if (g_sslIOSendMethodId_BB == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isArrayIORecvCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isArrayIORecvCallbackSet", "()Z");
+    if (g_isArrayIORecvCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isArrayIOSendCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isArrayIOSendCallbackSet", "()Z");
+    if (g_isArrayIOSendCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isByteBufferIORecvCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isByteBufferIORecvCallbackSet", "()Z");
+    if (g_isByteBufferIORecvCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isByteBufferIOSendCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isByteBufferIOSendCallbackSet", "()Z");
+    if (g_isByteBufferIOSendCallbackSet == NULL) {
+        return JNI_ERR;
+    }
 
     /* Cache ByteBuffer method IDs */
     byteBufferClass = (*env)->FindClass(env, "java/nio/ByteBuffer");
@@ -172,7 +222,13 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
 
     /* Clear cached method ID */
     g_sslIORecvMethodId = NULL;
+    g_sslIORecvMethodId_BB = NULL;
     g_sslIOSendMethodId = NULL;
+    g_sslIOSendMethodId_BB = NULL;
+    g_isArrayIORecvCallbackSet = NULL;
+    g_isArrayIOSendCallbackSet = NULL;
+    g_isByteBufferIORecvCallbackSet = NULL;
+    g_isByteBufferIOSendCallbackSet = NULL;
     g_bufferPositionMethodId = NULL;
     g_bufferLimitMethodId = NULL;
     g_bufferHasArrayMethodId = NULL;

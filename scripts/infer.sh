@@ -35,6 +35,8 @@ done
 infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSL.java \
     src/java/com/wolfssl/WolfSSLALPNSelectCallback.java \
+    src/java/com/wolfssl/WolfSSLByteBufferIORecvCallback.java \
+    src/java/com/wolfssl/WolfSSLByteBufferIOSendCallback.java \
     src/java/com/wolfssl/WolfSSLCertManager.java \
     src/java/com/wolfssl/WolfSSLCertRequest.java \
     src/java/com/wolfssl/WolfSSLCertificate.java \

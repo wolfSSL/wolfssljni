@@ -24,8 +24,8 @@ package com.wolfssl.provider.jsse;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLIORecvCallback;
-import com.wolfssl.WolfSSLIOSendCallback;
+import com.wolfssl.WolfSSLByteBufferIORecvCallback;
+import com.wolfssl.WolfSSLByteBufferIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLALPNSelectCallback;
@@ -37,7 +37,6 @@ import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.logging.Level;
 import java.security.cert.CertificateEncodingException;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -323,8 +322,8 @@ public class WolfSSLEngine extends SSLEngine {
             if (recvCb == null) {
                 recvCb = new RecvCB();
             }
-            ssl.setIORecv(recvCb);
-            ssl.setIOSend(sendCb);
+            ssl.setIORecvByteBuffer(recvCb);
+            ssl.setIOSendByteBuffer(sendCb);
             ssl.setIOReadCtx(this);
             ssl.setIOWriteCtx(this);
 
@@ -350,8 +349,8 @@ public class WolfSSLEngine extends SSLEngine {
     private void unsetSSLCallbacks() throws WolfSSLJNIException {
 
         synchronized (ioLock) {
-            ssl.setIORecv(null);
-            ssl.setIOSend(null);
+            ssl.setIORecvByteBuffer(null);
+            ssl.setIOSendByteBuffer(null);
             ssl.setIOReadCtx(null);
             ssl.setIOWriteCtx(null);
         }
@@ -2112,7 +2111,7 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * @return number of bytes placed into send queue
      */
-    protected synchronized int internalSendCb(byte[] in, int sz) {
+    protected synchronized int internalSendCb(ByteBuffer in, int sz) {
 
         synchronized (toSendLock) {
             /* As per JSSE Reference Guide, Section 8 DTLS implementation
@@ -2163,14 +2162,16 @@ public class WolfSSLEngine extends SSLEngine {
             }
 
             /* Add data to end of internal static buffer */
-            System.arraycopy(in, 0, this.internalIOSendBuf,
-                             this.internalIOSendBufOffset, sz);
-            this.internalIOSendBufOffset += sz;
-        }
+            in.get(this.internalIOSendBuf, this.internalIOSendBufOffset, sz);
 
-        if (ioDebugEnabled == true) {
-            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                                "CB Write", in, sz);
+            if (ioDebugEnabled == true) {
+                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                    "CB Write", Arrays.copyOfRange(this.internalIOSendBuf,
+                    this.internalIOSendBufOffset,
+                    this.internalIOSendBufOffset + sz), sz);
+            }
+
+            this.internalIOSendBufOffset += sz;
         }
 
         return sz;
@@ -2180,15 +2181,16 @@ public class WolfSSLEngine extends SSLEngine {
      * Internal receive callback. Reads from netData and gives bytes back
      * to native wolfSSL for processing.
      *
-     * @param toRead byte array into which to place data read from transport
+     * @param toRead ByteBuffer into which to place data read from transport
      * @param sz number of bytes that should be read/copied from transport
      *
      * @return number of bytes read into toRead array or negative
      *         value on error
      */
-    protected synchronized int internalRecvCb(byte[] toRead, int sz) {
+    protected synchronized int internalRecvCb(ByteBuffer toRead, int sz) {
 
         int max = 0;
+        int originalLimit = 0;
 
         synchronized (netDataLock) {
             if (ioDebugEnabled == true) {
@@ -2222,12 +2224,21 @@ public class WolfSSLEngine extends SSLEngine {
             this.nativeWantsToRead = 0;
 
             max = (sz < this.netData.remaining()) ? sz : this.netData.remaining();
-            this.netData.get(toRead, 0, max);
 
+            /* Print out bytes read from toRead buffer */
             if (ioDebugEnabled == true) {
+                int toReadPos = toRead.position();
+                byte[] tmpArr = new byte[max];
+                toRead.get(tmpArr, 0, max);
                 WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                                    "CB Read", toRead, max);
+                    "CB Read", tmpArr, max);
+                toRead.position(toReadPos);
             }
+
+            originalLimit = this.netData.limit();
+            this.netData.limit(this.netData.position() + max);
+            toRead.put(this.netData);
+            this.netData.limit(originalLimit);
 
             return max;
         }
@@ -2259,28 +2270,28 @@ public class WolfSSLEngine extends SSLEngine {
         return 0;
     }
 
-    private class SendCB implements WolfSSLIOSendCallback {
+    private class SendCB implements WolfSSLByteBufferIOSendCallback {
 
         protected SendCB() {
 
         }
 
-        public int sendCallback(WolfSSLSession ssl, byte[] toSend, int sz,
+        public int sendCallback(WolfSSLSession ssl, ByteBuffer toSend, int sz,
                                 Object engine) {
             return ((WolfSSLEngine)engine).internalSendCb(toSend, sz);
         }
 
     }
 
-    private class RecvCB implements WolfSSLIORecvCallback {
+    private class RecvCB implements WolfSSLByteBufferIORecvCallback {
 
         protected RecvCB() {
 
         }
 
-        public int receiveCallback(WolfSSLSession ssl, byte[] out, int sz,
+        public int receiveCallback(WolfSSLSession ssl, ByteBuffer buf, int sz,
                                    Object engine) {
-            return ((WolfSSLEngine)engine).internalRecvCb(out, sz);
+            return ((WolfSSLEngine)engine).internalRecvCb(buf, sz);
         }
 
     }

@@ -767,7 +767,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      * @return maximum output buffer size
      */
     @Override
-    public int getPacketBufferSize() {
+    public synchronized int getPacketBufferSize() {
 
         /* JSSE implementations seem to set the SSL/TLS maximum packet size
          * (record size) differently.

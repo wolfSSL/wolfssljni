@@ -5700,8 +5700,9 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray inData;
+    jobject    directBuf;
 
-    if (!g_vm || !ssl || !buf || !ctx) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -5726,63 +5727,117 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
-                "Can't get native WolfSSLSession object reference in "
-                "NativeSSLIORecvCb");
-        if (needsDetach)
+            "Can't get native WolfSSLSession object reference in "
+            "NativeSSLIORecvCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
-    if (!g_sslIORecvMethodId) {
-        throwWolfSSLJNIException(jenv,
-            "Cached recv callback method ID is null in internalIORecvCallback");
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
+    /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
+    if ((*jenv)->CallBooleanMethod(jenv, (jobject)(*g_cachedSSLObj),
+            g_isByteBufferIORecvCallbackSet)) {
 
-    /* create jbyteArray to hold received data */
-    inData = (*jenv)->NewByteArray(jenv, sz);
-    if (!inData) {
-        throwWolfSSLJNIException(jenv,
-            "Error getting internalIORecvCallback method from JNI");
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
+        /* Call receive callback using ByteBuffer */
+        if (!g_sslIORecvMethodId_BB) {
+            throwWolfSSLJNIException(jenv,
+                "Cached recv callback method ID is null in "
+                "internalIORecvCallback");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
 
-    /* call Java send callback, ignore native ctx since Java
-     * handles it */
-    retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+        /* create ByteBuffer to hold received data */
+        directBuf = (*jenv)->NewDirectByteBuffer(jenv, buf, sz);
+        if (!directBuf) {
+            throwWolfSSLJNIException(jenv,
+                "Error creating ByteBuffer in NativeSSLIORecvCb");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* call Java receive callback, ignore ctx since Java handles it */
+        retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+            g_sslIORecvMethodId_BB, (jobject)(*g_cachedSSLObj), directBuf,
+            (jint)sz);
+
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, directBuf);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, directBuf);
+    }
+    else {
+        /* Call receive callback using byte[] */
+        if (!g_sslIORecvMethodId) {
+            throwWolfSSLJNIException(jenv,
+                "Cached recv callback method ID is null in "
+                "internalIORecvCallback");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* create jbyteArray to hold received data */
+        inData = (*jenv)->NewByteArray(jenv, sz);
+        if (inData == NULL) {
+            throwWolfSSLJNIException(jenv,
+                "Error getting internalIORecvCallback method from JNI");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        /* call Java send callback, ignore ctx since Java handles it */
+        retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
             g_sslIORecvMethodId, (jobject)(*g_cachedSSLObj), inData, (jint)sz);
 
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        (*jenv)->DeleteLocalRef(jenv, inData);
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
-    /* copy jbyteArray into char array */
-    if (retval >= 0) {
-        (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval,
-                (jbyte*)buf);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, inData);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
+
+        /* copy jbyteArray into char array */
+        if (retval >= 0) {
+            (*jenv)->GetByteArrayRegion(jenv, inData, 0, retval, (jbyte*)buf);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, inData);
+                if (needsDetach) {
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                }
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        /* delete local refs */
+        (*jenv)->DeleteLocalRef(jenv, inData);
     }
 
-    /* delete local refs, detach JNIEnv from thread */
-    (*jenv)->DeleteLocalRef(jenv, inData);
-    if (needsDetach)
+    /* detach JNIEnv from thread */
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
@@ -5810,8 +5865,9 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray outData;               /* jbyteArray for data to send */
+    jobject    directBuf;
 
-    if (!g_vm || !ssl || !buf || !ctx) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -5838,67 +5894,116 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         throwWolfSSLJNIException(jenv,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeSSLIOSendCb");
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
-    /* call internal I/O send callback */
-    if (!g_sslIOSendMethodId) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
-        throwWolfSSLJNIException(jenv,
-                "internalIOSendCallback method ID is null in internalIOSendCb");
-        if (needsDetach)
-            (*g_vm)->DetachCurrentThread(g_vm);
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
+    /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
+    if ((*jenv)->CallBooleanMethod(jenv, (jobject)(*g_cachedSSLObj),
+            g_isByteBufferIOSendCallbackSet)) {
 
-    if (sz >= 0)
-    {
-        /* create jbyteArray to hold received data */
-        outData = (*jenv)->NewByteArray(jenv, sz);
-        if (!outData) {
+        /* Call send callback using ByteBuffer */
+        if (!g_sslIOSendMethodId_BB) {
             throwWolfSSLJNIException(jenv,
-                    "Error getting internalIOSendCallback method from JNI");
-            if (needsDetach)
+                "Cached send callback method ID is null in internalIOSendCb");
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
-        (*jenv)->SetByteArrayRegion(jenv, outData, 0, sz, (jbyte*)buf);
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, outData);
-            if (needsDetach)
+        /* create ByteBuffer to wrap data to send */
+        directBuf = (*jenv)->NewDirectByteBuffer(jenv, buf, sz);
+        if (!directBuf) {
+            throwWolfSSLJNIException(jenv,
+                "Error creating ByteBuffer in NativeSSLIOSendCb, not direct");
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
-        /* call Java send callback, ignore native ctx since Java
-         * handles it */
+        /* call Java send callback, ignore ctx since Java handles it */
         retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
-            g_sslIOSendMethodId, (jobject)(*g_cachedSSLObj), outData, (jint)sz);
-
+            g_sslIOSendMethodId_BB, (jobject)(*g_cachedSSLObj), directBuf,
+            (jint)sz);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, outData);
-            if (needsDetach)
+            (*jenv)->DeleteLocalRef(jenv, directBuf);
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
         /* delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, outData);
+        (*jenv)->DeleteLocalRef(jenv, directBuf);
+    }
+    else {
+        /* Call send callbaack using byte[] */
+        if (!g_sslIOSendMethodId) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            throwWolfSSLJNIException(jenv,
+                "internalIOSendCallback method ID is null in internalIOSendCb");
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+
+        if (sz >= 0) {
+            /* create jbyteArray to hold received data */
+            outData = (*jenv)->NewByteArray(jenv, sz);
+            if (!outData) {
+                throwWolfSSLJNIException(jenv,
+                    "Error getting internalIOSendCallback method from JNI");
+                if (needsDetach) {
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                }
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            (*jenv)->SetByteArrayRegion(jenv, outData, 0, sz, (jbyte*)buf);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, outData);
+                if (needsDetach) {
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                }
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            /* call Java send callback, ignore ctx since Java handles it */
+            retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
+                g_sslIOSendMethodId, (jobject)(*g_cachedSSLObj), outData,
+                (jint)sz);
+
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, outData);
+                if (needsDetach) {
+                    (*g_vm)->DetachCurrentThread(g_vm);
+                }
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            /* delete local refs */
+            (*jenv)->DeleteLocalRef(jenv, outData);
+        }
     }
 
     /* detach JNIEnv from thread */
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
