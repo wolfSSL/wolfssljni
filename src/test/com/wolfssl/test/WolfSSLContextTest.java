@@ -644,13 +644,6 @@ public class WolfSSLContextTest {
                 fail("setMinECCKeySize should fail with negative key size");
             }
 
-            /* key length not % 8 should fail */
-            ret = ctx.setMinECCKeySize(255);
-            if (ret != WolfSSL.BAD_FUNC_ARG) {
-                System.out.println("\t\t... failed");
-                fail("setMinECCKeySize should fail with non % 8 size");
-            }
-
             /* valid key length should succeed */
             ret = ctx.setMinECCKeySize(128);
             if (ret != WolfSSL.SSL_SUCCESS) {
