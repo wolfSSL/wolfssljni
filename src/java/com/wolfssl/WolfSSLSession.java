@@ -3184,9 +3184,6 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getIOReadCtx()");
-
             return this.ioReadCtx;
         }
     }
@@ -3235,9 +3232,6 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getIOWriteCtx()");
-
             return this.ioWriteCtx;
         }
     }
