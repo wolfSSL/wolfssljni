@@ -4946,7 +4946,9 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
 
     /* Use wolfSSL_ALPN_GetPeerProtocol() here to get ALPN protocols sent
      * by the peer instead of directly using in/inlen, since this API
-     * splits/formats into a comma-separated, null-terminated list */
+     * splits/formats into a comma-separated list. peerProtosSz does not
+     * include the null terminator byte in the size. It is only the size
+     * of the ALPN list chars proper.*/
     ret = wolfSSL_ALPN_GetPeerProtocol(ssl, &peerProtos, &peerProtosSz);
     if (ret != WOLFSSL_SUCCESS) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -4962,8 +4964,9 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     }
 
     /* Make a copy of peer protos since we have to scan through it first
-     * to get total number of tokens */
-    peerProtosCopy = (char*)XMALLOC(peerProtosSz, NULL,
+     * to get total number of tokens. Allocate peerProtosSz+1 to make
+     * sure our list is null terminated for XSTRTOK(). */
+    peerProtosCopy = (char*)XMALLOC(peerProtosSz + 1, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (peerProtosCopy == NULL) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -4977,6 +4980,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         }
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
+    XMEMSET(peerProtosCopy, 0, peerProtosSz + 1);
     XMEMCPY(peerProtosCopy, peerProtos, peerProtosSz);
 
     /* get count of protocols, used to create Java array of proper size */
