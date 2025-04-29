@@ -53,6 +53,22 @@ JavaVM*  g_vm;
 /* global object refs for logging callbacks */
 static jobject g_loggingCbIfaceObj;
 
+/* global method IDs we can cache for performance */
+jmethodID g_sslIORecvMethodId = NULL;
+jmethodID g_sslIORecvMethodId_BB = NULL;
+jmethodID g_sslIOSendMethodId = NULL;
+jmethodID g_sslIOSendMethodId_BB = NULL;
+jmethodID g_isArrayIORecvCallbackSet = NULL;
+jmethodID g_isArrayIOSendCallbackSet = NULL;
+jmethodID g_isByteBufferIORecvCallbackSet = NULL;
+jmethodID g_isByteBufferIOSendCallbackSet = NULL;
+jmethodID g_bufferPositionMethodId = NULL;
+jmethodID g_bufferLimitMethodId = NULL;
+jmethodID g_bufferHasArrayMethodId = NULL;
+jmethodID g_bufferArrayMethodId = NULL;
+jmethodID g_bufferSetPositionMethodId = NULL;
+jmethodID g_verifyCallbackMethodId = NULL;
+
 #ifdef HAVE_FIPS
 /* global object ref for FIPS error callback */
 static jobject g_fipsCbIfaceObj;
@@ -61,14 +77,190 @@ static jobject g_fipsCbIfaceObj;
 /* custom native fn prototypes */
 void NativeLoggingCallback(const int logLevel, const char *const logMessage);
 
-/* called when native library is loaded */
+/* Called when native library is loaded.
+ * We also cache global jmethodIDs here for performance. */
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+    JNIEnv* env = NULL;
+    jclass sslClass = NULL;
+    jclass byteBufferClass = NULL;
+    jclass verifyClass = NULL;
     (void)reserved;
 
     /* store JavaVM */
     g_vm = vm;
+
+    /* get JNIEnv from JavaVM */
+    if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
+        printf("Unable to get JNIEnv from JavaVM in JNI_OnLoad()\n");
+        return JNI_ERR;
+    }
+
+    /* Cache the method ID for IO send and recv callbacks */
+    sslClass = (*env)->FindClass(env, "com/wolfssl/WolfSSLSession");
+    if (sslClass == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIORecvMethodId = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLRecvCallback",
+        "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (g_sslIORecvMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIORecvMethodId_BB = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLRecvCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;I)I");
+    if (g_sslIORecvMethodId_BB == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIOSendMethodId = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLSendCallback",
+        "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (g_sslIOSendMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_sslIOSendMethodId_BB = (*env)->GetMethodID(env, sslClass,
+        "internalIOSSLSendCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;I)I");
+    if (g_sslIOSendMethodId_BB == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isArrayIORecvCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isArrayIORecvCallbackSet", "()Z");
+    if (g_isArrayIORecvCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isArrayIOSendCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isArrayIOSendCallbackSet", "()Z");
+    if (g_isArrayIOSendCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isByteBufferIORecvCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isByteBufferIORecvCallbackSet", "()Z");
+    if (g_isByteBufferIORecvCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    g_isByteBufferIOSendCallbackSet = (*env)->GetMethodID(env, sslClass,
+        "isByteBufferIOSendCallbackSet", "()Z");
+    if (g_isByteBufferIOSendCallbackSet == NULL) {
+        return JNI_ERR;
+    }
+
+    /* Cache ByteBuffer method IDs */
+    byteBufferClass = (*env)->FindClass(env, "java/nio/ByteBuffer");
+    if (byteBufferClass == NULL) {
+        return JNI_ERR;
+    }
+
+    g_bufferPositionMethodId = (*env)->GetMethodID(env, byteBufferClass,
+        "position", "()I");
+    if (g_bufferPositionMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_bufferLimitMethodId = (*env)->GetMethodID(env, byteBufferClass,
+        "limit", "()I");
+    if (g_bufferLimitMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_bufferHasArrayMethodId = (*env)->GetMethodID(env, byteBufferClass,
+        "hasArray", "()Z");
+    if (g_bufferHasArrayMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_bufferArrayMethodId = (*env)->GetMethodID(env, byteBufferClass,
+        "array", "()[B");
+    if (g_bufferArrayMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    g_bufferSetPositionMethodId = (*env)->GetMethodID(env, byteBufferClass,
+        "position", "(I)Ljava/nio/Buffer;");
+    if (g_bufferSetPositionMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    /* Cache verify callback method ID */
+    verifyClass = (*env)->FindClass(env, "com/wolfssl/WolfSSLVerifyCallback");
+    if (verifyClass == NULL) {
+        return JNI_ERR;
+    }
+
+    g_verifyCallbackMethodId = (*env)->GetMethodID(env, verifyClass,
+        "verifyCallback", "(IJ)I");
+    if (g_verifyCallbackMethodId == NULL) {
+        return JNI_ERR;
+    }
+
+    /* Clean up local reference to class, not needed */
+    (*env)->DeleteLocalRef(env, sslClass);
+    (*env)->DeleteLocalRef(env, byteBufferClass);
+    (*env)->DeleteLocalRef(env, verifyClass);
+
     return JNI_VERSION_1_6;
+}
+
+/* Called when native library is unloaded.
+ * We clear cached method IDs here. */
+JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
+{
+    JNIEnv* env;
+
+    if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
+        return;
+    }
+
+    /* Clear cached method ID */
+    g_sslIORecvMethodId = NULL;
+    g_sslIORecvMethodId_BB = NULL;
+    g_sslIOSendMethodId = NULL;
+    g_sslIOSendMethodId_BB = NULL;
+    g_isArrayIORecvCallbackSet = NULL;
+    g_isArrayIOSendCallbackSet = NULL;
+    g_isByteBufferIORecvCallbackSet = NULL;
+    g_isByteBufferIOSendCallbackSet = NULL;
+    g_bufferPositionMethodId = NULL;
+    g_bufferLimitMethodId = NULL;
+    g_bufferHasArrayMethodId = NULL;
+    g_bufferArrayMethodId = NULL;
+    g_bufferSetPositionMethodId = NULL;
+    g_verifyCallbackMethodId = NULL;
+}
+
+/**
+ * Throw WolfSSLJNIException
+ */
+void throwWolfSSLJNIException(JNIEnv* jenv, const char* msg)
+{
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if (excClass == NULL) {
+        /* Unable to find exception class, give up trying to throw */
+        return;
+    }
+    (*jenv)->ThrowNew(jenv, excClass, msg);
+}
+
+/**
+ * Throw WolfSSLException
+ */
+void throwWolfSSLException(JNIEnv* jenv, const char* msg)
+{
+    jclass excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+    if (excClass == NULL) {
+        /* Unable to find exception class, give up trying to throw */
+        return;
+    }
+    (*jenv)->ThrowNew(jenv, excClass, msg);
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init

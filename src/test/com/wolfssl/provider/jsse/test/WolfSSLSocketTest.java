@@ -3393,7 +3393,7 @@ public class WolfSSLSocketTest {
                 throw cliException;
             }
 
-            System.out.println("\t\t... passed");
+            System.out.println("\t... passed");
 
         } finally {
             /* Restore original property value */

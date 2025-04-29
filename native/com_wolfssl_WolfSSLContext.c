@@ -1028,7 +1028,6 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     jobject    ctxRef;                /* WolfSSLContext object */
     jclass     innerCtxClass;         /* WolfSSLContext class */
-    jmethodID  recvCbMethodId;        /* internalIORecvCallback ID */
     jbyteArray inData;
 
     if (!g_vm || !ssl || !buf || !ctx) {
@@ -1140,18 +1139,10 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* call internal I/O recv callback */
-    recvCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-            "internalIORecvCallback",
-            "(Lcom/wolfssl/WolfSSLSession;[BI)I");
-    if (!recvCbMethodId) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-        }
+    /* make sure cached recv callback method ID is not null */
+    if (!g_sslIORecvMethodId) {
         (*jenv)->ThrowNew(jenv, excClass,
-            "Error getting internalIORecvCallback method from JNI");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            "Cached recv callback method ID is null in NativeIORecvCb");
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1161,7 +1152,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     inData = (*jenv)->NewByteArray(jenv, sz);
     if (!inData) {
         (*jenv)->ThrowNew(jenv, excClass,
-            "Error getting internalIORecvCallback method from JNI");
+            "Error creating jbyteArray in NativeIORecvCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
@@ -1170,7 +1161,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     /* call Java send callback, ignore native ctx since Java
      * handles it */
-    retval = (*jenv)->CallIntMethod(jenv, ctxRef, recvCbMethodId,
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, g_sslIORecvMethodId,
                                 (jobject)(*g_cachedSSLObj),
                                 inData, (jint)sz);
 

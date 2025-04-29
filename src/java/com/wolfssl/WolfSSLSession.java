@@ -71,11 +71,21 @@ public class WolfSSLSession {
     private WolfSSLPskClientCallback internPskClientCb = null;
     private WolfSSLPskServerCallback internPskServerCb = null;
 
-    /* user-registerd I/O callbacks, called by internal WolfSSLSession
-     * I/O callback. This is done in order to pass references to
-     * WolfSSLSession object */
-    private WolfSSLIORecvCallback internRecvSSLCb;
-    private WolfSSLIOSendCallback internSendSSLCb;
+    /* User-registerd I/O callbacks:
+     *
+     * These are called by internal WolfSSLSession I/O callback. This is done
+     * in order to pass references to WolfSSLSession object. There are two sets
+     * of I/O callbacks here, one set that will use byte[] and one that will
+     * use ByteBuffer. Only one send and one recv callback can be set at a time
+     * between the two. Native JNI code will give preference to using the
+     * ByteBuffer variants for performance if set, since this will avoid an
+     * extra native allocation (NewByteArray()). The ByteBuffer variant will
+     * wrap the pre-allocated wolfSSL array in a Java direct ByteBuffer
+     * to pass back up to Java. */
+    private WolfSSLIORecvCallback internRecvSSLCb_array;
+    private WolfSSLIOSendCallback internSendSSLCb_array;
+    private WolfSSLByteBufferIORecvCallback internRecvSSLCb_BB;
+    private WolfSSLByteBufferIOSendCallback internSendSSLCb_BB;
 
     /* user-registered ALPN select callback, called by internal WolfSSLSession
      * ALPN select callback */
@@ -237,20 +247,66 @@ public class WolfSSLSession {
         return this.rsaDecCtx;
     }
 
+    /* Methods to detect which I/O callback variants have been set */
+    private boolean isArrayIOSendCallbackSet() {
+        return (internSendSSLCb_array != null);
+    }
+
+    private boolean isByteBufferIOSendCallbackSet() {
+        return (internSendSSLCb_BB != null);
+    }
+
+    private boolean isArrayIORecvCallbackSet() {
+        return (internRecvSSLCb_array != null);
+    }
+
+    private boolean isByteBufferIORecvCallbackSet() {
+        return (internRecvSSLCb_BB != null);
+    }
+
     /* These callbacks will be registered with native wolfSSL library */
-    private int internalIOSSLRecvCallback(WolfSSLSession ssl, byte[] buf,
-                                          int sz)
+
+    /**
+     * Internal wolfSSL I/O receive callback, using byte array.
+     */
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl,
+        byte[] buf, int sz)
     {
         /* call user-registered recv method */
-        return internRecvSSLCb.receiveCallback(ssl, buf, sz,
+        return internRecvSSLCb_array.receiveCallback(ssl, buf, sz,
             ssl.getIOReadCtx());
     }
 
-    private int internalIOSSLSendCallback(WolfSSLSession ssl, byte[] buf,
-                                          int sz)
+    /**
+     * Internal wolfSSL I/O receive callback, using ByteBuffer.
+     */
+    private int internalIOSSLRecvCallback(WolfSSLSession ssl,
+            ByteBuffer buf, int sz)
     {
         /* call user-registered recv method */
-        return internSendSSLCb.sendCallback(ssl, buf, sz,
+        return internRecvSSLCb_BB.receiveCallback(ssl, buf, sz,
+            ssl.getIOReadCtx());
+    }
+
+    /**
+     * Internal wolfSSL I/O send callback, using byte array.
+     */
+    private int internalIOSSLSendCallback(WolfSSLSession ssl,
+        byte[] buf, int sz)
+    {
+        /* call user-registered recv method */
+        return internSendSSLCb_array.sendCallback(ssl, buf, sz,
+            ssl.getIOWriteCtx());
+    }
+
+    /**
+     * Internal wolfSSL I/O send callback, using ByteBuffer.
+     */
+    private int internalIOSSLSendCallback(WolfSSLSession ssl,
+            ByteBuffer buf, int sz)
+    {
+        /* call user-registered recv method */
+        return internSendSSLCb_BB.sendCallback(ssl, buf, sz,
             ssl.getIOWriteCtx());
     }
 
@@ -440,6 +496,7 @@ public class WolfSSLSession {
     private native int getThreadsBlockedInPoll(long ssl);
     private native int setMTU(long ssl, int mtu);
     private native String stateStringLong(long ssl);
+    private native int getMaxOutputSize(long ssl);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -2557,6 +2614,35 @@ public class WolfSSLSession {
     }
 
     /**
+     * Return max record layer size plaintext input size
+     *
+     * @return max record layer size plaintext input size in bytes, or
+     *         negative value on error.
+     *
+     * @throws IllegalStateException WolfSSLContext has been freed
+     */
+    public int getMaxOutputSize() throws IllegalStateException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered getOutputSize()");
+
+            ret = getMaxOutputSize(this.sslPtr);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "max output size: " + ret);
+        }
+
+        return ret;
+    }
+
+    /**
      * Determine if a reused session was negotiated during the SSL
      * handshake.
      * If session resumption is being used, and the client has proposed to
@@ -3098,9 +3184,6 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getIOReadCtx()");
-
             return this.ioReadCtx;
         }
     }
@@ -3149,9 +3232,6 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         synchronized (sslLock) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getIOWriteCtx()");
-
             return this.ioWriteCtx;
         }
     }
@@ -4338,11 +4418,18 @@ public class WolfSSLSession {
 
     /**
      * Registers a receive callback for wolfSSL to get input data.
-     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback.
-     * This uses the system's TCP recv() function. The user can register a
-     * function to get input from memory, some other network module, or from
-     * anywhere. Please see the EmbedReceive() function in src/io.c as a
-     * guide for how the function should work and for error codes.
+     *
+     * This receive callback uses WolfSSLIORecvCallback which uses
+     * byte arrays (byte[]). To use direct ByteBuffers, and avoid an extra
+     * JNI array allocaiton, use
+     * setIORecvByteBuffer(WolfSSLByteBufferIORecvCallback).
+     *
+     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback
+     * which uses the system TCP recv() function. The user can register a
+     * method here to get receive TLS-encoded data from memory, some other
+     * network module, or anywhere else. Please see the EmbedReceive() function
+     * in src/io.c as a guide for how the function should work and for error
+     * codes.
      * <p>
      * In particular, <b>IO_ERR_WANT_READ</b> should be returned for
      * non-blocking receive when no data is ready.
@@ -4364,10 +4451,16 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIORecv(" + callback + ")");
+                "entered setIORecv(" + callback + ") - byte array");
+
+            /* Only allow one recv callback registered at a time, if ByteBuffer
+             * version has been set, set to null before setting byte variant. */
+            if (internRecvSSLCb_BB != null) {
+                internRecvSSLCb_BB = null;
+            }
 
             /* set user I/O recv */
-            internRecvSSLCb = callback;
+            internRecvSSLCb_array = callback;
 
             if (callback != null) {
                 /* register internal callback with native library */
@@ -4377,12 +4470,74 @@ public class WolfSSLSession {
     }
 
     /**
-     * Registers a send callback for wolfSSL to write output data.
+     * Registers a receive callback for wolfSSL to get input data.
+     *
+     * This receive callback uses WolfSSLByteBufferIORecvCallback which uses
+     * a direct ByteBuffer. To use a byte array instead use
+     * setIORecv(WolfSSLIORecvCallback), but this will incur one additional
+     * native JNI array allocation.
+     *
+     * By default, wolfSSL uses EmbedReceive() in src/io.c as the callback
+     * which uses the system TCP recv() function. The user can register a
+     * method here to get receive TLS-encoded data from memory, some other
+     * network module, or anywhere else. Please see the EmbedReceive() function
+     * in src/io.c as a guide for how the function should work and for error
+     * codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_READ</b> should be returned for
+     * non-blocking receive when no data is ready.
+     *
+     * @param callback  method to be registered as the receive callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLByteBufferIORecvCallback#receiveCallback(
+     *                  WolfSSLSession, ByteBuffer, int, long).
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIOSend(WolfSSLIOSendCallback)
+     */
+    public void setIORecvByteBuffer(WolfSSLByteBufferIORecvCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered setIORecv(" + callback + ") - ByteBuffer");
+
+            /* Only allow one recv callback registered at a time, if array
+             * version has been set, set to null before setting ByteBuffer. */
+            if (internRecvSSLCb_array != null) {
+                internRecvSSLCb_array = null;
+            }
+
+            /* set user I/O recv */
+            internRecvSSLCb_BB = callback;
+
+            if (callback != null) {
+                /* Register internal callback with native library, registers
+                 * JNI NativeSSLIORecvCb() with native wolfSSL.
+                 * NativeSSLIORecvCb() will then call back into
+                 * internRecvSSLCb_array/BB(). */
+                setSSLIORecv(this.sslPtr);
+            }
+        }
+    }
+
+    /**
+     * Registers a send callback for wolfSSL to write TLS encoded output data.
+     *
+     * This send callback uses WolfSSLIOSendCallback which uses byte arrays
+     * (byte[]). To use direct ByteBuffers, and avoid an extra JNI array
+     * allocation, use setIOSendByteBuffer(WolfSSLByteBufferIOSendCallback).
+     *
      * By default, wolfSSL uses EmbedSend() in src/io.c as the callback,
-     * which uses the system's TCP send() function. The user can register
-     * a function to send output to memory, some other network module, or
-     * to anywhere. Please see the EmbedSend() function in src/io.c as a
-     * guide for how the function should work and for error codes.
+     * which uses the system TCP send() function. The user can register
+     * a method here to send TLS-encoded output data to memory, some other
+     * network module, or to anywhere else. Please see the EmbedSend() function
+     * in src/io.c as a guide for how the function should work and for error
+     * codes.
      * <p>
      * In particular, <b>IO_ERR_WANT_WRITE</b> should be returned for
      * non-blocking send when the action cannot be taken yet.
@@ -4404,13 +4559,78 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIOSend(" + callback + ")");
+                "entered setIOSend(" + callback + ") - byte array");
+
+            /* Only allow one send callback registered at a time, if ByteBuffer
+             * version has been set, set to null before setting byte variant. */
+            if (internSendSSLCb_BB != null) {
+                internSendSSLCb_BB = null;
+            }
 
             /* set user I/O send */
-            internSendSSLCb = callback;
+            internSendSSLCb_array = callback;
 
             if (callback != null) {
-                /* register internal callback with native library */
+                /* Register internal callback with native library, registers
+                 * JNI NativeSSLIOSendCb() with native wolfSSL.
+                 * NativeSSLIOSendCb() will then call back into
+                 * internSendSSLCb_array/BB(). */
+                setSSLIOSend(this.sslPtr);
+            }
+        }
+    }
+
+    /**
+     * Registers a send callback for wolfSSL to write TLS encoded output data.
+     *
+     * This send callback uses WolfSSLByteBufferIOSendCallback which uses a
+     * ByteBuffer. To use a byte array instead, use
+     * setIOSend(WolfSSLIOSendCallback), but this will incur one
+     * additional native JNI array allocation.
+     *
+     * By default, wolfSSL uses EmbedSend() in src/io.c as the callback,
+     * which uses the system TCP send() function. The user can register
+     * a method here to send TLS-encoded output data to memory, some other
+     * network module, or to anywhere else. Please see the EmbedSend() function
+     * in src/io.c as a guide for how the function should work and for error
+     * codes.
+     * <p>
+     * In particular, <b>IO_ERR_WANT_WRITE</b> should be returned for
+     * non-blocking send when the action cannot be taken yet.
+     *
+     * @param callback  method to be registered as the send callback for
+     *                  the wolfSSL context. The signature of this function
+     *                  must follow that as shown in
+     *                  WolfSSLByteBufferIOSendCallback#sendCallback(
+     *                  WolfSSLSession, ByteBuffer, int, Object).
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    #setIORecv(WolfSSLIORecvCallback)
+     */
+    public void setIOSendByteBuffer(WolfSSLByteBufferIOSendCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                "entered setIOSend(" + callback + ") - ByteBuffer");
+
+            /* Only allow one recv callback registered at a time, if array
+             * version has been set, set to null before setting ByteBuffer. */
+            if (internSendSSLCb_array != null) {
+                internSendSSLCb_array = null;
+            }
+
+            /* set user I/O send */
+            internSendSSLCb_BB = callback;
+
+            if (callback != null) {
+                /* Register internal callback with native library, registers
+                 * JNI NativeSSLIOSendCb() with native wolfSSL.
+                 * NativeSSLIOSendCb() will then call back into
+                 * internSendSSLCb_array/BB(). */
                 setSSLIOSend(this.sslPtr);
             }
         }

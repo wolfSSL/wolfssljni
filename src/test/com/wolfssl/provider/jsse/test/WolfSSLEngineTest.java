@@ -1662,8 +1662,8 @@ public class WolfSSLEngineTest {
                 session = engine.getSession();
                 packetBufSz = session.getPacketBufferSize();
 
-                /* expected to be 18437 */
-                if (packetBufSz != 18437) {
+                /* expected to be 17k */
+                if (packetBufSz != (17 * 1024)) {
                     error("\t\t... failed");
                     fail("got incorrect packet buffer size (" +
                         enabledProtocols.get(i) + ")");

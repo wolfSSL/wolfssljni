@@ -967,6 +967,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_stateStringLong
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getMaxOutputSize
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getMaxOutputSize
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif
