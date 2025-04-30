@@ -250,7 +250,7 @@ public class WolfSSLEngine extends SSLEngine {
         } catch (CertificateEncodingException | IOException |
                  WolfSSLException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "failed to load private key and/or cert chain");
+                () -> "failed to load private key and/or cert chain");
             throw new SSLException(e);
         }
     }
@@ -268,7 +268,7 @@ public class WolfSSLEngine extends SSLEngine {
      */
     private void checkAndInitSSLEngine() throws SSLException {
 
-        int ret = 0;
+        final int ret;
 
         synchronized (initLock) {
 
@@ -285,12 +285,13 @@ public class WolfSSLEngine extends SSLEngine {
                 ret = this.ssl.sendHrrCookie(null);
                 if (ret == WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Enabled sending of DTLS cookie in HelloRetryRequest");
+                        () -> "Enabled sending of DTLS cookie in " +
+                        "HelloRetryRequest");
                 }
                 else if (ret < 0) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Failed to enable DTLS cookie in HelloRetryRequest, " +
-                        "ret: " + ret);
+                        () -> "Failed to enable DTLS cookie in " +
+                        "HelloRetryRequest, ret: " + ret);
                 }
             }
 
@@ -488,12 +489,12 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.handshakeFinished && sslErrorNotFatal(ssl) &&
                 !this.sessionStored) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "saving WOLFSSL_SESSION into cache");
+                    () -> "saving WOLFSSL_SESSION into cache");
                 this.engineHelper.saveSession();
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "not saving WOLFSSL_SESSION into cache, " +
+                    () -> "not saving WOLFSSL_SESSION into cache, " +
                     "handshake not complete or already stored");
             }
         }
@@ -511,7 +512,7 @@ public class WolfSSLEngine extends SSLEngine {
                 /* got close_notify alert, reset ret to SSL_SUCCESS to continue
                  * and let corresponding close_notify to be sent */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ClosingConnection(), ssl.getError() is ZERO_RETURN");
+                    () -> "ClosingConnection(), ssl.getError() is ZERO_RETURN");
                 ret = WolfSSL.SSL_SUCCESS;
             }
         }
@@ -532,6 +533,7 @@ public class WolfSSLEngine extends SSLEngine {
      */
     private synchronized int DoHandshake(boolean fromWrap) throws SSLException {
         int ret = WolfSSL.SSL_SUCCESS;
+        final int tmpRet;
 
         try {
             /* If DTLS and calling from wrap() but HandshakeStatus is
@@ -541,7 +543,7 @@ public class WolfSSLEngine extends SSLEngine {
                 (this.hs == SSLEngineResult.HandshakeStatus.NEED_UNWRAP)) {
                 synchronized (ioLock) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Calling wrap() while status is NEED_UNWRAP, " +
+                        () -> "Calling wrap() while status is NEED_UNWRAP, " +
                         "retransmitting DTLS messages");
                     ret = this.ssl.dtlsGotTimeout();
                     if (ret == 0) {
@@ -554,21 +556,25 @@ public class WolfSSLEngine extends SSLEngine {
                     synchronized (ioLock) {
                         ret = this.ssl.connect();
                         lastSSLConnectRet = ret;
-
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "ssl.connect() ret:err = " + ret + " : " +
-                            ssl.getError(ret));
                     }
                 }
                 else {
                     synchronized (ioLock) {
                         ret = this.ssl.accept();
                         lastSSLAcceptRet = ret;
-
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "ssl.accept() ret:err = " + ret + " : " +
-                            ssl.getError(ret));
                     }
+                }
+
+                tmpRet = ret;
+                if (this.getUseClientMode()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ssl.connect() ret:err = " + tmpRet + " : " +
+                        ssl.getError(tmpRet));
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ssl.accept() ret:err = " + tmpRet + " : " +
+                        ssl.getError(tmpRet));
                 }
             }
 
@@ -640,8 +646,9 @@ public class WolfSSLEngine extends SSLEngine {
         this.staticAppDataBuf.rewind();
         this.staticAppDataBuf.get(dataArr);
 
+        final int tmpSendSz = sendSz;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                         "calling ssl.write() with size: " + sendSz);
+            () -> "calling ssl.write() with size: " + tmpSendSz);
 
         synchronized (ioLock) {
             ret = this.ssl.write(dataArr, sendSz);
@@ -653,8 +660,9 @@ public class WolfSSLEngine extends SSLEngine {
             }
         }
 
+        final int tmpRet = ret;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                         "ssl.write() returning: " + ret);
+            () -> "ssl.write() returning: " + tmpRet);
 
         return ret;
     }
@@ -706,50 +714,57 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (extraDebugEnabled) {
+            final Status tmpStatus = status;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "==== [ entering wrap() ] ===================================");
+                () -> "==== [ entering wrap() ] =============================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + this.engineHelper.getUseClientMode());
+                () -> "setUseClientMode: " +
+                this.engineHelper.getUseClientMode());
             for (i = 0; i < len; i++) {
+                final int idx = i;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
+                    () -> "ByteBuffer in["+idx+"].remaining(): " +
+                    in[idx].remaining());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].position(): " + in[i].position());
+                    () -> "ByteBuffer in["+idx+"].position(): " +
+                    in[idx].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].limit(): " + in[i].limit());
+                    () -> "ByteBuffer in["+idx+"].limit(): " +
+                    in[idx].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ofst: " + ofst + ", len: " + len);
+                () -> "ofst: " + ofst + ", len: " + len);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.remaining(): " + out.remaining());
+                () -> "out.remaining(): " + out.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.position(): " + out.position());
+                () -> "out.position(): " + out.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.limit(): " + out.limit());
+                () -> "out.limit(): " + out.limit());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
+                () -> "internalIOSendBufOffset: " +
+                this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifySent: " + this.closeNotifySent);
+                () -> "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifyReceived: " + this.closeNotifyReceived);
+                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.inBoundOpen);
+                () -> "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "outBoundOpen: " + this.outBoundOpen);
+                () -> "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "status: " + status);
+                () -> "status: " + tmpStatus);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeStatus: " + hs);
+                () -> "handshakeStatus: " + hs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeFinished: " + this.handshakeFinished);
+                () -> "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+                () -> "nativeHandshakeState: " + this.ssl.getStateStringLong());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToRead: " + this.nativeWantsToRead);
+                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "===========================================================");
+                () -> "=====================================================");
         }
 
         /* Set wolfSSL I/O callbacks and context for read/write operations */
@@ -771,7 +786,7 @@ public class WolfSSLEngine extends SSLEngine {
         if (out.remaining() <
             this.engineHelper.getSession().getPacketBufferSize()) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.remaining() too small (" +
+                () -> "out.remaining() too small (" +
                 out.remaining() + "), need at least: " +
                 this.engineHelper.getSession().getPacketBufferSize());
             return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
@@ -830,54 +845,65 @@ public class WolfSSLEngine extends SSLEngine {
         SetHandshakeStatus(ret);
 
         if (extraDebugEnabled) {
+            final HandshakeStatus tmpHs = hs;
+            final Status tmpStatus = status;
+            final int tmpConsumed = consumed;
+            final int tmpProduced = produced;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "==== [ exiting wrap() ] ===================================");
+                () -> "==== [ exiting wrap() ] =============================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + this.engineHelper.getUseClientMode());
+                () -> "setUseClientMode: " +
+                this.engineHelper.getUseClientMode());
             for (i = 0; i < len; i++) {
+                final int idx = i;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].remaining(): " + in[i].remaining());
+                    () -> "ByteBuffer in["+idx+"].remaining(): " +
+                    in[idx].remaining());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].position(): " + in[i].position());
+                    () -> "ByteBuffer in["+idx+"].position(): " +
+                    in[idx].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ByteBuffer in["+i+"].limit(): " + in[i].limit());
+                    () -> "ByteBuffer in["+idx+"].limit(): " +
+                    in[idx].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ofst: " + ofst + ", len: " + len);
+                () -> "ofst: " + ofst + ", len: " + len);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.remaining(): " + out.remaining());
+                () -> "out.remaining(): " + out.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.position(): " + out.position());
+                () -> "out.position(): " + out.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "out.limit(): " + out.limit());
+                () -> "out.limit(): " + out.limit());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
+                () -> "internalIOSendBufOffset: " +
+                this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifySent: " + this.closeNotifySent);
+                () -> "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifyReceived: " + this.closeNotifyReceived);
+                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeFinished: " + this.handshakeFinished);
+                () -> "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.inBoundOpen);
+                () -> "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "outBoundOpen: " + this.outBoundOpen);
+                () -> "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeStatus: " + hs);
+                () -> "handshakeStatus: " + tmpHs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "status: " + status);
+                () -> "status: " + tmpStatus);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "consumed: " + consumed);
+                () -> "consumed: " + tmpConsumed);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "produced: " + produced);
+                () -> "produced: " + tmpProduced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+                () -> "nativeHandshakeState: " +
+                this.ssl.getStateStringLong());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToRead: " + this.nativeWantsToRead);
+                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "===========================================================");
+                () -> "=====================================================");
         }
 
         try {
@@ -937,7 +963,7 @@ public class WolfSSLEngine extends SSLEngine {
         int maxOutSz = 0;
         int ret = 0;
         int idx = 0; /* index into out[] array */
-        int err = 0;
+        final int err;
         byte[] tmp = null;
 
         /* Calculate maximum output size across ByteBuffer arrays */
@@ -970,26 +996,27 @@ public class WolfSSLEngine extends SSLEngine {
             } catch (SocketTimeoutException | SocketException e) {
                 throw new SSLException(e);
             }
+            final int tmpRet = ret;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "RecvAppData(), ssl.read() ret = " + ret);
+                () -> "RecvAppData(), ssl.read() ret = " + tmpRet);
 
             err = ssl.getError(ret);
         }
 
         if (ret <= 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "RecvAppData(), ssl.getError() = " + err);
+                () -> "RecvAppData(), ssl.getError() = " + err);
 
             switch (err) {
                 case WolfSSL.SSL_ERROR_WANT_READ:
                 case WolfSSL.SSL_ERROR_WANT_WRITE:
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "RecvAppData(), got WANT_READ/WANT_WRITE");
+                        () -> "RecvAppData(), got WANT_READ/WANT_WRITE");
                     break;
 
                 case WolfSSL.APP_DATA_READY:
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "RecvAppData(), got APP_DATA_READY");
+                        () -> "RecvAppData(), got APP_DATA_READY");
                     break;
 
                 /* In 0 and ZERO_RETURN cases we may have gotten a
@@ -998,7 +1025,7 @@ public class WolfSSLEngine extends SSLEngine {
                 case 0:
                     if (err == WolfSSL.SSL_ERROR_ZERO_RETURN) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "RecvAppData(), got ZERO_RETURN");
+                            () -> "RecvAppData(), got ZERO_RETURN");
                     }
 
                     /* check if is shutdown message */
@@ -1006,7 +1033,8 @@ public class WolfSSLEngine extends SSLEngine {
                         if (ssl.getShutdown() ==
                                 WolfSSL.SSL_RECEIVED_SHUTDOWN) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "RecvAppData(), received shutdown message");
+                                () -> "RecvAppData(), received " +
+                                "shutdown message");
                             try {
                                 ret = ClosingConnection();
                                 if (ret > 0) {
@@ -1023,8 +1051,8 @@ public class WolfSSLEngine extends SSLEngine {
                     }
                     break;
                 default:
-                    throw new SSLException("wolfSSL_read() error: " +
-                            ret + " , err = " + err);
+                    throw new SSLException(
+                        "wolfSSL_read() error: " + ret + " , err = " + err);
             }
         }
         else {
@@ -1085,6 +1113,7 @@ public class WolfSSLEngine extends SSLEngine {
         long dtlsPrevDropCount = 0;
         long dtlsCurrDropCount = 0;
         int prevSessionTicketCount = 0;
+        final int tmpRet;
 
         /* Set initial status for SSLEngineResult return */
         Status status = SSLEngineResult.Status.OK;
@@ -1122,50 +1151,57 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (extraDebugEnabled) {
+            final SSLEngineResult.Status tmpStatus = status;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "==== [ entering unwrap() ] =================================");
+                () -> "==== [ entering unwrap() ] ===========================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + this.engineHelper.getUseClientMode());
+                () -> "setUseClientMode: " +
+                this.engineHelper.getUseClientMode());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.remaining(): " + in.remaining());
+                () -> "in.remaining(): " + in.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.position(): " + in.position());
+                () -> "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.limit());
+                () -> "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
+                final int idx = i;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].remaining(): " + out[i].remaining());
+                    () -> "out["+idx+"].remaining(): " +
+                    out[idx].remaining());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].position(): " + out[i].position());
+                    () -> "out["+idx+"].position(): " +
+                    out[idx].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].limit(): " + out[i].limit());
+                    () -> "out["+idx+"].limit(): " +
+                    out[idx].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ofst: " + ofst + ", length: " + length);
+                () -> "ofst: " + ofst + ", length: " + length);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
+                () -> "internalIOSendBufOffset: " +
+                this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifySent: " + this.closeNotifySent);
+                () -> "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifyReceived: " + this.closeNotifyReceived);
+                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.inBoundOpen);
+                () -> "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "outBoundOpen: " + this.outBoundOpen);
+                () -> "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeFinished: " + this.handshakeFinished);
+                () -> "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeStatus: " + hs);
+                () -> "handshakeStatus: " + hs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "status: " + status);
+                () -> "status: " + tmpStatus);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+                () -> "nativeHandshakeState: " + this.ssl.getStateStringLong());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToRead: " + this.nativeWantsToRead);
+                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "===========================================================");
+                () -> "=====================================================");
         }
 
         /* Set wolfSSL I/O callbacks and context for read/write operations */
@@ -1217,7 +1253,7 @@ public class WolfSSLEngine extends SSLEngine {
 
                 if (this.handshakeFinished == false) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "starting or continuing handshake");
+                        () -> "starting or continuing handshake");
                     ret = DoHandshake(false);
                 }
                 else {
@@ -1233,10 +1269,11 @@ public class WolfSSLEngine extends SSLEngine {
                     else {
 
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "receiving application data");
+                            () -> "receiving application data");
                         ret = RecvAppData(out, ofst, length);
+                        tmpRet = ret;
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "received application data: " + ret +
+                            () -> "received application data: " + tmpRet +
                             " bytes (from RecvAppData)");
                         if (ret > 0) {
                             produced += ret;
@@ -1279,10 +1316,11 @@ public class WolfSSLEngine extends SSLEngine {
                         if (this.handshakeFinished && (ssl.getError(0) == 0) &&
                             !this.sessionStored) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "calling engineHelper.saveSession()");
+                                () -> "calling engineHelper.saveSession()");
                             int ret2 = this.engineHelper.saveSession();
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "return from saveSession(), ret = " + ret2);
+                                () -> "return from saveSession(), ret = " +
+                                ret2);
                             if (ret2 == WolfSSL.SSL_SUCCESS) {
                                 this.sessionStored = true;
                             }
@@ -1306,8 +1344,8 @@ public class WolfSSLEngine extends SSLEngine {
                     /* Received out of order DTLS message. Ignore and set our
                      * status to NEED_UNWRAP again to wait for correct data */
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "out of order message, dropping and putting state " +
-                        "back to NEED_UNWRAP");
+                        () -> "out of order message, dropping and " +
+                        "putting state back to NEED_UNWRAP");
                 }
                 else if (ret < 0 &&
                     (err != WolfSSL.SSL_ERROR_WANT_READ) &&
@@ -1391,7 +1429,7 @@ public class WolfSSLEngine extends SSLEngine {
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "received session ticket, returning " +
+                        () -> "received session ticket, returning " +
                         "HandshakeStatus FINISHED");
                     hs = SSLEngineResult.HandshakeStatus.FINISHED;
                 }
@@ -1400,54 +1438,63 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         if (extraDebugEnabled == true) {
+            final Status tmpStatus = status;
+            final int tmpConsumed = consumed;
+            final int tmpProduced = produced;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "==== [ exiting unwrap() ] ==================================");
+                () -> "==== [ exiting unwrap() ] ============================");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "setUseClientMode: " + this.engineHelper.getUseClientMode());
+                () -> "setUseClientMode: " +
+                this.engineHelper.getUseClientMode());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.remaining(): " + in.remaining());
+                () -> "in.remaining(): " + in.remaining());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.position(): " + in.position());
+                () -> "in.position(): " + in.position());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "in.limit(): " + in.limit());
+                () -> "in.limit(): " + in.limit());
             for (i = 0; i < length; i++) {
+                final int idx = i;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].remaining(): " + out[i].remaining());
+                    () -> "out["+idx+"].remaining(): " +
+                    out[idx].remaining());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].position(): " + out[i].position());
+                    () -> "out["+idx+"].position(): " +
+                    out[idx].position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "out["+i+"].limit(): " + out[i].limit());
+                    () -> "out["+idx+"].limit(): " +
+                    out[idx].limit());
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ofst: " + ofst + ", length: " + length);
+                () -> "ofst: " + ofst + ", length: " + length);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "internalIOSendBufOffset: " + this.internalIOSendBufOffset);
+                () -> "internalIOSendBufOffset: " +
+                this.internalIOSendBufOffset);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeFinished: " + this.handshakeFinished);
+                () -> "handshakeFinished: " + this.handshakeFinished);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifySent: " + this.closeNotifySent);
+                () -> "closeNotifySent: " + this.closeNotifySent);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "closeNotifyReceived: " + this.closeNotifyReceived);
+                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "inBoundOpen: " + this.inBoundOpen);
+                () -> "inBoundOpen: " + this.inBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "outBoundOpen: " + this.outBoundOpen);
+                () -> "outBoundOpen: " + this.outBoundOpen);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "handshakeStatus: " + hs);
+                () -> "handshakeStatus: " + hs);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "status: " + status);
+                () -> "status: " + tmpStatus);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "consumed: " + consumed);
+                () -> "consumed: " + tmpConsumed);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "produced: " + produced);
+                () -> "produced: " + tmpProduced);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeHandshakeState: " + this.ssl.getStateStringLong());
+                () -> "nativeHandshakeState: " + this.ssl.getStateStringLong());
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToRead: " + this.nativeWantsToRead);
+                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "===========================================================");
+                () -> "=====================================================");
         }
 
         try {
@@ -1543,12 +1590,12 @@ public class WolfSSLEngine extends SSLEngine {
                             this.engineHelper.getSession().updateStoredSessionValues();
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "SSL/TLS handshake finished");
+                                () -> "SSL/TLS handshake finished");
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "SSL/TLS protocol: " +
+                                () -> "SSL/TLS protocol: " +
                                 this.engineHelper.getSession().getProtocol());
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "SSL/TLS cipher suite: " +
+                                () -> "SSL/TLS cipher suite: " +
                                 this.engineHelper.getSession().getCipherSuite());
                         }
                         /* give priority of WRAP/UNWRAP to state of our internal
@@ -1584,7 +1631,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public Runnable getDelegatedTask() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getDelegatedTask()");
+            () -> "entered getDelegatedTask()");
         /* no tasks left to run */
         return null;
     }
@@ -1592,7 +1639,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void closeInbound() throws SSLException {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered closeInbound");
+            () -> "entered closeInbound");
 
         if (!inBoundOpen)
             return;
@@ -1610,14 +1657,14 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized boolean isInboundDone() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered isInboundDone()");
+            () -> "entered isInboundDone()");
         return !inBoundOpen;
     }
 
     @Override
     public synchronized void closeOutbound() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered closeOutbound, outBoundOpen = false");
+            () -> "entered closeOutbound, outBoundOpen = false");
         outBoundOpen = false;
 
         /* If handshake has not started yet, close inBound as well */
@@ -1633,56 +1680,56 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized boolean isOutboundDone() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered isOutboundDone()");
+            () -> "entered isOutboundDone()");
         return !outBoundOpen;
     }
 
     @Override
     public String[] getSupportedCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getSupportedCipherSuites()");
+            () -> "entered getSupportedCipherSuites()");
         return WolfSSLEngineHelper.getAllCiphers();
     }
 
     @Override
     public String[] getEnabledCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getEnabledCipherSuites()");
+            () -> "entered getEnabledCipherSuites()");
         return this.engineHelper.getCiphers();
     }
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setEnabledCipherSuites()");
+            () -> "entered setEnabledCipherSuites()");
         this.engineHelper.setCiphers(suites);
     }
 
     @Override
     public String[] getSupportedProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getSupportedProtocols()");
+            () -> "entered getSupportedProtocols()");
         return WolfSSLEngineHelper.getAllProtocols();
     }
 
     @Override
     public synchronized String[] getEnabledProtocols() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getEnabledProtocols()");
+            () -> "entered getEnabledProtocols()");
         return this.engineHelper.getProtocols();
     }
 
     @Override
     public synchronized void setEnabledProtocols(String[] protocols) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setEnabledProtocols()");
+            () -> "entered setEnabledProtocols()");
         this.engineHelper.setProtocols(protocols);
     }
 
     @Override
     public synchronized SSLSession getSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getSession()");
+            () -> "entered getSession()");
 
         try {
             /* Need cert loaded for getSession().getLocalCertificates() */
@@ -1722,7 +1769,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     public synchronized SSLSession getHandshakeSession() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getHandshakeSession()");
+            () -> "entered getHandshakeSession()");
 
         if (!this.handshakeFinished) {
             /* Only return handshake session during the handshake */
@@ -1759,7 +1806,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void beginHandshake() throws SSLException {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered beginHandshake()");
+            () -> "entered beginHandshake()");
 
         if (!this.clientModeSet) {
             throw new IllegalStateException(
@@ -1804,13 +1851,14 @@ public class WolfSSLEngine extends SSLEngine {
 
         try {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "calling engineHelper.doHandshake()");
+                () -> "calling engineHelper.doHandshake()");
 
             int ret;
             try {
                 ret = this.engineHelper.doHandshake(1, 0);
             } catch (WolfSSLException e) {
-                throw new SSLException("Handshake failed: " + e.getMessage(), e);
+                throw new SSLException(
+                    "Handshake failed: " + e.getMessage(), e);
             }
             SetHandshakeStatus(ret);
 
@@ -1838,7 +1886,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized SSLEngineResult.HandshakeStatus getHandshakeStatus() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getHandshakeStatus(): " + hs);
+            () -> "entered getHandshakeStatus(): " + hs);
 
         /* Update status based on internal state. Some calling applications
          * loop around getHandshakeStatus(), it needs to be up to date. */
@@ -1850,7 +1898,7 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized void setUseClientMode(boolean mode) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setUseClientMode(" + mode + ")");
+            () -> "entered setUseClientMode(" + mode + ")");
         this.engineHelper.setUseClientMode(mode);
         this.clientModeSet = true;
     }
@@ -1858,55 +1906,55 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public synchronized boolean getUseClientMode() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getUseClientMode()");
+            () -> "entered getUseClientMode()");
         return this.engineHelper.getUseClientMode();
     }
 
     @Override
     public synchronized void setNeedClientAuth(boolean need) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setNeedClientAuth(" + need + ")");
+            () -> "entered setNeedClientAuth(" + need + ")");
         this.engineHelper.setNeedClientAuth(need);
     }
 
     @Override
     public synchronized boolean getNeedClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getNeedClientAuth()");
+            () -> "entered getNeedClientAuth()");
         return this.engineHelper.getNeedClientAuth();
     }
 
     @Override
     public synchronized void setWantClientAuth(boolean want) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setWantClientAuth(" + want + ")");
+            () -> "entered setWantClientAuth(" + want + ")");
         this.engineHelper.setWantClientAuth(want);
     }
 
     @Override
     public synchronized boolean getWantClientAuth() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getWantClientAuth()");
+            () -> "entered getWantClientAuth()");
         return this.engineHelper.getWantClientAuth();
     }
 
     @Override
     public synchronized void setEnableSessionCreation(boolean flag) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setEnableSessionCreation(" + flag + ")");
+            () -> "entered setEnableSessionCreation(" + flag + ")");
         this.engineHelper.setEnableSessionCreation(flag);
     }
 
     @Override
     public synchronized boolean getEnableSessionCreation() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getEnableSessionCreation()");
+            () -> "entered getEnableSessionCreation()");
         return this.engineHelper.getEnableSessionCreation();
     }
 
     public synchronized String getApplicationProtocol() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getApplicationProtocol()");
+            () -> "entered getApplicationProtocol()");
         return this.engineHelper.getAlpnSelectedProtocolString();
     }
 
@@ -1927,7 +1975,7 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized String getHandshakeApplicationProtocol() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getHandshakeApplicationProtocol()");
+            () -> "entered getHandshakeApplicationProtocol()");
 
         if (!this.needInit && !this.handshakeFinished) {
             return this.engineHelper.getAlpnSelectedProtocolString();
@@ -1946,7 +1994,7 @@ public class WolfSSLEngine extends SSLEngine {
         getHandshakeApplicationProtocolSelector() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getHandshakeApplicationProtocolSelector()");
+            () -> "entered getHandshakeApplicationProtocolSelector()");
 
         return this.alpnSelector;
     }
@@ -1974,10 +2022,10 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized void setHandshakeApplicationProtocolSelector(
         BiFunction<SSLEngine,List<String>,String> selector) {
 
-        int ret = 0;
+        final int ret;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setHandshakeApplicationProtocolSelector()");
+            () -> "entered setHandshakeApplicationProtocolSelector()");
 
         if (selector != null) {
             ALPNSelectCallback alpnCb = new ALPNSelectCallback();
@@ -1987,7 +2035,7 @@ public class WolfSSLEngine extends SSLEngine {
                 ret = this.ssl.setAlpnSelectCb(alpnCb, this);
                 if (ret != WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Native setAlpnSelectCb() failed, ret = " + ret +
+                        () -> "Native setAlpnSelectCb() failed, ret = " + ret +
                         ", not setting selector");
                     return;
                 }
@@ -1997,7 +2045,8 @@ public class WolfSSLEngine extends SSLEngine {
 
             } catch (WolfSSLJNIException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Exception while calling ssl.setAlpnSelectCb, not setting");
+                    () -> "Exception while calling ssl.setAlpnSelectCb, " +
+                    "not setting");
             }
         }
     }
@@ -2014,28 +2063,28 @@ public class WolfSSLEngine extends SSLEngine {
 
             SSLEngine engine = (SSLEngine)arg;
             List<String> peerProtos = new ArrayList<String>();
-            String selected = null;
+            final String selected;
 
             if (alpnSelector == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "alpnSelector null inside ALPNSelectCallback");
+                    () -> "alpnSelector null inside ALPNSelectCallback");
                 return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
             }
 
             if (!(arg instanceof SSLEngine)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "alpnSelectCallback arg not type of SSLEngine");
+                    () -> "alpnSelectCallback arg not type of SSLEngine");
                 return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
             }
 
             if (in.length == 0) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "peer protocol list is 0 inside alpnSelectCallback");
+                    () -> "peer protocol list is 0 inside alpnSelectCallback");
                 return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ALPN protos sent by peer: " + Arrays.toString(in));
+                () -> "ALPN protos sent by peer: " + Arrays.toString(in));
 
             for (String s: in) {
                 peerProtos.add(s);
@@ -2044,18 +2093,18 @@ public class WolfSSLEngine extends SSLEngine {
 
             if (selected == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ALPN protocol string is null, no peer match");
+                    () -> "ALPN protocol string is null, no peer match");
                 return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
             }
             else {
                 if (selected.isEmpty()) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "ALPN not being used, selected proto empty");
+                        () -> "ALPN not being used, selected proto empty");
                     return WolfSSL.SSL_TLSEXT_ERR_NOACK;
                 }
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "ALPN protocol selected by callback: " + selected);
+                    () -> "ALPN protocol selected by callback: " + selected);
                 out[0] = selected;
                 return WolfSSL.SSL_TLSEXT_ERR_OK;
 
@@ -2071,18 +2120,20 @@ public class WolfSSLEngine extends SSLEngine {
      */
     public synchronized void setSSLParameters(SSLParameters params) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setSSLParameters()");
+            () -> "entered setSSLParameters()");
         if (params != null) {
             WolfSSLParametersHelper.importParams(params, this.params);
 
             /* Store SNI server names in the session for potential resumption */
-            if (params.getServerNames() != null && !params.getServerNames().isEmpty()) {
+            if (params.getServerNames() != null &&
+                    !params.getServerNames().isEmpty()) {
+
                 WolfSSLImplementSSLSession session =
                     (WolfSSLImplementSSLSession)this.getSession();
                 if (session != null) {
                     session.setSNIServerNames(params.getServerNames());
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "Captured SNI server names for session caching");
+                        () -> "Captured SNI server names for session caching");
                 }
             }
         }
@@ -2097,7 +2148,7 @@ public class WolfSSLEngine extends SSLEngine {
     public synchronized SSLParameters getSSLParameters() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getSSLParameters()");
+            () -> "entered getSSLParameters()");
 
         return WolfSSLParametersHelper.decoupleParams(this.params);
     }
@@ -2166,7 +2217,7 @@ public class WolfSSLEngine extends SSLEngine {
 
             if (ioDebugEnabled == true) {
                 WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                    "CB Write", Arrays.copyOfRange(this.internalIOSendBuf,
+                    () -> "CB Write", Arrays.copyOfRange(this.internalIOSendBuf,
                     this.internalIOSendBufOffset,
                     this.internalIOSendBufOffset + sz), sz);
             }
@@ -2195,16 +2246,16 @@ public class WolfSSLEngine extends SSLEngine {
         synchronized (netDataLock) {
             if (ioDebugEnabled == true) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "CB Read: requesting " + sz + " bytes");
+                    () -> "CB Read: requesting " + sz + " bytes");
                 if (this.netData != null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "CB Read: netData.remaining() = " +
+                        () -> "CB Read: netData.remaining() = " +
                         this.netData.remaining());
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "CB Read: netData.position() = " +
+                        () -> "CB Read: netData.position() = " +
                         this.netData.position());
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "CB Read: netData.limit() = " +
+                        () -> "CB Read: netData.limit() = " +
                         this.netData.limit());
                 }
             }
@@ -2212,7 +2263,7 @@ public class WolfSSLEngine extends SSLEngine {
             if (this.netData == null || this.netData.remaining() == 0) {
                 if (ioDebugEnabled == true) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "CB Read: returning WOLFSSL_CBIO_ERR_WANT_READ");
+                        () -> "CB Read: returning WOLFSSL_CBIO_ERR_WANT_READ");
                 }
                 if (this.ssl.dtls() == 1 && this.handshakeFinished) {
                     this.nativeWantsToRead = 1;
@@ -2225,20 +2276,23 @@ public class WolfSSLEngine extends SSLEngine {
 
             max = (sz < this.netData.remaining()) ? sz : this.netData.remaining();
 
-            /* Print out bytes read from toRead buffer */
-            if (ioDebugEnabled == true) {
-                int toReadPos = toRead.position();
-                byte[] tmpArr = new byte[max];
-                toRead.get(tmpArr, 0, max);
-                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                    "CB Read", tmpArr, max);
-                toRead.position(toReadPos);
-            }
-
             originalLimit = this.netData.limit();
             this.netData.limit(this.netData.position() + max);
             toRead.put(this.netData);
             this.netData.limit(originalLimit);
+
+            /* Print out bytes read from toRead buffer */
+            if (ioDebugEnabled == true) {
+                int toReadPos = toRead.position();
+                /* Move position back to start of data we just wrote */
+                toRead.position(toReadPos - max);
+                byte[] tmpArr = new byte[max];
+                toRead.get(tmpArr, 0, max);
+                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                    () -> "CB Read", tmpArr, max);
+                /* Restore position */
+                toRead.position(toReadPos);
+            }
 
             return max;
         }
@@ -2254,16 +2308,16 @@ public class WolfSSLEngine extends SSLEngine {
      */
     protected synchronized int internalSessionTicketCb(byte[] ticket) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered internalSessionTicketCb()");
+            () -> "entered internalSessionTicketCb()");
 
         if (ticket != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Session ticket received, length = " + ticket.length);
+                () -> "Session ticket received, length = " + ticket.length);
             if (ticket.length > 0) {
                 this.sessionTicketCount++;
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Total session tickets received by this SSLEngine: " +
+                () -> "Total session tickets received by this SSLEngine: " +
                 this.sessionTicketCount);
         }
 

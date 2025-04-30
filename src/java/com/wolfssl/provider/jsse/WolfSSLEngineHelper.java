@@ -122,7 +122,7 @@ public class WolfSSLEngineHelper {
         this.authStore = store;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLEngineHelper()");
+            () -> "created new WolfSSLEngineHelper()");
     }
 
     /**
@@ -148,7 +148,7 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLEngineHelper(peer port: " + port +
+            () -> "created new WolfSSLEngineHelper(peer port: " + port +
             ", peer hostname: " + hostname + ")");
     }
 
@@ -178,7 +178,7 @@ public class WolfSSLEngineHelper {
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLEngineHelper(peer port: " + port +
+            () -> "created new WolfSSLEngineHelper(peer port: " + port +
             ", peer IP: " + peerAddr.getHostAddress() + ")");
     }
 
@@ -299,7 +299,7 @@ public class WolfSSLEngineHelper {
 
         int ret;
         int offset;
-        String alias = null;       /* KeyStore alias holding private key */
+        final String alias;       /* KeyStore alias holding private key */
         X509KeyManager km = null;  /* X509KeyManager from KeyStore */
 
         if (this.authStore == null) {
@@ -309,7 +309,7 @@ public class WolfSSLEngineHelper {
         km = this.authStore.getX509KeyManager();
         if (km == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                    "internal KeyManager is null, no cert/key to load");
+                    () -> "internal KeyManager is null, no cert/key to load");
             return;
         }
 
@@ -347,11 +347,11 @@ public class WolfSSLEngineHelper {
                     "buffer into WOLFSSL, err = " + ret);
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded private key from X509KeyManager " +
+                    () -> "loaded private key from X509KeyManager " +
                     "(alias: " + alias + ")");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "no private key found in X509KeyManager " +
+                    () -> "no private key found in X509KeyManager " +
                     "(alias: " + alias + "), skipped loading");
         }
 
@@ -380,13 +380,14 @@ public class WolfSSLEngineHelper {
                 throw new WolfSSLException("Failed to load certificate " +
                     "chain buffer into WOLFSSL, err = " + ret);
             }
+            final int tmpChainLength = chainLength;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "loaded certificate chain from KeyManager (alias: " +
+                    () -> "loaded certificate chain from KeyManager (alias: " +
                     alias + ", length: " +
-                    chainLength + ")");
+                    tmpChainLength + ")");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "no certificate or chain found " +
+                    () -> "no certificate or chain found " +
                     "(alias: " + alias + "), skipped loading");
         }
     }
@@ -401,7 +402,7 @@ public class WolfSSLEngineHelper {
     protected synchronized void setHostAndPort(String hostname, int port) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setHostAndPort()");
+            () -> "entered setHostAndPort()");
 
         this.hostname = hostname;
         this.port = port;
@@ -416,7 +417,7 @@ public class WolfSSLEngineHelper {
     protected synchronized void setPeerAddress(InetAddress peerAddr) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered setPeerAddress()");
+            () -> "entered setPeerAddress()");
 
         this.peerAddr = peerAddr;
     }
@@ -439,7 +440,7 @@ public class WolfSSLEngineHelper {
 
         if (this.session == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "this.session is null, creating new " +
+                () -> "this.session is null, creating new " +
                 "WolfSSLImplementSSLSession");
 
             this.session = new WolfSSLImplementSSLSession(authStore);
@@ -692,7 +693,7 @@ public class WolfSSLEngineHelper {
         String proto = ssl.getAlpnSelectedString();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "selected ALPN protocol = " + proto);
+            () -> "selected ALPN protocol = " + proto);
 
         if (proto == null && this.ssl.handshakeDone()) {
             /* ALPN not used if proto is null and handshake is done */
@@ -727,7 +728,7 @@ public class WolfSSLEngineHelper {
                 list = sb.toString();
                 if (this.ssl.setCipherList(list) != WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "error setting cipher list " + list);
+                        () -> "error setting cipher list " + list);
                 }
             }
 
@@ -818,9 +819,9 @@ public class WolfSSLEngineHelper {
         if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
             /* use internal peer verification logic */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "X509TrustManager is of type WolfSSLTrustX509");
+                () -> "X509TrustManager is of type WolfSSLTrustX509");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Using native internal peer verification logic");
+                () -> "Using native internal peer verification logic");
 
             /* Register Java verify callback for additional hostname
              * verification when SSLParameters Endpoint Identification
@@ -833,9 +834,10 @@ public class WolfSSLEngineHelper {
             /* not our own TrustManager, set up callback so JSSE can use
              * TrustManager.checkClientTrusted/checkServerTrusted() */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "X509TrustManager is not of type WolfSSLTrustX509");
+                () -> "X509TrustManager is not of type WolfSSLTrustX509");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Using checkClientTrusted/ServerTrusted() for verification");
+                () -> "Using checkClientTrusted/ServerTrusted() " +
+                "for verification");
             this.verifyMask = WolfSSL.SSL_VERIFY_PEER;
         }
 
@@ -897,7 +899,7 @@ public class WolfSSLEngineHelper {
          * This allows users to enable legacy hostname-based SNI behavior
          * through java.security configuration rather than JVM arguments. */
         boolean autoSNI = "true".equalsIgnoreCase(
-                        Security.getProperty("wolfjsse.autoSNI"));
+            Security.getProperty("wolfjsse.autoSNI"));
 
         /* Detect HttpsURLConnection usage by checking:
          * - Client mode is set (client-side connection)
@@ -917,12 +919,12 @@ public class WolfSSLEngineHelper {
 
         if (!enableSNI) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "jsse.enableSNIExtension property set to false, " +
+                () -> "jsse.enableSNIExtension property set to false, " +
                 "not adding SNI to ClientHello");
         }
         else if (this.clientMode) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "jsse.enableSNIExtension property set to true, " +
+                () -> "jsse.enableSNIExtension property set to true, " +
                 "enabling SNI");
 
             /* Explicitly set if user has set through SSLParameters */
@@ -936,7 +938,7 @@ public class WolfSSLEngineHelper {
             } else if (autoSNI) {
                 if (this.peerAddr != null && trustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "setting SNI extension with " +
+                        () -> "setting SNI extension with " +
                         "InetAddress.getHostName(): " +
                         this.peerAddr.getHostName());
 
@@ -945,25 +947,27 @@ public class WolfSSLEngineHelper {
                 } else if (this.hostname != null) {
                     if (peerAddr != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "jdk.tls.trustNameService not set to true, " +
+                            () -> "jdk.tls.trustNameService not set to true, " +
                             "not doing reverse DNS lookup to set SNI");
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "setting SNI extension with hostname: " +
+                            () -> "setting SNI extension with hostname: " +
                             this.hostname);
                     }
                     else {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "peerAddr is null, setting SNI extension with " +
-                            "hostname: " + this.hostname);
+                            () -> "peerAddr is null, setting SNI extension " +
+                            "with hostname: " + this.hostname);
                     }
                     this.ssl.useSNI((byte)0, this.hostname.getBytes());
                 } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "hostname and peerAddr are null, not setting SNI");
+                        () -> "hostname and peerAddr are null, " +
+                        "not setting SNI");
                 }
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "No SNI configured through SSLParameters, not setting SNI");
+                    () -> "No SNI configured through SSLParameters, " +
+                    "not setting SNI");
             }
         }
     }
@@ -994,11 +998,11 @@ public class WolfSSLEngineHelper {
                     "jdk.tls.client.enableSessionTicketExtension");
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "SSLSocket.setUseSessionTickets() set to: " +
+                () -> "SSLSocket.setUseSessionTickets() set to: " +
                 String.valueOf(enableFlag));
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "jdk.tls.client.enableSessionTicketExtension property: " +
+                () -> "jdk.tls.client.enableSessionTicketExtension property: " +
                 enableProperty);
 
             if ((enableFlag == true) ||
@@ -1009,11 +1013,11 @@ public class WolfSSLEngineHelper {
                 this.ssl.useSessionTicket();
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session tickets enabled for this session");
+                    () -> "session tickets enabled for this session");
 
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session tickets not enabled on this session");
+                    () -> "session tickets not enabled on this session");
             }
         }
     }
@@ -1037,26 +1041,27 @@ public class WolfSSLEngineHelper {
         if ((alpnProtos != null && alpnProtos.length > 0) &&
             (applicationProtocols != null && applicationProtocols.length > 0)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ALPN protocols found in both params.getAlpnProtos() and " +
-                "params.getApplicationProtocols()");
+                () -> "ALPN protocols found in both params.getAlpnProtos() " +
+                "and params.getApplicationProtocols()");
         }
 
         /* try to set from byte[] first, then overwrite with String[] if
          * both have been set */
         if (alpnProtos != null && alpnProtos.length > 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Setting ALPN protocols for WOLFSSL session from byte[" +
+                () -> "Setting ALPN protocols for WOLFSSL session from byte[" +
                 alpnProtos.length + "]");
             this.ssl.useALPN(alpnProtos);
         }
 
         if (applicationProtocols != null && applicationProtocols.length > 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Setting Application Protocols for WOLFSSL session " +
+                () -> "Setting Application Protocols for WOLFSSL session " +
                 "from String[]:");
             for (i = 0; i < applicationProtocols.length; i++) {
+                final int idx = i;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "\t" + i + ": " + applicationProtocols[i]);
+                    () -> "\t" + idx + ": " + applicationProtocols[idx]);
             }
 
             /* fail on mismatch */
@@ -1066,7 +1071,8 @@ public class WolfSSLEngineHelper {
 
         if (alpnProtos == null && applicationProtocols == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "No ALPN protocols set, not setting for this WOLFSSL session");
+                () -> "No ALPN protocols set, not setting for this " +
+                "WOLFSSL session");
         }
     }
 
@@ -1077,15 +1083,15 @@ public class WolfSSLEngineHelper {
         int ret = this.ssl.useSecureRenegotiation();
         if (ret == WolfSSL.SSL_SUCCESS) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "enabled secure renegotiation support for session");
+                () -> "enabled secure renegotiation support for session");
         }
         else if (ret == WolfSSL.NOT_COMPILED_IN) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "native secure renegotiation not compiled in");
+                () -> "native secure renegotiation not compiled in");
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "error enabling secure renegotiation, ret = " + ret);
+                () -> "error enabling secure renegotiation, ret = " + ret);
         }
     }
 
@@ -1103,11 +1109,11 @@ public class WolfSSLEngineHelper {
                 if (ret != WolfSSL.SSL_SUCCESS &&
                     ret != WolfSSL.NOT_COMPILED_IN) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "error restricting signature algorithms based on " +
-                        "wolfjsse.enabledSignatureAlgorithms property");
+                        () -> "error restricting signature algorithms based " +
+                        "on wolfjsse.enabledSignatureAlgorithms property");
                 } else if (ret == WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "restricted signature algorithms based on " +
+                        () -> "restricted signature algorithms based on " +
                         "wolfjsse.enabledSignatureAlgorithms property");
                 }
             }
@@ -1128,8 +1134,8 @@ public class WolfSSLEngineHelper {
                 if (ret != WolfSSL.SSL_SUCCESS) {
                     if (ret == WolfSSL.NOT_COMPILED_IN) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "Unable to set requested TLS Supported Curves, " +
-                            "native support not compiled in.");
+                            () -> "Unable to set requested TLS Supported " +
+                            "Curves, native support not compiled in.");
                     }
                     else {
                         throw new SSLException(
@@ -1140,7 +1146,7 @@ public class WolfSSLEngineHelper {
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "set TLS Supported Curves based on " +
+                        () -> "set TLS Supported Curves based on " +
                         "wolfjsse.enabledSupportedCurves property");
                 }
             }
@@ -1157,21 +1163,23 @@ public class WolfSSLEngineHelper {
             /* Zero size means use implicit sizing logic of implementation,
              * take no special action here if 0. */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Maximum packet size found in SSLParameters: " + maxPacketSize);
+                () -> "Maximum packet size found in SSLParameters: " +
+                maxPacketSize);
 
             ret = this.ssl.dtlsSetMTU(maxPacketSize);
             if (ret == WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "set maximum packet size (DTLS MTU): " + maxPacketSize);
+                    () -> "set maximum packet size (DTLS MTU): " +
+                    maxPacketSize);
             }
             else if (ret == WolfSSL.NOT_COMPILED_IN) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "DTLS or MTU not compiled in, skipping setting " +
+                    () -> "DTLS or MTU not compiled in, skipping setting " +
                     "max packet size");
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "error setting DTLS MTU, ret = " + ret);
+                    () -> "error setting DTLS MTU, ret = " + ret);
             }
         }
     }
@@ -1187,23 +1195,24 @@ public class WolfSSLEngineHelper {
             ret = this.ssl.disableExtendedMasterSecret();
             if (ret == WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "TLS Extended Master Secret disabled due to " +
+                    () -> "TLS Extended Master Secret disabled due to " +
                     "jdk.tls.useExtendedMasterSecret System property");
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Failed to disable TLS Extended Master Secret, " +
+                    () -> "Failed to disable TLS Extended Master Secret, " +
                     "ret = " + ret);
             }
         }
         else {
             if (WolfSSL.isEnabledTLSExtendedMasterSecret() == 1) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "using TLS Extended Master Secret");
+                    () -> "using TLS Extended Master Secret");
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "not using TLS Extended Master Secret, not compiled in");
+                    () -> "not using TLS Extended Master Secret, " +
+                    "not compiled in");
             }
         }
     }
@@ -1315,7 +1324,7 @@ public class WolfSSLEngineHelper {
             if (this.sessionCreation == false && !this.session.isFromTable) {
                 /* new handshakes can not be made in this case. */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "session creation not allowed");
+                    () -> "session creation not allowed");
 
                 /* send CloseNotify */
                 /* TODO: SunJSSE sends a Handshake Failure alert instead here */
@@ -1348,7 +1357,8 @@ public class WolfSSLEngineHelper {
      *                      on native socket error
      * @throws SocketTimeoutException if socket timed out
      *
-     * @throws WolfSSLException if it fails to check the DH key size after the handshake.
+     * @throws WolfSSLException if it fails to check the DH key size after
+     *         the handshake.
      */
     protected synchronized int doHandshake(int isSSLEngine, int timeout)
         throws SSLException, SocketTimeoutException, WolfSSLException {
@@ -1365,7 +1375,7 @@ public class WolfSSLEngineHelper {
         if (this.sessionCreation == false && !this.session.isFromTable) {
             /* new handshakes can not be made in this case. */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session creation not allowed");
+                () -> "session creation not allowed");
 
             try {
                 /* send CloseNotify */
@@ -1380,11 +1390,12 @@ public class WolfSSLEngineHelper {
 
         if ((this.session == null) || !this.session.isValid()) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session is marked as invalid, try creating a new session");
+                () -> "session is marked as invalid, try creating a " +
+                "new session");
             if (this.sessionCreation == false) {
                 /* new handshakes can not be made in this case. */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "session creation not allowed");
+                    () -> "session creation not allowed");
 
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }
@@ -1417,7 +1428,7 @@ public class WolfSSLEngineHelper {
             }
             if (serverId == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "null serverId when trying to generate, not setting");
+                    () -> "null serverId when trying to generate, not setting");
             } else {
                 ret = this.ssl.setServerID(serverId, 1);
                 if (ret != WolfSSL.SSL_SUCCESS) {
@@ -1433,14 +1444,14 @@ public class WolfSSLEngineHelper {
             try {
                 if (this.clientMode) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "calling native wolfSSL_connect()");
+                        () -> "calling native wolfSSL_connect()");
                     /* may throw SocketTimeoutException on socket timeout */
                     ret = this.ssl.connect(timeout);
 
                     checkKeySize(ssl, this.clientMode);
                 } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                "calling native wolfSSL_accept()");
+                        () -> "calling native wolfSSL_accept()");
                     ret = this.ssl.accept(timeout);
 
                     checkKeySize(ssl, this.clientMode);
@@ -1466,7 +1477,9 @@ public class WolfSSLEngineHelper {
         return ret;
     }
 
-    private void checkKeySize(WolfSSLSession ssl, boolean clientMode) throws SSLException, WolfSSLException {
+    private void checkKeySize(WolfSSLSession ssl, boolean clientMode)
+        throws SSLException, WolfSSLException {
+
         int keySize = this.ssl.getKeySize();
 
         /*
@@ -1480,7 +1493,8 @@ public class WolfSSLEngineHelper {
             /* Get the minimum DH key size from security settings. */
             int minDHEKeySize;
             try {
-                minDHEKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
+                minDHEKeySize =
+                    WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
 
                 /*
                  * If we're trying to use DHE with
@@ -1488,14 +1502,16 @@ public class WolfSSLEngineHelper {
                 if (isLegacyDHEnabled() && keySize < minDHEKeySize) {
                     if (clientMode) {
                         throw new SSLHandshakeException(
-                                "DH ServerKeyExchange does not comply to algorithm constraints");
+                            "DH ServerKeyExchange does not comply to " +
+                            "algorithm constraints");
                     } else {
                         throw new SSLHandshakeException(
-                                "Received fatal alert: insufficient_security");
+                            "Received fatal alert: insufficient_security");
                     }
                 }
             } catch (WolfSSLException e) {
-                throw new WolfSSLException("Failed to check DH key size constraints: ", e);
+                throw new WolfSSLException(
+                    "Failed to check DH key size constraints: ", e);
             }
         }
     }
@@ -1563,7 +1579,8 @@ public class WolfSSLEngineHelper {
             }
             if (WolfSSLUtil.sessionCacheDisabled()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "not storing session in cache, cache has been disabled");
+                    () -> "not storing session in cache, cache has " +
+                    "been disabled");
             } else {
                 return this.authStore.addSession(this.session);
             }

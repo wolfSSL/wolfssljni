@@ -128,7 +128,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         if (serverNames != null && !serverNames.isEmpty()) {
             this.sniServerNames = new ArrayList<>(serverNames);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Stored SNI server names for session resumption");
+                    () -> "Stored SNI server names for session resumption");
         }
     }
 
@@ -164,7 +164,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         accessed = new Date();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new session (port: " + port + ", host: " + host + ")");
+            () -> "created new session (port: " + port + ", host: " +
+            host + ")");
     }
 
     /**
@@ -197,7 +198,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new session (no host/port yet)");
+            () -> "created new session (no host/port yet)");
     }
 
     /**
@@ -219,7 +220,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         accessed = new Date();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new session (WolfSSLAuthStore)");
+            () -> "created new session (WolfSSLAuthStore)");
     }
 
     /**
@@ -280,7 +281,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         this.binding = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new session (WolfSSLImplementSSLSession)");
+            () -> "created new session (WolfSSLImplementSSLSession)");
     }
 
     /**
@@ -306,7 +307,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
         } catch (IllegalStateException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "In getId(), WolfSSLSession has been freed, returning null");
+                () -> "In getId(), WolfSSLSession has been freed, " +
+                "returning null");
             return null;
 
         } catch (WolfSSLJNIException e) {
@@ -357,7 +359,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      */
     public synchronized void invalidate() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "SSLSession.invalidate() called, invalidating session");
+            () -> "SSLSession.invalidate() called, invalidating session");
 
         this.valid = false;
     }
@@ -528,17 +530,18 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         /* if no peer cert, throw SSLPeerUnverifiedException */
         if (x509 == 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ssl.getPeerCertificates() returned null, trying cached cert");
+                () -> "ssl.getPeerCertificates() returned null, trying " +
+                "cached cert");
 
             if (this.peerCerts != null) {
                 /* If peer cert is already cached, just return that */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "peer cert already cached, returning it");
+                    () -> "peer cert already cached, returning it");
                 return this.peerCerts.clone();
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "No peer cert sent and none cached");
+                    () -> "No peer cert sent and none cached");
                 throw new SSLPeerUnverifiedException("No peer certificate");
             }
         }
@@ -689,7 +692,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
 
     @Override
     public Principal getLocalPrincipal() {
-        /* Logic needs to be added to check for client auth when wrapper is made TODO */
+        /* Logic needs to be added to check for client auth
+         * when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(authStore.getCertAlias());
@@ -700,7 +704,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         if (certs.length > 0){
-            /* When chain of certificates exceeds one, the user certifcate is the first */
+            /* When chain of certificates exceeds one,
+             * the user certifcate is the first */
             localPrincipal = certs[0].getSubjectDN();
         }
 
@@ -795,15 +800,16 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         if (ssl != null) {
             nativeMax = ssl.getMaxOutputSize();
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "ssl.getMaxOutputSize() returned: " + nativeMax);
+                () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
 
             if ((nativeMax > 0) && (nativeMax > ret)) {
                 ret = nativeMax;
             }
         }
 
+        final int tmpRet = ret;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "getPacketBufferSize() returning: " + ret);
+            () -> "getPacketBufferSize() returning: " + tmpRet);
 
         return ret;
     }
@@ -843,15 +849,15 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
      */
     protected synchronized void setResume() {
 
-        long tmpSesPtr = 0;
+        final long tmpSesPtr;
 
         if (ssl != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered setResume(), trying to get sesPtrLock");
+                () -> "entered setResume(), trying to get sesPtrLock");
 
             synchronized (sesPtrLock) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "got sesPtrLock: this.sesPtr = " + this.sesPtr);
+                    () -> "got sesPtrLock: this.sesPtr = " + this.sesPtr);
 
                 /* Only free existing WOLFSSL_SESSION pointer if this
                  * object is in the WolfSSLAuthStore cache table (store),
@@ -864,7 +870,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
                         (!this.isInTable && this.sesPtrUpdatedAfterTable)) {
 
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                           "calling WolfSSLSession.freeSession(this.sesPtr)");
+                           () -> "calling WolfSSLSession.freeSession(" +
+                           "this.sesPtr)");
 
                         WolfSSLSession.freeSession(this.sesPtr);
                         /* reset this.sesPtr to 0 in case ssl.getSession() below
@@ -880,7 +887,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
              * value has been retrieved. */
             tmpSesPtr = ssl.getSession();
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "called ssl.getSession(), new this.sesPtr = " +
+                () -> "called ssl.getSession(), new this.sesPtr = " +
                 tmpSesPtr);
 
             synchronized (sesPtrLock) {
@@ -912,7 +919,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
             this.protocol = this.ssl.getVersion();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Not able to update stored WOLFSSL protocol");
+                () -> "Not able to update stored WOLFSSL protocol");
         }
 
         /* Also store SNI server names if not already set */
@@ -922,11 +929,12 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
                 if (names != null && !names.isEmpty()) {
                     this.sniServerNames = new ArrayList<>(names);
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "Extracted SNI server names from session");
+                            () -> "Extracted SNI server names from session");
                 }
             } catch (UnsupportedOperationException ex) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Error extracting SNI server names: " + ex.getMessage());
+                        () -> "Error extracting SNI server names: " +
+                        ex.getMessage());
             }
         }
     }
@@ -1028,13 +1036,13 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
         }
 
         try {
-            /* Return SNI name saved by Client 
+            /* Return SNI name saved by Client
              * or return cached request name from Server
              * Currently WolfSSL.WOLFSSL_SNI_HOST_NAME is the only
              * supported type */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "calling getRequestedServerNames (" +
-                        this.getSideString() + ")");
+                () -> "calling getRequestedServerNames (" +
+                this.getSideString() + ")");
             if (this.ssl.getSide() == WolfSSL.WOLFSSL_CLIENT_END){
                 sniRequestArr = this.ssl.getClientSNIRequest();
             } else {
@@ -1060,14 +1068,14 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
     protected synchronized void finalize() throws Throwable
     {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered finalize(): this.sesPtr = " + this.sesPtr);
+            () -> "entered finalize(): this.sesPtr = " + this.sesPtr);
 
         /* Only grab lock and free session if sesPtr not 0/null to prevent
          * garbage collector from backing up unnecessarily waiting on lock */
         if (this.sesPtr != 0) {
             synchronized (sesPtrLock) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "got sesPtrLock: " + this.sesPtr);
+                    () -> "got sesPtrLock: " + this.sesPtr);
 
                 /* Our internal WOLFSSL_SESSION pointer should be freed in
                  * the following scenarios:
@@ -1081,7 +1089,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession
                 if (this.isInTable ||
                     (!this.isInTable && this.sesPtrUpdatedAfterTable)) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                       "calling WolfSSLSession.freeSession(this.sesPtr)");
+                       () -> "calling WolfSSLSession.freeSession(this.sesPtr)");
                     WolfSSLSession.freeSession(this.sesPtr);
                     this.sesPtr = 0;
                 }

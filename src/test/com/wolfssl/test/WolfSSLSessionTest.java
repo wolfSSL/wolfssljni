@@ -986,7 +986,7 @@ public class WolfSSLSessionTest {
         WolfSSLSession cliSes = null;
 
         ByteArrayOutputStream outStream = null;
-        PrintStream originalSysOut = System.out;
+        PrintStream originalSysErr = System.err;
 
         /* Create client/server WolfSSLContext objects, Server context
          * must be final since used inside inner class. */
@@ -1005,17 +1005,15 @@ public class WolfSSLSessionTest {
         String originalProp = System.getProperty("wolfssljni.debug");
         System.setProperty("wolfssljni.debug", "true");
 
+        /* Set up output stream and redirect System.err */
+        outStream = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(outStream));
+
         /* Refresh debug flags, since WolfSSLDebug static class has already
          * been intiailzed before and static class variables have been set. */
         WolfSSLDebug.refreshDebugFlags();
 
         try {
-            /* wolfSSL JNI debug logs are printed to stdout via
-             * System.out.println(). Redirect stdout so we can check output, and
-             * it doesn't clutter up ant test output. */
-            outStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(outStream));
-
             /* Create ServerSocket first to get ephemeral port */
             final ServerSocket srvSocket = new ServerSocket(0);
 
@@ -1144,7 +1142,7 @@ public class WolfSSLSessionTest {
 
             /* Restore original property value */
             if (originalProp == null || originalProp.isEmpty()) {
-                System.setProperty("wolfssljni.debug", "");
+                System.setProperty("wolfssljni.debug", "false");
             }
             else {
                 System.setProperty("wolfssljni.debug", originalProp);
@@ -1153,8 +1151,8 @@ public class WolfSSLSessionTest {
             /* Refresh debug flags */
             WolfSSLDebug.refreshDebugFlags();
 
-            /* Restore System.out direction */
-            System.setOut(originalSysOut);
+            /* Restore System.err direction */
+            System.setErr(originalSysErr);
 
             /* Verify we have debug output and some expected strings */
             if (outStream == null) {

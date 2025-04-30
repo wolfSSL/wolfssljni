@@ -59,7 +59,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         this.password = password;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "creating new WolfSSLKeyX509 object");
+            () -> "creating new WolfSSLKeyX509 object");
     }
 
     /**
@@ -84,7 +84,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
             aliases = this.store.aliases();
         } catch (KeyStoreException ex) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                             "Error getting aliases from current KeyStore");
+                () -> "Error getting aliases from current KeyStore");
             return null;
         }
 
@@ -96,9 +96,8 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
                 cert = (X509Certificate)this.store.getCertificate(current);
             } catch (KeyStoreException ex) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                                 "Error getting certificate from KeyStore " +
-                                 "for alias: " + current +
-                                 ", continuing to next alias");
+                    () -> "Error getting certificate from KeyStore " +
+                    "for alias: " + current + ", continuing to next alias");
                 continue;
             }
 
@@ -142,7 +141,8 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
 
         if (ret.size() == 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "No aliases found in KeyStore that match type and/or issuer");
+                () -> "No aliases found in KeyStore that match type " +
+                "and/or issuer");
             return null;
         }
 
@@ -153,7 +153,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
     public String[] getClientAliases(String type, Principal[] issuers) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getClientAliases()");
+            () -> "entered getClientAliases()");
 
         return getAliases(type, issuers);
     }
@@ -166,7 +166,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         int i;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered chooseClientAlias()");
+            () -> "entered chooseClientAlias()");
 
         if (type == null) {
             return null;
@@ -189,7 +189,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         int i;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered chooseEngineClientAlias()");
+            () -> "entered chooseEngineClientAlias()");
 
         if (type == null) {
             return null;
@@ -208,7 +208,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
     public String[] getServerAliases(String type, Principal[] issuers) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getServerAliases(), type: " + type);
+            () -> "entered getServerAliases(), type: " + type);
 
         return getAliases(type, issuers);
     }
@@ -218,7 +218,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         Socket sock) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered chooseServerAlias(), type: " + type);
+            () -> "entered chooseServerAlias(), type: " + type);
 
         if (type == null || type.isEmpty()) {
             return null;
@@ -233,7 +233,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         SSLEngine engine) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered chooseEngineServerAlias(), type: " + type);
+            () -> "entered chooseEngineServerAlias(), type: " + type);
 
         if (type == null || type.isEmpty()) {
             return null;
@@ -249,7 +249,7 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         X509Certificate[] ret = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getCertificateChain(), alias: " + alias);
+            () -> "entered getCertificateChain(), alias: " + alias);
 
         if (store == null || alias == null) {
             return null;
@@ -289,14 +289,14 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager
         PrivateKey key = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getPrivateKey(), alias: " + alias);
+            () -> "entered getPrivateKey(), alias: " + alias);
 
         try {
             key = (PrivateKey)store.getKey(alias, password);
         } catch (Exception e) {
             /* @TODO unable to get key */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "failed to load private key: " + e);
+                () -> "failed to load private key: " + e);
         }
         return key;
     }

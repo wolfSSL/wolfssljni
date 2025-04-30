@@ -88,7 +88,8 @@ public class WolfSSLCertRequest {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, x509ReqPtr, "creating new WolfSSLCertRequest");
+            WolfSSLDebug.INFO, x509ReqPtr,
+            () -> "creating new WolfSSLCertRequest");
 
         synchronized (stateLock) {
             this.active = true;
@@ -134,7 +135,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered setSubjectName(" + name + ")");
+                () -> "entered setSubjectName(" + name + ")");
 
             /* TODO somehow lock WolfSSLX509Name object while using pointer? */
             ret = X509_REQ_set_subject_name(this.x509ReqPtr,
@@ -142,8 +143,8 @@ public class WolfSSLCertRequest {
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-            throw new WolfSSLException("Error setting subject name " +
-                                       "(ret: " + ret + ")");
+            throw new WolfSSLException(
+                "Error setting subject name (ret: " + ret + ")");
         }
     }
 
@@ -175,7 +176,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered addAttribute(nid: " + nid + ", byte[])");
+                () -> "entered addAttribute(nid: " + nid + ", byte[])");
         }
 
         if (nid != WolfSSL.NID_pkcs9_challengePassword &&
@@ -201,8 +202,8 @@ public class WolfSSLCertRequest {
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-            throw new WolfSSLException("Error setting CSR attribute " +
-                                       "(ret: " + ret + ")");
+            throw new WolfSSLException(
+                "Error setting CSR attribute (ret: " + ret + ")");
         }
     }
 
@@ -228,14 +229,14 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered setVersion(" + version + ")");
+                () -> "entered setVersion(" + version + ")");
 
             ret = X509_REQ_set_version(this.x509ReqPtr, version);
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
-            throw new WolfSSLException("Error setting CSR version " +
-                                       "(ret: " + ret + ")");
+            throw new WolfSSLException(
+                "Error setting CSR version (ret: " + ret + ")");
         }
     }
 
@@ -266,8 +267,9 @@ public class WolfSSLCertRequest {
 
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.x509ReqPtr, "entered setPublicKey(" +
-                filePath + ", type: " + keyType + ", format: " + format + ")");
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                () -> "entered setPublicKey(" + filePath + ", type: " +
+                keyType + ", format: " + format + ")");
         }
 
         if (filePath == null || filePath.isEmpty()) {
@@ -276,14 +278,14 @@ public class WolfSSLCertRequest {
 
         keyFile = new File(filePath);
         if (!keyFile.exists()) {
-            throw new WolfSSLException("Input file does not exist: " +
-                filePath);
+            throw new WolfSSLException(
+                "Input file does not exist: " + filePath);
         }
 
         fileBytes = WolfSSL.fileToBytes(keyFile);
         if (fileBytes == null) {
-            throw new WolfSSLException("Failed to read bytes from file: " +
-                filePath);
+            throw new WolfSSLException(
+                "Failed to read bytes from file: " + filePath);
         }
 
         setPublicKey(fileBytes, keyType, format);
@@ -316,8 +318,8 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered setPublicKey(byte[], type: " + keyType + ", format: " +
-                format + ")");
+                () -> "entered setPublicKey(byte[], type: " + keyType +
+                ", format: " + format + ")");
         }
 
         if (key == null || key.length == 0) {
@@ -375,7 +377,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered setPublicKey(" + key + ")");
+                () -> "entered setPublicKey(" + key + ")");
         }
 
         if (key instanceof RSAPublicKey) {
@@ -453,7 +455,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered addExtension(nid: " + nid + ", value: " + value +
+                () -> "entered addExtension(nid: " + nid + ", value: " + value +
                 ", isCritical: " + isCritical + ")");
         }
 
@@ -516,7 +518,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered addExtension(nid: " + nid + ", value: " + value +
+                () -> "entered addExtension(nid: " + nid + ", value: " + value +
                 ", isCritical: " + isCritical + ")");
         }
 
@@ -569,9 +571,10 @@ public class WolfSSLCertRequest {
 
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.x509ReqPtr, "entered signRequest(" +
-                filePath + ", keyType: " + keyType + ", format: " + format +
-                ", digestAlg: " + digestAlg + ")");
+                WolfSSLDebug.INFO, this.x509ReqPtr,
+                () -> "entered signRequest(" + filePath + ", keyType: " +
+                keyType + ", format: " + format + ", digestAlg: " +
+                digestAlg + ")");
         }
 
         if (filePath == null || filePath.isEmpty()) {
@@ -580,14 +583,14 @@ public class WolfSSLCertRequest {
 
         keyFile = new File(filePath);
         if (!keyFile.exists()) {
-            throw new WolfSSLException("Input file does not exist: " +
-                filePath);
+            throw new WolfSSLException(
+                "Input file does not exist: " + filePath);
         }
 
         fileBytes = WolfSSL.fileToBytes(keyFile);
         if (fileBytes == null) {
-            throw new WolfSSLException("Failed to read bytes from file: " +
-                filePath);
+            throw new WolfSSLException(
+                "Failed to read bytes from file: " + filePath);
         }
 
         signRequest(fileBytes, keyType, format, digestAlg);
@@ -623,7 +626,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered signRequest(byte[], keyType: " + keyType +
+                () -> "entered signRequest(byte[], keyType: " + keyType +
                 ", format: " + format + ", digestAlg: " + digestAlg + ")");
         }
 
@@ -655,8 +658,7 @@ public class WolfSSLCertRequest {
 
         if (ret != WolfSSL.SSL_SUCCESS) {
             throw new WolfSSLException(
-                "Error signing native X509_REQ " +
-                "(ret: " + ret + ")");
+                "Error signing native X509_REQ (ret: " + ret + ")");
         }
     }
 
@@ -686,7 +688,7 @@ public class WolfSSLCertRequest {
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
-                "entered signRequest(key: " + key + ", digestAlg: " +
+                () -> "entered signRequest(key: " + key + ", digestAlg: " +
                 digestAlg + ")");
         }
 
@@ -718,8 +720,7 @@ public class WolfSSLCertRequest {
 
         if (ret != WolfSSL.SSL_SUCCESS) {
             throw new WolfSSLException(
-                "Error signing native X509_REQ " +
-                "(ret: " + ret + ")");
+                "Error signing native X509_REQ (ret: " + ret + ")");
         }
     }
 
@@ -737,7 +738,7 @@ public class WolfSSLCertRequest {
 
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.x509ReqPtr, "entered getDer()");
+                WolfSSLDebug.INFO, this.x509ReqPtr, () -> "entered getDer()");
 
             return X509_REQ_get_der(this.x509ReqPtr);
         }
@@ -757,7 +758,7 @@ public class WolfSSLCertRequest {
 
         synchronized (x509ReqLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.x509ReqPtr, "entered getPem()");
+                WolfSSLDebug.INFO, this.x509ReqPtr, () -> "entered getPem()");
 
             return X509_REQ_get_pem(this.x509ReqPtr);
         }
@@ -802,7 +803,7 @@ public class WolfSSLCertRequest {
             synchronized (x509ReqLock) {
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.x509ReqPtr, "entered free()");
+                    WolfSSLDebug.INFO, this.x509ReqPtr, () -> "entered free()");
 
                 /* free native resources */
                 X509_REQ_free(this.x509ReqPtr);

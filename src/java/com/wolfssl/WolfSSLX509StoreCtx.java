@@ -48,11 +48,12 @@ public class WolfSSLX509StoreCtx {
     public WolfSSLX509StoreCtx(long ctxPtr) throws WolfSSLException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, ctxPtr, "creating new WolfSSLX509StoreCtx");
+            WolfSSLDebug.INFO, ctxPtr,
+            () -> "creating new WolfSSLX509StoreCtx");
 
         if (ctxPtr == 0) {
-            throw new WolfSSLException("Failed to create " +
-                "WolfSSLX509StoreCtx, input ptr was null");
+            throw new WolfSSLException(
+                "Failed to create WolfSSLX509StoreCtx, input ptr was null");
         }
         this.active = true;
         this.ctxPtr = ctxPtr;
@@ -91,7 +92,7 @@ public class WolfSSLX509StoreCtx {
 
         synchronized (ctxLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.ctxPtr, "entering getCerts()");
+                WolfSSLDebug.INFO, this.ctxPtr, () -> "entering getCerts()");
 
             byte[][] derCerts = X509_STORE_CTX_getDerCerts(this.ctxPtr);
 

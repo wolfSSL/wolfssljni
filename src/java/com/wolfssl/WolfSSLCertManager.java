@@ -70,7 +70,7 @@ public class WolfSSLCertManager {
         this.active = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, cmPtr, "creating new WolfSSLCertManager");
+            WolfSSLDebug.INFO, cmPtr, () -> "creating new WolfSSLCertManager");
     }
 
     /**
@@ -105,8 +105,8 @@ public class WolfSSLCertManager {
 
         synchronized (cmLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.cmPtr, "entered CertManagerLoadCA(" +
-                f + ", " + d + "");
+                WolfSSLDebug.INFO, this.cmPtr,
+                () -> "entered CertManagerLoadCA(" + f + ", " + d + ")");
 
             return CertManagerLoadCA(this.cmPtr, f, d);
         }
@@ -132,8 +132,8 @@ public class WolfSSLCertManager {
         synchronized (cmLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.cmPtr,
-                "entered CertManagerLoadCABuffer(sz: " + sz +
-                ", format: " + format + "");
+                () -> "entered CertManagerLoadCABuffer(sz: " + sz +
+                ", format: " + format + ")");
 
             return CertManagerLoadCABuffer(this.cmPtr, in, sz, format);
         }
@@ -158,7 +158,7 @@ public class WolfSSLCertManager {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, this.cmPtr,
-            "entered CertManagerLoadCAKeyStore(" + ks + ")");
+            () -> "entered CertManagerLoadCAKeyStore(" + ks + ")");
 
         if (ks == null) {
             throw new WolfSSLException("Input KeyStore is null");
@@ -214,7 +214,7 @@ public class WolfSSLCertManager {
         synchronized (cmLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.cmPtr,
-                "entered CertManagerUnloadCAs()");
+                () -> "entered CertManagerUnloadCAs()");
 
             return CertManagerUnloadCAs(this.cmPtr);
         }
@@ -241,8 +241,8 @@ public class WolfSSLCertManager {
         synchronized (cmLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.cmPtr,
-                "entered CertManagerVerifyBuffer(sz: " + sz + ", format: " +
-                format + ")");
+                () -> "entered CertManagerVerifyBuffer(sz: " + sz +
+                ", format: " + format + ")");
 
             return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
         }
@@ -263,7 +263,7 @@ public class WolfSSLCertManager {
 
             synchronized (cmLock) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.cmPtr, "entered free()");
+                    WolfSSLDebug.INFO, this.cmPtr, () -> "entered free()");
 
                 /* free native resources */
                 CertManagerFree(this.cmPtr);
@@ -288,3 +288,4 @@ public class WolfSSLCertManager {
         super.finalize();
     }
 }
+

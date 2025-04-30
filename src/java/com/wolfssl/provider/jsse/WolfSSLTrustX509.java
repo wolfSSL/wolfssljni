@@ -75,7 +75,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         this.store = in;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLTrustX509");
+            () -> "created new WolfSSLTrustX509");
     }
 
     /**
@@ -97,7 +97,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         int i, curr, next;
         boolean nextFound = false;
-        X509Certificate[] chain = null;
+        final X509Certificate[] chain;
         X509Certificate[] retChain = null;
 
         if (certs == null) {
@@ -114,11 +114,12 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         /* Print out chain for debugging */
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "sorting peer chain (" + chain.length + " certs):");
+            () -> "sorting peer chain (" + chain.length + " certs):");
         for (i = 0; i < chain.length; i++) {
+            final int tmpI = i;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "\t[" + i + "]: subject: " +
-                chain[i].getSubjectX500Principal().getName());
+                () -> "\t[" + tmpI + "]: subject: " +
+                chain[tmpI].getSubjectX500Principal().getName());
         }
 
         /* Assume peer/leaf cert is first in array */
@@ -146,12 +147,14 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         }
 
         /* Print out sorted peer chain for debugging */
+        final int tmpCurr = curr;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "sorted peer chain (" + (curr + 1) + " certs):");
+            () -> "sorted peer chain (" + (tmpCurr + 1) + " certs):");
         for (i = 0; i <= curr; i++) {
+            final int tmpI = i;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "\t[" + i + "]: subject: " +
-                chain[i].getSubjectX500Principal().getName());
+                () -> "\t[" + tmpI + "]: subject: " +
+                chain[tmpI].getSubjectX500Principal().getName());
         }
 
         /* If chain is now shorter, return adjusted size array */
@@ -200,7 +203,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "Searching KeyStore for root CA matching: " + issuer.getName());
+            () -> "Searching KeyStore for root CA matching: " +
+            issuer.getName());
 
         /* Find all issuers that match needed issuer name */
         try {
@@ -231,12 +235,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         if (possibleCerts.size() == 0) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "No root CA found in KeyStore to validate certificate");
+                () -> "No root CA found in KeyStore to validate certificate");
             return null;
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "Found " + possibleCerts.size() + " possible root CAs, testing");
+            () -> "Found " + possibleCerts.size() +
+            " possible root CAs, testing");
 
         /* Use wolfSSL Cert Manager to make sure root verifies input cert */
         try {
@@ -247,15 +252,16 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         }
 
         for (i = 0; i < possibleCerts.size(); i++) {
+            final int tmpI = i;
 
             /* load candidate root CA as trusted */
-            encodedRoot = possibleCerts.get(i).getEncoded();
+            encodedRoot = possibleCerts.get(tmpI).getEncoded();
             ret = cm.CertManagerLoadCABuffer(encodedRoot, encodedRoot.length,
                 WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 cm.free();
-                throw new CertificateException("Failed to load root CA DER" +
-                    "into wolfSSL cert manager");
+                throw new CertificateException(
+                    "Failed to load root CA DER into wolfSSL cert manager");
             }
 
             /* try to verify input cert */
@@ -264,20 +270,20 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Potential root " + i + " did not verify cert");
+                    () -> "Potential root " + tmpI + " did not verify cert");
             } else {
                 rootFound = true;
-                verifiedRootIdx = i;
+                verifiedRootIdx = tmpI;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Found valid root: " +
-                    possibleCerts.get(i).getSubjectX500Principal().getName());
+                    () -> "Found valid root: " +
+                    possibleCerts.get(tmpI).getSubjectX500Principal().getName());
             }
 
             /* unload CAs from WolfSSLCertManager */
             ret = cm.CertManagerUnloadCAs();
             if (ret != WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Error unloading root CAs from WolfSSLCertManager");
+                    () -> "Error unloading root CAs from WolfSSLCertManager");
                 cm.free();
                 throw new CertificateException("Failed to unload root CA " +
                     "from WolfSSLCertManager");
@@ -317,7 +323,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         int ret;
         WolfSSLCertManager cm = null;
-        X509Certificate[] sortedCerts = null;
+        final X509Certificate[] sortedCerts;
 
         X509Certificate rootCA = null;
         List<X509Certificate> fullChain = null;
@@ -358,19 +364,20 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
          * as a root that can be used to verify our peer cert. */
 
         for (int i = sortedCerts.length-1; i > 0; i--) {
+            final int tmpI = i;
 
             /* Verify chain cert */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Verifying intermediate chain cert: " +
-                sortedCerts[i].getSubjectX500Principal().getName());
+                () -> "Verifying intermediate chain cert: " +
+                sortedCerts[tmpI].getSubjectX500Principal().getName());
 
-            byte[] encoded = sortedCerts[i].getEncoded();
+            byte[] encoded = sortedCerts[tmpI].getEncoded();
             ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 cm.free();
-                throw new CertificateException("Failed to verify " +
-                    "intermediate chain cert");
+                throw new CertificateException(
+                    "Failed to verify intermediate chain cert");
             }
 
             /* Load chain cert as trusted CA */
@@ -383,13 +390,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Loaded intermediate CA: " +
-                sortedCerts[i].getSubjectX500Principal().getName());
+                () -> "Loaded intermediate CA: " +
+                sortedCerts[tmpI].getSubjectX500Principal().getName());
         }
 
         /* Verify peer certificate */
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "Verifying peer certificate: " +
+            () -> "Verifying peer certificate: " +
             sortedCerts[0].getSubjectX500Principal().getName());
 
         byte[] peer = sortedCerts[0].getEncoded();
@@ -402,13 +409,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
                 WolfSSL.SSL_FILETYPE_ASN1);
         if (ret != WolfSSL.SSL_SUCCESS) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Failed to verify peer certificate");
+                () -> "Failed to verify peer certificate");
             cm.free();
             throw new CertificateException("Failed to verify peer certificate");
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "Verified peer certificate: " +
+            () -> "Verified peer certificate: " +
             sortedCerts[0].getSubjectX500Principal().getName());
 
         cm.free();
@@ -430,7 +437,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Not returning cert chain from verify, not requested");
+                () -> "Not returning cert chain from verify, not requested");
         }
 
         return fullChain;
@@ -474,19 +481,19 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         SSLEngine engine, boolean isClient, int type)
         throws CertificateException {
 
-        String peerHost = null;
+        final String peerHost;
         List<SNIServerName> sniNames = null;
         String sniHostName = null;
         SSLSession session = null;
-        WolfSSLCertificate peerCert = null;
+        final WolfSSLCertificate peerCert;
         int ret = WolfSSL.SSL_FAILURE;
 
         if (type == HOSTNAME_TYPE_HTTPS) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "verifying hostname type HTTPS");
+                () -> "verifying hostname type HTTPS");
         } else if (type == HOSTNAME_TYPE_LDAPS) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "verifying hostname type LDAPS");
+                () -> "verifying hostname type LDAPS");
         } else {
             throw new CertificateException("Unsupported hostname type, " +
                 "HTTPS and LDAPS only supported currently: " + type);
@@ -508,6 +515,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         /* Get peer host from SSLSocket */
         if (session != null) {
             peerHost = session.getPeerHost();
+        } else {
+            peerHost = null;
         }
 
         /* Get SNI name if SSLSocket/SSLEngine has received that from peer.
@@ -548,31 +557,35 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         /* Try verifying hostname against SNI name, if HTTPS type */
         if (isClient && (type == HOSTNAME_TYPE_HTTPS)) {
             if (sniHostName != null) {
+                final String tmpSniName = sniHostName;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "trying hostname verification against SNI: " + sniHostName);
+                    () -> "trying hostname verification against SNI: " +
+                    tmpSniName);
 
                 ret = peerCert.checkHost(sniHostName);
                 if (ret == WolfSSL.SSL_SUCCESS) {
                     /* Hostname successfully verified against SNI name */
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "successfully verified X509 hostname using SNI name");
+                        () -> "successfully verified X509 hostname using " +
+                        "SNI name");
                     return;
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "hostname match with SNI failed");
+                        () -> "hostname match with SNI failed");
                 }
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "no provided SNI name found");
+                    () -> "no provided SNI name found");
             }
         }
 
         /* Try verifying hostname against peerHost from SSLSocket/SSLEngine */
         if (peerHost != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "trying hostname verification against peer host: " + peerHost);
+                () -> "trying hostname verification against peer host: " +
+                peerHost);
 
             if (type == HOSTNAME_TYPE_LDAPS) {
                 /* LDAPS requires wildcard left-most matching only */
@@ -584,27 +597,29 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             if (ret == WolfSSL.SSL_SUCCESS) {
                 /* Hostname successfully verified against peer host name */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "successfully verified X509 hostname using SSLSession " +
-                    "getPeerHost()");
+                    () -> "successfully verified X509 hostname using " +
+                    "SSLSession getPeerHost()");
                 return;
             }
         }
 
+        final String tmpSniName = sniHostName;
+        final String tmpPeerHost = peerHost;
         if (isClient) {
             if (type == HOSTNAME_TYPE_HTTPS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "hostname verification failed for server peer cert, " +
-                    "tried SNI (" + sniHostName + "), peer host (" + peerHost +
-                    ")\n" + peerCert);
+                    () -> "hostname verification failed for server peer " +
+                    "cert, tried SNI (" + tmpSniName + "), peer host (" +
+                    tmpPeerHost + ")\n" + peerCert);
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "hostname verification failed for server peer cert, " +
-                    "peer host (" + peerHost + ")\n" + peerCert);
+                    () -> "hostname verification failed for server peer " +
+                    "cert, peer host (" + tmpPeerHost + ")\n" + peerCert);
             }
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "hostname verification failed for client peer cert, " +
-                "tried peer host (" + peerHost + ")\n" + peerCert);
+                () -> "hostname verification failed for client peer cert, " +
+                "tried peer host (" + tmpPeerHost + ")\n" + peerCert);
         }
 
         throw new CertificateException("Hostname verification failed");
@@ -638,7 +653,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             (socket.isConnected())) {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered verifyHostname, using SSLSocket for host info");
+                () -> "entered verifyHostname, using SSLSocket for host info");
 
             sslParams = ((SSLSocket)socket).getSSLParameters();
             if (sslParams == null) {
@@ -651,14 +666,14 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
                 if (endpointIdAlgo.equals("HTTPS")) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "verifying hostname, endpoint identification " +
+                        () -> "verifying hostname, endpoint identification " +
                         "algorithm = HTTPS");
                     verifyHostnameByType(cert, (SSLSocket)socket,
                         null, isClient, HOSTNAME_TYPE_HTTPS);
                 }
                 else if (endpointIdAlgo.equals("LDAPS")) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "verifying hostname, endpoint identification " +
+                        () -> "verifying hostname, endpoint identification " +
                         "algorithm = LDAPS");
                     verifyHostnameByType(cert, (SSLSocket)socket,
                         null, isClient, HOSTNAME_TYPE_LDAPS);
@@ -671,14 +686,14 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "endpoint Identification algo is null or empty, " +
+                    () -> "endpoint Identification algo is null or empty, " +
                     "skipping hostname verification");
             }
         }
         else if (engine != null) {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "entered verifyHostname, using SSLEngine for host info");
+                () -> "entered verifyHostname, using SSLEngine for host info");
 
             sslParams = engine.getSSLParameters();
             if (sslParams == null) {
@@ -691,14 +706,14 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
                 if (endpointIdAlgo.equals("HTTPS")) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "verifying hostname, endpoint identification " +
+                        () -> "verifying hostname, endpoint identification " +
                         "algorithm = HTTPS");
                     verifyHostnameByType(cert, null, engine, isClient,
                         HOSTNAME_TYPE_HTTPS);
                 }
                 else if (endpointIdAlgo.equals("LDAPS")) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "verifying hostname, endpoint identification " +
+                        () -> "verifying hostname, endpoint identification " +
                         "algorithm = LDAPS");
                     verifyHostnameByType(cert, null, engine, isClient,
                         HOSTNAME_TYPE_LDAPS);
@@ -711,15 +726,15 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "endpoint Identification algo is null or empty, " +
+                    () -> "endpoint Identification algo is null or empty, " +
                     "skipping hostname verification");
             }
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Socket is null, not connected, or not SSLSocket. " +
-                "SSLEngine is also null. " +
-                "Skipping hostname verification in ExtendedX509TrustManager");
+                () -> "Socket is null, not connected, or not SSLSocket. " +
+                "SSLEngine is also null. Skipping hostname verification " +
+                "in ExtendedX509TrustManager");
         }
     }
 
@@ -741,7 +756,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
             throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkClientTrusted()");
+            () -> "entered checkClientTrusted()");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -755,7 +770,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         certManagerVerify(certs, type, false);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkClientTrusted(), success");
+            () -> "leaving checkClientTrusted(), success");
     }
 
     /**
@@ -779,7 +794,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         Socket socket) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkClientTrusted() with Socket");
+            () -> "entered checkClientTrusted() with Socket");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -796,7 +811,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         verifyHostname(certs[0], socket, null, false);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkClientTrusted(Socket), success");
+            () -> "leaving checkClientTrusted(Socket), success");
     }
 
     @Override
@@ -804,7 +819,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         SSLEngine engine) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkClientTrusted() with SSLEngine");
+            () -> "entered checkClientTrusted() with SSLEngine");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -821,7 +836,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         verifyHostname(certs[0], null, engine, false);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkClientTrusted(SSLEngine), success");
+            () -> "leaving checkClientTrusted(SSLEngine), success");
     }
 
     /**
@@ -842,7 +857,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkServerTrusted()");
+            () -> "entered checkServerTrusted()");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -856,7 +871,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         certManagerVerify(certs, type, false);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkServerTrusted(certs, type), success");
+            () -> "leaving checkServerTrusted(certs, type), success");
     }
 
     @Override
@@ -864,7 +879,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         Socket socket) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkServerTrusted() with Socket");
+            () -> "entered checkServerTrusted() with Socket");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -881,7 +896,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         verifyHostname(certs[0], socket, null, true);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkServerTrusted(certs, type, Socket), success");
+            () -> "leaving checkServerTrusted(certs, type, Socket), success");
     }
 
     @Override
@@ -889,7 +904,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         SSLEngine engine) throws CertificateException, IllegalArgumentException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkServerTrusted() with SSLEngine");
+            () -> "entered checkServerTrusted() with SSLEngine");
 
         if (certs == null) {
             throw new IllegalArgumentException("Input cert chain null");
@@ -906,7 +921,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         verifyHostname(certs[0], null, engine, true);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkServerTrusted(certs, type, SSLEngine), success");
+            () -> "leaving checkServerTrusted(certs, type, SSLEngine), " +
+            "success");
     }
 
     /**
@@ -930,12 +946,12 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
         List<X509Certificate> certList = null;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered checkServerTrusted(cert, type, host)");
+            () -> "entered checkServerTrusted(cert, type, host)");
 
         certList = certManagerVerify(certs, type, true);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "leaving checkServerTrusted(certs, type, host), success");
+            () -> "leaving checkServerTrusted(certs, type, host), success");
 
         return certList;
     }
@@ -951,11 +967,11 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
     public X509Certificate[] getAcceptedIssuers() {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered getAcceptedIssuers()");
+            () -> "entered getAcceptedIssuers()");
 
         if (store == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                    "Trust Manager was not initialized");
+                () -> "Trust Manager was not initialized");
             return new X509Certificate[0];
         }
 
