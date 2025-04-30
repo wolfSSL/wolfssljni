@@ -1569,6 +1569,10 @@ public class WolfSSLSocket extends SSLSocket {
                 close();
                 throw e;
 
+            } catch (SSLHandshakeException e){
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "got SSLHandshakeException in doHandshake()");
+                throw e;
             } catch (SSLException e) {
                 final int tmpErr = err;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
