@@ -1149,6 +1149,8 @@ public class WolfSSLSessionTest {
             else {
                 System.setProperty("wolfssljni.debug", originalProp);
             }
+
+            /* Refresh debug flags */
             WolfSSLDebug.refreshDebugFlags();
 
             /* Restore System.out direction */
@@ -1686,15 +1688,27 @@ public class WolfSSLSessionTest {
                         }
 
                         /* Read data from client */
-                        bytesRead = srvSes.read(servAppBuffer,
-                            servAppBuffer.length, 0);
+                        do {
+                            bytesRead = srvSes.read(servAppBuffer,
+                                servAppBuffer.length, 0);
+                            err = srvSes.getError(bytesRead);
+                        } while ((bytesRead < 0) &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
                         if (bytesRead <= 0) {
                             throw new Exception(
                                 "Server read failed: " + bytesRead);
                         }
 
                         /* Send same data back to client */
-                        ret = srvSes.write(servAppBuffer, bytesRead, 0);
+                        do {
+                            ret = srvSes.write(servAppBuffer, bytesRead, 0);
+                            err = srvSes.getError(ret);
+                        } while ((ret < 0) &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
                         if (ret != bytesRead) {
                             throw new Exception("Server write failed: " + ret);
                         }
@@ -1751,7 +1765,13 @@ public class WolfSSLSessionTest {
             }
 
             /* Send test data */
-            ret = cliSes.write(testData, testData.length, 0);
+            do {
+                ret = cliSes.write(testData, testData.length, 0);
+                err = cliSes.getError(ret);
+            } while ((ret < 0) &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
             if (ret != testData.length) {
                 throw new Exception(
                     "Client write failed: " + ret);
@@ -1761,9 +1781,9 @@ public class WolfSSLSessionTest {
             do {
                 bytesRead = cliSes.read(cliAppBuffer, cliAppBuffer.length, 0);
                 err = cliSes.getError(bytesRead);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     err == WolfSSL.SSL_ERROR_WANT_READ ||
-                     err == WolfSSL.SSL_ERROR_WANT_WRITE);
+            } while ((bytesRead < 0) &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (bytesRead != testData.length) {
                 throw new Exception(
