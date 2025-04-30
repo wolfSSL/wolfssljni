@@ -1384,13 +1384,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     if (length > 0) {
         /* Get ByteBuffer position */
         position = (*jenv)->CallIntMethod(jenv, buf, g_bufferPositionMethodId);
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            return SSL_FAILURE;
+        }
 
         /* Get ByteBuffer limit */
         limit = (*jenv)->CallIntMethod(jenv, buf, g_bufferLimitMethodId);
-
-        /* Get and call ByteBuffer.hasArray() before calling array() */
-        hasArray = (*jenv)->CallBooleanMethod(jenv, buf,
-            g_bufferHasArrayMethodId);
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            return SSL_FAILURE;
+        }
 
         /* Only read up to maximum space we have in this ByteBuffer */
         maxOutputSz = (limit - position);
@@ -1398,10 +1400,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             outSz = maxOutputSz;
         }
 
+        if (outSz <= 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* Get and call ByteBuffer.hasArray() before calling array() */
+        hasArray = (*jenv)->CallBooleanMethod(jenv, buf,
+            g_bufferHasArrayMethodId);
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            return SSL_FAILURE;
+        }
+
         if (hasArray) {
             /* Get reference to underlying byte[] from ByteBuffer */
             bufArr = (jbyteArray)(*jenv)->CallObjectMethod(jenv, buf,
                 g_bufferArrayMethodId);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                return SSL_FAILURE;
+            }
 
             /* Get array elements */
             data = (byte *)(*jenv)->GetByteArrayElements(jenv, bufArr, NULL);
@@ -1411,6 +1427,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
                 throwWolfSSLJNIException(jenv,
                     "Exception when calling ByteBuffer.array() in native read()");
                 return -1;
+            }
+
+            if (data == NULL) {
+                throwWolfSSLJNIException(jenv,
+                    "Failed to get byte[] from ByteBuffer in native read()");
+                return BAD_FUNC_ARG;
             }
         }
         else {
@@ -1422,28 +1444,28 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             }
         }
 
-        if (data != NULL) {
-            size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
-                maxOutputSz, (int)timeout);
+        size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
+            maxOutputSz, (int)timeout);
 
-            /* Relase array elements */
-            if (hasArray) {
-                if (size < 0) {
-                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
-                        (jbyte *)data, JNI_ABORT);
-                }
-                else {
-                    (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
-                        (jbyte *)data, 0);
-                }
+        /* Release array elements if using array-backed buffer.
+         * Note: DirectByteBuffer doesn't need releasing data */
+        if (hasArray) {
+            if (size < 0) {
+                (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
+                    (jbyte *)data, JNI_ABORT);
             }
+            else {
+                (*jenv)->ReleaseByteArrayElements(jenv, bufArr,
+                    (jbyte *)data, 0);
+            }
+        }
 
-            /* Note: DirectByteBuffer doesn't need releasing data */
-
-            if (size > 0) {
-                /* Update ByteBuffer position() based on bytes written */
-                (*jenv)->CallVoidMethod(jenv, buf, g_bufferSetPositionMethodId,
-                    position + size);
+        /* Update ByteBuffer position() based on bytes written, on success */
+        if (size > 0) {
+            (*jenv)->CallVoidMethod(jenv, buf, g_bufferSetPositionMethodId,
+                position + size);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                return SSL_FAILURE;
             }
         }
     }
