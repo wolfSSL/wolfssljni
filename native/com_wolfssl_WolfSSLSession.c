@@ -1400,15 +1400,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
 
             /* Get array elements */
             data = (byte *)(*jenv)->GetByteArrayElements(jenv, bufArr, NULL);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                throwWolfSSLJNIException(jenv,
-                    "Exception when calling ByteBuffer.array() in native read()");
-                return -1;
-            }
-
             if (data == NULL) {
+                /* Handle any pending exception, we'll throw another below
+                 * anyways so just clear it */
+                if ((*jenv)->ExceptionOccurred(jenv)) {
+                    (*jenv)->ExceptionDescribe(jenv);
+                    (*jenv)->ExceptionClear(jenv);
+                }
                 throwWolfSSLJNIException(jenv,
                     "Failed to get byte[] from ByteBuffer in native read()");
                 return BAD_FUNC_ARG;
