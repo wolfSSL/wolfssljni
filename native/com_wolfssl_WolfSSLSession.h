@@ -106,10 +106,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    read
- * Signature: (JLjava/nio/ByteBuffer;II)I
+ * Signature: (JLjava/nio/ByteBuffer;IIZII)I
  */
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuffer_2II
-  (JNIEnv *, jobject, jlong, jobject, jint, jint);
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuffer_2IIZII
+  (JNIEnv *, jobject, jlong, jobject, jint, jint, jboolean, jint, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

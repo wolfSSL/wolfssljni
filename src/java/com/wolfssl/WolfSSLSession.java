@@ -382,7 +382,8 @@ public class WolfSSLSession {
         int timeout);
     private native int read(long ssl, byte[] data, int offset, int sz,
         int timeout);
-    private native int read(long ssl, ByteBuffer data, int sz, int timeout)
+    private native int read(long ssl, ByteBuffer data, final int position,
+        final int limit, boolean hasArray, int sz, int timeout)
         throws WolfSSLException;
     private native int pending(long ssl);
     private native int accept(long ssl, int timeout);
@@ -1323,6 +1324,9 @@ public class WolfSSLSession {
         final int err;
         final int readSz = sz;
         final int readTimeout = timeout;
+        final int bbPosition;
+        final int bbLimit;
+        boolean hasArray;
         long localPtr;
 
         confirmObjectIsActive();
@@ -1344,7 +1348,12 @@ public class WolfSSLSession {
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
         try {
-            ret = read(localPtr, data, readSz, readTimeout);
+            bbPosition = data.position();
+            bbLimit = data.limit();
+            hasArray = data.hasArray();
+
+            ret = read(localPtr, data, bbPosition, bbLimit, hasArray,
+                readSz, readTimeout);
             err = getError(ret);
         } catch (WolfSSLException e) {
             /* JNI code may throw WolfSSLException on JNI specific errors */

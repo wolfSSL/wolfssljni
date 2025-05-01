@@ -1361,18 +1361,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
     return size;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuffer_2II
-  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jobject buf, jint length, jint timeout)
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuffer_2IIZII
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jobject buf, jint position,
+   jint limit, jboolean hasArray, jint length, jint timeout)
 {
     int size = 0;
     int maxOutputSz;
     int outSz = length;
     byte* data = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
-
-    jint position;
-    jint limit;
-    jboolean hasArray;
     jbyteArray bufArr = NULL;
 
     (void)jcl;
@@ -1382,17 +1379,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
     }
 
     if (length > 0) {
-        /* Get ByteBuffer position */
-        position = (*jenv)->CallIntMethod(jenv, buf, g_bufferPositionMethodId);
-        if ((*jenv)->ExceptionCheck(jenv)) {
-            return SSL_FAILURE;
-        }
-
-        /* Get ByteBuffer limit */
-        limit = (*jenv)->CallIntMethod(jenv, buf, g_bufferLimitMethodId);
-        if ((*jenv)->ExceptionCheck(jenv)) {
-            return SSL_FAILURE;
-        }
 
         /* Only read up to maximum space we have in this ByteBuffer */
         maxOutputSz = (limit - position);
@@ -1402,13 +1388,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
 
         if (outSz <= 0) {
             return BAD_FUNC_ARG;
-        }
-
-        /* Get and call ByteBuffer.hasArray() before calling array() */
-        hasArray = (*jenv)->CallBooleanMethod(jenv, buf,
-            g_bufferHasArrayMethodId);
-        if ((*jenv)->ExceptionCheck(jenv)) {
-            return SSL_FAILURE;
         }
 
         if (hasArray) {
@@ -1460,7 +1439,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
             }
         }
 
-        /* Update ByteBuffer position() based on bytes written, on success */
+        /* Update ByteBuffer position() based on bytes written, on success.
+         * This seems to be more performant if we do it from JNI rather
+         * than back in Java after the return of this method. */
         if (size > 0) {
             (*jenv)->CallVoidMethod(jenv, buf, g_bufferSetPositionMethodId,
                 position + size);
