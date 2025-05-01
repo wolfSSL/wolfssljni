@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.security.Security;
 import java.security.KeyStore;
@@ -93,24 +92,24 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
         if (tsFile != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Loading certs from: " + tsFile);
+                () -> "Loading certs from: " + tsFile);
 
             /* Set KeyStore password if javax.net.ssl.keyStorePassword set */
             if (tsPass != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.trustStorePassword system property " +
+                    () -> "javax.net.ssl.trustStorePassword system property " +
                     "set, using password");
                 passArr = tsPass.toCharArray();
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.trustStorePassword system property " +
+                    () -> "javax.net.ssl.trustStorePassword system property " +
                     "not set");
             }
 
             /* System keystore type set, try loading using it first */
             if (tsType != null && !tsType.trim().isEmpty()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.trustStoreType set: " + tsType);
+                    () -> "javax.net.ssl.trustStoreType set: " + tsType);
 
                 if (requiredType != null && !requiredType.equals(tsType)) {
                     throw new KeyStoreException(
@@ -135,7 +134,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 if (sysStore == null && WolfSSLUtil.isAndroid() &&
                     (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Detected Android VM, trying BKS KeyStore type");
+                        () -> "Detected Android VM, trying BKS KeyStore type");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         tsFile, passArr, "BKS");
                 }
@@ -144,8 +143,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 if (sysStore == null &&
                     (requiredType == null || requiredType.equals("JKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.trustStoreType system property not set, " +
-                    "trying type: JKS");
+                        () -> "javax.net.ssl.trustStoreType system property " +
+                        "not set, trying type: JKS");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         tsFile, passArr, "JKS");
                 }
@@ -158,7 +157,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Loaded certs from KeyStore via System properties");
+                    () -> "Loaded certs from KeyStore via System properties");
             }
         }
 
@@ -203,8 +202,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         String storeType = Security.getProperty("keystore.type");
         if (storeType != null) {
             storeType = storeType.toUpperCase();
+            final String tmpStoreType = storeType;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "keystore.type Security property set: " + storeType);
+                () -> "keystore.type Security property set: " + tmpStoreType);
         }
 
         if (wksAvailable) {
@@ -234,32 +234,36 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         }
 
         if (f.exists()) {
+            final String absPath = f.getAbsolutePath();
 
             if (requiredType != null && !requiredType.equals(storeType)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Skipping loading of system KeyStore, required type " +
-                    "does not match wolfjsse.keystore.type.required");
+                    () -> "Skipping loading of system KeyStore, required " +
+                    "type does not match wolfjsse.keystore.type.required");
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Skipped loading: " + f.getAbsolutePath());
+                    () -> "Skipped loading: " + absPath);
                 return null;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                   "Loading certs from " + f.getAbsolutePath());
+               () -> "Loading certs from " + absPath);
 
             try {
                 sysStore = KeyStore.getInstance(storeType);
             } catch (KeyStoreException e) {
+                final String tmpStoreType = storeType;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to get KeyStore of type: " + storeType);
+                    () -> "Not able to get KeyStore of type: " + tmpStoreType);
                 return null;
             }
             try {
                 sysStore.load(null, null);
             } catch (IOException | NoSuchAlgorithmException |
                      CertificateException e) {
+                final String tmpStoreType = storeType;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to load empty KeyStore(" + storeType + ")");
+                    () -> "Not able to load empty KeyStore(" +
+                    tmpStoreType + ")");
                 return null;
             }
 
@@ -271,8 +275,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 stream = new FileInputStream(f);
             } catch (FileNotFoundException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to open KeyStore file for reading: " +
-                    f.getAbsolutePath());
+                    () -> "Not able to open KeyStore file for reading: " +
+                    absPath);
             }
 
             try {
@@ -281,8 +285,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (IOException | NoSuchAlgorithmException |
                      CertificateException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to load KeyStore with file stream: " +
-                    f.getAbsolutePath());
+                    () -> "Not able to load KeyStore with file stream: " +
+                    absPath);
 
             } finally {
                 try {
@@ -295,7 +299,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "$JAVA_HOME/(jre/)lib/security/" +
+                () -> "$JAVA_HOME/(jre/)lib/security/" +
                 certBundleName + ": not found");
         }
 
@@ -333,7 +337,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         String tsPass, String requiredType) {
 
         char[] passArr = null;
-        File f = null;
+        final File f;
         FileInputStream stream = null;
         KeyStore sysStore = null;
 
@@ -341,8 +345,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         String storeType = Security.getProperty("keystore.type");
         if (storeType != null) {
             storeType = storeType.toUpperCase();
+            final String tmpStoreType = storeType;
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "keystore.type Security property set: " + storeType);
+                () -> "keystore.type Security property set: " + tmpStoreType);
         }
 
         f = new File("/etc/ssl/certs/java/cacerts");
@@ -351,15 +356,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             if (requiredType != null && !requiredType.equals(storeType)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Skipping loading of system KeyStore, required type " +
-                    "does not match wolfjsse.keystore.type.required");
+                    () -> "Skipping loading of system KeyStore, required " +
+                    "type does not match wolfjsse.keystore.type.required");
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Skipped loading: " + f.getAbsolutePath());
+                    () -> "Skipped loading: " + f.getAbsolutePath());
                 return null;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                   "Loading certs from " + f.getAbsolutePath());
+                   () -> "Loading certs from " + f.getAbsolutePath());
 
             if (tsPass != null) {
                 passArr = tsPass.toCharArray();
@@ -369,7 +374,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 stream = new FileInputStream(f);
             } catch (FileNotFoundException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to open KeyStore file for reading: " +
+                    () -> "Not able to open KeyStore file for reading: " +
                     f.getAbsolutePath());
             }
 
@@ -380,8 +385,8 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (IOException | NoSuchAlgorithmException |
                      CertificateException | KeyStoreException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to get or load KeyStore with file stream: " +
-                    f.getAbsolutePath());
+                    () -> "Not able to get or load KeyStore with file " +
+                    "stream: " + f.getAbsolutePath());
                 sysStore = null;
 
             } finally {
@@ -395,7 +400,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "/etc/ssl/certs/java/cacerts: not found");
+                () -> "/etc/ssl/certs/java/cacerts: not found");
         }
 
         return sysStore;
@@ -421,7 +426,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
         if (requiredType != null && !requiredType.equals("AndroidCAStore")) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Skipping loading of AndroidCAStore, required type " +
+                () -> "Skipping loading of AndroidCAStore, required type " +
                 "does not match wolfjsse.keystore.type.required");
             return null;
         }
@@ -432,7 +437,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         } catch (KeyStoreException e) {
             /* Error finding AndroidCAStore */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "AndroidCAStore KeyStore not found, not loading");
+                () -> "AndroidCAStore KeyStore not found, not loading");
             return null;
         }
 
@@ -440,12 +445,12 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             sysStore.load(null, null);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Using AndroidCAStore KeyStore for default system certs");
+                () -> "Using AndroidCAStore KeyStore for default system certs");
 
         } catch (IOException | NoSuchAlgorithmException |
                  CertificateException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Not able to load AndroidCAStore with null args");
+                () -> "Not able to load AndroidCAStore with null args");
             return null;
         }
 
@@ -471,7 +476,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         CertificateFactory cfactory = null;
         ByteArrayInputStream bis = null;
         Certificate tmpCert = null;
-        String storeType = null;
+        final String storeType;
         String androidRoot = System.getenv("ANDROID_ROOT");
 
         if (androidRoot != null) {
@@ -488,7 +493,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (KeyStoreException e) {
                 /* Unable to get or load empty KeyStore type */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Unable to get or load KeyStore instance, type: " +
+                    () -> "Unable to get or load KeyStore instance, type: " +
                     storeType);
                 return null;
             }
@@ -499,7 +504,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             } catch (IOException | NoSuchAlgorithmException |
                      CertificateException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to load BKS KeyStore with null args");
+                    () -> "Not able to load BKS KeyStore with null args");
                 return null;
             }
 
@@ -511,11 +516,11 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             String caStoreDir = androidRoot.concat("etc/security/cacerts");
             File cadir = new File(caStoreDir);
-            String[] cafiles = null;
+            final String[] cafiles;
 
             if (cadir == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Unable to open etc/security/cacerts, none loaded");
+                    () -> "Unable to open etc/security/cacerts, none loaded");
                 return null;
             }
 
@@ -523,13 +528,13 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 cafiles = cadir.list();
                 if (cafiles != null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Found " + cafiles.length +
+                        () -> "Found " + cafiles.length +
                         " CA files to load into KeyStore");
                 }
             } catch (Exception e) {
                 /* Denied access reading cacerts directory */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                    "Permission error when trying to read system " +
+                    () -> "Permission error when trying to read system " +
                     "CA certificates");
                 return null;
             }
@@ -539,7 +544,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 cfactory = CertificateFactory.getInstance("X.509");
             } catch (CertificateException e) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not able to get X.509 CertificateFactory instance");
+                    () -> "Not able to get X.509 CertificateFactory instance");
                 return null;
             }
 
@@ -554,9 +559,10 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     certPem = new WolfSSLCertificate(
                         fullCertPath, WolfSSL.SSL_FILETYPE_PEM);
                 } catch (WolfSSLException we) {
+                    final String tmpPath = fullCertPath;
                     /* skip, error parsing PEM */
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Skipped loading cert: " + fullCertPath);
+                        () -> "Skipped loading cert: " + tmpPath);
                     if (certPem != null) {
                         certPem.free();
                     }
@@ -566,9 +572,10 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 try {
                     derArray = certPem.getDer();
                 } catch (WolfSSLJNIException e) {
+                    final String tmpPath = fullCertPath;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Error getting DER from PEM cert, skipping: " +
-                        fullCertPath);
+                        () -> "Error getting DER from PEM cert, skipping: " +
+                        tmpPath);
                 } finally {
                     certPem.free();
                 }
@@ -579,10 +586,11 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     tmpCert = cfactory.generateCertificate(bis);
 
                 } catch (CertificateException ce) {
+                    final String tmpPath = fullCertPath;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                        "Error generating certificate from " +
+                        () -> "Error generating certificate from " +
                         "ByteArrayInputStream, skipped loading cert: " +
-                        fullCertPath);
+                        tmpPath);
                     continue;
 
                 } finally {
@@ -598,10 +606,11 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 try {
                     sysStore.setCertificateEntry(aliasString, tmpCert);
                 } catch (KeyStoreException kse) {
+                    final String tmpPath = fullCertPath;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
-                        "Error setting certificate entry in " +
+                        () -> "Error setting certificate entry in " +
                         "KeyStore, skipping loading cert: " +
-                        fullCertPath);
+                        tmpPath);
                     continue;
                 }
 
@@ -612,7 +621,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
             if (aliasCnt == 0) {
                 /* No certs loaded, don't return empty KeyStore */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "No root certificates loaded from etc/security/cacerts");
+                    () -> "No root certificates loaded from etc/security/cacerts");
                 return null;
             }
         }
@@ -651,35 +660,35 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     protected void engineInit(KeyStore in) throws KeyStoreException {
 
         KeyStore certs = in;
-        String javaHome = null;
-        boolean wksAvailable = false;
+        final String javaHome;
+        final boolean wksAvailable;
         String pass = System.getProperty("javax.net.ssl.trustStorePassword");
         String file = System.getProperty("javax.net.ssl.trustStore");
         String type = System.getProperty("javax.net.ssl.trustStoreType");
-        String requiredType = null;
+        final String requiredType;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineInit(KeyStore in)");
+            () -> "entered engineInit(KeyStore in)");
 
         requiredType = WolfSSLUtil.getRequiredKeyStoreType();
         if (requiredType != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "java.security has restricted KeyStore type");
+                () -> "java.security has restricted KeyStore type");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "wolfjsse.keystore.type.required = " + requiredType);
+                () -> "wolfjsse.keystore.type.required = " + requiredType);
         }
 
         /* [1] Just use KeyStore passed in by user if available */
         if (in == null) {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "input KeyStore null, trying to load system CA certs");
+                () -> "input KeyStore null, trying to load system CA certs");
 
             /* Check if wolfJCE WKS KeyStore is registered and available */
             wksAvailable = WolfSSLUtil.WKSAvailable();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "wolfJCE WKS KeyStore type available: " + wksAvailable);
+                () -> "wolfJCE WKS KeyStore type available: " + wksAvailable);
 
             /* [2] Try to load from system property details */
             certs = LoadKeyStoreFromSystemProperties(
@@ -690,12 +699,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 javaHome = WolfSSLUtil.GetJavaHome();
                 if (javaHome == null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "$JAVA_HOME not set, unable to load system CA certs");
+                        () -> "$JAVA_HOME not set, unable to load system " +
+                        "CA certs");
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "$JAVA_HOME = " + javaHome);
+                        () -> "$JAVA_HOME = " + javaHome);
                 }
+            } else {
+                javaHome = null;
             }
 
             /* [3] Try to load system jssecacerts */
@@ -728,7 +740,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "input KeyStore provided, using for trusted certs");
+                () -> "input KeyStore provided, using for trusted certs");
         }
 
         /* Verify KeyStore we got matches our requirements, for example
@@ -747,7 +759,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         throws InvalidAlgorithmParameterException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineInit(ManagerFactoryParameters arg0)");
+            () -> "entered engineInit(ManagerFactoryParameters arg0)");
 
         throw new UnsupportedOperationException(
             "TrustManagerFactory.init(ManagerFactoryParameters) " +
@@ -759,11 +771,11 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         throws IllegalStateException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineGetTrustManagers()");
+            () -> "entered engineGetTrustManagers()");
 
         if (!this.initialized) {
             throw new IllegalStateException("TrustManagerFactory must be " +
-                    "initialized before use, please call init()");
+                "initialized before use, please call init()");
         }
 
 

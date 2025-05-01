@@ -81,10 +81,11 @@ public class WolfSSLUtil {
             Security.getProperty("jdk.tls.disabledAlgorithms");
         List<?> disabledList = null;
 
+        final String tmpDisabledAlgos = disabledAlgos;
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "sanitizing enabled protocols");
+            () -> "sanitizing enabled protocols");
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "jdk.tls.disabledAlgorithms: " + disabledAlgos);
+            () -> "jdk.tls.disabledAlgorithms: " + tmpDisabledAlgos);
 
         /* If WolfSSL.INVALID is passed in as currentVersion, no filtering
          * is done based on current protocol */
@@ -149,10 +150,11 @@ public class WolfSSLUtil {
             return suites;
         }
 
+        final String tmpSuites = enabledSuites;
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "sanitizing enabled cipher suites");
+            () -> "sanitizing enabled cipher suites");
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "wolfjsse.enabledCipherSuites: " + enabledSuites);
+            () -> "wolfjsse.enabledCipherSuites: " + tmpSuites);
 
         /* Remove spaces after commas, split into List */
         enabledSuites = enabledSuites.replaceAll(", ",",");
@@ -204,10 +206,11 @@ public class WolfSSLUtil {
             return null;
         }
 
+        final String tmpSigAlgos = sigAlgos;
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "restricting enabled ClientHello signature algorithms");
+            () -> "restricting enabled ClientHello signature algorithms");
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "wolfjsse.enabledSigAlgos: " + sigAlgos);
+            () -> "wolfjsse.enabledSigAlgos: " + tmpSigAlgos);
 
         /* Remove spaces between colons if present */
         sigAlgos = sigAlgos.replaceAll(" : ", ":");
@@ -231,10 +234,11 @@ public class WolfSSLUtil {
             return null;
         }
 
+        final String tmpCurves = curves;
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "restricting enabled ClientHello supported curves");
+            () -> "restricting enabled ClientHello supported curves");
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-            "wolfjsse.enabledSupportedCurves: " + curves);
+            () -> "wolfjsse.enabledSupportedCurves: " + tmpCurves);
 
         /* Remove spaces between commas if present */
         curves = curves.replaceAll(", ", ",");
@@ -396,12 +400,13 @@ public class WolfSSLUtil {
                 match = p.matcher(s);
                 if (match.find()) {
                     ret = Integer.parseInt(match.group());
+                    final int tmpRet = ret;
                     WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
-                        algo + " key size limitation found " +
-                        "[jdk.tls.disabledAlgorithms]: " + ret);
+                        () -> algo + " key size limitation found " +
+                        "[jdk.tls.disabledAlgorithms]: " + tmpRet);
                 }
             }
-        } 
+        }
 
         return ret;
     }
@@ -490,7 +495,7 @@ public class WolfSSLUtil {
 
             } catch (Exception e) {
                 WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.ERROR,
-                   "Error initializing KeyStore with load(null, null)");
+                    () -> "Error initializing KeyStore with load(null, null)");
                 return null;
             }
 

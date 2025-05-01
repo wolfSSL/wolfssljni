@@ -583,12 +583,12 @@ public class WolfSSL {
         int ret;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "initializing wolfSSL library");
+            WolfSSLDebug.INFO, () -> "initializing wolfSSL library");
 
         ret = init();
         if (ret != SSL_SUCCESS) {
-            throw new WolfSSLException("Failed to initialize wolfSSL library: "
-                    + ret);
+            throw new WolfSSLException(
+                "Failed to initialize wolfSSL library: " + ret);
         }
 
         /* initialize cipher enum values */
@@ -628,7 +628,7 @@ public class WolfSSL {
         this.active = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "wolfSSL library initialization done");
+            WolfSSLDebug.INFO, () -> "wolfSSL library initialization done");
     }
 
     /* ------------------- private/protected methods -------------------- */
@@ -697,7 +697,7 @@ public class WolfSSL {
         int fipsLoaded = 0;
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "loading native library: wolfssl");
+            WolfSSLDebug.INFO, () -> "loading native library: wolfssl");
 
         String osName = System.getProperty("os.name");
         if (osName != null && osName.toLowerCase().contains("win")) {
@@ -717,7 +717,7 @@ public class WolfSSL {
         }
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "loading native library: wolfssljni");
+            WolfSSLDebug.INFO, () -> "loading native library: wolfssljni");
 
         /* Load wolfssljni library */
         System.loadLibrary("wolfssljni");
@@ -736,7 +736,7 @@ public class WolfSSL {
     public static void loadLibrary(String libName) throws UnsatisfiedLinkError {
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "loading native library by name: " + libName);
+            WolfSSLDebug.INFO, () -> "loading native lib by name: " + libName);
 
         System.loadLibrary(libName);
     }
@@ -761,7 +761,7 @@ public class WolfSSL {
         throws UnsatisfiedLinkError {
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "loading native library by path: " + libPath);
+            WolfSSLDebug.INFO, () -> "loading native lib by path: " + libPath);
 
         System.load(libPath);
     }
@@ -1592,7 +1592,7 @@ public class WolfSSL {
     public static int cryptoCbRegisterDevice(int devId) {
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "registering crypto cb devId: " + devId);
+            WolfSSLDebug.INFO, () -> "registering crypto cb devId: " + devId);
 
         return wc_CryptoCb_RegisterDevice(devId);
     }
@@ -1606,7 +1606,7 @@ public class WolfSSL {
     public static int cryptoCbUnRegisterDevice(int devId) {
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "unregistering crypto cb devId: " + devId);
+            WolfSSLDebug.INFO, () -> "unregistering crypto cb devId: " + devId);
 
         wc_CryptoCb_UnRegisterDevice(devId);
 

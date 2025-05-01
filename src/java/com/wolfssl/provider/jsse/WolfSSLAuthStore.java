@@ -89,7 +89,7 @@ public class WolfSSLAuthStore {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "Creating new WolfSSLAuthStore");
+            () -> "Creating new WolfSSLAuthStore");
 
         initKeyManager(keyman);
         initTrustManager(trustman);
@@ -117,8 +117,8 @@ public class WolfSSLAuthStore {
         if (managers == null || managers.length == 0) {
             try {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "searching installed providers for X509KeyManager (type: "
-                    + KeyManagerFactory.getDefaultAlgorithm() +")");
+                    () -> "searching installed providers for X509KeyManager " +
+                    "(type: " + KeyManagerFactory.getDefaultAlgorithm() +")");
 
                 /* use key managers from installed security providers */
                 KeyManagerFactory kmFactory = KeyManagerFactory.getInstance(
@@ -140,7 +140,7 @@ public class WolfSSLAuthStore {
                 if (managers[i] instanceof X509KeyManager) {
                     km = (X509KeyManager)managers[i];
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "located X509KeyManager instance: " + km);
+                        () -> "located X509KeyManager instance: " + km);
                     break;
                 }
             }
@@ -160,7 +160,7 @@ public class WolfSSLAuthStore {
 
             try {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "searching installed providers for X509TrustManager");
+                    () -> "searching installed providers for X509TrustManager");
 
                 /* use trust managers from installed security providers */
                 TrustManagerFactory tmFactory = TrustManagerFactory.getInstance(
@@ -180,7 +180,7 @@ public class WolfSSLAuthStore {
                 if (managers[i] instanceof X509TrustManager) {
                     tm = (X509TrustManager)managers[i];
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "located X509TrustManager instance: " + tm);
+                        () -> "located X509TrustManager instance: " + tm);
                     break;
                 }
             }
@@ -332,8 +332,8 @@ public class WolfSSLAuthStore {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "attempting to look up session (" +
-                "host: " + host + ", port: " + port + ")");
+            () -> "attempting to look up session (host: " + host +
+            ", port: " + port + ")");
 
         /* Print current size and contents of SessionStore / LinkedHashMap.
          * Synchronizes on storeLock internally. */
@@ -372,19 +372,19 @@ public class WolfSSLAuthStore {
             if (needNewSession) {
                 if (ses == null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "session not found in cache table, " +
+                        () -> "session not found in cache table, " +
                         "creating new session");
                 }
                 else if (!ses.isResumable()) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "native WOLFSSL_SESSION not resumable, " +
+                        () -> "native WOLFSSL_SESSION not resumable, " +
                         "creating new session");
                 }
                 else if (!sessionCipherSuiteAvailable(
                             ses, enabledCipherSuites)) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "cipher suite used in original WOLFSSL_SESSION not " +
-                        "available, creating new session");
+                        () -> "cipher suite used in original WOLFSSL_SESSION " +
+                        "not available, creating new session");
                 }
 
                 /* Not found in stored sessions create a new one */
@@ -397,7 +397,7 @@ public class WolfSSLAuthStore {
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "session found in cache, trying to resume");
+                    () -> "session found in cache, trying to resume");
 
                 ses.isFromTable = true;
 
@@ -405,24 +405,26 @@ public class WolfSSLAuthStore {
                 List<SNIServerName> sniNames = ses.getSNIServerNames();
                 if (sniNames != null && !sniNames.isEmpty()) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "Found SNI server names in cached session");
+                        () -> "Found SNI server names in cached session");
 
                     /* Apply SNI settings to the SSL connection */
                     for (SNIServerName name : sniNames) {
                         if (name instanceof SNIHostName) {
                             String hostName = ((SNIHostName)name).getAsciiName();
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "Applying SNI hostname for resumption: " + hostName);
+                                () -> "Applying SNI hostname for resumption: " +
+                                hostName);
 
                             /* Set the SNI directly on the SSL object */
-                            ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME, hostName.getBytes());
+                            ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
+                                hostName.getBytes());
                         }
                     }
                 }
 
                 if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "native wolfSSL_set_session() failed, " +
+                        () -> "native wolfSSL_set_session() failed, " +
                         "creating new session");
 
                     ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
@@ -459,7 +461,7 @@ public class WolfSSLAuthStore {
     private boolean sessionCipherSuiteAvailable(WolfSSLImplementSSLSession ses,
         String[] enabledCipherSuites) {
 
-        String sessionCipher = null;
+        final String sessionCipher;
 
         if (ses == null || enabledCipherSuites == null) {
             return false;
@@ -469,13 +471,14 @@ public class WolfSSLAuthStore {
 
         if (Arrays.asList(enabledCipherSuites).contains(sessionCipher)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "WOLFSSL_SESSION cipher suite available in enabled ciphers");
+                () -> "WOLFSSL_SESSION cipher suite available in " +
+                "enabled ciphers");
             return true;
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "WOLFSSL_SESSION cipher suite (" + sessionCipher + ") differs " +
-            "from enabled suites list");
+            () -> "WOLFSSL_SESSION cipher suite (" + sessionCipher +
+            ") differs from enabled suites list");
 
         return false;
     }
@@ -496,7 +499,7 @@ public class WolfSSLAuthStore {
     private boolean sessionProtocolAvailable(WolfSSLImplementSSLSession ses,
         String[] enabledProtocols) {
 
-        String sessionProtocol = null;
+        final String sessionProtocol;
 
         if (ses == null || enabledProtocols == null) {
             return false;
@@ -509,13 +512,15 @@ public class WolfSSLAuthStore {
 
         if (Arrays.asList(enabledProtocols).contains(sessionProtocol)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "WOLFSSL_SESSION protocol available in enabled protocols");
+                () -> "WOLFSSL_SESSION protocol available in " +
+                "enabled protocols");
             return true;
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "WOLFSSL_SESSION protocol (" + sessionProtocol + ") differs " +
-            "from enabled protocol list: " + Arrays.asList(enabledProtocols));
+            () -> "WOLFSSL_SESSION protocol (" + sessionProtocol +
+            ") differs from enabled protocol list: " +
+            Arrays.asList(enabledProtocols));
 
         return false;
     }
@@ -531,19 +536,20 @@ public class WolfSSLAuthStore {
                 store.values();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "SessionStore Status : (" + this + ") --------------------------");
+                () -> "SessionStore Status : (" + this +
+                ") --------------------------");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "    size: " + store.size());
+                () -> "    size: " + store.size());
             if (store.size() > 0) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "    values: ");
+                    () -> "    values: ");
                 for (WolfSSLImplementSSLSession s : values) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "        " + s.getHost() + ": " + s.getPort());
+                        () -> "        " + s.getHost() + ": " + s.getPort());
                 }
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "------------------------------------------------");
+                () -> "------------------------------------------------");
         }
     }
 
@@ -560,7 +566,7 @@ public class WolfSSLAuthStore {
         WolfSSLSession ssl, boolean clientMode, String host, int port) {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "creating new session");
+            () -> "creating new session");
 
         WolfSSLImplementSSLSession ses =
             new WolfSSLImplementSSLSession(ssl, this, host, port);
@@ -615,7 +621,7 @@ public class WolfSSLAuthStore {
     protected int addSession(WolfSSLImplementSSLSession session) {
 
         String toHash;
-        int    hashCode = 0;
+        final int hashCode;
 
         /* Don't store session if invalid (or not complete with sesPtr
          * if on client side, or not resumable). Server-side still needs to
@@ -628,7 +634,7 @@ public class WolfSSLAuthStore {
 
             if (!session.isResumable()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Not storing session in Java client cache since " +
+                    () -> "Not storing session in Java client cache since " +
                     "native WOLFSSL_SESSION is not resumable");
             }
             return WolfSSL.SSL_FAILURE;
@@ -649,6 +655,8 @@ public class WolfSSLAuthStore {
                 if (sessionId != null && sessionId.length > 0 &&
                     (idAllZeros(sessionId) == false)) {
                     hashCode = Arrays.toString(session.getId()).hashCode();
+                } else {
+                    hashCode = 0;
                 }
             }
 
@@ -657,11 +665,10 @@ public class WolfSSLAuthStore {
              * will be overwritten with new/refreshed version */
             if (hashCode != 0) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "stored session in cache table (host: " +
-                        session.getPeerHost() + ", port: " +
-                        session.getPeerPort() + ") " +
-                        "hashCode = " + hashCode + " side = " +
-                        session.getSideString());
+                    () -> "stored session in cache table (host: " +
+                    session.getPeerHost() + ", port: " +
+                    session.getPeerPort() + ") " + "hashCode = " + hashCode +
+                    " side = " + session.getSideString());
                 store.put(hashCode, session);
                 session.isInTable = true;
                 printSessionStoreStatus();

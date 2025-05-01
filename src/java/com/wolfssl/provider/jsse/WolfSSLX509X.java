@@ -54,7 +54,7 @@ public class WolfSSLX509X extends X509Certificate {
     public WolfSSLX509X(byte[] der) throws WolfSSLException{
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLX509X(byte[] der)");
+            () -> "created new WolfSSLX509X(byte[] der)");
 
         this.cert = new WolfSSLX509(der);
     }
@@ -69,7 +69,7 @@ public class WolfSSLX509X extends X509Certificate {
     public WolfSSLX509X(String derName) throws WolfSSLException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLX509X(String derName)");
+            () -> "created new WolfSSLX509X(String derName)");
 
         this.cert = new WolfSSLX509(derName);
     }
@@ -88,7 +88,7 @@ public class WolfSSLX509X extends X509Certificate {
     public WolfSSLX509X(long x509, boolean doFree) throws WolfSSLException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "created new WolfSSLX509X(long x509, boolean doFree)");
+            () -> "created new WolfSSLX509X(long x509, boolean doFree)");
 
         this.cert = new WolfSSLX509(x509, doFree);
     }
@@ -219,3 +219,4 @@ public class WolfSSLX509X extends X509Certificate {
     }
 
 }
+

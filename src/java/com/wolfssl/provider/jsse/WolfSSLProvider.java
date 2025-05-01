@@ -57,15 +57,17 @@ public final class WolfSSLProvider extends Provider {
          */
         public void errorCallback(int ok, int err, String hash) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "In FIPS error callback, ok = " + ok + " err = " + err);
+                () -> "In FIPS error callback, ok = " + ok + " err = " + err);
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "hash = " + hash);
+                () -> "hash = " + hash);
 
             if (err == -203) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                 "In core integrity hash check failure, copy above hash");
+                    () -> "In core integrity hash check failure, copy " +
+                    "above hash");
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                 "into verifyCore[] in fips_test.c and rebuild native wolfSSL");
+                    () -> "into verifyCore[] in fips_test.c and rebuild " +
+                    "native wolfSSL");
             }
         }
     }
@@ -86,14 +88,14 @@ public final class WolfSSLProvider extends Provider {
         if (rc != WolfSSL.SSL_SUCCESS) {
             if (rc == WolfSSL.NOT_COMPILED_IN) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "FIPS callback not set, not using wolfCrypt FIPS");
+                    () -> "FIPS callback not set, not using wolfCrypt FIPS");
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Error setting wolfCrypt FIPS Callback, ret = " + rc);
+                    () -> "Error setting wolfCrypt FIPS Callback, ret = " + rc);
             }
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Registered wolfCrypt FIPS error callback");
+                () -> "Registered wolfCrypt FIPS error callback");
         }
 
         try {
@@ -101,7 +103,7 @@ public final class WolfSSLProvider extends Provider {
             sslLib = new WolfSSL();
         } catch (WolfSSLException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Failed to initialize native wolfSSL library");
+                () -> "Failed to initialize native wolfSSL library");
         }
 
         /* Enable native wolfSSL debug logging if 'wolfssl.debug' System

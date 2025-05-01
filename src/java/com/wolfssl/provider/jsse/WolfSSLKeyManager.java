@@ -77,34 +77,34 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         String pass = System.getProperty("javax.net.ssl.keyStorePassword");
         String file = System.getProperty("javax.net.ssl.keyStore");
         String type = System.getProperty("javax.net.ssl.keyStoreType");
-        boolean wksAvailable = false;
+        final boolean wksAvailable;
 
         if (file != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Loading certs from: " + file);
+                () -> "Loading certs from: " + file);
 
             /* Check if wolfJCE WKS KeyStore is registered and available */
             wksAvailable = WolfSSLUtil.WKSAvailable();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "wolfJCE WKS KeyStore type available: " + wksAvailable);
+                () -> "wolfJCE WKS KeyStore type available: " + wksAvailable);
 
             /* Set KeyStore password if javax.net.ssl.keyStorePassword set */
             if (pass != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.keyStorePassword system property " +
+                    () -> "javax.net.ssl.keyStorePassword system property " +
                     "set, using password");
                 this.pswd = pass.toCharArray();
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.keyStorePassword system property " +
+                    () -> "javax.net.ssl.keyStorePassword system property " +
                     "not set");
             }
 
             /* Keystore type given in property, try loading using it */
             if (type != null && !type.trim().isEmpty()) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.keyStoreType set: " + type);
+                    () -> "javax.net.ssl.keyStoreType set: " + type);
 
                 if (requiredType != null && !requiredType.equals(type)) {
                     throw new KeyStoreException(
@@ -128,7 +128,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 if ((sysStore == null) && WolfSSLUtil.isAndroid() &&
                     (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "Detected Android VM, trying BKS KeyStore type");
+                        () -> "Detected Android VM, trying BKS KeyStore type");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         file, this.pswd, "BKS");
                 }
@@ -137,8 +137,8 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 if (sysStore == null &&
                     (requiredType == null || requiredType.equals("JKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "javax.net.ssl.keyStoreType system property not set, " +
-                    "trying type: JKS");
+                        () -> "javax.net.ssl.keyStoreType system property " +
+                        "not set, trying type: JKS");
                     sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
                         file, this.pswd, "JKS");
                 }
@@ -151,7 +151,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "Loaded certs from KeyStore via System properties");
+                    () -> "Loaded certs from KeyStore via System properties");
             }
         }
 
@@ -165,17 +165,17 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
 
         this.pswd = password;
         KeyStore certs = store;
-        String requiredType = null;
+        final String requiredType;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entering engineInit(KeyStore store, char[] password)");
+            () -> "entering engineInit(KeyStore store, char[] password)");
 
         requiredType = WolfSSLUtil.getRequiredKeyStoreType();
         if (requiredType != null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "java.security has restricted KeyStore type");
+                () -> "java.security has restricted KeyStore type");
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "wolfjsse.keystore.type.required = " + requiredType);
+                () -> "wolfjsse.keystore.type.required = " + requiredType);
         }
 
         /* If no KeyStore passed in, try to load from system property values
@@ -183,14 +183,14 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         if (store == null) {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "input KeyStore null, trying to load KeyStore from " +
+                () -> "input KeyStore null, trying to load KeyStore from " +
                 "system properties");
 
             certs = LoadKeyStoreFromSystemProperties(requiredType);
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "input KeyStore provided, using inside KeyManager");
+                () -> "input KeyStore provided, using inside KeyManager");
         }
 
         /* Verify KeyStore we got matches our requirements, for example
@@ -209,11 +209,11 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         throws InvalidAlgorithmParameterException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entering engineInit(ManagerFactoryParameters arg0)");
+            () -> "entering engineInit(ManagerFactoryParameters arg0)");
 
         throw new UnsupportedOperationException(
-                "KeyManagerFactory.init(ManagerFactoryParameters) not " +
-                "supported yet");
+            "KeyManagerFactory.init(ManagerFactoryParameters) not " +
+            "supported yet");
     }
 
     @Override
@@ -221,11 +221,11 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         throws IllegalStateException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            "entered engineGetKeyManagers()");
+            () -> "entered engineGetKeyManagers()");
 
         if (!this.initialized) {
             throw new IllegalStateException("KeyManagerFactory must be " +
-                    "initialized before use, please call init()");
+                "initialized before use, please call init()");
         }
 
         KeyManager[] km = {new WolfSSLKeyX509(this.store, this.pswd)};

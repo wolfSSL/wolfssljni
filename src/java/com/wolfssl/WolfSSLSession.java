@@ -139,7 +139,7 @@ public class WolfSSLSession {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, sslPtr,
-            "creating new WolfSSLSession (with I/O pipe)");
+            () -> "creating new WolfSSLSession (with I/O pipe)");
 
         synchronized (stateLock) {
             this.active = true;
@@ -181,11 +181,11 @@ public class WolfSSLSession {
         if (setupIOPipe) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, sslPtr,
-                "creating new WolfSSLSession (with I/O pipe)");
+                () -> "creating new WolfSSLSession (with I/O pipe)");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, sslPtr,
-                "creating new WolfSSLSession (without I/O pipe)");
+                () -> "creating new WolfSSLSession (without I/O pipe)");
         }
 
         synchronized (stateLock) {
@@ -531,8 +531,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered useCertificateFile(" +
-                file + ", " + format + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered useCertificateFile(" + file + ", " +
+                format + ")");
 
             return useCertificateFile(this.sslPtr, file, format);
         }
@@ -570,8 +571,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered usePrivateKeyFile(" +
-                file + ", " + format + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered usePrivateKeyFile(" + file + ", " +
+                format + ")");
 
             return usePrivateKeyFile(this.sslPtr, file, format);
         }
@@ -605,7 +607,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useCertificateChainFile(" + file + ")");
+                () -> "entered useCertificateChainFile(" + file + ")");
 
             return useCertificateChainFile(this.sslPtr, file);
         }
@@ -630,14 +632,15 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setFd(" + sd + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setFd(" + sd + ")");
 
             ret = setFd(this.sslPtr, sd, 1);
 
             if (ret == WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.sslPtr, "native fd set to: " +
-                    getFd(this.sslPtr));
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "native fd set to: " + getFd(this.sslPtr));
             }
 
             return ret;
@@ -661,7 +664,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setFd(" + sd + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setFd(" + sd + ")");
 
             return setFd(this.sslPtr, sd, 2);
         }
@@ -690,8 +694,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setUsingNonblock(" +
-                nonblock + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setUsingNonblock(" + nonblock + ")");
 
             setUsingNonblock(this.sslPtr, nonblock);
         }
@@ -719,7 +723,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getUsingNonblock()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getUsingNonblock()");
 
             return getUsingNonblock(this.sslPtr);
         }
@@ -738,18 +743,18 @@ public class WolfSSLSession {
     public int getFd()
         throws IllegalStateException, WolfSSLJNIException {
 
-        int fd = 0;
+        final int fd;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getFd()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getFd()");
 
             fd = getFd(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "returning fd: " + fd);
+                WolfSSLDebug.INFO, this.sslPtr, () -> "returning fd: " + fd);
         }
 
         return fd;
@@ -765,7 +770,7 @@ public class WolfSSLSession {
 
         if (ret == WolfSSL.WOLFJNI_IO_EVENT_TIMEOUT) {
             throw new SocketTimeoutException(
-                    "Native socket timed out during " + nativeFunc);
+                "Native socket timed out during " + nativeFunc);
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_FD_CLOSED) {
             throw new SocketException("Socket fd closed during poll(), " +
@@ -871,20 +876,20 @@ public class WolfSSLSession {
     public int connect(int timeout)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret = WolfSSL.SSL_FAILURE;
+        final int ret;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered connect(timeout: " +
-                timeout +")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered connect(timeout: " + timeout +")");
 
             ret = connect(this.sslPtr, timeout);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "connect() ret: " + ret +
-                ", err: " + getError(ret));
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "connect() ret: " + ret + ", err: " + getError(ret));
         }
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_connect()");
@@ -928,7 +933,8 @@ public class WolfSSLSession {
     public int write(byte[] data, int length)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret;
+        final int ret;
+        final int err;
         long localPtr;
 
         confirmObjectIsActive();
@@ -940,8 +946,8 @@ public class WolfSSLSession {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "entered write(length: " +
-            length + ")");
+            WolfSSLDebug.INFO, localPtr,
+            () -> "entered write(length: " + length + ")");
 
         /* not synchronizing on sslLock here since JNI write() locks
          * session mutex around native wolfSSL_write() call. If sslLock
@@ -949,10 +955,11 @@ public class WolfSSLSession {
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
         ret = write(localPtr, data, 0, length, 0);
+        err = getError(ret);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "write() ret: " + ret +
-            ", err: " + getError(ret));
+            WolfSSLDebug.INFO, localPtr,
+            () -> "write() ret: " + ret + ", err: " + err);
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_write()");
 
@@ -1039,7 +1046,8 @@ public class WolfSSLSession {
     public int write(byte[] data, int offset, int length, int timeout)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret;
+        final int ret;
+        final int err;
         long localPtr;
 
         confirmObjectIsActive();
@@ -1051,8 +1059,9 @@ public class WolfSSLSession {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "entered write(offset: " + offset +
-            ", length: " + length + ", timeout: " + timeout + ")");
+            WolfSSLDebug.INFO, localPtr,
+            () -> "entered write(offset: " + offset + ", length: " +
+            length + ", timeout: " + timeout + ")");
 
         /* not synchronizing on sslLock here since JNI write() locks
          * session mutex around native wolfSSL_write() call. If sslLock
@@ -1060,10 +1069,11 @@ public class WolfSSLSession {
          * could timeout waiting for corresponding read() operation to
          * occur if needed */
         ret = write(localPtr, data, offset, length, timeout);
+        err = getError(ret);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "write() ret: " + ret +
-            ", err: " + getError(ret));
+            WolfSSLDebug.INFO, localPtr,
+            () -> "write() ret: " + ret + ", err: " + err);
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_write()");
 
@@ -1110,7 +1120,9 @@ public class WolfSSLSession {
     public int read(byte[] data, int sz)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret;
+        final int ret;
+        final int err;
+        final int readSz = sz;
         long localPtr;
 
         confirmObjectIsActive();
@@ -1122,18 +1134,20 @@ public class WolfSSLSession {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "entered read(sz: " + sz + ")");
+            WolfSSLDebug.INFO, localPtr, () -> "entered read(sz: " +
+            readSz + ")");
 
         /* not synchronizing on sslLock here since JNI read() locks
          * session mutex around native wolfSSL_read() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(localPtr, data, 0, sz, 0);
+        ret = read(localPtr, data, 0, readSz, 0);
+        err = getError(ret);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "read() ret: " + ret +
-            ", err: " + getError(ret));
+            WolfSSLDebug.INFO, localPtr,
+            () -> "read() ret: " + ret + ", err: " + err);
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_read()");
 
@@ -1224,7 +1238,11 @@ public class WolfSSLSession {
     public int read(byte[] data, int offset, int sz, int timeout)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret;
+        final int ret;
+        final int err;
+        final int readOff = offset;
+        final int readSz = sz;
+        final int readTimeout = timeout;
         long localPtr;
 
         confirmObjectIsActive();
@@ -1236,19 +1254,21 @@ public class WolfSSLSession {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "entered read(offset: " + offset +
-            ", sz: " + sz + ", timeout: " + timeout + ")");
+            WolfSSLDebug.INFO, localPtr,
+            () -> "entered read(offset: " + readOff + ", sz: " + readSz +
+            ", timeout: " + readTimeout + ")");
 
         /* not synchronizing on sslLock here since JNI read() locks
          * session mutex around native wolfSSL_read() call. If sslLock
          * is locked here, since we call select() inside native JNI we
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
-        ret = read(localPtr, data, offset, sz, timeout);
+        ret = read(localPtr, data, readOff, readSz, readTimeout);
+        err = getError(ret);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "read() ret: " + ret +
-            ", err: " + getError(ret));
+            WolfSSLDebug.INFO, localPtr,
+            () -> "read() ret: " + ret + ", err: " + err);
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_read()");
 
@@ -1299,7 +1319,10 @@ public class WolfSSLSession {
     public int read(ByteBuffer data, int sz, int timeout)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        int ret;
+        final int ret;
+        final int err;
+        final int readSz = sz;
+        final int readTimeout = timeout;
         long localPtr;
 
         confirmObjectIsActive();
@@ -1311,8 +1334,9 @@ public class WolfSSLSession {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "entered read(ByteBuffer, " +
-            "sz: " + sz + ", timeout: " + timeout + ")");
+            WolfSSLDebug.INFO, localPtr,
+            () -> "entered read(ByteBuffer, sz: " + readSz +
+            ", timeout: " + readTimeout + ")");
 
         /* not synchronizing on sslLock here since JNI read() locks
          * session mutex around native wolfSSL_read() call. If sslLock
@@ -1320,15 +1344,16 @@ public class WolfSSLSession {
          * could timeout waiting for corresponding write() operation to
          * occur if needed */
         try {
-            ret = read(localPtr, data, sz, timeout);
+            ret = read(localPtr, data, readSz, readTimeout);
+            err = getError(ret);
         } catch (WolfSSLException e) {
             /* JNI code may throw WolfSSLException on JNI specific errors */
             throw new SocketException(e.getMessage());
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr, "read() ret: " + ret +
-            ", err: " + getError(ret));
+            WolfSSLDebug.INFO, localPtr,
+            () -> "read() ret: " + ret + ", err: " + err);
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_read()");
 
@@ -1432,14 +1457,14 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered accept(timeout: " +
-                timeout + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered accept(timeout: " + timeout + ")");
 
             ret = accept(this.sslPtr, timeout);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "accept() ret: " + ret +
-                ", err: " + getError(ret));
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "accept() ret: " + ret + ", err: " + getError(ret));
         }
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_accept()");
@@ -1462,13 +1487,15 @@ public class WolfSSLSession {
             synchronized (stateLock) {
                 if (this.active == false) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                        WolfSSLDebug.INFO, "entered freeSSL(), already freed");
+                        WolfSSLDebug.INFO,
+                        () -> "entered freeSSL(), already freed");
                     /* already freed, just return */
                     return;
                 }
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.sslPtr, "entered freeSSL()");
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "entered freeSSL()");
 
                 /* free native resources */
                 freeSSL(this.sslPtr);
@@ -1562,13 +1589,13 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered shutdownSSL(timeout: " + timeout + ")");
+                () -> "entered shutdownSSL(timeout: " + timeout + ")");
 
             ret = shutdownSSL(this.sslPtr, timeout);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "shutdownSSL() ret: " + ret +
-                ", err: " + getError(ret));
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "shutdownSSL() ret: " + ret + ", err: " + getError(ret));
         }
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_shutdown()");
@@ -1642,25 +1669,26 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setSession(ptr: " +
-                session + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setSession(ptr: " + session + ")");
 
             if ((session != 0) && (wolfsslSessionIsSetup(session) == 1)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.sslPtr, "session pointer (" +
-                    session + ") is setup");
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "session pointer (" + session + ") is setup");
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr,
-                    "session pointer is null or not set up");
+                    () -> "session pointer is null or not set up");
             }
 
             ret = setSession(this.sslPtr, session);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "setSession(session: " +
-                session + ") ret: " + ret + ", err: " + getError(ret));
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "setSession(session: " + session + ") ret: " +
+                ret + ", err: " + getError(ret));
 
             return ret;
         }
@@ -1704,13 +1732,13 @@ public class WolfSSLSession {
      */
     public long getSession() throws IllegalStateException {
 
-        long sessPtr = 0;
+        final long sessPtr;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getSession()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getSession()");
 
             /* Calling get1Session() here as an indication that the native
              * JNI level should always return a session pointer that needs
@@ -1722,17 +1750,17 @@ public class WolfSSLSession {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "get1Session(), ret ptr: " + sessPtr);
+                () -> "get1Session(), ret ptr: " + sessPtr);
 
             if ((sessPtr != 0) && (wolfsslSessionIsSetup(sessPtr) == 1)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                    WolfSSLDebug.INFO, this.sslPtr, "session pointer (" +
-                    sessPtr + ") is setup");
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "session pointer (" + sessPtr + ") is setup");
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr,
-                    "session pointer is null or not set up");
+                    () -> "session pointer is null or not set up");
             }
 
             return sessPtr;
@@ -1759,18 +1787,20 @@ public class WolfSSLSession {
         int ret;
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered sessionIsSetup(" + session + ")");
+            WolfSSLDebug.INFO, () -> "entered sessionIsSetup(" + session + ")");
 
         if (session == 0) {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "sessionIsSetup(), ptr null, returning 0");
+                WolfSSLDebug.INFO,
+                () -> "sessionIsSetup(), ptr null, returning 0");
             return 0;
         }
 
         ret = wolfsslSessionIsSetup(session);
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "sessionIsSetup(" + session + ") ret: " + ret);
+            WolfSSLDebug.INFO,
+            () -> "sessionIsSetup(" + session + ") ret: " + ret);
 
         return ret;
     }
@@ -1795,7 +1825,7 @@ public class WolfSSLSession {
         int ret;
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered sessionIsResumable()");
+            WolfSSLDebug.INFO, () -> "entered sessionIsResumable()");
 
         if (session == 0) {
             return 0;
@@ -1804,7 +1834,7 @@ public class WolfSSLSession {
         ret = wolfsslSessionIsResumable(session);
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "session resumable: " + ret);
+            WolfSSLDebug.INFO, () -> "session resumable: " + ret);
 
         return ret;
     }
@@ -1826,42 +1856,44 @@ public class WolfSSLSession {
      */
     public static long duplicateSession(long session) {
 
-        long sessPtr = 0;
+        final long sessPtr;
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered duplicateSession(ptr: " +
-            session + ")");
+            WolfSSLDebug.INFO,
+            () -> "entered duplicateSession(ptr: " + session + ")");
 
         if (session == 0) {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "session pointer is null, not duplicating");
+                WolfSSLDebug.INFO,
+                () -> "session pointer is null, not duplicating");
             return 0;
         }
 
         if (wolfsslSessionIsSetup(session) == 1) {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "session pointer prior to dup (" + session +
-                ") is setup");
+                WolfSSLDebug.INFO,
+                () -> "session ptr prior to dup (" + session + ") is setup");
         }
         else {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "session pointer prior to dup " +
-                "is NOT set up");
+                WolfSSLDebug.INFO,
+                () -> "session ptr prior to dup is NOT set up");
         }
 
         sessPtr = wolfsslSessionDup(session);
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "duplicated session ptr: " + sessPtr);
+            WolfSSLDebug.INFO, () -> "duplicated session ptr: " + sessPtr);
 
         if ((sessPtr != 0) && (wolfsslSessionIsSetup(sessPtr) == 1)) {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "session pointer after dup (" + sessPtr +
-                ") is setup");
+                WolfSSLDebug.INFO,
+                () -> "session pointer after dup (" + sessPtr + ") is setup");
         }
         else {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, "session pointer after dup is NOT set up");
+                WolfSSLDebug.INFO,
+                () -> "session pointer after dup is NOT set up");
         }
 
         return sessPtr;
@@ -1884,8 +1916,8 @@ public class WolfSSLSession {
     public static String sessionGetCipherName(long session) {
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered sessionGetCipherName(ptr: " +
-            session + ")");
+            WolfSSLDebug.INFO,
+            () -> "entered sessionGetCipherName(ptr: " + session + ")");
 
         if (session == 0) {
             return null;
@@ -1905,14 +1937,15 @@ public class WolfSSLSession {
          * with this WOLFSSL object or WolfSSLSession. */
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered freeSession(ptr: " + session + ")");
+            WolfSSLDebug.INFO,
+            () -> "entered freeSession(ptr: " + session + ")");
 
         if (session != 0) {
             freeNativeSession(session);
         }
 
         WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "session freed (ptr: " + session + ")");
+            WolfSSLDebug.INFO, () -> "session freed (ptr: " + session + ")");
 
     }
 
@@ -1932,7 +1965,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getSessionID()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getSessionID()");
 
             long sess = getSession(this.sslPtr);
             if (sess != 0) {
@@ -1943,7 +1976,7 @@ public class WolfSSLSession {
             }
 
             WolfSSLDebug.logHex(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "session ID", sessId,
+                WolfSSLDebug.INFO, this.sslPtr, () -> "session ID", sessId,
                 sessId.length);
 
             return sessId;
@@ -1959,24 +1992,25 @@ public class WolfSSLSession {
      */
     public boolean hasSessionTicket() throws IllegalStateException {
 
-        boolean hasTicket = false;
+        final boolean hasTicket;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered hasSessionTicket()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered hasSessionTicket()");
 
             long sess = getSession(this.sslPtr);
-            if (sess != 0) {
-                if (hasTicket(sess) == WolfSSL.SSL_SUCCESS) {
-                    hasTicket = true;
-                }
+            if ((sess != 0) && (hasTicket(sess) == WolfSSL.SSL_SUCCESS)) {
+                hasTicket = true;
+            } else {
+                hasTicket = false;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "session has ticket: " +
-                hasTicket);
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "session has ticket: " + hasTicket);
 
             return hasTicket;
         }
@@ -1997,12 +2031,12 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered getCacheSize()");
+            WolfSSLDebug.INFO, () -> "entered getCacheSize()");
 
         ret = this.getAssociatedContextPtr().getCacheSize();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "cache size: " + ret);
+            WolfSSLDebug.INFO, () -> "cache size: " + ret);
 
         return ret;
     }
@@ -2029,26 +2063,26 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setServerID(byte[], newSess: " + newSess + ")");
+                () -> "entered setServerID(byte[], newSess: " + newSess + ")");
 
             ret = setServerID(this.sslPtr, id, id.length, newSess);
 
             if (ret == WolfSSL.SSL_SUCCESS) {
                 if (id != null) {
                     WolfSSLDebug.logHex(getClass(), WolfSSLDebug.Component.JNI,
-                        WolfSSLDebug.INFO, this.sslPtr, "set server ID",
-                        id, id.length);
+                        WolfSSLDebug.INFO, this.sslPtr,
+                        () -> "set server ID", id, id.length);
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                         WolfSSLDebug.INFO, this.sslPtr,
-                        "server ID byte[] null, not set");
+                        () -> "server ID byte[] null, not set");
                 }
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr,
-                    "failed to set server ID, ret: " + ret);
+                    () -> "failed to set server ID, ret: " + ret);
             }
 
             return ret;
@@ -2068,26 +2102,26 @@ public class WolfSSLSession {
      */
     public int setSessTimeout(long t) throws IllegalStateException {
 
-        int ret;
+        final int ret;
         long session;
 
         confirmObjectIsActive();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered setSessTimeout(timeout (sec): " +
-            t + ")");
+            WolfSSLDebug.INFO,
+            () -> "entered setSessTimeout(timeout (sec): " + t + ")");
 
         session = this.getSession();
         if (session == 0) {
             /* session may be null if session cache disabled, wolfSSL
              * doesn't have session ID available, mutex function fails, etc */
             ret = WolfSSL.JNI_SESSION_UNAVAILABLE;
+        } else {
+            ret = setSessTimeout(session, t);
         }
 
-        ret = setSessTimeout(session, t);
-
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "set session timeout, ret: " + ret);
+            WolfSSLDebug.INFO, () -> "set session timeout, ret: " + ret);
 
         return ret;
     }
@@ -2108,13 +2142,14 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getSessTimeout()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getSessTimeout()");
 
             ret = getSessTimeout(this.getSession(this.sslPtr));
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "session timeout (sec): " + ret);
+                () -> "session timeout (sec): " + ret);
 
             return ret;
         }
@@ -2138,12 +2173,13 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setTimeout(timeout: " + t + ")");
+                () -> "entered setTimeout(timeout: " + t + ")");
 
             ret = setTimeout(this.sslPtr, t);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "set timeout, ret: " + ret);
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "set timeout, ret: " + ret);
 
             return ret;
         }
@@ -2165,12 +2201,12 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getTimeout()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getTimeout()");
 
             ret = getTimeout(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "timeout: " + ret);
+                WolfSSLDebug.INFO, this.sslPtr, () -> "timeout: " + ret);
 
             return ret;
         }
@@ -2206,7 +2242,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setCipherList(" + list + ")");
+                () -> "entered setCipherList(" + list + ")");
 
             return setCipherList(this.sslPtr, list);
         }
@@ -2265,7 +2301,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setSignatureAlgorithms(" + list + ")");
+                () -> "entered setSignatureAlgorithms(" + list + ")");
 
             return set1SigAlgsList(this.sslPtr, list);
         }
@@ -2301,7 +2337,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered useSupportedCurves(" +
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered useSupportedCurves(" +
                 Arrays.asList(curveNames) + ")");
         }
 
@@ -2359,7 +2396,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered dtlsGetCurrentTimeout()");
+                () -> "entered dtlsGetCurrentTimeout()");
 
             return dtlsGetCurrentTimeout(this.sslPtr);
         }
@@ -2389,7 +2426,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered dtlsGotTimeout()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered dtlsGotTimeout()");
 
             return dtlsGotTimeout(this.sslPtr);
         }
@@ -2441,7 +2479,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered dtls()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered dtls()");
 
             return dtls(this.sslPtr);
         }
@@ -2469,7 +2507,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered dtlsSetPeer(" + peer + ")");
+                () -> "entered dtlsSetPeer(" + peer + ")");
 
             return dtlsSetPeer(this.sslPtr, peer);
         }
@@ -2556,7 +2594,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered dtlsGetPeer()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered dtlsGetPeer()");
 
             return dtlsGetPeer(this.sslPtr);
         }
@@ -2630,13 +2668,13 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered getOutputSize()");
+                () -> "entered getOutputSize()");
 
             ret = getMaxOutputSize(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "max output size: " + ret);
+                () -> "max output size: " + ret);
         }
 
         return ret;
@@ -2665,12 +2703,13 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered sessionReused()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered sessionReused()");
 
             ret = sessionReused(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "session reused: " + ret);
+                WolfSSLDebug.INFO, this.sslPtr, () -> "session reused: " + ret);
         }
 
         return ret;
@@ -2707,7 +2746,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPeerCertificate()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerCertificate()");
 
             return getPeerCertificate(this.sslPtr);
         }
@@ -2733,7 +2773,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPeerX509Issuer()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerX509Issuer()");
 
             return getPeerX509Issuer(this.sslPtr, x509);
         }
@@ -2759,7 +2800,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPeerX509Subject()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerX509Subject()");
 
             return getPeerX509Subject(this.sslPtr, x509);
         }
@@ -2789,7 +2831,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPeerX509AltName()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerX509AltName()");
 
             return getPeerX509AltName(this.sslPtr, x509);
         }
@@ -2813,7 +2856,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getVersion()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getVersion()");
 
             return getVersion(this.sslPtr);
         }
@@ -2838,7 +2881,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getCurrentCipher()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getCurrentCipher()");
 
             return getCurrentCipher(this.sslPtr);
         }
@@ -2867,7 +2911,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered checkDomainName(" + dn + ")");
+                () -> "entered checkDomainName(" + dn + ")");
 
             return checkDomainName(this.sslPtr, dn);
         }
@@ -2896,8 +2940,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setTmpDH(pSz: " + pSz +
-                ", gSz: " + gSz + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setTmpDH(pSz: " + pSz + ", gSz: " + gSz + ")");
 
             return setTmpDH(this.sslPtr, p, pSz, g, gSz);
         }
@@ -2929,8 +2973,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getTmpDHFile(" +
-                fname + ", format:" + format + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getTmpDHFile(" + fname + ", format:" +
+                format + ")");
 
             return setTmpDHFile(this.sslPtr, fname, format);
         }
@@ -2971,7 +3016,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useCertificateBuffer(sz: " + sz + ", format: " +
+                () -> "entered useCertificateBuffer(sz: " + sz + ", format: " +
                 format + ")");
 
             return useCertificateBuffer(this.sslPtr, in, sz, format);
@@ -3016,7 +3061,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered usePrivateKeyBuffer(sz: " + sz + ", format: " +
+                () -> "entered usePrivateKeyBuffer(sz: " + sz + ", format: " +
                 format + ")");
 
             return usePrivateKeyBuffer(this.sslPtr, in, sz, format);
@@ -3061,7 +3106,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useCertificateChainBuffer(sz: " + sz + ")");
+                () -> "entered useCertificateChainBuffer(sz: " + sz + ")");
 
             return useCertificateChainBuffer(this.sslPtr, in, sz);
         }
@@ -3109,7 +3154,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useCertificateChainBufferFormat(sz: " + sz +
+                () -> "entered useCertificateChainBufferFormat(sz: " + sz +
                 ", format: " + format + ")");
 
             return useCertificateChainBufferFormat(this.sslPtr, in, sz, format);
@@ -3134,7 +3179,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setGroupMessages()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setGroupMessages()");
 
             return setGroupMessages(this.sslPtr);
         }
@@ -3166,7 +3212,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setIOReadCtx()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered setIOReadCtx()");
 
             ioReadCtx = ctx;
         }
@@ -3214,7 +3260,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setIOWriteCtx()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setIOWriteCtx()");
 
             ioWriteCtx = ctx;
         }
@@ -3257,7 +3304,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setGenCookieCtx()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setGenCookieCtx()");
 
             genCookieCtx = ctx;
         }
@@ -3294,8 +3342,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered enableCRL(" +
-                options + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered enableCRL(" + options + ")");
 
             return enableCRL(this.sslPtr, options);
         }
@@ -3325,7 +3373,7 @@ public class WolfSSLSession {
 
        synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered disableCRL()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered disableCRL()");
 
              return disableCRL(this.sslPtr);
         }
@@ -3376,8 +3424,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered loadCRL(" + path +
-                ", type: " + type + ", monitor: " + monitor + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered loadCRL(" + path + ", type: " + type +
+                ", monitor: " + monitor + ")");
 
             return loadCRL(this.sslPtr, path, type, monitor);
         }
@@ -3406,7 +3455,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setCRLCb(" + cb + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setCRLCb(" + cb + ")");
 
             return setCRLCb(this.sslPtr, cb);
         }
@@ -3429,7 +3479,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered cipherGetName()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered cipherGetName()");
 
             return cipherGetName(this.sslPtr);
         }
@@ -3456,7 +3507,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getMacSecret()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getMacSecret()");
 
             return getMacSecret(this.sslPtr, verify);
         }
@@ -3479,7 +3531,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getClientWriteKey()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getClientWriteKey()");
 
             return getClientWriteKey(this.sslPtr);
         }
@@ -3504,7 +3557,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getClientWriteIV()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getClientWriteIV()");
 
             return getClientWriteIV(this.sslPtr);
         }
@@ -3527,7 +3581,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getServerWriteKey()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getServerWriteKey()");
 
             return getServerWriteKey(this.sslPtr);
         }
@@ -3552,7 +3607,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getServerWriteIV()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getServerWriteIV()");
 
             return getServerWriteIV(this.sslPtr);
         }
@@ -3573,7 +3629,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getKeySize()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getKeySize()");
 
             return getKeySize(this.sslPtr);
         }
@@ -3598,12 +3655,12 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getSide()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getSide()");
 
             ret = getSide(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "side: " + ret);
+                WolfSSLDebug.INFO, this.sslPtr, () -> "side: " + ret);
         }
 
         return ret;
@@ -3625,7 +3682,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered isTLSv1_1()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered isTLSv1_1()");
 
             return isTLSv1_1(this.sslPtr);
         }
@@ -3654,7 +3711,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getBulkCipher()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getBulkCipher()");
 
             return getBulkCipher(this.sslPtr);
         }
@@ -3676,7 +3734,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getCipherBlockSize()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getCipherBlockSize()");
 
             return getCipherBlockSize(this.sslPtr);
         }
@@ -3699,7 +3758,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getAeadMacSize()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getAeadMacSize()");
 
             return getAeadMacSize(this.sslPtr);
         }
@@ -3722,7 +3782,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getHmacSize()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getHmacSize()");
 
             return getHmacSize(this.sslPtr);
         }
@@ -3752,7 +3813,7 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getHmacType()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getHmacType()");
 
             return getHmacType(this.sslPtr);
         }
@@ -3778,7 +3839,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getCipherType()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getCipherType()");
 
             return getCipherType(this.sslPtr);
         }
@@ -3810,8 +3872,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setTlsHmacInner(sz: " +
-                sz + ", content: " + content + ", verify: " + verify + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setTlsHmacInner(sz: " + sz + ", content: " +
+                content + ", verify: " + verify + ")");
 
             return setTlsHmacInner(this.sslPtr, inner, sz, content, verify);
         }
@@ -3835,7 +3898,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setMacEncryptCtx(" + ctx + ")");
+                () -> "entered setMacEncryptCtx(" + ctx + ")");
 
             macEncryptCtx = ctx;
         }
@@ -3859,7 +3922,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setDecryptVerifyCtx(" + ctx + ")");
+                () -> "entered setDecryptVerifyCtx(" + ctx + ")");
 
             decryptVerifyCtx = ctx;
         }
@@ -3883,7 +3946,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setVerifyDecryptCtx(" + ctx + ")");
+                () -> "entered setVerifyDecryptCtx(" + ctx + ")");
 
             verifyDecryptCtx = ctx;
         }
@@ -3906,7 +3969,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setEccSignCtx(" + ctx + ")");
+                () -> "entered setEccSignCtx(" + ctx + ")");
 
             eccSignCtx = ctx;
             setEccSignCtx(this.sslPtr);
@@ -3930,7 +3993,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setEccVerifyCtx(" + ctx + ")");
+                () -> "entered setEccVerifyCtx(" + ctx + ")");
 
             eccVerifyCtx = ctx;
             setEccVerifyCtx(this.sslPtr);
@@ -3955,7 +4018,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setEccSharedSecretCtx(" + ctx + ")");
+                () -> "entered setEccSharedSecretCtx(" + ctx + ")");
 
             eccSharedSecretCtx = ctx;
             setEccSharedSecretCtx(this.sslPtr);
@@ -3979,7 +4042,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setRsaSignCtx(" + ctx + ")");
+                () -> "entered setRsaSignCtx(" + ctx + ")");
 
             rsaSignCtx = ctx;
             setRsaSignCtx(this.sslPtr);
@@ -4004,7 +4067,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setRsaVerifyCtx(" + ctx + ")");
+                () -> "entered setRsaVerifyCtx(" + ctx + ")");
 
             rsaVerifyCtx = ctx;
             setRsaVerifyCtx(this.sslPtr);
@@ -4029,7 +4092,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setRsaEncCtx(" + ctx + ")");
+                () -> "entered setRsaEncCtx(" + ctx + ")");
 
             rsaEncCtx = ctx;
             setRsaEncCtx(this.sslPtr);
@@ -4054,7 +4117,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setRsaDecCtx(" + ctx + ")");
+                () -> "entered setRsaDecCtx(" + ctx + ")");
 
             rsaDecCtx = ctx;
             setRsaDecCtx(this.sslPtr);
@@ -4100,7 +4163,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setPskClientCb(" + callback + ")");
+                () -> "entered setPskClientCb(" + callback + ")");
 
             /* set PSK client callback */
             internPskClientCb = callback;
@@ -4145,7 +4208,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setPskServerCb(" + callback + ")");
+                () -> "entered setPskServerCb(" + callback + ")");
 
             /* set PSK server callback */
             internPskServerCb = callback;
@@ -4174,7 +4237,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPskIdentityHint()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPskIdentityHint()");
 
             return getPskIdentityHint(this.sslPtr);
         }
@@ -4199,7 +4263,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getPskIdentity()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPskIdentity()");
 
             return getPskIdentity(this.sslPtr);
         }
@@ -4227,7 +4292,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered usePskIdentityHint(" + hint + ")");
+                () -> "entered usePskIdentityHint(" + hint + ")");
 
             return usePskIdentityHint(this.sslPtr, hint);
         }
@@ -4241,18 +4306,20 @@ public class WolfSSLSession {
      */
     public boolean handshakeDone() {
 
-        boolean done = false;
+        final boolean done;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered handshakeDone()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered handshakeDone()");
 
             done = handshakeDone(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "handshake done: " + done);
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "handshake done: " + done);
         }
 
         return done;
@@ -4269,7 +4336,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setConnectState()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setConnectState()");
 
             setConnectState(this.sslPtr);
         }
@@ -4286,7 +4354,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setAcceptState()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setAcceptState()");
 
             setAcceptState(this.sslPtr);
         }
@@ -4333,8 +4402,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setVerify(mode: " +
-                mode + ", callback: " + callback + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setVerify(mode: " + mode + ", callback: " +
+                callback + ")");
 
             setVerify(this.sslPtr, mode, callback);
         }
@@ -4357,7 +4427,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setOptions(" + op + ")");
+                () -> "entered setOptions(" + op + ")");
 
             return setOptions(this.sslPtr, op);
         }
@@ -4379,7 +4449,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getOptions()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getOptions()");
 
             return getOptions(this.sslPtr);
         }
@@ -4393,13 +4464,14 @@ public class WolfSSLSession {
      */
     public boolean gotCloseNotify() {
 
-        boolean gotNotify = false;
+        final boolean gotNotify;
 
         confirmObjectIsActive();
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered gotCloseNotify()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered gotCloseNotify()");
 
             int ret = gotCloseNotify(this.sslPtr);
             if (ret == 1) {
@@ -4410,7 +4482,7 @@ public class WolfSSLSession {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "got close notify: " + gotNotify);
+                () -> "got close notify: " + gotNotify);
 
             return gotNotify;
         }
@@ -4451,7 +4523,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIORecv(" + callback + ") - byte array");
+                () -> "entered setIORecv(" + callback + ") - byte array");
 
             /* Only allow one recv callback registered at a time, if ByteBuffer
              * version has been set, set to null before setting byte variant. */
@@ -4504,7 +4576,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIORecv(" + callback + ") - ByteBuffer");
+                () -> "entered setIORecv(" + callback + ") - ByteBuffer");
 
             /* Only allow one recv callback registered at a time, if array
              * version has been set, set to null before setting ByteBuffer. */
@@ -4559,7 +4631,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIOSend(" + callback + ") - byte array");
+                () -> "entered setIOSend(" + callback + ") - byte array");
 
             /* Only allow one send callback registered at a time, if ByteBuffer
              * version has been set, set to null before setting byte variant. */
@@ -4615,7 +4687,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered setIOSend(" + callback + ") - ByteBuffer");
+                () -> "entered setIOSend(" + callback + ") - ByteBuffer");
 
             /* Only allow one recv callback registered at a time, if array
              * version has been set, set to null before setting ByteBuffer. */
@@ -4655,7 +4727,8 @@ public class WolfSSLSession {
          * blocked on I/O operations, which will already hold sslLock */
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered interruptBlockedIO()");
+            WolfSSLDebug.INFO, this.sslPtr,
+            () -> "entered interruptBlockedIO()");
 
         return interruptBlockedIO(this.sslPtr);
     }
@@ -4674,7 +4747,8 @@ public class WolfSSLSession {
         confirmObjectIsActive();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, "entered getThreadsBlockedInPoll()");
+            WolfSSLDebug.INFO, this.sslPtr,
+            () -> "entered getThreadsBlockedInPoll()");
 
         return getThreadsBlockedInPoll(this.sslPtr);
     }
@@ -4701,7 +4775,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useSNI(type: " + type + ")");
+                () -> "entered useSNI(type: " + type + ")");
 
             ret = useSNI(this.sslPtr, type, data);
 
@@ -4730,7 +4804,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered getClientSNIRequest()");
+                () -> "entered getClientSNIRequest()");
 
             if (this.clientSNIRequested == null) {
                 return null;
@@ -4760,7 +4834,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered getSNIRequest(type: " + type + ")");
+                () -> "entered getSNIRequest(type: " + type + ")");
 
             /* Returns a byte array representing SNI host name */
             reqBytes = getSNIRequest(this.sslPtr, type);
@@ -4810,7 +4884,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered useSessionTicket()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered useSessionTicket()");
 
             ret = useSessionTicket(this.sslPtr);
 
@@ -4820,7 +4895,7 @@ public class WolfSSLSession {
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "enabled session tickets for session, ret: " + ret);
+                () -> "enabled session tickets for session, ret: " + ret);
         }
 
         return ret;
@@ -4841,7 +4916,8 @@ public class WolfSSLSession {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, this.sslPtr,
-            "entered sessionTicketsEnabled(): " + this.sessionTicketsEnabled);
+            () -> "entered sessionTicketsEnabled(): " +
+            this.sessionTicketsEnabled);
 
         return this.sessionTicketsEnabled;
     }
@@ -4865,7 +4941,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered useALPN(byte[])");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered useALPN(byte[])");
 
             return sslSetAlpnProtos(this.sslPtr, alpnProtos);
         }
@@ -4898,7 +4975,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useALPN(String[], int)");
+                () -> "entered useALPN(String[], int)");
         }
 
         if (protocols == null) {
@@ -4929,7 +5006,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getAlpnSelected()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getAlpnSelected()");
 
             return sslGet0AlpnSelected(this.sslPtr);
         }
@@ -4953,7 +5031,7 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered getAlpnSelectedString()");
+                () -> "entered getAlpnSelectedString()");
         }
 
         alpnSelectedBytes = getAlpnSelected();
@@ -4992,8 +5070,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setAlpnSelectCb(" +
-                cb + ", Object: " + arg + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setAlpnSelectCb(" + cb + ", Object: " +
+                arg + ")");
 
             ret = setALPNSelectCb(this.sslPtr);
             if (ret == WolfSSL.SSL_SUCCESS) {
@@ -5036,8 +5115,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setTls13SecretCb(" +
-                cb + ", ctx: " + ctx + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setTls13SecretCb(" + cb + ", ctx: " + ctx + ")");
 
             ret = setTls13SecretCb(this.sslPtr);
             if (ret == WolfSSL.SSL_SUCCESS) {
@@ -5077,8 +5156,9 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered setSessionTicketCb(" +
-                cb + ", ctx: " + ctx + ")");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered setSessionTicketCb(" + cb + ", ctx: " +
+                ctx + ")");
 
             ret = setSessionTicketCb(this.sslPtr);
             if (ret == WolfSSL.SSL_SUCCESS) {
@@ -5109,7 +5189,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered keepArrays()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered keepArrays()");
 
             keepArrays(this.sslPtr);
         }
@@ -5130,7 +5211,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getClientRandom()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getClientRandom()");
 
             return getClientRandom(this.sslPtr);
         }
@@ -5154,7 +5236,7 @@ public class WolfSSLSession {
        synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr,
-                "entered useSecureRenegotiation()");
+                () -> "entered useSecureRenegotiation()");
 
              return useSecureRenegotiation(this.sslPtr);
         }
@@ -5207,7 +5289,8 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered rehandshake()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered rehandshake()");
 
             return rehandshake(this.sslPtr);
         }
@@ -5225,12 +5308,14 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "entered getShutdown()");
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getShutdown()");
 
             ret = getShutdown(this.sslPtr);
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr, "getShutdown(), ret: " + ret);
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "getShutdown(), ret: " + ret);
         }
 
         return ret;
