@@ -415,7 +415,8 @@ public class WolfSSLSession {
     private native long getDtlsReplayDropCount(long ssl);
     private native InetSocketAddress dtlsGetPeer(long ssl);
     private native int sessionReused(long ssl);
-    private native long getPeerCertificate(long ssl);
+    private native int getPeerCertificateCount(long ssl);
+    private native long getPeerCertificate(long ssl, int index);
     private native String getPeerX509Issuer(long ssl, long x509);
     private native String getPeerX509Subject(long ssl, long x509);
     private native String getPeerX509AltName(long ssl, long x509);
@@ -2725,6 +2726,27 @@ public class WolfSSLSession {
     }
 
     /**
+     * Returns the number of certificates in the peer's certificate chain.
+     *
+     * @return number of certificates in the peer's certificate chain.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#getPeerCertificate(int)
+     */
+    public int getPeerCertificateCount()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr, "entered getPeerCertificateCount()");
+
+            return getPeerCertificateCount(this.sslPtr);
+        }
+    }
+
+    /**
      * Gets the native (long) WOLFSSL_X509 pointer to the peer's certificate.
      * This can be used to retrieve further information about the peer's
      * certificate (issuer, subject, alt name, etc.)
@@ -2740,6 +2762,7 @@ public class WolfSSLSession {
      * Pointer should be freed by calling:
      *     WolfSSLCertificate.freeX509(long x509);
      *
+     * @param index index of the certificate in the peer's certificate chain
      * @return (long) WOLFSSL_X509 pointer to the peer's certificate.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error
@@ -2748,7 +2771,7 @@ public class WolfSSLSession {
      * @see    WolfSSLSession#getVersion()
      * @see    WolfSSLSession#getCurrentCipher()
      */
-    public long getPeerCertificate()
+    public long getPeerCertificate(int index)
         throws IllegalStateException, WolfSSLJNIException {
 
         confirmObjectIsActive();
@@ -2758,7 +2781,7 @@ public class WolfSSLSession {
                 WolfSSLDebug.INFO, this.sslPtr,
                 () -> "entered getPeerCertificate()");
 
-            return getPeerCertificate(this.sslPtr);
+            return getPeerCertificate(this.sslPtr, index);
         }
     }
 
