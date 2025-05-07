@@ -30,6 +30,8 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
@@ -1474,6 +1476,11 @@ public class WolfSSLEngineHelper {
          * collected (ex: protocol version). */
         this.session.updateStoredSessionValues();
 
+        if (!this.clientMode && !matchSNI()) {
+            throw new SSLHandshakeException(
+                "Unrecognized Server Name");
+        }
+
         return ret;
     }
 
@@ -1529,6 +1536,46 @@ public class WolfSSLEngineHelper {
         /* Check if legacy DH is enabled through system properties. */
         String dhKeySize = System.getProperty("jdk.tls.ephemeralDHKeySize");
         return "legacy".equals(dhKeySize);
+    }
+
+    protected synchronized boolean matchSNI(){
+        List <SNIMatcher> matchers = this.params.getSNIMatchers();
+        boolean match = false;
+        if (matchers != null && !matchers.isEmpty()) {
+            /* Match a server name to SNI requested by Client */
+            List <SNIServerName> serverNames = this.session
+                                                    .getRequestedServerNames();
+            if (serverNames != null && !serverNames.isEmpty()) {
+                for (SNIServerName serverName : serverNames) {
+                    if (serverName.getType() == WolfSSL.WOLFSSL_SNI_HOST_NAME) {
+                        /* If the SNI is of type WOLFSSL_SNI_HOST_NAME, compare
+                         * the name to matchers list */
+                        for (SNIMatcher matcher : matchers) {
+                            if (matcher.matches(serverName)) {
+                                /* If a match is found, accept the server name
+                                 * and return true value, break from loop */
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "Accepted SNI: " + serverName);
+                                    match = true;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                /* If server names are null or empty, ignore server name
+                 * indication */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    "No server names found, ignoring SNI");
+                match = true;
+            }
+        } else {
+            /* If matchers are null or empty, ignore server name indication */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "No SNIMatchers set");
+            match = true;
+        }
+        return match;
     }
 
     /**

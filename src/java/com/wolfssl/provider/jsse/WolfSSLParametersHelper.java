@@ -39,6 +39,8 @@ public class WolfSSLParametersHelper
     private static Method setApplicationProtocols = null;
     private static Method getEndpointIdentificationAlgorithm = null;
     private static Method setEndpointIdentificationAlgorithm = null;
+    private static Method getSNIMatchers = null;
+    private static Method setSNIMatchers = null;
     private static Method getMaximumPacketSize = null;
     private static Method setMaximumPacketSize = null;
 
@@ -76,6 +78,12 @@ public class WolfSSLParametersHelper
                                     continue;
                                 case "setEndpointIdentificationAlgorithm":
                                     setEndpointIdentificationAlgorithm = m;
+                                    continue;
+                                case "getSNIMatchers":
+                                    getSNIMatchers = m;
+                                    continue;
+                                case "setSNIMatchers":
+                                    setSNIMatchers = m;
                                     continue;
                                 case "getMaximumPacketSize":
                                     getMaximumPacketSize = m;
@@ -126,7 +134,7 @@ public class WolfSSLParametersHelper
          * do not existing in older JDKs. Since older JDKs will not have them,
          * use Java reflection to detect availability in helper class. */
         if (setServerNames != null || setApplicationProtocols != null ||
-            setEndpointIdentificationAlgorithm != null) {
+            setEndpointIdentificationAlgorithm != null || setSNIMatchers != null) {
 
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled
@@ -155,6 +163,10 @@ public class WolfSSLParametersHelper
                     mth.invoke(obj, ret,
                         setEndpointIdentificationAlgorithm, in);
                 }
+                if (setSNIMatchers != null) {
+                    mth = cls.getDeclaredMethod("setSNIMatchers", paramList);
+                    mth.invoke(obj, ret, setSNIMatchers, in);
+                }
 
             } catch (Exception e) {
                 /* ignore, class not found */
@@ -170,6 +182,14 @@ public class WolfSSLParametersHelper
                 setMaximumPacketSize.invoke(ret, in.getMaximumPacketSize());
             }
         } catch (IllegalAccessException | InvocationTargetException e) {
+            /* Not available, just ignore and continue */
+        }
+
+        try {
+            if (setSNIMatchers != null) {
+                ret.setSNIMatchers(in.getSNIMatchers());
+            }
+        } catch (Exception e) {
             /* Not available, just ignore and continue */
         }
 
@@ -222,7 +242,7 @@ public class WolfSSLParametersHelper
          * do not existing in older JDKs. Since older JDKs will not have them,
          * use Java reflection to detect availability in helper class. */
         if (getServerNames != null || getApplicationProtocols != null ||
-            getEndpointIdentificationAlgorithm != null) {
+            getEndpointIdentificationAlgorithm != null || getSNIMatchers != null) {
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName(
@@ -245,6 +265,10 @@ public class WolfSSLParametersHelper
                 if (getEndpointIdentificationAlgorithm != null) {
                     mth = cls.getDeclaredMethod(
                         "getEndpointIdentificationAlgorithm", paramList);
+                    mth.invoke(obj, in, out);
+                }
+                if (getSNIMatchers != null){
+                    mth = cls.getDeclaredMethod("getSNIMatchers", paramList);
                     mth.invoke(obj, in, out);
                 }
 
@@ -276,6 +300,9 @@ public class WolfSSLParametersHelper
         out.setSNIMatchers(in.getSNIMatchers());
         out.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         */
+
+        out.setSNIMatchers(in.getSNIMatchers());
+
     }
 }
 
