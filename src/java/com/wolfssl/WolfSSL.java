@@ -420,15 +420,13 @@ public class WolfSSL {
 
     /* key types */
     /** DSA key type */
-    public static final int DSAk     = 515;
+    public static int DSAk;
     /** RSA key type */
-    public static final int RSAk     = 645;
-    /** NTRU key type */
-    public static final int NTRUk    = 274;
+    public static int RSAk;
     /** ECDSA key type */
-    public static final int ECDSAk   = 518;
+    public static int ECDSAk;
     /** Ed25519 key type */
-    public static final int ED25519k = 256;
+    public static int ED25519k;
 
     /* GeneralName types. Match native values in asn.h */
     /** ASN other type */
@@ -446,29 +444,29 @@ public class WolfSSL {
 
     /* NIDs, from native asn.h */
     /** Surname NID */
-    public static final int NID_surname                 = 4;
+    public static int NID_surname;
     /** Serial number NID */
-    public static final int NID_serialNumber            = 5;
+    public static int NID_serialNumber;
     /** PKCS9 Unstructured name NID */
-    public static final int NID_pkcs9_unstructuredName  = 49;
+    public static int NID_pkcs9_unstructuredName;
     /** PKCS9 contentType NID */
-    public static final int NID_pkcs9_contentType       = 50;
+    public static int NID_pkcs9_contentType;
     /** PKCS9 challenge password NID */
-    public static final int NID_pkcs9_challengePassword = 54;
+    public static int NID_pkcs9_challengePassword;
     /** Given name NID */
-    public static final int NID_givenName               = 100;
+    public static int NID_givenName;
     /** Initials NID */
-    public static final int NID_initials                = 101;
+    public static int NID_initials;
     /** Key Usage NID */
-    public static final int NID_key_usage               = 129;
+    public static int NID_key_usage;
     /** Subject Alternative Name NID */
-    public static final int NID_subject_alt_name        = 131;
+    public static int NID_subject_alt_name;
     /** Basic Constraints NID */
-    public static final int NID_basic_constraints       = 133;
+    public static int NID_basic_constraints;
     /** Extended Key Usage NID */
-    public static final int NID_ext_key_usage           = 151;
+    public static int NID_ext_key_usage;
     /** Domain name qualifier NID */
-    public static final int NID_dnQualifier             = 174;
+    public static int NID_dnQualifier;
 
     /* is this object active, or has it been cleaned up? */
     private boolean active = false;
@@ -591,6 +589,20 @@ public class WolfSSL {
                 "Failed to initialize wolfSSL library: " + ret);
         }
 
+        /* Populate NID values from native wolfSSL enums */
+        NID_surname = getNID_surname();
+        NID_serialNumber = getNID_serialNumber();
+        NID_pkcs9_unstructuredName = getNID_pkcs9_unstructuredName();
+        NID_pkcs9_contentType = getNID_pkcs9_contentType();
+        NID_pkcs9_challengePassword = getNID_pkcs9_challengePassword();
+        NID_givenName = getNID_givenName();
+        NID_initials = getNID_initials();
+        NID_key_usage = getNID_key_usage();
+        NID_subject_alt_name = getNID_subject_alt_name();
+        NID_basic_constraints = getNID_basic_constraints();
+        NID_ext_key_usage = getNID_ext_key_usage();
+        NID_dnQualifier = getNID_dnQualifier();
+
         /* initialize cipher enum values */
         wolfssl_aes         = getBulkCipherAlgorithmEnumAES();
         wolfssl_cipher_null = getBulkCipherAlgorithmEnumNULL();
@@ -608,6 +620,12 @@ public class WolfSSL {
         SHA256 = getHmacEnumSHA256();
         SHA384 = getHmacEnumSHA384();
         SHA512 = getHmacEnumSHA512();
+
+        /* initialize key type enum values */
+        DSAk     = getKeyTypeEnumDSA();
+        RSAk     = getKeyTypeEnumRSA();
+        ECDSAk   = getKeyTypeEnumECDSA();
+        ED25519k = getKeyTypeEnumED25519();
 
         /* initialize TLS 1.3 secret callback ID enums */
         CLIENT_EARLY_TRAFFIC_SECRET =
@@ -641,6 +659,19 @@ public class WolfSSL {
      */
     public static native void nativeFree(long ptr);
 
+    static native int getNID_surname();
+    static native int getNID_serialNumber();
+    static native int getNID_pkcs9_unstructuredName();
+    static native int getNID_pkcs9_contentType();
+    static native int getNID_pkcs9_challengePassword();
+    static native int getNID_givenName();
+    static native int getNID_initials();
+    static native int getNID_key_usage();
+    static native int getNID_subject_alt_name();
+    static native int getNID_basic_constraints();
+    static native int getNID_ext_key_usage();
+    static native int getNID_dnQualifier();
+
     static native int getBulkCipherAlgorithmEnumNULL();
     static native int getBulkCipherAlgorithmEnumRC4();
     static native int getBulkCipherAlgorithmEnumRC2();
@@ -658,6 +689,11 @@ public class WolfSSL {
     static native int getHmacEnumSHA256();
     static native int getHmacEnumSHA384();
     static native int getHmacEnumSHA512();
+
+    static native int getKeyTypeEnumDSA();
+    static native int getKeyTypeEnumRSA();
+    static native int getKeyTypeEnumECDSA();
+    static native int getKeyTypeEnumED25519();
 
     static native int getTls13SecretEnum_CLIENT_EARLY_TRAFFIC_SECRET();
     static native int getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET();

@@ -434,6 +434,117 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
     }
 }
 
+/* Functions to get native NID enum values. These must be dynamically
+ * obtained since the native wolfSSL values can change depending on
+ * wolfSSL configuration. */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1surname
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_surname;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1serialNumber
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_serialNumber;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1unstructuredName
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_pkcs9_unstructuredName;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1contentType
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_pkcs9_contentType;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1challengePassword
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_pkcs9_challengePassword;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1givenName
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_givenName;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1initials
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_initials;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1key_1usage
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_key_usage;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1subject_1alt_1name
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_subject_alt_name;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1basic_1constraints
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_basic_constraints;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1ext_1key_1usage
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_ext_key_usage;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1dnQualifier
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return NID_dnQualifier;
+}
+
 /* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumNULL
   (JNIEnv* jenv, jclass jcl)
@@ -577,6 +688,42 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA512
     (void)jcl;
 
     return WC_HASH_TYPE_SHA512;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumDSA
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return DSAk;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumRSA
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return RSAk;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumECDSA
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return ECDSAk;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumED25519
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    return ED25519k;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getTls13SecretEnum_1CLIENT_1EARLY_1TRAFFIC_1SECRET
