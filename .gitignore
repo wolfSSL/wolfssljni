@@ -36,3 +36,5 @@ infer-out/
 
 # Maven output directory
 target/
+
+**/.claude/settings.local.json
