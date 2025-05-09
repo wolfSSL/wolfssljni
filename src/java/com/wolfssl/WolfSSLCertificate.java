@@ -622,15 +622,12 @@ public class WolfSSLCertificate implements Serializable {
                 "Invalid key format, must be PEM or DER");
         }
 
-        switch (keyType) {
-            case WolfSSL.RSAk:
-                evpKeyType = EVP_PKEY_RSA;
-                break;
-            case WolfSSL.ECDSAk:
-                evpKeyType = EVP_PKEY_EC;
-                break;
-            default:
-                throw new WolfSSLException("Unsupported public key type");
+        if (keyType == WolfSSL.RSAk) {
+            evpKeyType = EVP_PKEY_RSA;
+        } else if (keyType == WolfSSL.ECDSAk) {
+            evpKeyType = EVP_PKEY_EC;
+        } else {
+            throw new WolfSSLException("Unsupported public key type");
         }
 
         synchronized (x509Lock) {
@@ -1070,15 +1067,12 @@ public class WolfSSLCertificate implements Serializable {
                 "Invalid key format, must be PEM or DER");
         }
 
-        switch (keyType) {
-            case WolfSSL.RSAk:
-                evpKeyType = EVP_PKEY_RSA;
-                break;
-            case WolfSSL.ECDSAk:
-                evpKeyType = EVP_PKEY_EC;
-                break;
-            default:
-                throw new WolfSSLException("Unsupported private key type");
+        if (keyType == WolfSSL.RSAk) {
+            evpKeyType = EVP_PKEY_RSA;
+        } else if (keyType == WolfSSL.ECDSAk) {
+            evpKeyType = EVP_PKEY_EC;
+        } else {
+            throw new WolfSSLException("Unsupported private key type");
         }
 
         synchronized (x509Lock) {

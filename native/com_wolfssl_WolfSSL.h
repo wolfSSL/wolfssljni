@@ -207,16 +207,6 @@ extern "C" {
 #define com_wolfssl_WolfSSL_NO_PASSWORD -176L
 #undef com_wolfssl_WolfSSL_TLS13_SECRET_CB_E
 #define com_wolfssl_WolfSSL_TLS13_SECRET_CB_E -438L
-#undef com_wolfssl_WolfSSL_DSAk
-#define com_wolfssl_WolfSSL_DSAk 515L
-#undef com_wolfssl_WolfSSL_RSAk
-#define com_wolfssl_WolfSSL_RSAk 645L
-#undef com_wolfssl_WolfSSL_NTRUk
-#define com_wolfssl_WolfSSL_NTRUk 274L
-#undef com_wolfssl_WolfSSL_ECDSAk
-#define com_wolfssl_WolfSSL_ECDSAk 518L
-#undef com_wolfssl_WolfSSL_ED25519k
-#define com_wolfssl_WolfSSL_ED25519k 256L
 #undef com_wolfssl_WolfSSL_ASN_OTHER_TYPE
 #define com_wolfssl_WolfSSL_ASN_OTHER_TYPE 0L
 #undef com_wolfssl_WolfSSL_ASN_RFC822_TYPE
@@ -229,30 +219,6 @@ extern "C" {
 #define com_wolfssl_WolfSSL_ASN_URI_TYPE 6L
 #undef com_wolfssl_WolfSSL_ASN_IP_TYPE
 #define com_wolfssl_WolfSSL_ASN_IP_TYPE 7L
-#undef com_wolfssl_WolfSSL_NID_surname
-#define com_wolfssl_WolfSSL_NID_surname 4L
-#undef com_wolfssl_WolfSSL_NID_serialNumber
-#define com_wolfssl_WolfSSL_NID_serialNumber 5L
-#undef com_wolfssl_WolfSSL_NID_pkcs9_unstructuredName
-#define com_wolfssl_WolfSSL_NID_pkcs9_unstructuredName 49L
-#undef com_wolfssl_WolfSSL_NID_pkcs9_contentType
-#define com_wolfssl_WolfSSL_NID_pkcs9_contentType 50L
-#undef com_wolfssl_WolfSSL_NID_pkcs9_challengePassword
-#define com_wolfssl_WolfSSL_NID_pkcs9_challengePassword 54L
-#undef com_wolfssl_WolfSSL_NID_givenName
-#define com_wolfssl_WolfSSL_NID_givenName 100L
-#undef com_wolfssl_WolfSSL_NID_initials
-#define com_wolfssl_WolfSSL_NID_initials 101L
-#undef com_wolfssl_WolfSSL_NID_key_usage
-#define com_wolfssl_WolfSSL_NID_key_usage 129L
-#undef com_wolfssl_WolfSSL_NID_subject_alt_name
-#define com_wolfssl_WolfSSL_NID_subject_alt_name 131L
-#undef com_wolfssl_WolfSSL_NID_basic_constraints
-#define com_wolfssl_WolfSSL_NID_basic_constraints 133L
-#undef com_wolfssl_WolfSSL_NID_ext_key_usage
-#define com_wolfssl_WolfSSL_NID_ext_key_usage 151L
-#undef com_wolfssl_WolfSSL_NID_dnQualifier
-#define com_wolfssl_WolfSSL_NID_dnQualifier 174L
 #undef com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID
 #define com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID 0L
 #undef com_wolfssl_WolfSSL_WOLFSSL_ECC_SECT163K1
@@ -344,6 +310,102 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
  */
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_nativeFree
   (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_surname
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1surname
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_serialNumber
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1serialNumber
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_pkcs9_unstructuredName
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1unstructuredName
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_pkcs9_contentType
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1contentType
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_pkcs9_challengePassword
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1pkcs9_1challengePassword
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_givenName
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1givenName
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_initials
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1initials
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_key_usage
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1key_1usage
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_subject_alt_name
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1subject_1alt_1name
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_basic_constraints
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1basic_1constraints
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_ext_key_usage
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1ext_1key_1usage
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_dnQualifier
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1dnQualifier
+  (JNIEnv *, jclass);
 
 /*
  * Class:     com_wolfssl_WolfSSL
@@ -471,6 +533,38 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA384
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacEnumSHA512
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getKeyTypeEnumDSA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumDSA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getKeyTypeEnumRSA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumRSA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getKeyTypeEnumECDSA
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumECDSA
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getKeyTypeEnumED25519
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getKeyTypeEnumED25519
   (JNIEnv *, jclass);
 
 /*
