@@ -29,12 +29,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.security.Principal;
 import java.security.Provider;
 import java.security.Security;
 import java.security.KeyStoreException;
@@ -43,7 +40,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
 
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
@@ -60,11 +56,8 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
 
 import com.wolfssl.WolfSSL;
-import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
@@ -311,6 +304,7 @@ public class WolfSSLSessionTest {
                  * ClassCastException */
                 try {
                     X509Certificate[] xCerts = (X509Certificate[])certs;
+                    assertNotNull(xCerts);
                 } catch (ClassCastException e) {
                     error("\t\t... failed");
                     fail("getPeerCertificates() did not return array of type " +

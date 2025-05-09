@@ -31,9 +31,6 @@ import java.lang.StringBuilder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import com.wolfssl.WolfSSLException;
-import com.wolfssl.WolfSSLJNIException;
-
 /**
  * Wraps a native WolfSSL session object and contains methods directly related
  * to the SSL/TLS session.

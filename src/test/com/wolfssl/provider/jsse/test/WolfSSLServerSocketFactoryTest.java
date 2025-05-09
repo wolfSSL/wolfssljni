@@ -23,8 +23,6 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
@@ -35,7 +33,6 @@ import java.io.FileNotFoundException;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.KeyManagerFactory;
@@ -192,15 +189,13 @@ public class WolfSSLServerSocketFactoryTest {
         System.out.print("\tcreateSocket()");
 
         for (int i = 0; i < sockFactories.size(); i++) {
-            String addrStr = "www.example.com";
-            InetAddress addr;
             int port = 11118;
             int backlog = 0;
             SSLServerSocketFactory sf = sockFactories.get(i);
             SSLServerSocket s = null;
 
             try {
-                addr = InetAddress.getByName("www.example.com");
+                InetAddress.getByName("www.example.com");
             } catch (UnknownHostException e) {
                 /* skip test if no Internet connection available */
                 System.out.println("\t\t\t... skipped");

@@ -23,8 +23,6 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
@@ -275,7 +273,6 @@ public class WolfSSLServerSocketTest {
         throws NoSuchProviderException, NoSuchAlgorithmException,
                IOException {
 
-        int port = 11118;
         System.out.print("\tgetEnabledCipherSuites()");
 
         for (int i = 0; i < sockFactories.size(); i++) {
