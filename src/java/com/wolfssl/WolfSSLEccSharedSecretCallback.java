@@ -22,7 +22,6 @@
 package com.wolfssl;
 
 import java.nio.ByteBuffer;
-import com.wolfssl.WolfCryptEccKey;
 
 /**
  * wolfSSL ECC Shared Secret Callback Interface.

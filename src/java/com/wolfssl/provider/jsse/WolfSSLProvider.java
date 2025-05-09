@@ -169,7 +169,6 @@ public final class WolfSSLProvider extends Provider {
      *         function
      */
     public void setDevId(int devId) throws WolfSSLException {
-        int ret = 0;
 
         /* Store devId into static WolfSSL variable, used by
          * WolfSSLContext (SSLContext) */

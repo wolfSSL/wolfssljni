@@ -21,14 +21,11 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.io.ByteArrayOutputStream;
 import java.security.KeyManagementException;
-import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import javax.security.auth.x500.X500Principal;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.net.ssl.KeyManager;
@@ -39,7 +36,6 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 
 import com.wolfssl.WolfSSL;

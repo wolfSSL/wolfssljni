@@ -33,16 +33,13 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
 import java.util.Date;
 import java.util.List;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Collections;
 import java.io.ByteArrayInputStream;
-import java.io.UnsupportedEncodingException;
 import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.ExtendedSSLSession;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
@@ -57,8 +54,7 @@ import javax.net.ssl.X509KeyManager;
  * @author wolfSSL
  */
 @SuppressWarnings("deprecation")
-public class WolfSSLImplementSSLSession extends ExtendedSSLSession
-    implements SSLSession {
+public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     private WolfSSLSession ssl = null;
     private final WolfSSLAuthStore authStore;

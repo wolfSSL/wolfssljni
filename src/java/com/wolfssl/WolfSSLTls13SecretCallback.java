@@ -21,8 +21,6 @@
 
 package com.wolfssl;
 
-import java.nio.ByteBuffer;
-
 /**
  * wolfSSL TLS 1.3 Secret Callback Interface.
  * This interface specifies how applications should implement the TLS 1.3

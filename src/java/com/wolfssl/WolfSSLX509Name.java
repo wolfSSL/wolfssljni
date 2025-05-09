@@ -20,8 +20,6 @@
  */
 package com.wolfssl;
 
-import com.wolfssl.WolfSSLDebug;
-
 /**
  * WolfSSLX509Name class, wraps native WOLFSSL_X509_NAME functionality.
  */
