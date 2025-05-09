@@ -50,7 +50,6 @@ public class WolfSSLKeyX509Test {
 
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
-    private javax.security.cert.X509Certificate[] certs;
 
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
@@ -82,7 +81,6 @@ public class WolfSSLKeyX509Test {
         X509KeyManager km;
         X509Certificate[] chain;
         String[] alias;
-        String str;
 
         System.out.print("\tTesting getClientAliases");
 

@@ -20,10 +20,7 @@
  */
 package com.wolfssl;
 
-import java.util.Date;
 import java.sql.Timestamp;
-
-import com.wolfssl.WolfSSLLoggingCallback;
 
 /**
  * Utility class to help with JSSE-level functionality.

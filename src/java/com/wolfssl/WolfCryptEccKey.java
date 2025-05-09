@@ -21,8 +21,6 @@
 
 package com.wolfssl;
 
-import com.wolfssl.WolfSSLException;
-
 /**
  * Wraps a native ecc_key structure pointer.
  *

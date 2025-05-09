@@ -26,7 +26,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -46,7 +45,6 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
-import com.wolfssl.WolfSSLDebug;
 
 /**
  * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
@@ -461,7 +459,6 @@ public class WolfSSLCertificate implements Serializable {
         throws IllegalStateException, WolfSSLException {
 
         int ret;
-        long x509CertPtr = 0;
         long x509NamePtr = 0;
 
         confirmObjectIsActive();
@@ -549,7 +546,6 @@ public class WolfSSLCertificate implements Serializable {
     public void setPublicKey(String filePath, int keyType, int format)
         throws IllegalStateException, IOException, WolfSSLException {
 
-        int ret = 0;
         File keyFile = null;
         byte[] fileBytes = null;
 
@@ -991,7 +987,6 @@ public class WolfSSLCertificate implements Serializable {
         String digestAlg) throws IllegalStateException, IOException,
                               WolfSSLException {
 
-        int ret = 0;
         File keyFile = null;
         byte[] fileBytes = null;
 

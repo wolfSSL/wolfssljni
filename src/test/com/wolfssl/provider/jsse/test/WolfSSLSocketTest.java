@@ -23,15 +23,11 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -50,20 +46,16 @@ import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.net.ConnectException;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
-import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -1178,6 +1170,7 @@ public class WolfSSLSocketTest {
 
         es.shutdown();
         serverFuture.get();
+        serverSock.close();
 
         System.out.println("\t... passed");
     }
@@ -2583,6 +2576,7 @@ public class WolfSSLSocketTest {
             /* connect to invalid host/port, expect java.net.ConnectException.
              * we do not expect anything to be running at localhost:12345 */
             SSLSocket cs = (SSLSocket)sf.createSocket("localhost", 12345);
+            assertNotNull(cs);
         } catch (ConnectException ce) {
             /* expected */
         } catch (Exception e) {
@@ -2820,9 +2814,7 @@ public class WolfSSLSocketTest {
     public void testSocketCloseInterruptsWrite() throws Exception {
 
         String protocol = null;
-        SSLServerSocketFactory ssf = null;
         SSLServerSocket ss = null;
-        SSLSocketFactory sf = null;
         boolean passed = false;
 
         System.out.print("\tTesting close/write interrupt");
@@ -2952,9 +2944,7 @@ public class WolfSSLSocketTest {
 
         int ret = 0;
         String protocol = null;
-        SSLServerSocketFactory ssf = null;
         SSLServerSocket ss = null;
-        SSLSocketFactory sf = null;
         boolean passed = false;
 
         System.out.print("\tTesting close/read interrupt");
