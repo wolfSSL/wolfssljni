@@ -29,7 +29,6 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.ECPrivateKey;
-import com.wolfssl.WolfSSLDebug;
 
 /**
  * WolfSSLCertRequest class, wraps native X509_REQ functionality.
@@ -259,7 +258,6 @@ public class WolfSSLCertRequest {
     public void setPublicKey(String filePath, int keyType, int format)
         throws IllegalStateException, IOException, WolfSSLException {
 
-        int ret = 0;
         File keyFile = null;
         byte[] fileBytes = null;
 
@@ -560,7 +558,6 @@ public class WolfSSLCertRequest {
         String digestAlg) throws IllegalStateException, IOException,
                               WolfSSLException {
 
-        int ret = 0;
         File keyFile = null;
         byte[] fileBytes = null;
 

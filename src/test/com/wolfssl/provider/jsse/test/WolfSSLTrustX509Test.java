@@ -23,12 +23,10 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
-import com.wolfssl.provider.jsse.WolfSSLContext;
 import com.wolfssl.provider.jsse.WolfSSLTrustX509;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.BufferedInputStream;
@@ -40,7 +38,6 @@ import java.io.PrintWriter;
 import java.time.Instant;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
-import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
@@ -180,9 +177,7 @@ public class WolfSSLTrustX509Test {
     public void testUseBeforeInit()
         throws NoSuchProviderException, NoSuchAlgorithmException {
         TrustManagerFactory tmf;
-        TrustManager[] tm;
         KeyManagerFactory kmf;
-        KeyManager[] km;
 
         System.out.print("\tTesting use before init()");
 
@@ -200,7 +195,7 @@ public class WolfSSLTrustX509Test {
         }
 
         try {
-            tm = tmf.getTrustManagers();
+            tmf.getTrustManagers();
             error("\t... failed");
             fail("getTrustManagers() before init() did not throw an error");
         } catch (IllegalStateException e) {
@@ -215,7 +210,7 @@ public class WolfSSLTrustX509Test {
         }
 
         try {
-            km = kmf.getKeyManagers();
+            kmf.getKeyManagers();
             error("\t... failed");
             fail("getKeyManagers() before init() did not throw an error");
         } catch (IllegalStateException e) {
@@ -1869,7 +1864,6 @@ public class WolfSSLTrustX509Test {
 
         /* Fail if client or server encountered exception */
         Exception srvException = server.getException();
-        Exception cliException = client.getException();
 
         if (srvException == null) {
             throw new Exception("Expecting exception but did not get one");

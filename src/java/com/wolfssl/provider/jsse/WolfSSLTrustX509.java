@@ -39,7 +39,6 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.StandardConstants;
-import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.security.auth.x500.X500Principal;
 
@@ -56,8 +55,7 @@ import java.security.cert.Certificate;
  *
  * @author wolfSSL
  */
-public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
-    implements X509TrustManager {
+public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
     private KeyStore store = null;
 
@@ -645,7 +643,6 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager
 
         String endpointIdAlgo = null;
         SSLParameters sslParams = null;
-        SSLSession session = null;
 
         /* Hostname verification on Socket done only if Socket is of SSLSocket,
          * not null, and connected */

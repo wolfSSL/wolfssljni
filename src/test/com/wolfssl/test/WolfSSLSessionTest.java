@@ -36,11 +36,9 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CountDownLatch;
-import java.util.Arrays;
 import java.nio.ByteBuffer;
 
 import com.wolfssl.WolfSSL;
@@ -458,14 +456,14 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_getPskIdentity()
         throws WolfSSLJNIException, WolfSSLException {
 
-        String identity = null;
         WolfSSLSession ssl = null;
 
         System.out.print("\tgetPskIdentity()");
 
         try {
             ssl = new WolfSSLSession(ctx);
-            identity = ssl.getPskIdentity();
+            /* Not checking return, just that we don't throw an exception */
+            ssl.getPskIdentity();
 
         } catch (IllegalStateException e) {
             System.out.println("\t\t... failed");
@@ -690,6 +688,7 @@ public class WolfSSLSessionTest {
 
             /* setup library, context, session, socket */
             sslLib = new WolfSSL();
+            assertNotNull(sslLib);
             sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
             sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             ssl = new WolfSSLSession(sslCtx);
@@ -772,6 +771,7 @@ public class WolfSSLSessionTest {
 
             /* setup library, context, session, socket */
             sslLib = new WolfSSL();
+            assertNotNull(sslLib);
             sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
             sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             ssl = new WolfSSLSession(sslCtx);
@@ -834,12 +834,10 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_useSecureRenegotiation()
         throws WolfSSLJNIException {
 
-        int ret, err;
+        int ret;
         WolfSSL sslLib = null;
         WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
-        Socket sock = null;
-        byte[] sessionID = null;
 
         System.out.print("\tTesting useSecureRenegotiation()");
 
@@ -847,6 +845,7 @@ public class WolfSSLSessionTest {
 
             /* setup library, context, session, socket */
             sslLib = new WolfSSL();
+            assertNotNull(sslLib);
             sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
             sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             ssl = new WolfSSLSession(sslCtx);
@@ -906,6 +905,7 @@ public class WolfSSLSessionTest {
 
             /* setup library, context, session, socket */
             sslLib = new WolfSSL();
+            assertNotNull(sslLib);
             sslCtx = new WolfSSLContext(WolfSSL.TLSv1_3_ClientMethod());
             sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
             ssl = new WolfSSLSession(sslCtx);
@@ -1027,7 +1027,7 @@ public class WolfSSLSessionTest {
             /* Start server */
             try {
                 ExecutorService es = Executors.newSingleThreadExecutor();
-                Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                es.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
                         int ret;
@@ -1119,20 +1119,19 @@ public class WolfSSLSessionTest {
                 fail();
 
             } finally {
+                /* Free resources */
                 if (cliSes != null) {
                     cliSes.freeSSL();
                 }
                 if (cliSock != null) {
                     cliSock.close();
                 }
-            }
-
-            /* Free resources */
-            if (srvSocket != null) {
-                srvSocket.close();
-            }
-            if (srvCtx != null) {
-                srvCtx.free();
+                if (srvSocket != null) {
+                    srvSocket.close();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
             }
 
         } finally {
@@ -1210,7 +1209,7 @@ public class WolfSSLSessionTest {
         /* Start server, handles 1 resumption */
         try {
             ExecutorService es = Executors.newSingleThreadExecutor();
-            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            es.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
                     int ret;
@@ -1389,6 +1388,7 @@ public class WolfSSLSessionTest {
             fail();
 
         } finally {
+            /* Free resources */
             if (sessionPtr != 0) {
                 WolfSSLSession.freeSession(sessionPtr);
             }
@@ -1401,14 +1401,12 @@ public class WolfSSLSessionTest {
             if (cliSock != null) {
                 cliSock.close();
             }
-        }
-
-        /* Free resources */
-        if (srvSocket != null) {
-            srvSocket.close();
-        }
-        if (srvCtx != null) {
-            srvCtx.free();
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
         }
 
         System.out.println("\t... passed");
@@ -1424,9 +1422,6 @@ public class WolfSSLSessionTest {
 
         private int cliToSrvUsed = 0;
         private int srvToCliUsed = 0;
-
-        private int CLIENT_END = 1;
-        private int SERVER_END = 2;
 
         private final Object cliLock = new Object();
         private final Object srvLock = new Object();
@@ -1634,7 +1629,7 @@ public class WolfSSLSessionTest {
 
         /* Initialize library */
         WolfSSL lib = new WolfSSL();
-
+        assertNotNull(lib);
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
 

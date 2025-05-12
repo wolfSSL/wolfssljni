@@ -419,10 +419,7 @@ public class WolfSSLX509Test {
 
         SSLEngine server;
         SSLEngine client;
-        String    cipher = null;
-        int ret, i;
-        String[] ciphers;
-        String   certType;
+        int ret;
         SSLContext ctxClient;
         SSLContext ctxServer;
         System.out.print("\tTesting x509 getters");

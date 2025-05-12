@@ -604,7 +604,6 @@ public class WolfSSLEngine extends SSLEngine {
         int totalIn = 0;
         int sendSz = 0;
         int inputLeft = 0;
-        ByteBuffer dataBuf;
         byte[] dataArr;
         int[] pos = new int[len];   /* in[] positions */
         int[] limit = new int[len]; /* in[] limits */

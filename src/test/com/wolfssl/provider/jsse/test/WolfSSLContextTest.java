@@ -23,8 +23,6 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.List;
@@ -32,7 +30,6 @@ import java.util.Arrays;
 import java.util.ArrayList;
 
 import com.wolfssl.WolfSSLException;
-import com.wolfssl.provider.jsse.WolfSSLContext;
 
 import java.io.FileInputStream;
 import javax.net.SocketFactory;
@@ -161,6 +158,7 @@ public class WolfSSLContextTest {
         KeyManagerFactory km;
         TrustManagerFactory tm;
         KeyStore pKey, cert;
+        SSLSocketFactory ssf;
 
         System.out.print("\tgetSocketFactory()");
 
@@ -198,8 +196,8 @@ public class WolfSSLContextTest {
 
             ctx.init(km.getKeyManagers(), tm.getTrustManagers(), null);
 
-            SSLSocketFactory sf = ctx.getSocketFactory();
-
+            ssf = ctx.getSocketFactory();
+            assertNotNull(ssf);
         }
 
         System.out.println("\t\t... passed");
@@ -269,6 +267,7 @@ public class WolfSSLContextTest {
             /* test for getting session context @TODO additional tests */
             try {
                 SSLSessionContext sess = ctx.getServerSessionContext();
+                assertNotNull(sess);
             } catch (UnsupportedOperationException e) {
                 System.out.println("\t\t... failed");
                 fail("Failed to get SSLSessionContext");
@@ -277,6 +276,7 @@ public class WolfSSLContextTest {
             /* test for getting client session context @TODO additional tests */
             try {
                 SSLSessionContext sess = ctx.getClientSessionContext();
+                assertNotNull(sess);
             } catch (UnsupportedOperationException e) {
                 System.out.println("\t\t... failed");
                 fail("Failed to return client SSLSessionContext");

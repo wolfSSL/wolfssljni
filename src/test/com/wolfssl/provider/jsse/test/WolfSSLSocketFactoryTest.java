@@ -23,8 +23,6 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
@@ -53,7 +51,6 @@ import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
-import java.net.UnknownHostException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -165,11 +162,7 @@ public class WolfSSLSocketFactoryTest {
 
         SSLSocketFactory sf =
             new com.wolfssl.provider.jsse.WolfSSLSocketFactory();
-
-        if (sf == null) {
-            System.out.println("\t\t\t... failed");
-            fail("SSLSocketFactory.getDefault() failed");
-        }
+        assertNotNull(sf);
 
         System.out.println("\t\t\t... passed");
     }

@@ -22,16 +22,11 @@
 
 package com.wolfssl.provider.jsse;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactorySpi;
 import javax.net.ssl.ManagerFactoryParameters;
@@ -73,7 +68,6 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
         throws KeyStoreException {
 
         KeyStore sysStore = null;
-        InputStream stream = null;
         String pass = System.getProperty("javax.net.ssl.keyStorePassword");
         String file = System.getProperty("javax.net.ssl.keyStore");
         String type = System.getProperty("javax.net.ssl.keyStoreType");
