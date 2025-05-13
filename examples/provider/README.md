@@ -145,6 +145,28 @@ Example usage:
 $ ./examples/provider/ThreadedSSLSocketClientServer.sh
 ```
 
+## DtlsClientEngine.java and DtlsServerEngine.java
+
+Example client/server applications that demonstrate how to use SSLEngine with DTLS 1.3.
+
+**DtlsServerEngine.java** - Example DTLS 1.3 server using SSLEngine
+**DtlsClientEngine.java** - Example DTLS 1.3 client using SSLEngine
+
+These examples show how to implement DTLS 1.3 with SSLEngine for datagram-based
+secure communication. Unlike the TCP-based examples, these use DatagramSocket for
+UDP transport and handle the complexities of DTLS, including session tickets
+and handshake state management.
+
+Run the examples with the provided bash scripts:
+
+```
+$ ./examples/provider/DtlsServerEngine.sh
+$ ./examples/provider/DtlsClientEngine.sh
+```
+
+The client connects to the server, sends a message, and receives the echoed response.
+Both examples support various command-line options that can be viewed with the -? flag.
+
 ## Support
 
 Please contact the wolfSSL support team at support@wolfssl.com with any
