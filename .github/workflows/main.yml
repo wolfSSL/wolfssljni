@@ -52,6 +52,21 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # Corretto JDK (Linux, Mac) Aarch64 with armasm
+  linux-corretto-aarch64-armasm:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-24.04-arm' ]
+        jdk_version: [ '8', '11', '17', '21' ]
+        wolfssl_configure: [ '--enable-jni --enable-armasm' ]
+    name: ${{ matrix.os }} (Corretto JDK Aarch64 armasm ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
+    uses: ./.github/workflows/linux-common.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "corretto"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+
   # Temurin JDK (Linux, Mac)
   # JDK 8 seems to have been removed from Temurin macos, with 8 we see the error
   # Could not find satisfied version for SemVer '8'
