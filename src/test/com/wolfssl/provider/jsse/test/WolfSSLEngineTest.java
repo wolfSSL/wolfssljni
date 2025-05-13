@@ -1232,50 +1232,74 @@ public class WolfSSLEngineTest {
 
         /* Start up simple TLS test server */
         CountDownLatch serverOpenLatch = new CountDownLatch(1);
-        InternalMultiThreadedSSLSocketServer server =
-            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch,
-            numThreads);
-        server.start();
+        InternalMultiThreadedSSLSocketServer server = null;
 
-        /* Wait for server thread to start up before connecting clients */
-        serverOpenLatch.await();
+        try {
+            server = new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch,
+                numThreads);
+            server.start();
 
-        /* Start up client threads */
-        for (int i = 0; i < numThreads; i++) {
-            service.submit(new Runnable() {
-                @Override public void run() {
-                    SSLEngineClient client =
-                        new SSLEngineClient(localCtx, "localhost", svrPort);
-                    try {
-                        client.connect();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        failures.incrementAndGet(0);
+            /* Wait for server thread to start up before connecting clients */
+            serverOpenLatch.await();
+
+            /* Start up client threads */
+            for (int i = 0; i < numThreads; i++) {
+                service.submit(new Runnable() {
+                    @Override public void run() {
+                        SSLEngineClient client =
+                            new SSLEngineClient(localCtx, "localhost", svrPort);
+                        try {
+                            client.connect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            failures.incrementAndGet(0);
+                        }
+                        success.incrementAndGet(0);
+
+                        latch.countDown();
                     }
-                    success.incrementAndGet(0);
+                });
+            }
 
-                    latch.countDown();
-                }
-            });
-        }
+            /* Wait for all client threads to finish, else time out */
+            returnWithoutTimeout = latch.await(10, TimeUnit.SECONDS);
 
-        /* Wait for all client threads to finish, else time out */
-        returnWithoutTimeout = latch.await(10, TimeUnit.SECONDS);
-        server.join(1000);
-
-        /* check failure count and success count against thread count */
-        if (failures.get(0) == 0 && success.get(0) == numThreads) {
-            pass("\t\t... passed");
-        } else {
-            if (returnWithoutTimeout == true) {
-                error("\t\t... failed");
-                fail("SSLEngine threading error: " +
-                     failures.get(0) + " failures, " +
-                     success.get(0) + " success, " +
-                     numThreads + " num threads total");
+            /* check failure count and success count against thread count */
+            if (failures.get(0) == 0 && success.get(0) == numThreads) {
+                pass("\t\t... passed");
             } else {
-                error("\t\t... failed");
-                fail("SSLEngine threading error, threads timed out");
+                if (returnWithoutTimeout == true) {
+                    error("\t\t... failed");
+                    fail("SSLEngine threading error: " +
+                         failures.get(0) + " failures, " +
+                         success.get(0) + " success, " +
+                         numThreads + " num threads total");
+                } else {
+                    error("\t\t... failed");
+                    fail("SSLEngine threading error, threads timed out");
+                }
+            }
+        } finally {
+            /* Ensure proper cleanup in all cases */
+
+            /* Close server socket to ensure it's released */
+            if (server != null) {
+                server.closeSocket();
+                try {
+                    server.join(1000);
+                } catch (InterruptedException e) {
+                    /* Ignore */
+                }
+            }
+
+            /* Shutdown executor service and wait for it to terminate */
+            service.shutdown();
+            try {
+                if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                    service.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                service.shutdownNow();
             }
         }
     }
@@ -1548,6 +1572,7 @@ public class WolfSSLEngineTest {
         private int serverPort;
         private CountDownLatch serverOpenLatch = null;
         private int clientConnections = 1;
+        private SSLServerSocket ss = null;
 
         public InternalMultiThreadedSSLSocketServer(
             int port, CountDownLatch openLatch, int clientConnections) {
@@ -1556,11 +1581,24 @@ public class WolfSSLEngineTest {
             this.clientConnections = clientConnections;
         }
 
+        /**
+         * Explicitly closes the server socket if still open
+         */
+        public void closeSocket() {
+            if (ss != null) {
+                try {
+                    ss.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
         @Override
         public void run() {
             try {
                 SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
-                SSLServerSocket ss = (SSLServerSocket)ctx
+                ss = (SSLServerSocket)ctx
                     .getServerSocketFactory().createServerSocket(serverPort);
 
                 while (clientConnections > 0) {
@@ -1573,6 +1611,15 @@ public class WolfSSLEngineTest {
 
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                /* Ensure server socket is closed */
+                if (ss != null) {
+                    try {
+                        ss.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
 
@@ -1592,9 +1639,17 @@ public class WolfSSLEngineTest {
                     sock.startHandshake();
                     sock.getInputStream().read(response);
                     sock.getOutputStream().write(msg.getBytes());
-                    sock.close();
                 } catch (Exception e) {
                     e.printStackTrace();
+                } finally {
+                    /* Ensure socket is closed */
+                    try {
+                        if (sock != null && !sock.isClosed()) {
+                            sock.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
