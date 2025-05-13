@@ -87,7 +87,7 @@ elif [ "$OS" == "Linux" ] ; then
     javaIncludes="-I$javaHome/include -I$javaHome/include/linux -I$WOLFSSL_INSTALL_DIR/include"
     javaLibs="-shared"
     jniLibName="libwolfssljni.so"
-    if [ "$ARCH" == "x86_64" ] ; then
+    if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "aarch64" ]; then
         fpic="-fPIC"
     else
         fpic=""
