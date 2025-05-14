@@ -27,6 +27,7 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -62,6 +63,7 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
 import java.security.Security;
 import java.security.Provider;
@@ -3392,6 +3394,113 @@ public class WolfSSLSocketTest {
             } else {
                 Security.setProperty("wolfjsse.autoSNI", "true");
             }
+        }
+    }
+
+    @Test
+    public void testSNIMatchers() throws Exception {
+
+        System.out.print("\tTesting SNI Matchers");
+    
+        /* create new CTX */
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+    
+        /* create SSLServerSocket first to get ephemeral port */
+        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+    
+        /* Configure SNI matcher for server*/
+        SNIMatcher matcher = SNIHostName.createSNIMatcher("www\\.example\\.com");
+        Collection<SNIMatcher> matchers = new ArrayList<>();
+        matchers.add(matcher);
+        SSLParameters sp = ss.getSSLParameters();
+        sp.setSNIMatchers(matchers);
+        ss.setSSLParameters(sp);
+
+        try {
+
+            /* ------------------------------------ */
+            /* Test matched SNI case, should pass */
+            /* ------------------------------------ */
+
+            SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+            /* Set SNI hostname for client */
+            SNIHostName serverName = new SNIHostName("www.example.com");
+            List<SNIServerName> serverNames = new ArrayList<>();
+            serverNames.add(serverName);
+            SSLParameters cp = cs.getSSLParameters();
+            cp.setServerNames(serverNames);
+            cs.setSSLParameters(cp);
+
+            final SSLSocket serverMatched = (SSLSocket)ss.accept();
+        
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        serverMatched.startHandshake();
+                        serverMatched.close();
+                    } catch (SSLException e) {
+                        System.out.println("\t... failed");
+                        fail();
+                    }
+                    return null;
+                }
+            });
+    
+            cs.startHandshake();
+            cs.close();
+    
+            es.shutdown();
+            serverFuture.get();
+
+            /* ------------------------------------ */
+            /* Test unmatched SNI case, should fail */
+            /* ------------------------------------ */
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+            /* Set non-matching SNI hostname for client */
+            serverName = new SNIHostName("www.example.org");
+            serverNames = new ArrayList<>();
+            serverNames.add(serverName);
+            cp = cs.getSSLParameters();
+            cp.setServerNames(serverNames);
+            cs.setSSLParameters(cp);
+
+            final SSLSocket serverUnmatched = (SSLSocket)ss.accept();
+            
+            es = Executors.newSingleThreadExecutor();
+            serverFuture = es.submit(() -> {
+                try {
+                    serverUnmatched.startHandshake();
+                    fail("Server handshake succeeded with non-matching SNI");
+                } catch (SSLHandshakeException e) {
+                    /* Expected failure with non-matching SNI */
+                }
+                return null;
+            });
+
+            try {
+                cs.startHandshake();
+            } catch (SSLHandshakeException e) {
+                /* Expect client to close connection, wolfJSSE does not expect
+                 * to an exception. However, SunJSSE will throw an exception */
+            }
+
+            es.shutdown();
+            serverFuture.get();
+            cs.close();
+
+            System.out.println("\t\t... passed");
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            fail();
+        } finally {
+            ss.close();
         }
     }
 
