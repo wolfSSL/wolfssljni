@@ -10,8 +10,8 @@
 
 # Code Style
 - Keep lines under 80 characters maximum length
-- Only use multi-line comments, no "//" style ones
-- Remove any trailing white space
+- MUST only use multi-line comments, no "//" style ones
+- MUST remove all trailing white space
 - Use 4 spaces for one tab, no hard tabs
 
 # Source Code Organization
