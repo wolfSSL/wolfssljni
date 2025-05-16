@@ -110,12 +110,12 @@ public class WolfSSLSession {
     private final Object sslLock = new Object();
 
     /* Maximum direct ByteBuffer pool size */
-    private static final int MAX_POOL_SIZE = 32;
+    private static int MAX_POOL_SIZE = 16;
 
     /* Size of each direct ByteBuffer in the pool. This is set to 17KB, which
      * is slightly larger than the maximum SSL record size (16KB). This
      * allows for some overhead (SSL record header, etc) */
-    private static final int BUFFER_SIZE = 17 * 1024;
+    private static int BUFFER_SIZE = 17 * 1024;
 
     /* Thread-local direct ByteBuffer pool for optimized JNI direct memory
      * access. Passing byte[] and offset down to JNI, on some systems this
@@ -446,6 +446,9 @@ public class WolfSSLSession {
     private native int connect(long ssl, int timeout);
     private native int write(long ssl, byte[] data, int offset, int length,
         int timeout);
+    private native int write(long ssl, ByteBuffer data, final int position,
+        final int limit, boolean hasArray, int sz, int timeout)
+        throws WolfSSLException;
     private native int read(long ssl, byte[] data, int offset, int sz,
         int timeout);
     private native int read(long ssl, ByteBuffer data, final int position,
@@ -1000,37 +1003,7 @@ public class WolfSSLSession {
     public int write(byte[] data, int length)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        final int ret;
-        final int err;
-        long localPtr;
-
-        confirmObjectIsActive();
-
-        /* Fix for Infer scan, since not synchronizing on sslLock for
-         * access to this.sslPtr, see note below */
-        synchronized (sslLock) {
-            localPtr = this.sslPtr;
-        }
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr,
-            () -> "entered write(length: " + length + ")");
-
-        /* not synchronizing on sslLock here since JNI write() locks
-         * session mutex around native wolfSSL_write() call. If sslLock
-         * is locked here, since we call select() inside native JNI we
-         * could timeout waiting for corresponding read() operation to
-         * occur if needed */
-        ret = write(localPtr, data, 0, length, 0);
-        err = getError(ret);
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, localPtr,
-            () -> "write() ret: " + ret + ", err: " + err);
-
-        throwExceptionFromIOReturnValue(ret, "wolfSSL_write()");
-
-        return ret;
+        return write(data, 0, length, 0);
     }
 
     /**
@@ -1113,9 +1086,12 @@ public class WolfSSLSession {
     public int write(byte[] data, int offset, int length, int timeout)
         throws IllegalStateException, SocketTimeoutException, SocketException {
 
-        final int ret;
-        final int err;
+        int ret = 0;
+        int err = 0;
+        int totalWritten = 0;
+        int remaining = length;
         long localPtr;
+        ByteBuffer directBuffer = null;
 
         confirmObjectIsActive();
 
@@ -1130,21 +1106,75 @@ public class WolfSSLSession {
             () -> "entered write(offset: " + offset + ", length: " +
             length + ", timeout: " + timeout + ")");
 
-        /* not synchronizing on sslLock here since JNI write() locks
-         * session mutex around native wolfSSL_write() call. If sslLock
-         * is locked here, since we call select() inside native JNI we
-         * could timeout waiting for corresponding read() operation to
-         * occur if needed */
-        ret = write(localPtr, data, offset, length, timeout);
-        err = getError(ret);
+        /* Use a direct ByteBuffer from the pool to avoid unaligned
+         * memory access. Otherwise our native JNI code may need to do
+         * "buffer + offset" and end up with unaligned memory which
+         * can be slow on some targets (ex: ARM/Aarch64) */
+        try {
+            /* Get a buffer from the pool */
+            directBuffer = acquireDirectBuffer();
+
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI, WolfSSLDebug.INFO, localPtr,
+                () -> "write() using thread-local ByteBuffer pool: pool size: " +
+                directBufferPool.get().size());
+
+            /* Write in chunks until all data is written or an error occurs.
+             * The DirectByteBuffer size might be smaller than the data length,
+             * so we need to loop to handle all the data */
+            while (remaining > 0) {
+                /* Calculate size for current chunk */
+                int writeSize = Math.min(remaining, directBuffer.capacity());
+
+                /* Copy data from user array to direct buffer */
+                directBuffer.clear();
+                directBuffer.put(data, offset + totalWritten, writeSize);
+                directBuffer.flip();
+
+                /* Call native write with DirectByteBuffer */
+                ret = write(localPtr, directBuffer, directBuffer.position(),
+                    directBuffer.limit(), false, writeSize, timeout);
+
+                if (ret <= 0) {
+                    /* Error occurred, break out of loop */
+                    break;
+                }
+
+                /* Update tracking variables */
+                totalWritten += ret;
+                remaining -= ret;
+            }
+
+        } catch (Exception e) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.ERROR, localPtr,
+                () -> "write() falling back to use byte[]");
+
+            /* Fall back to original implementation on exception (write not
+             * done yet at this point in JNI call above) */
+            totalWritten = write(localPtr, data, offset, length, timeout);
+
+        } finally {
+            /* Return buffer to pool */
+            if (directBuffer != null) {
+                releaseDirectBuffer(directBuffer);
+            }
+        }
+
+        /* Return total bytes written, or last error code */
+        final int finalRet = (totalWritten > 0) ? totalWritten : ret;
+        final int finalErr = getError(finalRet);
+        final int finalTotal = totalWritten;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, localPtr,
-            () -> "write() ret: " + ret + ", err: " + err);
+            () -> "write() ret: " + finalRet + ", err: " + finalErr +
+                  ", totalWritten: " + finalTotal);
 
-        throwExceptionFromIOReturnValue(ret, "wolfSSL_write()");
+        throwExceptionFromIOReturnValue(finalRet, "wolfSSL_write()");
 
-        return ret;
+        return finalRet;
     }
 
     /**
