@@ -35,7 +35,7 @@ class WolfSSLNativeLoggingCallback implements WolfSSLLoggingCallback
 {
     public synchronized void loggingCallback(int logLevel, String logMessage) {
 
-        System.out.println(new Timestamp(new java.util.Date().getTime()) +
+        System.err.println(new Timestamp(new java.util.Date().getTime()) +
                            " [wolfSSL: TID " +
                            Thread.currentThread().getId() +
                            "] " + logMessage);
