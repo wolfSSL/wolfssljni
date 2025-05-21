@@ -7,10 +7,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#undef com_wolfssl_WolfSSLSession_MAX_POOL_SIZE
-#define com_wolfssl_WolfSSLSession_MAX_POOL_SIZE 32L
-#undef com_wolfssl_WolfSSLSession_BUFFER_SIZE
-#define com_wolfssl_WolfSSLSession_BUFFER_SIZE 17408L
 /*
  * Class:     com_wolfssl_WolfSSLSession
  * Method:    newSSL

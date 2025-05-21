@@ -31,6 +31,7 @@ import java.lang.StringBuilder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.security.Security;
 
 /**
  * Wraps a native WolfSSL session object and contains methods directly related
@@ -109,6 +110,9 @@ public class WolfSSLSession {
     /* lock around native WOLFSSL pointer use */
     private final Object sslLock = new Object();
 
+    /* Is static direct ByteBuffer pool enabled for read/write() calls */
+    private boolean byteBufferPoolEnabled = true;
+
     /* Maximum direct ByteBuffer pool size */
     private static int MAX_POOL_SIZE = 16;
 
@@ -128,12 +132,133 @@ public class WolfSSLSession {
         ThreadLocal.withInitial(() -> new ConcurrentLinkedQueue<>());
 
     /**
+     * Check if static direct ByteBuffer pool has been disabled for
+     * use in read/write() methods.
+     *
+     * The pool is enabled by default, unless explicitly disabled by setting
+     * the "wolfssl.readWriteByteBufferPool.disabled" property to "true".
+     *
+     * @return true if disabled, otherwise false
+     */
+    private boolean readWritePoolDisabled() {
+
+        String disabled =
+            Security.getProperty("wolfssl.readWriteByteBufferPool.disabled");
+
+        if (disabled == null || disabled.isEmpty()) {
+            return false;
+        }
+
+        if (disabled.equalsIgnoreCase("true")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if the maximum size of the static per-thread direct
+     * ByteBuffer pool has been adjusted by setting of the
+     * "wolfssl.readWriteByteBufferPool.size" Security property.
+     *
+     * @return the size set, or the current default
+     * (MAX_POOL_SIZE) if not.
+     */
+    private int readWritePoolGetMaxSizeFromProperty() {
+
+        int maxSize = MAX_POOL_SIZE;
+
+        String sizeProp =
+            Security.getProperty("wolfssl.readWriteByteBufferPool.size");
+
+        if (sizeProp == null || sizeProp.isEmpty()) {
+            return maxSize;
+        }
+
+        try {
+            int size = Integer.parseInt(sizeProp);
+            if (size > 0) {
+                maxSize = size;
+            }
+        } catch (NumberFormatException e) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI, WolfSSLDebug.ERROR, 0,
+                () -> "Invalid value for " +
+                "wolfssl.readWriteByteBufferPool.size: " + sizeProp);
+        }
+
+        return maxSize;
+    }
+
+    /**
+     * Check if the size of the ByteBuffers in the static per-thread
+     * pool has been adjusted by setting of the
+     * "wolfssl.readWriteByteBufferPool.bufferSize" Security property.
+     *
+     * @return the size set, or the current default (BUFFER_SIZE) if not.
+     */
+    private int readWritePoolGetBufferSizeFromProperty() {
+
+        int bufferSize = BUFFER_SIZE;
+
+        String sizeProp =
+            Security.getProperty("wolfssl.readWriteByteBufferPool.bufferSize");
+
+        if (sizeProp == null || sizeProp.isEmpty()) {
+            return bufferSize;
+        }
+
+        try {
+            int size = Integer.parseInt(sizeProp);
+            if (size > 0) {
+                bufferSize = size;
+            }
+        } catch (NumberFormatException e) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI, WolfSSLDebug.ERROR, 0,
+                () -> "Invalid value for " +
+                "wolfssl.readWriteByteBufferPool.bufferSize: " + sizeProp);
+        }
+
+        return bufferSize;
+    }
+
+    /**
+     * Read current values of relevant Security properties and set
+     * internal behavior.
+     */
+    private void detectSecurityPropertySettings() {
+
+        /* Re-use sslLock for synchronization here */
+        synchronized (sslLock) {
+            /* Check if static direct ByteBuffer pool has been disabled
+             * with the "wolfssl.readWriteByteBufferPool.disabled"
+             * Security property. */
+            if (readWritePoolDisabled()) {
+                this.byteBufferPoolEnabled = false;
+            }
+
+            /* Check if the maximum size of the static per-thread direct
+             * ByteBuffer pool has been adjusted by setting of the
+             * "wolfssl.readWriteByteBufferPool.size" Security property. */
+            WolfSSLSession.MAX_POOL_SIZE =
+                readWritePoolGetMaxSizeFromProperty();
+
+            /* Check if the size of the ByteBuffers in the static per-thread
+             * pool has been adjusted by setting of the
+             * "wolfssl.readWriteByteBufferPool.bufferSize" Security property. */
+            WolfSSLSession.BUFFER_SIZE =
+                readWritePoolGetBufferSizeFromProperty();
+        }
+    }
+
+    /**
      * Get a DirectByteBuffer from the thread-local pool or allocate a new one
      * if the pool is empty.
      *
      * @return a direct ByteBuffer ready to use
      */
-    private static ByteBuffer acquireDirectBuffer() {
+    private static synchronized ByteBuffer acquireDirectBuffer() {
         ConcurrentLinkedQueue<ByteBuffer> threadPool = directBufferPool.get();
         ByteBuffer buffer = threadPool.poll();
         if (buffer == null) {
@@ -159,7 +284,7 @@ public class WolfSSLSession {
      *
      * @param buffer the buffer to return to the pool
      */
-    private static void releaseDirectBuffer(ByteBuffer buffer) {
+    private static synchronized void releaseDirectBuffer(ByteBuffer buffer) {
 
         if (buffer != null && buffer.isDirect()) {
 
@@ -207,6 +332,8 @@ public class WolfSSLSession {
             WolfSSLDebug.INFO, sslPtr,
             () -> "creating new WolfSSLSession (with I/O pipe)");
 
+        detectSecurityPropertySettings();
+
         synchronized (stateLock) {
             this.active = true;
         }
@@ -253,6 +380,8 @@ public class WolfSSLSession {
                 WolfSSLDebug.INFO, sslPtr,
                 () -> "creating new WolfSSLSession (without I/O pipe)");
         }
+
+        detectSecurityPropertySettings();
 
         synchronized (stateLock) {
             this.active = true;
@@ -1111,6 +1240,12 @@ public class WolfSSLSession {
          * "buffer + offset" and end up with unaligned memory which
          * can be slow on some targets (ex: ARM/Aarch64) */
         try {
+            if (!this.byteBufferPoolEnabled) {
+                /* Throw exception so we fall back to using byte[] in the
+                 * catch block below */
+                throw new Exception("ByteBuffer pool not enabled");
+            }
+
             /* Get a buffer from the pool */
             directBuffer = acquireDirectBuffer();
 
@@ -1137,6 +1272,7 @@ public class WolfSSLSession {
 
                 if (ret <= 0) {
                     /* Error occurred, break out of loop */
+                    err = getError(ret);
                     break;
                 }
 
@@ -1164,7 +1300,7 @@ public class WolfSSLSession {
 
         /* Return total bytes written, or last error code */
         final int finalRet = (totalWritten > 0) ? totalWritten : ret;
-        final int finalErr = getError(finalRet);
+        final int finalErr = err;
         final int finalTotal = totalWritten;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
@@ -1331,6 +1467,12 @@ public class WolfSSLSession {
          * do "buffer + offset" and end up with unaligned memory which
          * can be slow on some targets (ex: ARM/Aarch64) */
         try {
+            if (!this.byteBufferPoolEnabled) {
+                /* Throw exception so we fall back to using byte[] in the
+                 * catch block below */
+                throw new Exception("ByteBuffer pool not enabled");
+            }
+
             /* Get a buffer from the pool */
             directBuffer = acquireDirectBuffer();
 
