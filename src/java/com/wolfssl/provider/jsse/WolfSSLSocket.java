@@ -2895,8 +2895,9 @@ public class WolfSSLSocket extends SSLSocket {
                 if (ret < 0) {
                     /* print error description string */
                     String errStr = WolfSSL.getErrorString(err);
-                    throw new IOException("Native wolfSSL_write() error: "
-                            + errStr + " (error code: " + err + ")");
+                    throw new IOException("Native wolfSSL_write() error: " +
+                        errStr + " (ret: " + ret + ", error code: " +
+                        err + ")");
                 }
 
             } catch (IllegalStateException e) {

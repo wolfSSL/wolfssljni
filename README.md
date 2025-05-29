@@ -431,7 +431,14 @@ used as the default descriptor monitoring function.
 wolfJSSE allows for some customization through the `java.security` file
 and use of Security properties.
 
+#### Pre-Existing Java Security Properties
+
 Support is included for the following pre-existing Java Security properties.
+
+| System Property | Default | To Enable | Description |
+| --- | --- | --- | --- |
+| keystore.type | JKS | String | Specifies the default KeyStore type |
+| jdk.tls.disabledAlgorithms | | String | Disables algorithms, TLS protocol versions, and key lengths |
 
 **keystore.type (String)** - Specifies the default KeyStore type. This defaults
 to JKS, but could be set to something else if desired.
@@ -446,12 +453,60 @@ minimum RSA/ECC/DH key sizes. An example of potential use:
 jdk.tls.disabledAlgorithms=SSLv3, TLSv1.1, DH keySize < 1024, EC keySize < 224, RSA keySize < 1024
 ```
 
-The following custom wolfJSSE-specific Security property settings are supported.
-These can be placed into the `java.security` file and will be parsed and used
-by wolfJSSE.
+#### wolfSSL JNI/JSSE Specific Security Properties
+
+The following custom wolfSSL JNI/JSSE specific Security property settings are
+supported. These can be placed into the `java.security` file and will be parsed
+and used by wolfSSL JNI/JSSE.
+
+| System Property | Default | To Enable | Description |
+| --- | --- | --- | --- |
+| wolfssl.readWriteByteBufferPool.disabled | "false" | "true" | Disables the read/write ByteBuffer pool |
+| wolfssl.readWriteByteBufferPool.size | 16 | Integer | Sets the read/write per-thread ByteBuffer pool size |
+| wolfssl.readWriteByteBufferPool.bufferSize | 17408 | String | Sets the read/write per-thread ByteBuffer size |
+| wolfjsse.enabledCipherSuites | | String | Restricts enabled cipher suites |
+| wolfjsse.enabledSupportedCurves | | String | Restricts enabled ECC curves |
+| wolfjsse.enabledSignatureAlgorithms | | String | Restricts enabled signature algorithms |
+| wolfjsse.keystore.type.required | | String | Restricts KeyStore type |
+| wolfjsse.clientSessionCache.disabled | | "true" | Disables client session cache |
+
+**wolfssl.readWriteByteBufferPool.disabled (String)** - Can be used to disable
+the static per-thread ByteBuffer pool used in com.wolfssl.WolfSSLSession
+for native JNI wolfSS\_read() and wolfSSL\_write() calls. This pool is in place
+to prevent unaligned memory access at the JNI level when using byte array
+offsets. This pool is enabled by default unless explicitly disabled by setting
+this property to "true":
+
+```
+wolfssl.readWriteByteBufferPool.disabled=true
+```
+
+**wolfssl.readWriteByteBufferPool.size (Integer)** - Can be used to set the
+maximum per-thread ByteBuffer pool size. This is the maximum number of
+direct ByteBuffer objects that will be allocated and added to the pool. The
+pool starts at size 0, then grows as needed up to this maximum size. The
+default is 16. This should be set to a positive integer value:
+
+```
+wolfssl.readWriteByteBufferPool.size=16
+```
+
+**wolfssl.readWriteByteBufferPool.bufferSize (String)** - Can be used to set
+the size of each direct ByteBuffer in the static per-thread WolfSSLSession
+pool. This is set to 17k (17 * 1024) by default which allows for the maximum
+SSL/TLS record size of 2^14 (16k) plus some extra space for the record header
+overhead. This should be set to a positive integer value. This can be used
+to optimize performance if the size of data an application is reading/writing
+is known. If sized properly, fewer read/write loops will need to be done
+when calling native `wolfSSL_read()` and `wolfSSL_write()` inside
+com.wolfssl.WolfSSLSession read() and write() methods.
+
+```
+wolfssl.readWriteByteBufferPool.bufferSize=17408
+```
 
 **wolfjsse.enabledCipherSuites (String)** - Allows restriction of the enabled
-cipher suiets to those listed in this Security property. When set, applications
+cipher suites to those listed in this Security property. When set, applications
 wil not be able to override or add additional suites at runtime without
 changing this property. This should be a comma-delimited String. Example use:
 
