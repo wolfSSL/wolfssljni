@@ -87,14 +87,17 @@ public class WolfSSLUtil {
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             () -> "jdk.tls.disabledAlgorithms: " + tmpDisabledAlgos);
 
+        /* 
+         * WolfJSSE only supports DTLSv1.3, automatically add DTLSv1,
+         * and DTLSv1.2 to disabled algorithms for now */
+
+        disabledAlgos += ",DTLSv1,DTLSv1.2";
+
         /* If WolfSSL.INVALID is passed in as currentVersion, no filtering
          * is done based on current protocol */
         if (currentVersion != WolfSSL.TLS_VERSION.INVALID) {
             /* Remove DTLS protocols if using TLS explicitly. Needed
              * since native wolfSSL doesn't have protocol masks for DTLS. */
-            if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_2) {
-                disabledAlgos += ",DTLSv1.2";
-            }
             if (currentVersion != WolfSSL.TLS_VERSION.DTLSv1_3) {
                 disabledAlgos += ",DTLSv1.3";
             }
