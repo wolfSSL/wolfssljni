@@ -64,6 +64,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     private final int port;
     private final String host;
     String protocol = null;
+    int packetBufSz = -1; /* max packet size for TLS record */
+    String cipherSuite = null; /* cipher suite used for this session */
     Date creation = null;
     Date accessed = null; /* when new connection was made using session */
     byte[] pseudoSessionID = null; /* used with TLS 1.3*/
@@ -508,6 +510,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         ByteArrayInputStream der;
         X509Certificate exportCert;
 
+
         if (ssl == null) {
             throw new SSLPeerUnverifiedException(
                 "internal WolfSSLSession null, handshake not complete or " +
@@ -719,6 +722,11 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     @Override
     public synchronized String getCipherSuite() {
+        /* If cipher suite is already set, return it */
+        if (this.cipherSuite != null) {
+            return this.cipherSuite;
+        }
+
         if (ssl == null) {
             return this.nullCipher;
         }
@@ -793,7 +801,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         int ret = 17 * 1024;
 
         /* Try to get maximum TLS record size from native wolfSSL */
-        if (ssl != null) {
+        if (packetBufSz >= 0){
+            ret = this.packetBufSz;
+        } else if (ssl != null) {
             nativeMax = ssl.getMaxOutputSize();
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
@@ -929,10 +939,50 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 }
             } catch (UnsupportedOperationException ex) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "Error extracting SNI server names: " +
-                        ex.getMessage());
+                    () -> "Error extracting SNI server names: " +
+                    ex.getMessage());
             }
         }
+
+        /* Update packet buffer size */
+        try {
+            int maxOutputSize = this.ssl.getMaxOutputSize();
+            if (this.packetBufSz < 0 || this.packetBufSz < maxOutputSize)
+                this.packetBufSz = maxOutputSize;
+        } catch (IllegalStateException ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Not able to update packet buffer size: " +
+                ex.getMessage());
+        }
+
+        /* Update cipher suite */
+        try {
+            if (this.ssl != null && this.cipherSuite == null) {
+                this.cipherSuite = this.ssl.cipherGetName();
+                if (this.cipherSuite != null && !this.cipherSuite.isEmpty()) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Updated cipher suite: " + this.cipherSuite);
+                }
+            }
+        } catch (WolfSSLJNIException ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Not able to update cipher suite: " +
+                ex.getMessage());
+        }
+
+        /* Update peer certificates */
+        try {
+            if (this.peerCerts == null) {
+                this.getPeerCertificates();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Updated peer certificates for session" +
+                    "getPeerCertificates() caches peer certs");
+            }
+        } catch (SSLPeerUnverifiedException ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO, () ->
+                "Not able to update peer certificates: " + ex.getMessage());
+        }
+
     }
 
     /**
