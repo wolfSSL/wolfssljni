@@ -469,6 +469,7 @@ and used by wolfSSL JNI/JSSE.
 | wolfjsse.enabledSignatureAlgorithms | | String | Restricts enabled signature algorithms |
 | wolfjsse.keystore.type.required | | String | Restricts KeyStore type |
 | wolfjsse.clientSessionCache.disabled | | "true" | Disables client session cache |
+| wolfjsse.X509KeyManager.disableCache | "false" | "true" | Disables X509KeyManager KeyStore entry caching |
 
 **wolfssl.readWriteByteBufferPool.disabled (String)** - Can be used to disable
 the static per-thread ByteBuffer pool used in com.wolfssl.WolfSSLSession
@@ -552,6 +553,18 @@ cache. The Java client cache is enabled by default.
 
 ```
 wolfjsse.clientSessionCache.disabled=true
+```
+
+**wolfjsse.X509KeyManager.disableCache (String)** - Can be used to disable
+KeyStore entry caching in the WolfSSLKeyX509 (X509ExtendedKeyManager) implementation.
+When set to "true", the X509KeyManager will revert to the original behavior of
+calling KeyStore methods directly for each operation instead of using cached
+entries. This can be useful for debugging, compatibility testing, or when
+KeyStore contents may change dynamically. Caching is enabled by default for
+performance. This should be set to the String "true" to disable caching:
+
+```
+wolfjsse.X509KeyManager.disableCache=true
 ```
 
 If there are other Security properties you would like to use with wolfJSSE,
