@@ -159,7 +159,7 @@ final class WolfSSLParameters {
             return null;
         } else {
             return Collections.unmodifiableList(
-                    new ArrayList<WolfSSLSNIServerName>(this.serverNames));
+                new ArrayList<WolfSSLSNIServerName>(this.serverNames));
         }
     }
 

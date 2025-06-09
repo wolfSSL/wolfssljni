@@ -60,6 +60,12 @@ import com.wolfssl.WolfSSLJNIException;
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
+
+    /* Cache system and security properties to reduce thread contention */
+    private boolean jsseEnableSniExtension;
+    private boolean jdkTlsTrustNameService;
+    private boolean wolfjsseAutoSni;
+
     private volatile WolfSSLSession ssl = null;
     private WolfSSLImplementSSLSession session = null;
     private WolfSSLParameters params = null;
@@ -106,6 +112,19 @@ public class WolfSSLEngineHelper {
     private WolfSSLInternalVerifyCb wicb = null;
 
     /**
+     * Private helper method to get System and Security properties.
+     * Called once up front by constructor.
+     */
+    private void getSystemAndSecurityProperties() {
+        this.jsseEnableSniExtension =
+            checkBooleanProperty("jsse.enableSNIExtension", true);
+        this.jdkTlsTrustNameService =
+            checkBooleanProperty("jdk.tls.trustNameService", false);
+        this.wolfjsseAutoSni =
+            checkBooleanProperty("wolfjsse.autoSNI", false);
+    }
+
+    /**
      * Always creates a new session
      * @param ssl WOLFSSL session
      * @param store main auth store holding session tables and managers
@@ -118,6 +137,8 @@ public class WolfSSLEngineHelper {
         if (params == null || ssl == null || store == null) {
             throw new WolfSSLException("Bad argument");
         }
+
+        getSystemAndSecurityProperties();
 
         this.ssl = ssl;
         this.params = params;
@@ -143,6 +164,8 @@ public class WolfSSLEngineHelper {
         if (params == null || ssl == null || store == null || port < 0) {
             throw new WolfSSLException("Bad argument");
         }
+
+        getSystemAndSecurityProperties();
 
         this.ssl = ssl;
         this.params = params;
@@ -172,6 +195,8 @@ public class WolfSSLEngineHelper {
                 peerAddr == null || port < 0) {
             throw new WolfSSLException("Bad argument");
         }
+
+        getSystemAndSecurityProperties();
 
         this.ssl = ssl;
         this.params = params;
@@ -887,21 +912,7 @@ public class WolfSSLEngineHelper {
      * what String.
      */
     private void setLocalServerNames() {
-        /* Do not add SNI if system property has been set to false */
-        boolean enableSNI =
-            checkBooleanProperty("jsse.enableSNIExtension", true);
-
-        /* Have we been instructed to trust the system name service for
-         * reverse DNS lookups? */
-        boolean trustNameService =
-            checkBooleanProperty("jdk.tls.trustNameService", false);
-
-        /*
-         * Check if automatic SNI setting is enabled via Security property.
-         * This allows users to enable legacy hostname-based SNI behavior
-         * through java.security configuration rather than JVM arguments. */
-        boolean autoSNI = "true".equalsIgnoreCase(
-            Security.getProperty("wolfjsse.autoSNI"));
+        boolean autoSNI = this.wolfjsseAutoSni;
 
         /* Detect HttpsURLConnection usage by checking:
          * - Client mode is set (client-side connection)
@@ -919,7 +930,7 @@ public class WolfSSLEngineHelper {
          * HttpsURLConnection is detected */
         autoSNI = autoSNI || isHttpsConnection;
 
-        if (!enableSNI) {
+        if (!this.jsseEnableSniExtension) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "jsse.enableSNIExtension property set to false, " +
                 "not adding SNI to ClientHello");
@@ -938,7 +949,7 @@ public class WolfSSLEngineHelper {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
                 }
             } else if (autoSNI) {
-                if (this.peerAddr != null && trustNameService) {
+                if (this.peerAddr != null && this.jdkTlsTrustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "setting SNI extension with " +
                         "InetAddress.getHostName(): " +
