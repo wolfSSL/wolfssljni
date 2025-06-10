@@ -548,9 +548,13 @@ public class WolfSSLDebug {
     }
 
     /**
-     * Check if debug logging is enabled for the specified component
+     * Check if debug logging is enabled for the specified component.
+     *
+     * @param component the component to check (JNI or JSSE)
+     *
+     * @return true if debug logging is enabled for the component,
      */
-    private static boolean isDebugEnabled(Component component) {
+    public static boolean isDebugEnabled(Component component) {
         if (component == Component.JSSE && DEBUG) {
             return true;
         }

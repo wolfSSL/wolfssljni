@@ -534,6 +534,11 @@ public class WolfSSLAuthStore {
      * prints out host:port of all sessions stored in the store.
      * Called by getSession(). */
     private void printSessionStoreStatus() {
+
+        if (!WolfSSLDebug.isDebugEnabled(WolfSSLDebug.Component.JSSE)) {
+            return;
+        }
+
         synchronized (storeLock) {
             Collection<WolfSSLImplementSSLSession> values =
                 store.values();
