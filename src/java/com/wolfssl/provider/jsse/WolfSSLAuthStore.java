@@ -314,13 +314,14 @@ public class WolfSSLAuthStore {
      *         object if not in cache, called on server side, or host
      *         is null
      */
-    protected synchronized WolfSSLImplementSSLSession getSession(
+    protected WolfSSLImplementSSLSession getSession(
         WolfSSLSession ssl, int port, String host, boolean clientMode,
         String[] enabledCipherSuites, String[] enabledProtocols) {
 
         boolean needNewSession = false;
         WolfSSLImplementSSLSession ses = null;
         String toHash = null;
+        int hashCode = 0;
 
         if (ssl == null) {
             return null;
@@ -339,104 +340,106 @@ public class WolfSSLAuthStore {
          * Synchronizes on storeLock internally. */
         printSessionStoreStatus();
 
-        /* Lock on static/global storeLock, since Java session cache table
-         * is shared between all threads */
+        /* Generate cache key hash (host:port), outside lock */
+        toHash = host.concat(Integer.toString(port));
+        hashCode = toHash.hashCode();
+
+        /* Lock on static/global storeLock while getting session out of
+         * store, since Java session cache table is shared between all
+         * threads */
         synchronized (storeLock) {
 
-            /* Generate cache key hash (host:port) */
-            toHash = host.concat(Integer.toString(port));
-
             /* Try getting session out of Java store */
-            ses = store.get(toHash.hashCode());
+            ses = store.get(hashCode);
 
             /* Remove old entry from table. TLS 1.3 binder changes between
              * resumptions and stored session should only be used to
              * resume once. New session structure/object will be cached
              * after the resumed session completes the handshake, for
              * subsequent resumption attempts to use. */
-            store.remove(toHash.hashCode());
+            store.remove(hashCode);
+        }
 
-            /* Check conditions where we need to create a new new session:
-             *   1. Session not found in cache
-             *   2. Session marked as not resumable
-             *   3. Original session cipher suite not available
-             *   4. Original session protocol version not available
-             */
-            if (ses == null ||
-                !ses.isResumable() ||
-                !sessionCipherSuiteAvailable(ses, enabledCipherSuites) ||
-                !sessionProtocolAvailable(ses, enabledProtocols)) {
-                needNewSession = true;
+        /* Check conditions where we need to create a new new session:
+         *   1. Session not found in cache
+         *   2. Session marked as not resumable
+         *   3. Original session cipher suite not available
+         *   4. Original session protocol version not available
+         */
+        if (ses == null ||
+            !ses.isResumable() ||
+            !sessionCipherSuiteAvailable(ses, enabledCipherSuites) ||
+            !sessionProtocolAvailable(ses, enabledProtocols)) {
+            needNewSession = true;
+        }
+
+        if (needNewSession) {
+            if (ses == null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "session not found in cache table, " +
+                    "creating new session");
+            }
+            else if (!ses.isResumable()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "native WOLFSSL_SESSION not resumable, " +
+                    "creating new session");
+            }
+            else if (!sessionCipherSuiteAvailable(
+                        ses, enabledCipherSuites)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "cipher suite used in original WOLFSSL_SESSION " +
+                    "not available, creating new session");
             }
 
-            if (needNewSession) {
-                if (ses == null) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "session not found in cache table, " +
-                        "creating new session");
-                }
-                else if (!ses.isResumable()) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "native WOLFSSL_SESSION not resumable, " +
-                        "creating new session");
-                }
-                else if (!sessionCipherSuiteAvailable(
-                            ses, enabledCipherSuites)) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "cipher suite used in original WOLFSSL_SESSION " +
-                        "not available, creating new session");
-                }
+            /* Not found in stored sessions create a new one */
+            ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+            ses.setValid(true); /* new sessions marked as valid */
 
-                /* Not found in stored sessions create a new one */
+            ses.isFromTable = false;
+            ses.setPseudoSessionId(
+                Integer.toString(ssl.hashCode()).getBytes());
+        }
+        else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "session found in cache, trying to resume");
+
+            ses.isFromTable = true;
+
+            /* Check if the session has stored SNI server names */
+            List<SNIServerName> sniNames = ses.getSNIServerNames();
+            if (sniNames != null && !sniNames.isEmpty()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Found SNI server names in cached session");
+
+                /* Apply SNI settings to the SSL connection */
+                for (SNIServerName name : sniNames) {
+                    if (name instanceof SNIHostName) {
+                        String hostName = ((SNIHostName)name).getAsciiName();
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "Applying SNI hostname for resumption: " +
+                            hostName);
+
+                        /* Set the SNI directly on the SSL object */
+                        ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
+                            hostName.getBytes());
+                    }
+                }
+            }
+
+            if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "native wolfSSL_set_session() failed, " +
+                    "creating new session");
+
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-                ses.setValid(true); /* new sessions marked as valid */
-
+                ses.setValid(true);
                 ses.isFromTable = false;
                 ses.setPseudoSessionId(
                     Integer.toString(ssl.hashCode()).getBytes());
             }
-            else {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "session found in cache, trying to resume");
-
-                ses.isFromTable = true;
-
-                /* Check if the session has stored SNI server names */
-                List<SNIServerName> sniNames = ses.getSNIServerNames();
-                if (sniNames != null && !sniNames.isEmpty()) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "Found SNI server names in cached session");
-
-                    /* Apply SNI settings to the SSL connection */
-                    for (SNIServerName name : sniNames) {
-                        if (name instanceof SNIHostName) {
-                            String hostName = ((SNIHostName)name).getAsciiName();
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                () -> "Applying SNI hostname for resumption: " +
-                                hostName);
-
-                            /* Set the SNI directly on the SSL object */
-                            ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
-                                hostName.getBytes());
-                        }
-                    }
-                }
-
-                if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "native wolfSSL_set_session() failed, " +
-                        "creating new session");
-
-                    ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-                    ses.setValid(true);
-                    ses.isFromTable = false;
-                    ses.setPseudoSessionId(
-                        Integer.toString(ssl.hashCode()).getBytes());
-                }
-            }
-
-            return ses;
         }
+
+        return ses;
     }
 
     /**
@@ -640,39 +643,41 @@ public class WolfSSLAuthStore {
             return WolfSSL.SSL_FAILURE;
         }
 
-        /* Lock access to store while adding new session, store is global */
-        synchronized (storeLock) {
-            if (session.getPeerHost() != null) {
-                /* Generate key for storing into session table (host:port) */
-                toHash = session.getPeerHost().concat(Integer.toString(
-                         session.getPeerPort()));
-                hashCode = toHash.hashCode();
+        if (session.getPeerHost() != null) {
+            /* Generate key for storing into session table (host:port) */
+            toHash = session.getPeerHost().concat(Integer.toString(
+                     session.getPeerPort()));
+            hashCode = toHash.hashCode();
+        }
+        else {
+            /* If no peer host is available then create hash key from
+             * session ID if not null, not zero length, and not all zeros */
+            byte[] sessionId = session.getId();
+            if (sessionId != null && sessionId.length > 0 &&
+                (idAllZeros(sessionId) == false)) {
+                hashCode = Arrays.toString(session.getId()).hashCode();
+            } else {
+                hashCode = 0;
             }
-            else {
-                /* If no peer host is available then create hash key from
-                 * session ID if not null, not zero length, and not all zeros */
-                byte[] sessionId = session.getId();
-                if (sessionId != null && sessionId.length > 0 &&
-                    (idAllZeros(sessionId) == false)) {
-                    hashCode = Arrays.toString(session.getId()).hashCode();
-                } else {
-                    hashCode = 0;
-                }
+        }
+
+        /* Always try to store session into cache table, as long as we
+         * have a hashCode. If session already exists for hashCode, it
+         * will be overwritten with new/refreshed version */
+        if (hashCode != 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "stored session in cache table (host: " +
+                session.getPeerHost() + ", port: " +
+                session.getPeerPort() + ") " + "hashCode = " + hashCode +
+                " side = " + session.getSideString());
+            session.isInTable = true;
+
+            /* Lock access to store while adding new session, store is global */
+            synchronized (storeLock) {
+                store.put(hashCode, session);
             }
 
-            /* Always try to store session into cache table, as long as we
-             * have a hashCode. If session already exists for hashCode, it
-             * will be overwritten with new/refreshed version */
-            if (hashCode != 0) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "stored session in cache table (host: " +
-                    session.getPeerHost() + ", port: " +
-                    session.getPeerPort() + ") " + "hashCode = " + hashCode +
-                    " side = " + session.getSideString());
-                store.put(hashCode, session);
-                session.isInTable = true;
-                printSessionStoreStatus();
-            }
+            printSessionStoreStatus();
         }
 
         return WolfSSL.SSL_SUCCESS;
