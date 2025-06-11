@@ -1673,6 +1673,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     jobject* g_cachedVerifyCb;
     SSLAppData* appData;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    wolfSSL_Mutex* sessLock = NULL;
+    byte lockAvailable = 1;
     (void)jcl;
 #if defined(HAVE_PK_CALLBACKS) && (defined(HAVE_ECC) || !defined(NO_RSA))
     internCtx* pkCtx = NULL;
@@ -1684,9 +1686,41 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
         return;
     }
 
-    /* free session mutex lock */
+    /* Get and set WOLFSSL app data back to NULL. Try to lock on jniSessLock
+     * to prevent race conditions between multiple threads getting
+     * and using/freeing app data. */
     appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
     if (appData != NULL) {
+        if (appData->jniSessLock != NULL) {
+            sessLock = appData->jniSessLock;
+            if (wc_LockMutex(sessLock) != 0) {
+                lockAvailable = 0;
+            }
+            /* Re-check getting appData after we have mutex */
+            appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+            if (appData != NULL) {
+                /* Set SSLAppData back to NULL inside WOLFSSL struct, if other
+                 * threads are trying to use it they will fail with error
+                 * instead of use after free faults. */
+                wolfSSL_set_app_data(ssl, NULL);
+            }
+            if (lockAvailable) {
+                /* Unlock on saved mutex, in case appData is now NULL */
+                wc_UnLockMutex(sessLock);
+                sessLock = NULL;
+            }
+        } else {
+            /* If no jniSessLock available, fall back to just
+             * setting app data to NULL in WOLFSSL. We should always have
+             * appData->jniSessLock though. */
+            wolfSSL_set_app_data(ssl, NULL);
+        }
+    }
+
+    /* appData may have been refreshed/NULL retrieved above inside
+     * mutex lock, check again against NULL before continuing freeing. */
+    if (appData != NULL) {
+        /* free session mutex lock */
         if (appData->jniSessLock != NULL) {
             wc_FreeMutex(appData->jniSessLock);
             XFREE(appData->jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
