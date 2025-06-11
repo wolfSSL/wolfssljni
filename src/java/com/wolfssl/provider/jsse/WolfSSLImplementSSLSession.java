@@ -1081,7 +1081,6 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         throws UnsupportedOperationException {
 
         byte[] sniRequestArr = null;
-        List<SNIServerName> sniNames = new ArrayList<>(1);
 
         if (this.ssl == null) {
             return Collections.emptyList();
@@ -1103,6 +1102,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             }
 
             if (sniRequestArr != null) {
+                List<SNIServerName> sniNames = new ArrayList<>(1);
                 SNIHostName sniName = new SNIHostName(sniRequestArr);
                 sniNames.add(sniName);
 

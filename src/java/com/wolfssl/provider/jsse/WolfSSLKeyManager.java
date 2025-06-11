@@ -222,8 +222,14 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 "initialized before use, please call init()");
         }
 
-        KeyManager[] km = {new WolfSSLKeyX509(this.store, this.pswd)};
-        return km;
+        try {
+            KeyManager[] km = { new WolfSSLKeyX509(this.store, this.pswd) };
+            return km;
+
+        } catch (KeyStoreException e) {
+            throw new IllegalStateException(
+                "Failed to create WolfSSLKeyX509: " + e.getMessage(), e);
+        }
     }
 }
 
