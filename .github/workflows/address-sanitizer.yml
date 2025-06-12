@@ -1,4 +1,4 @@
-name: Common Linux test logic
+name: AddressSanitizer Build and Test
 
 on:
   workflow_call:
@@ -15,12 +15,9 @@ on:
       wolfssl_configure:
         required: true
         type: string
-      javash_cflags:
-        required: false
-        type: string
 
 jobs:
-  build_wolfssljni:
+  build_wolfssljni_asan:
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,13 +36,13 @@ jobs:
         if: steps.cache-junit.outputs.cache-hit != 'true'
         run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
 
-      - name: Build native wolfSSL
+      - name: Build native wolfSSL with AddressSanitizer
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           repository: wolfSSL/wolfssl
           ref: master
           path: wolfssl
-          configure: ${{ inputs.wolfssl_configure }}
+          configure: ${{ inputs.wolfssl_configure }} CFLAGS="-fsanitize=address -fno-omit-frame-pointer" LDFLAGS="-fsanitize=address"
           check: false
           install: true
 
@@ -55,18 +52,29 @@ jobs:
           distribution: ${{ inputs.jdk_distro }}
           java-version: ${{ inputs.jdk_version }}
 
-      - name: Set JUNIT_HOME
+      # Set environment variables
+      # Use detect_leaks=0 to avoid leak sanitizer going wild when run via
+      # Java, since it can have issues tracking internal JNI/JVM memory.
+      # This will let us catch all non-leak issues.
+      - name: Set environment variables
         run: |
           echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
-      - name: Set LD_LIBRARY_PATH
-        run: |
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+          echo "ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:halt_on_error=1:print_stats=1" >> "$GITHUB_ENV"
 
-      - name: Build JNI library
-        run: CFLAGS=${{ inputs.javah_cflags }} ./java.sh $GITHUB_WORKSPACE/build-dir
+      - name: Build JNI library with AddressSanitizer
+        run: CFLAGS="-fsanitize=address -fno-omit-frame-pointer -g" LDFLAGS="-fsanitize=address" ./java.sh $GITHUB_WORKSPACE/build-dir
+
       - name: Build JAR (ant)
         run: ant
-      - name: Run Java tests (ant test)
+
+      - name: Find AddressSanitizer library
+        run: |
+          ASAN_LIB=$(gcc -print-file-name=libasan.so)
+          echo "ASAN_LIB=$ASAN_LIB" >> "$GITHUB_ENV"
+          echo "LD_PRELOAD=$ASAN_LIB" >> "$GITHUB_ENV"
+
+      - name: Run Java tests with AddressSanitizer (ant test)
         run: ant test
 
       - name: Show logs on failure

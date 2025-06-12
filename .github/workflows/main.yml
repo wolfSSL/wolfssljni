@@ -205,3 +205,19 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # --------------- AddressSanitizer build and test ------------------
+  # Run AddressSanitizer build and test on Linux only for memory error detection
+  address-sanitizer:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest' ]
+        jdk_version: [ '21' ]
+        wolfssl_configure: [ '--enable-jni' ]
+    name: AddressSanitizer (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }})
+    uses: ./.github/workflows/address-sanitizer.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+
