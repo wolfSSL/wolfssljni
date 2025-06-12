@@ -1968,6 +1968,30 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Internal private method to check if WolfSSLInputStream
+     * and WolfSSLOutputStream are closed.
+     *
+     * @return true if both streams are closed (or were not created/null),
+     * otherwise false if they were created and are still active.
+     */
+    private boolean ioStreamsAreClosed() {
+
+        if (this.inStream == null && this.outStream == null) {
+            return true;
+        }
+
+        if (this.inStream != null && !this.inStream.isClosed()) {
+            return false;
+        }
+
+        if (this.outStream != null && !this.outStream.isClosed()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Closes this SSLSocket.
      *
      * If this socket was created with an autoClose value set to true,
@@ -2132,13 +2156,22 @@ public class WolfSSLSocket extends SSLSocket {
 
                     /* Connection is closed, free native WOLFSSL session
                      * to release native memory earlier than garbage
-                     * collector might with finalize(), if we don't
-                     * have any threads still waiting in poll/select. */
-                    if (this.ssl.getThreadsBlockedInPoll() == 0) {
+                     * collector might with finalize(), Don't free if we
+                     * have threads still waiting in poll/select or if
+                     * our WolfSSLInputStream or WolfSSLOutputStream are
+                     * still open. */
+                    if (this.ssl.getThreadsBlockedInPoll() == 0 &&
+                        ioStreamsAreClosed()) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             () -> "calling this.ssl.freeSSL()");
                         this.ssl.freeSSL();
                         this.ssl = null;
+                    } else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "deferring freeing this.ssl, threads " +
+                            "blocked in poll: " +
+                            this.ssl.getThreadsBlockedInPoll() +
+                            ", or streams not closed");
                     }
 
                     /* Reset internal WolfSSLEngineHelper to null */
@@ -2517,7 +2550,7 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        private boolean isClosed = true;
+        private volatile boolean isClosed = true;
 
         /* Atomic boolean to indicate if this InputStream has started to
          * close. Protects against deadlock between two threads calling
@@ -2528,6 +2561,18 @@ public class WolfSSLSocket extends SSLSocket {
             this.ssl = ssl;
             this.socket = socket; /* parent socket */
             this.isClosed = false;
+        }
+
+        /**
+         * Non standard method to check if this InputStream has been
+         * closed. This is used by WolfSSLSocket to check if the associated
+         * WolfSSLInputStream has been closed before calling freeSSL()
+         * internally.
+         *
+         * @return true if this InputStream has been closed, otherwise false
+         */
+        public boolean isClosed() {
+            return this.isClosed;
         }
 
         /**
@@ -2741,7 +2786,7 @@ public class WolfSSLSocket extends SSLSocket {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
-        private boolean isClosed = true;
+        private volatile boolean isClosed = true;
 
         /* Atomic boolean to indicate if this InputStream has started to
          * close. Protects against deadlock between two threads calling
@@ -2752,6 +2797,18 @@ public class WolfSSLSocket extends SSLSocket {
             this.ssl = ssl;
             this.socket = socket; /* parent socket */
             this.isClosed = false;
+        }
+
+        /**
+         * Non standard method to check if this OutputStream has been
+         * closed. This is used by WolfSSLSocket to check if the associated
+         * WolfSSLOutputStream has been closed before calling freeSSL()
+         * internally.
+         *
+         * @return true if this OutputStream has been closed, otherwise false
+         */
+        public boolean isClosed() {
+            return this.isClosed;
         }
 
         /**
