@@ -2862,8 +2862,28 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sessionReused
     return wolfSSL_session_reused(ssl);
 }
 
-JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificateCount
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifdef KEEP_PEER_CERT
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+    if (ssl == NULL) {
+        return (jlong)0;
+    }
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    return wolfSSL_get_chain_count(chain);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return 0;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint index)
 {
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* x509 = NULL;
@@ -2874,8 +2894,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
     if (ssl == NULL) {
         return (jlong)0;
     }
-
-    x509 = wolfSSL_get_peer_certificate(ssl);
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+    x509 = wolfSSL_get_chain_X509(chain, index);
 
     return (jlong)(uintptr_t)x509;
 #else
