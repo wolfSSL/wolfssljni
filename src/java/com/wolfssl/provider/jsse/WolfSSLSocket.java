@@ -80,6 +80,10 @@ public class WolfSSLSocket extends SSLSocket {
     private WolfSSLInputStream inStream;
     private WolfSSLOutputStream outStream;
 
+    /* Track active I/O operations to prevent use-after-free */
+    private final java.util.concurrent.atomic.AtomicInteger activeOperations =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+
     private ArrayList<HandshakeCompletedListener> hsListeners = null;
 
     /** TLS handshake initialization called */
@@ -1968,6 +1972,22 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Helper method to track entry into an I/O operation.
+     * Increments the active operation counter to prevent premature freeSSL().
+     */
+    private void enterIOOperation() {
+        activeOperations.incrementAndGet();
+    }
+
+    /**
+     * Helper method to safely exit an I/O operation.
+     * Must be called for every successful enterIOOperation().
+     */
+    private void exitIOOperation() {
+        activeOperations.decrementAndGet();
+    }
+
+    /**
      * Internal private method to check if WolfSSLInputStream
      * and WolfSSLOutputStream are closed.
      *
@@ -2159,12 +2179,12 @@ public class WolfSSLSocket extends SSLSocket {
                     /* Connection is closed, free native WOLFSSL session
                      * to release native memory earlier than garbage
                      * collector might with finalize(), Don't free if we
-                     * have threads still waiting in poll/select or if
+                     * have threads still waiting in poll/select, if
                      * our WolfSSLInputStream or WolfSSLOutputStream are
-                     * still open. */
+                     * still open, or if there are active I/O operations. */
                     if (this.ssl != null) {
-                        if (this.ssl.getThreadsBlockedInPoll() == 0 &&
-                            ioStreamsAreClosed()) {
+                        if ((this.ssl.getThreadsBlockedInPoll() == 0) &&
+                            ioStreamsAreClosed() && (activeOperations.get() == 0)) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 () -> "calling this.ssl.freeSSL()");
                             this.ssl.freeSSL();
@@ -2174,7 +2194,8 @@ public class WolfSSLSocket extends SSLSocket {
                                 () -> "deferring freeing this.ssl, threads " +
                                 "blocked in poll: " +
                                 this.ssl.getThreadsBlockedInPoll() +
-                                ", or streams not closed");
+                                ", streams not closed, or active operations: " +
+                                activeOperations.get());
                         }
                     }
 
@@ -2714,6 +2735,9 @@ public class WolfSSLSocket extends SSLSocket {
                     "Array index out of bounds");
             }
 
+            /* Enter I/O operation to prevent use-after-free */
+            socket.enterIOOperation();
+
             try {
                 int err;
                 int timeout = socket.getSoTimeout();
@@ -2779,6 +2803,9 @@ public class WolfSSLSocket extends SSLSocket {
                  * IllegalStateException to be thrown from
                  * WolfSSLSession.read(). Return as a SocketException here. */
                 throw new SocketException(e.getMessage());
+            } finally {
+                /* Exit I/O operation */
+                socket.exitIOOperation();
             }
 
             /* return number of bytes read */
@@ -2925,6 +2952,9 @@ public class WolfSSLSocket extends SSLSocket {
                     "Array index out of bounds");
             }
 
+            /* Enter I/O operation to prevent use-after-free */
+            socket.enterIOOperation();
+
             try {
                 int err;
                 int timeout = socket.getSoTimeout();
@@ -2966,6 +2996,9 @@ public class WolfSSLSocket extends SSLSocket {
                                  () -> "got IllegalStateException: " + e +
                                  ", throwing IOException");
                 throw new IOException(e);
+            } finally {
+                /* Exit I/O operation */
+                socket.exitIOOperation();
             }
         }
     } /* end WolfSSLOutputStream inner class */
