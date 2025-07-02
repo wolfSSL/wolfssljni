@@ -2047,7 +2047,9 @@ public class WolfSSLSocket extends SSLSocket {
 
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "signaling any blocked I/O threads to wake up");
-                ssl.interruptBlockedIO();
+                if (this.ssl != null) {
+                    ssl.interruptBlockedIO();
+                }
 
                 /* Try TLS shutdown procedure, only if handshake has finished */
                 if (ssl != null && handshakeFinished) {
@@ -2160,18 +2162,20 @@ public class WolfSSLSocket extends SSLSocket {
                      * have threads still waiting in poll/select or if
                      * our WolfSSLInputStream or WolfSSLOutputStream are
                      * still open. */
-                    if (this.ssl.getThreadsBlockedInPoll() == 0 &&
-                        ioStreamsAreClosed()) {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "calling this.ssl.freeSSL()");
-                        this.ssl.freeSSL();
-                        this.ssl = null;
-                    } else {
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "deferring freeing this.ssl, threads " +
-                            "blocked in poll: " +
-                            this.ssl.getThreadsBlockedInPoll() +
-                            ", or streams not closed");
+                    if (this.ssl != null) {
+                        if (this.ssl.getThreadsBlockedInPoll() == 0 &&
+                            ioStreamsAreClosed()) {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "calling this.ssl.freeSSL()");
+                            this.ssl.freeSSL();
+                            this.ssl = null;
+                        } else {
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "deferring freeing this.ssl, threads " +
+                                "blocked in poll: " +
+                                this.ssl.getThreadsBlockedInPoll() +
+                                ", or streams not closed");
+                        }
                     }
 
                     /* Reset internal WolfSSLEngineHelper to null */

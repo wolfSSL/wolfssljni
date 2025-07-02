@@ -81,6 +81,7 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.lang.reflect.Field;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
@@ -3813,6 +3814,60 @@ public class WolfSSLSocketTest {
         public Exception getException() {
             return this.exception;
         }
+    }
+
+    @Test
+    public void testDoubleCloseNPERegression()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               IOException {
+
+        System.out.print("\tdouble close() regression test");
+
+        /* Test that calling close() when ssl field is null does not cause
+         * NullPointerException. This is a regression test for the fix where
+         * this.ssl could be null during close() operations. */
+
+        if (sockFactories.size() > 0) {
+            SSLSocketFactory sf = sockFactories.get(0);
+            SSLSocket sock = null;
+
+            try {
+                /* Create unconnected socket to test close() behavior */
+                sock = (SSLSocket)sf.createSocket();
+
+                /* Use reflection to simulate the scenario where ssl field
+                 * becomes null (as happens after first close or due to
+                 * race conditions) */
+                if (sock instanceof com.wolfssl.provider.jsse.WolfSSLSocket) {
+                    try {
+                        Field sslField =
+                            com.wolfssl.provider.jsse.WolfSSLSocket.class.getDeclaredField("ssl");
+                        sslField.setAccessible(true);
+                        sslField.set(sock, null);
+
+                        /* Now call close() with ssl=null - this should NOT
+                         * throw NPE if the fix is in place, but WILL throw
+                         * NPE with vulnerable code */
+                        sock.close();
+
+                    } catch (NoSuchFieldException | IllegalAccessException e) {
+                        /* If reflection fails,
+                         * skip this specific test but don't fail */
+                        System.out.print(" (reflection skipped)");
+                    } catch (NullPointerException e) {
+                        System.out.println("\t... failed");
+                        fail("close() call with null ssl field threw " +
+                             "NullPointerException: " + e.getMessage() +
+                             ". This indicates the NPE fix is not working.");
+                    }
+                }
+
+            } catch (IOException e) {
+                /* Socket creation failed, but that's not what we're testing */
+            }
+        }
+
+        System.out.println("\t... passed");
     }
 }
 
