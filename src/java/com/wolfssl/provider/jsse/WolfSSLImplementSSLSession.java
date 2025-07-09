@@ -520,9 +520,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Error getting peer certificate: "
+                    + ex.getMessage());
             x509 = 0;
         }
 
@@ -636,9 +636,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting peer certificate chain: "
+                + ex.getMessage());
         }
         return null;
     }
@@ -682,9 +682,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting peer principal: " + ex.getMessage());
         }
         return null;
     }
@@ -735,9 +734,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 return currentCipher;
             }
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(
-                WolfSSLImplementSSLSession.class.getName()).log(
-                    Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting cipher suite: " + ex.getMessage());
         }
 
         return this.cipherSuite;
@@ -804,17 +802,29 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         /* Try to get maximum TLS record size from native wolfSSL */
         if (ssl != null) {
-            nativeMax = ssl.getMaxOutputSize();
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
-
-            if ((nativeMax > 0) && (nativeMax > ret)) {
-                ret = nativeMax;
+            try {
+                nativeMax = ssl.getMaxOutputSize();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
+                if ((nativeMax > 0) && (nativeMax > ret)) {
+                    ret = nativeMax;
+                }
+                if (ret > this.packetBufSz) {
+                    this.packetBufSz = ret;
+                }
+            } catch (IllegalStateException ex) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Error getting packet buffer size: "
+                    + ex.getMessage());
+                /* If ssl.getMaxOutputSize failed, check for cached value */
+                if (this.packetBufSz > ret) {
+                    ret = this.packetBufSz;
+                } else { 
+                    /* Cache ret if greater than or equal to packetBufSz */
+                    this.packetBufSz = ret;
+                }
             }
 
-            if (ret > this.packetBufSz) {
-                this.packetBufSz = ret;
-            }
         } else if (this.packetBufSz >= 0) {
             ret = this.packetBufSz;
         }
