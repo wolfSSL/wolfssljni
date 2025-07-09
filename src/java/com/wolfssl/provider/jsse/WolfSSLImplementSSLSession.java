@@ -520,9 +520,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Error getting peer certificate: "
+                    + ex.getMessage());
             x509 = 0;
         }
 
@@ -636,9 +636,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting peer certificate chain: "
+                + ex.getMessage());
         }
         return null;
     }
@@ -682,9 +682,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         } catch (IllegalStateException | WolfSSLJNIException |
                 WolfSSLException ex) {
-            Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting peer principal: " + ex.getMessage());
         }
         return null;
     }
@@ -735,9 +734,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 return currentCipher;
             }
         } catch (IllegalStateException | WolfSSLJNIException ex) {
-            Logger.getLogger(
-                WolfSSLImplementSSLSession.class.getName()).log(
-                    Level.SEVERE, null, ex);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting cipher suite: " + ex.getMessage());
         }
 
         return this.cipherSuite;
@@ -815,9 +813,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                     this.packetBufSz = ret;
                 }
             } catch (IllegalStateException ex) {
-                Logger.getLogger(
-                    WolfSSLImplementSSLSession.class.getName()).log(
-                        Level.SEVERE, null, ex);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Error getting packet buffer size: "
+                    + ex.getMessage());
                 /* If ssl.getMaxOutputSize failed, check for cached value */
                 if (this.packetBufSz > ret) {
                     ret = this.packetBufSz;
