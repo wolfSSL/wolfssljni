@@ -804,17 +804,29 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         /* Try to get maximum TLS record size from native wolfSSL */
         if (ssl != null) {
-            nativeMax = ssl.getMaxOutputSize();
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
-
-            if ((nativeMax > 0) && (nativeMax > ret)) {
-                ret = nativeMax;
+            try {
+                nativeMax = ssl.getMaxOutputSize();
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "ssl.getMaxOutputSize() returned: " + nativeMax);
+                if ((nativeMax > 0) && (nativeMax > ret)) {
+                    ret = nativeMax;
+                }
+                if (ret > this.packetBufSz) {
+                    this.packetBufSz = ret;
+                }
+            } catch (IllegalStateException ex) {
+                Logger.getLogger(
+                    WolfSSLImplementSSLSession.class.getName()).log(
+                        Level.SEVERE, null, ex);
+                /* If ssl.getMaxOutputSize failed, check for cached value */
+                if (this.packetBufSz > ret) {
+                    ret = this.packetBufSz;
+                } else { 
+                    /* Cache ret if greater than or equal to packetBufSz */
+                    this.packetBufSz = ret;
+                }
             }
 
-            if (ret > this.packetBufSz) {
-                this.packetBufSz = ret;
-            }
         } else if (this.packetBufSz >= 0) {
             ret = this.packetBufSz;
         }
