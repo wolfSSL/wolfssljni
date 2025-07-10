@@ -22,6 +22,9 @@
 package com.wolfssl.provider.jsse.test;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.io.FileInputStream;
@@ -38,6 +41,8 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
+import java.security.Principal;
+import javax.security.auth.Subject;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -54,6 +59,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 
 import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.wolfssl.WolfSSL;
@@ -66,6 +72,11 @@ public class WolfSSLX509Test {
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
     private javax.security.cert.X509Certificate[] certs;
+
+    /* Common test setup fields */
+    private WolfSSLX509 x509;
+    private Principal issuerDN;
+    private Principal subjectDN;
 
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
@@ -88,6 +99,13 @@ public class WolfSSLX509Test {
         }
     }
 
+    @Before
+    public void setupCommonX509Objects() throws Exception {
+        byte[] der = tf.getCert("server");
+        x509 = new WolfSSLX509(der);
+        issuerDN = x509.getIssuerDN();
+        subjectDN = x509.getSubjectDN();
+    }
 
     @Test
     public void testServerParsing() {
@@ -389,13 +407,13 @@ public class WolfSSLX509Test {
                 server.verify(ca.getPublicKey(), sigProvider.getName());
             } catch (InvalidKeyException | SignatureException |
                     NoSuchProviderException e) {
-                error("\t... failed");
+                error("\t\t\t... failed");
                 fail("failed to verify certificate");
             }
 
             try {
                 server.verify(server.getPublicKey(), sigProvider);
-                error("\t... failed");
+                error("\t\t\t... failed");
                 fail("able to verify when should not have been");
             } catch (InvalidKeyException | SignatureException e) {
                 /* expected fail case */
@@ -403,11 +421,11 @@ public class WolfSSLX509Test {
 
         } catch (KeyStoreException | NoSuchAlgorithmException |
                 CertificateException | IOException | WolfSSLException e) {
-            error("\t... failed");
+            error("\t\t\t... failed");
             e.printStackTrace();
             fail("general failure");
         }
-        pass("\t... passed");
+        pass("\t\t\t... passed");
     }
 
 
@@ -668,6 +686,189 @@ public class WolfSSLX509Test {
             error("\t... failed");
             fail("unexpected exception found");
         }
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testWolfSSLPrincipalToString() {
+        System.out.print("\tWolfSSLPrincipal toString");
+
+        try {
+            assertNotNull("issuerDN should not be null", issuerDN);
+            assertNotNull("subjectDN should not be null", subjectDN);
+
+            /* Test that toString() returns a non-null, non-empty string */
+            String issuerString = issuerDN.toString();
+            String subjectString = subjectDN.toString();
+
+            assertNotNull("issuerDN.toString() should not be null",
+                issuerString);
+            assertNotNull("subjectDN.toString() should not be null",
+                subjectString);
+            assertFalse("issuerDN.toString() should not be empty",
+                issuerString.isEmpty());
+            assertFalse("subjectDN.toString() should not be empty",
+                subjectString.isEmpty());
+
+            /* Test that toString() returns the same value as getName() */
+            assertEquals("issuerDN.toString() should equal getName()",
+                        issuerDN.getName(), issuerString);
+            assertEquals("subjectDN.toString() should equal getName()",
+                        subjectDN.getName(), subjectString);
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("Exception during WolfSSLPrincipal toString test: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testWolfSSLPrincipalGetName() {
+        System.out.print("\tWolfSSLPrincipal getName");
+
+        try {
+            assertNotNull("issuerDN should not be null", issuerDN);
+            assertNotNull("subjectDN should not be null", subjectDN);
+
+            /* Test that getName() returns formatted DN strings */
+            String issuerName = issuerDN.getName();
+            String subjectName = subjectDN.getName();
+
+            assertNotNull("issuerDN.getName() should not be null",
+                issuerName);
+            assertNotNull("subjectDN.getName() should not be null",
+                subjectName);
+            assertFalse("issuerDN.getName() should not be empty",
+                issuerName.isEmpty());
+            assertFalse("subjectDN.getName() should not be empty",
+                subjectName.isEmpty());
+
+            /* Test that names contain expected DN components */
+            /* Names should be in "DN=value, DN=value" format,
+             * not "/DN=value" */
+            assertTrue("issuer name should not start with /",
+                       !issuerName.startsWith("/"));
+            assertTrue("subject name should not start with /",
+                       !subjectName.startsWith("/"));
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("Exception during WolfSSLPrincipal getName test: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testWolfSSLPrincipalInterfaceImplementation() {
+        System.out.print("\tWolfSSLPrincipal interface");
+
+        try {
+            assertNotNull("issuerDN should not be null", issuerDN);
+            assertNotNull("subjectDN should not be null", subjectDN);
+
+            /* Test that objects implement Principal interface */
+            assertTrue("issuerDN should implement Principal",
+                       issuerDN instanceof Principal);
+            assertTrue("subjectDN should implement Principal",
+                       subjectDN instanceof Principal);
+
+            /* Test equals() behavior -
+             * same principal should be equal to itself */
+            assertTrue("issuerDN should equal itself",
+                       issuerDN.equals(issuerDN));
+            assertTrue("subjectDN should equal itself",
+                       subjectDN.equals(subjectDN));
+
+            /* Test hashCode() consistency */
+            int issuerHash1 = issuerDN.hashCode();
+            int issuerHash2 = issuerDN.hashCode();
+            int subjectHash1 = subjectDN.hashCode();
+            int subjectHash2 = subjectDN.hashCode();
+
+            assertEquals("issuerDN hashCode should be consistent",
+                        issuerHash1, issuerHash2);
+            assertEquals("subjectDN hashCode should be consistent",
+                        subjectHash1, subjectHash2);
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("Exception during WolfSSLPrincipal interface test: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testWolfSSLPrincipalImplies() {
+        Subject emptySubject, subjectWithPrincipals;
+
+        System.out.print("\tWolfSSLPrincipal implies");
+
+        try {
+            assertNotNull("issuerDN should not be null", issuerDN);
+            assertNotNull("subjectDN should not be null", subjectDN);
+
+            /* Test implies() with null Subject */
+            assertTrue("implies(null) should return false",
+                       !issuerDN.implies(null));
+            assertTrue("implies(null) should return false",
+                       !subjectDN.implies(null));
+
+            /* Test implies() with empty Subject */
+            emptySubject = new Subject();
+            assertTrue("implies(empty Subject) should return false",
+                       !issuerDN.implies(emptySubject));
+            assertTrue("implies(empty Subject) should return false",
+                       !subjectDN.implies(emptySubject));
+
+            /* Test implies() with Subject containing different principals */
+            subjectWithPrincipals = new Subject();
+            subjectWithPrincipals.getPrincipals().add(issuerDN);
+            subjectWithPrincipals.getPrincipals().add(subjectDN);
+
+            /* Default implementation should return true when Subject
+             * contains the same principal (equals() returns true) */
+            assertTrue("implies() should return true when Subject " +
+                "contains this principal",
+                issuerDN.implies(subjectWithPrincipals));
+            assertTrue("implies() should return true when Subject " +
+                "contains this principal",
+                subjectDN.implies(subjectWithPrincipals));
+
+            /* Test implies() with Subject containing only one principal */
+            Subject subjectWithIssuerOnly = new Subject();
+            subjectWithIssuerOnly.getPrincipals().add(issuerDN);
+
+            assertTrue("issuerDN.implies() should return true when Subject " +
+                "contains issuerDN",
+                issuerDN.implies(subjectWithIssuerOnly));
+            assertTrue("subjectDN.implies() should return false when " +
+                "Subject doesn't contain subjectDN",
+                !subjectDN.implies(subjectWithIssuerOnly));
+
+            /* Test implies() with Subject containing only other principal */
+            Subject subjectWithSubjectOnly = new Subject();
+            subjectWithSubjectOnly.getPrincipals().add(subjectDN);
+
+            assertTrue("subjectDN.implies() should return true when " +
+                "Subject contains subjectDN",
+                subjectDN.implies(subjectWithSubjectOnly));
+            assertTrue("issuerDN.implies() should return false when " +
+                "Subject doesn't contain issuerDN",
+                !issuerDN.implies(subjectWithSubjectOnly));
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("Exception during WolfSSLPrincipal implies test: " +
+                 e.getMessage());
+        }
+
         pass("\t... passed");
     }
 

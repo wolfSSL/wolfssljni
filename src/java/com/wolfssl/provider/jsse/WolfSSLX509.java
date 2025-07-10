@@ -716,5 +716,11 @@ public class WolfSSLX509 extends X509Certificate {
             return this.name;
         }
 
+        @Override
+        public String toString() {
+            return getName();
+        }
+
+
     }
 }
