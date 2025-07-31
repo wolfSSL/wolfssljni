@@ -534,13 +534,18 @@ public class WolfSSLSocket extends SSLSocket {
 
             try {
                 /* Load private key and cert chain from WolfSSLAuthStore */
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "loading private key and cert chain");
+                if (EngineHelper != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "loading private key and cert chain");
 
-                if (this.socket != null) {
-                    EngineHelper.LoadKeyAndCertChain(this.socket, null);
+                    if (this.socket != null) {
+                        EngineHelper.LoadKeyAndCertChain(this.socket, null);
+                    } else {
+                        EngineHelper.LoadKeyAndCertChain(this, null);
+                    }
                 } else {
-                    EngineHelper.LoadKeyAndCertChain(this, null);
+                    throw new WolfSSLException(
+                        "EngineHelper null, cannot load key and cert chain");
                 }
 
                 isInitialized = true;
@@ -2067,7 +2072,9 @@ public class WolfSSLSocket extends SSLSocket {
                             (handshakeFinished == true)) {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 () -> "saving WOLFSSL_SESSION into cache");
-                            EngineHelper.saveSession();
+                            if (EngineHelper != null) {
+                                EngineHelper.saveSession();
+                            }
                         }
                         else {
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2106,7 +2113,9 @@ public class WolfSSLSocket extends SSLSocket {
                             this.connectionClosed = true;
 
                             /* Release native verify callback (JNI global) */
-                            this.EngineHelper.unsetVerifyCallback();
+                            if (this.EngineHelper != null) {
+                                this.EngineHelper.unsetVerifyCallback();
+                            }
 
                             /* Close ConsumedRecvCtx data stream */
                             Object readCtx = this.ssl.getIOReadCtx();
@@ -2179,8 +2188,10 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                     /* Reset internal WolfSSLEngineHelper to null */
-                    this.EngineHelper.clearObjectState();
-                    this.EngineHelper = null;
+                    if (this.EngineHelper != null) {
+                        this.EngineHelper.clearObjectState();
+                        this.EngineHelper = null;
+                    }
 
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "thread exiting ioLock (shutdown)");
