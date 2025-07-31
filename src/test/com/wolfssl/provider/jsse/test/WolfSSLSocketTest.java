@@ -3869,5 +3869,56 @@ public class WolfSSLSocketTest {
 
         System.out.println("\t... passed");
     }
+
+    @Test
+    public void testCloseWithNullEngineHelper()
+        throws NoSuchFieldException, IllegalAccessException {
+
+        System.out.print("\tclose() with null EngineHelper");
+
+        /* Create a normal WolfSSLSocket first using the factory */
+        SSLSocketFactory factory = null;
+        for (SSLSocketFactory f : sockFactories) {
+            if (f != null) {
+                factory = f;
+                break;
+            }
+        }
+        assertNotNull("No SSLSocketFactory available for test", factory);
+
+        WolfSSLSocket socket = null;
+        try {
+            /* Create a socket but don't connect it */
+            socket = (WolfSSLSocket) factory.createSocket();
+
+            /* Use reflection to set EngineHelper to null, simulating the
+             * scenario where constructor failed after partial
+             * initialization */
+            Field engineHelperField =
+                WolfSSLSocket.class.getDeclaredField("EngineHelper");
+            engineHelperField.setAccessible(true);
+            engineHelperField.set(socket, null);
+
+        } catch (Exception e) {
+            fail("Failed to create test socket or set EngineHelper to null: "
+                 + e.getMessage());
+        }
+
+        /* Verify that calling close() on the socket with null EngineHelper
+         * does not throw NullPointerException */
+        try {
+            if (socket != null) {
+                socket.close();
+            }
+            /* Test should fail here if NPE occurs */
+        } catch (NullPointerException npe) {
+            fail("close() threw NullPointerException when EngineHelper " +
+                "is null: " + npe.getMessage());
+        } catch (IOException e) {
+            /* IOException from close() is acceptable */
+        }
+
+        System.out.println("\t... passed");
+    }
 }
 
