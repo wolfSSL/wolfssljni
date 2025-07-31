@@ -5186,9 +5186,9 @@ public class WolfSSLSession {
         return this.sessionTicketsEnabled;
     }
 
-    /** 
+    /**
      * Get session ticket for this session if session tickets are enabled.
-     * 
+     *
      * @return session ticket as byte array, or null if not available.
      * @throws IllegalStateException WolfSSLSession has been freed.
      */
@@ -5215,10 +5215,10 @@ public class WolfSSLSession {
 
     /**
      * Set session ticket for this session.
-     * 
+     *
      * @param sessionTicket session ticket to set for this session.
      * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
-     * 
+     *
      * @throws IllegalStateException WolfSSLSession has been freed
      */
     public int setSessionTicket(byte[] sessionTicket){
@@ -5229,7 +5229,7 @@ public class WolfSSLSession {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr,
                     () -> "entered setSessionTicket()");
-                
+
                 if (sessionTicket != null && sessionTicket.length > 0) {
                     ret = setSessionTicket(this.sslPtr, sessionTicket);
                 } else {
@@ -5240,8 +5240,12 @@ public class WolfSSLSession {
                 }
 
             }
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "session tickets not enabled");
         }
-        
+
         return ret;
     }
 
