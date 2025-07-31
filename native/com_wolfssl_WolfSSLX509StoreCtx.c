@@ -93,7 +93,11 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
             }
             XMEMCPY(buf, der, derSz);
             (*jenv)->ReleaseByteArrayElements(jenv, derArr, buf, 0);
-            (*jenv)->SetObjectArrayElement(jenv, certArr, i, derArr);
+            /* Reverse order, so peer cert is first in returned array,
+             * followed by intermediates, lastly by root. Native
+             * wolfSSL_X509_STORE_GetCerts() returns certs in order of
+             * root to peer, but Java/JSSE expects peer to root */
+            (*jenv)->SetObjectArrayElement(jenv, certArr, skNum-1-i, derArr);
             (*jenv)->DeleteLocalRef(jenv, derArr);
         }
     }

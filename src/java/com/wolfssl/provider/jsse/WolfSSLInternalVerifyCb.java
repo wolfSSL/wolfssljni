@@ -274,7 +274,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         }
 
         try {
-            /* get WolfSSLCertificate[] from x509StorePtr */
+            /* Get WolfSSLCertificate[] from x509StorePtr, certs from
+             * store.getCerts() should be listed in order of peer to root */
             WolfSSLX509StoreCtx store =
                 new WolfSSLX509StoreCtx(x509StorePtr);
             certs = store.getCerts();

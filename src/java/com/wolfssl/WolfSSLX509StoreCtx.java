@@ -79,6 +79,9 @@ public class WolfSSLX509StoreCtx {
      * Get certificates in WOLFSSL_X509_STORE_CTX as an array of
      * WolfSSLCertificate objects.
      *
+     * The certificate chain is returned in order of peer to root, with peer
+     * first, then any intermediates, then root last (if present).
+     *
      * @return array of certificates
      * @throws WolfSSLException on error
      * @throws IllegalStateException if object has been freed
