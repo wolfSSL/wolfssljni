@@ -676,6 +676,8 @@ public class WolfSSLSession {
     private native int useSNI(long ssl, byte type, byte[] data);
     private native byte[] getSNIRequest(long ssl, byte type);
     private native int useSessionTicket(long ssl);
+    private native byte[] getSessionTicket(long ssl);
+    private native int setSessionTicket(long ssl, byte[] ticket);
     private native int gotCloseNotify(long ssl);
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
     private native byte[] sslGet0AlpnSelected(long ssl);
@@ -5182,6 +5184,65 @@ public class WolfSSLSession {
             this.sessionTicketsEnabled);
 
         return this.sessionTicketsEnabled;
+    }
+
+    /** 
+     * Get session ticket for this session if session tickets are enabled.
+     * 
+     * @return session ticket as byte array, or null if not available.
+     * @throws IllegalStateException WolfSSLSession has been freed.
+     */
+    public synchronized byte[] getSessionTicket() throws IllegalStateException {
+
+        confirmObjectIsActive();
+    
+        if (sessionTicketsEnabled()) {
+
+            synchronized (sslLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "entered getSessionTicket()");
+                return getSessionTicket(this.sslPtr);
+            }
+
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "session tickets not enabled, returning null");
+            return null;
+        }
+    }
+
+    /**
+     * Set session ticket for this session.
+     * 
+     * @param sessionTicket session ticket to set for this session.
+     * @return WolfSSL.SSL_SUCCESS on success, otherwise negative.
+     * 
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int setSessionTicket(byte[] sessionTicket){
+        int ret = WolfSSL.SSL_SUCCESS;
+        confirmObjectIsActive();
+        if (sessionTicketsEnabled()){
+            synchronized (sslLock) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "entered setSessionTicket()");
+                
+                if (sessionTicket != null && sessionTicket.length > 0) {
+                    ret = setSessionTicket(this.sslPtr, sessionTicket);
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                        WolfSSLDebug.INFO, this.sslPtr,
+                        () -> "session ticket is null, not setting");
+                    ret = WolfSSL.SSL_FAILURE;
+                }
+
+            }
+        }
+        
+        return ret;
     }
 
     /**
