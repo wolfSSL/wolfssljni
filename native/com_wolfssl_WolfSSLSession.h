@@ -825,6 +825,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getSessionTicket
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionTicket
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSessionTicket
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicket
+  (JNIEnv *, jobject, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    gotCloseNotify
  * Signature: (J)I
  */

@@ -43,6 +43,9 @@
     /* Default wolfSSL_peek() timeout for wolfSSL_get_session(), ms */
     #define WOLFSSL_JNI_DEFAULT_PEEK_TIMEOUT 2000
 #endif
+#ifndef WOLFSSL_MAX_SESSION_TICKET_LEN
+    #define WOLFSSL_MAX_SESSION_TICKET_LEN 2048
+#endif
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
@@ -4796,6 +4799,108 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSessionTicket
     (void)sslPtr;
     ret = NOT_COMPILED_IN;
 #endif
+    return ret;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionTicket
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    jbyteArray sessionTicket = NULL;
+#ifdef HAVE_SESSION_TICKET
+    int ret = SSL_FAILURE;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    word32 dataSz = 0;
+    byte* dataBuf = NULL;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+#if LIBWOLFSSL_VERSION_HEX <= 0x05008002
+    dataSz = WOLFSSL_MAX_SESSION_TICKET_LEN;
+    dataBuf = (byte*)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dataBuf != NULL){
+        /* attempt to get ticket data and ticket size */
+        ret = wolfSSL_get_SessionTicket(ssl, dataBuf, &dataSz);
+
+        if (ret == WOLFSSL_SUCCESS && dataSz > 0){
+            sessionTicket = (*jenv)->NewByteArray(jenv, dataSz);
+            (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
+                                        (jbyte*)dataBuf);
+        } else if (ret == WOLFSSL_SUCCESS && dataSz == 0) {
+            /* no session ticket available */
+            printf("No ticket available or Session "
+                   "ticket len is greater than data buffer len\n");
+        }
+
+        XFREE(dataBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    /* get session ticket length */
+    ret = wolfSSL_get_SessionTicket(ssl, dataBuf, &dataSz);
+
+    if (ret == LENGTH_ONLY_E && dataSz > 0) {
+        /* allocate buffer */
+        dataBuf = (byte*)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dataBuf != NULL){
+            /* get ticket data */
+            ret = wolfSSL_get_SessionTicket(ssl, dataBuf, &dataSz);
+
+            if (ret == WOLFSSL_SUCCESS && dataSz > 0){
+                sessionTicket = (*jenv)->NewByteArray(jenv, dataSz);
+                (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
+                                            (jbyte*)dataBuf);
+            }
+
+            XFREE(dataBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+#endif /* LIBWOLFSSL_VERSION_HEX */
+    (void)jcl;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+#endif /* HAVE_SESSION_TICKET */
+    return sessionTicket;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicket
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray dataBuf)
+{
+    int ret = SSL_FAILURE;
+#ifdef HAVE_SESSION_TICKET
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    byte* data = NULL;
+    word32 dataSz = 0;
+
+    if (jenv == NULL || ssl == NULL || dataBuf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    data = (byte*)(*jenv)->GetByteArrayElements(jenv, dataBuf, NULL);
+    dataSz = (*jenv)->GetArrayLength(jenv, dataBuf);
+
+    if (data != NULL && dataSz > 0) {
+        ret = wolfSSL_set_SessionTicket(ssl, data, dataSz);
+        if (ret != WOLFSSL_SUCCESS) {
+            (*jenv)->ThrowNew(jenv,
+                (*jenv)->FindClass(jenv, "java/lang/Exception"),
+                "failed to set session ticket!");
+        }
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+    (*jenv)->ReleaseByteArrayElements(jenv, dataBuf,
+                                        (jbyte*)data, JNI_ABORT);
+    (void)jcl;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    ret = NOT_COMPILED_IN;
+#endif /* HAVE_SESSION_TICKET */
     return ret;
 }
 

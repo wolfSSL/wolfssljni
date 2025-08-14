@@ -458,6 +458,229 @@ public class WolfSSLSessionTest {
     }
 
     @Test
+    public void test_WolfSSLSession_getSetSessionTickets()
+        throws WolfSSLException, WolfSSLJNIException {
+        int ret = 0;
+        WolfSSLSession ssl = null;
+        String ticketStr = "This is a session ticket";
+        byte[] ticket = null;
+        byte[] retrievedTicket = null;
+
+        System.out.print("\t(get/set)SessionTicket()");
+
+        try {
+            ssl = new WolfSSLSession(ctx);
+
+            ret = ssl.useSessionTicket();
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... failed");
+                fail("useSessionTicket failed");
+            }
+
+            /* set session ticket */
+            ticket = ticketStr.getBytes();
+
+            ret = ssl.setSessionTicket(ticket);
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... failed");
+                fail("setSessionTicket failed");
+            }
+
+            retrievedTicket = ssl.getSessionTicket();
+
+            if (retrievedTicket == null) {
+                System.out.println("\t... failed" );
+                fail("getSessionTicket failed");
+            }
+
+            for (int i = 0; i < ticket.length; i++) {
+                if (ticket[i] != retrievedTicket[i]) {
+                    System.out.println("\t... failed");
+                    fail("getSessionTicket failed");
+                }
+            }
+
+        } catch (IllegalStateException e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+
+        } finally {
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    public void test_WolfSSLSession_resumeWithSessionTickets()
+        throws WolfSSLException, WolfSSLJNIException, Exception {
+        int ret = 0;
+        int err = 0;
+        Socket cliSock = null;
+        byte[] sessionTicket = "This is a session ticket".getBytes();
+        WolfSSLSession ssl = null;
+
+        /* Create client/server WolfSSLContext objects, Server context
+         * must be final since used inside inner class. */
+        final WolfSSLContext srvCtx;
+        WolfSSLContext cliCtx;
+
+        System.out.println("\tresumeWithSessionTickets()");
+
+        /* Create ServerSocket first to get ephemeral port */
+        final ServerSocket srvSocket = new ServerSocket(0);
+        final int port = srvSocket.getLocalPort();
+
+        srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+            WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.TLSv1_3_ServerMethod());
+        cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+            WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.TLSv1_3_ClientMethod());
+        /* Start server, handles 1 resumption */
+        try {
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Loop twice to allow handle one resumption */
+                        for (int i = 0; i < 2; i++) {
+                            server = srvSocket.accept();
+                            srvSes = new WolfSSLSession(srvCtx);
+
+                            ret = srvSes.setFd(server);
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.setFd() failed: " + ret);
+                            }
+
+                            do {
+                                ret = srvSes.accept();
+                                err = srvSes.getError(ret);
+                            } while (ret != WolfSSL.SSL_SUCCESS &&
+                                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.accept() failed: " + ret);
+                            }
+
+                            srvSes.shutdownSSL();
+                            srvSes.freeSSL();
+                            srvSes = null;
+                        }
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                    }
+
+                    return null;
+                }
+            });
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            /* ------------------------------------------------------------- */
+            /* Client connection #1 */
+            /* ------------------------------------------------------------- */
+            cliSock = new Socket("localhost", port);
+            ssl = new WolfSSLSession(cliCtx);
+
+            ret = ssl.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS)
+                throw new Exception("setFd() failed");
+
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                    (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS)
+                throw new Exception("Initial connect failed");
+
+            /* Get session ticket after handshake */
+            sessionTicket = ssl.getSessionTicket();
+
+            assertNotNull("Session ticket was null", sessionTicket);
+            assertTrue("Session ticket empty", sessionTicket.length > 0);
+
+            ssl.shutdownSSL();
+            ssl.freeSSL();
+            cliSock.close();
+
+            /* ------------------------------------------------------------- */
+            /* Client connection #2, set session and try resumption */
+            /* ------------------------------------------------------------- */
+            cliSock = new Socket("localhost", port);
+            ssl = new WolfSSLSession(cliCtx);
+
+            ret = ssl.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS)
+                throw new Exception("setFd() failed");
+
+            ret = ssl.setSessionTicket(sessionTicket);
+            if (ret != WolfSSL.SSL_SUCCESS)
+                throw new Exception("setSessionTicket() failed");
+
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                    (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS)
+            throw new Exception("Resumption connect failed");
+
+            /* Check if session was resumed */
+            assertEquals("Session was not resumed", 1, ssl.sessionReused());
+
+            ssl.shutdownSSL();
+            ssl.freeSSL();
+            cliSock.close();
+
+        } finally {
+            /* Free resources */
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
     public void test_WolfSSLSession_getPskIdentity()
         throws WolfSSLJNIException, WolfSSLException {
 
