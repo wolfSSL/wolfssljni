@@ -21,7 +21,7 @@ endif
 all: build
 
 build:
-	./java.sh
+	./java.sh $(INSTALL_DIR)
 	ant
 
 install:
