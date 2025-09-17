@@ -1542,7 +1542,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
          * This seems to be more performant if we do it from JNI rather
          * than back in Java after the return of this method. */
         if (size > 0) {
-            (*jenv)->CallVoidMethod(jenv, buf, g_bufferSetPositionMethodId,
+            (*jenv)->CallObjectMethod(jenv, buf, g_bufferSetPositionMethodId,
                 position + size);
             if ((*jenv)->ExceptionCheck(jenv)) {
                 return SSL_FAILURE;
