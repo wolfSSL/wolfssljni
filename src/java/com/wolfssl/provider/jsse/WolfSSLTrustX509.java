@@ -954,6 +954,105 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
     }
 
     /**
+     * Verifies a specified certificate chain.
+     * Non standard API, this is called/needed by Android.
+     *
+     * Android expects this method signature for OCSP stapling support.
+     * Native wolfSSL supports OCSP response processing via
+     * wolfSSL_CertManagerCheckOCSPResponse(). The ocspData parameter
+     * contains DER-encoded OCSP response data that is processed for
+     * certificate revocation checking.
+     *
+     * @param chain      Certificate chain to validate
+     * @param ocspData   OCSP response data (DER-encoded), may be null
+     * @param tlsSctData TLS SCT data (unused, wolfSSL does not support SCT)
+     * @param authType   Authentication type
+     * @param host       Hostname of the server
+     *
+     * @return Certificate chain used for verification, ordered with leaf/peer
+     *         cert first, root CA cert last
+     *
+     * @throws CertificateException if chain does not verify properly
+     */
+    public List<X509Certificate> checkServerTrusted(X509Certificate[] chain,
+        byte[] ocspData, byte[] tlsSctData, String authType, String host)
+        throws CertificateException {
+
+        int ret;
+        WolfSSLCertManager cm = null;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered checkServerTrusted(chain, ocspData, tlsSctData, " +
+            "authType, host)");
+
+        /* First verify the certificate chain normally, throws exception
+         * if chain is invalid */
+        List<X509Certificate> certList =
+            checkServerTrusted(chain, authType, host);
+
+        /* Verify OCSP response data if provided */
+        if (ocspData != null && ocspData.length > 0) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Verifying OCSP response data (" + ocspData.length +
+                " bytes)");
+
+            try {
+                cm = new WolfSSLCertManager();
+
+                /* Load the trusted CAs that were used for cert verification */
+                ret = cm.CertManagerLoadCAKeyStore(this.store);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new CertificateException(
+                        "Failed to load trusted CAs for OCSP verification, " +
+                        "ret = " + ret);
+                }
+
+                /* Check OCSP response */
+                ret = cm.CertManagerCheckOCSPResponse(ocspData);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new CertificateException(
+                        "OCSP response validation failed: " + ret);
+                }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "OCSP response validation successful");
+
+            } catch (WolfSSLException e) {
+                if (e.getMessage().contains("not compiled")) {
+                    /* OCSP not available, log and continue */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "OCSP support not available, skipping " +
+                        "OCSP validation");
+                } else {
+                    throw new CertificateException("OCSP validation error", e);
+                }
+            } finally {
+                if (cm != null) {
+                    cm.free();
+                }
+            }
+
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "No OCSP data provided");
+        }
+
+        /* Ignore TLS SCT data as wolfSSL doesn't support it */
+        if (tlsSctData != null && tlsSctData.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "TLS SCT data provided (" + tlsSctData.length +
+                " bytes), currently not processed");
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "leaving checkServerTrusted(chain, ocspData, tlsSctData, " +
+            "authType, host), success");
+
+        return certList;
+    }
+
+    /**
      * Returns an array of certificate authorities which are trusted for
      * authenticating peers.
      *
