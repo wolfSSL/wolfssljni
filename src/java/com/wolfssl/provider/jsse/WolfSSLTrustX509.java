@@ -25,6 +25,7 @@ import com.wolfssl.WolfSSL;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Arrays;
@@ -1014,6 +1015,123 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "leaving checkServerTrusted(certs, type, host), success");
+
+        return certList;
+    }
+
+    /**
+     * Verifies a specified certificate chain.
+     * Non standard API, this is called/needed by Android.
+     *
+     * Android expects this method signature for OCSP stapling support.
+     * Native wolfSSL supports OCSP response processing via
+     * wolfSSL_CertManagerCheckOCSPResponse(). The ocspData parameter
+     * contains DER-encoded OCSP response data that is processed for
+     * certificate revocation checking.
+     *
+     * @param chain      Certificate chain to validate
+     * @param ocspData   OCSP response data (DER-encoded), may be null
+     * @param tlsSctData TLS SCT data (unused, wolfSSL does not support SCT)
+     * @param authType   Authentication type
+     * @param host       Hostname of the server
+     *
+     * @return Certificate chain used for verification, ordered with leaf/peer
+     *         cert first, root CA cert last
+     *
+     * @throws CertificateException if chain does not verify properly
+     */
+    public List<X509Certificate> checkServerTrusted(X509Certificate[] chain,
+        byte[] ocspData, byte[] tlsSctData, String authType, String host)
+        throws CertificateException {
+
+        int ret;
+        WolfSSLCertManager cm = null;
+        byte[] leafCertDer = null;
+        byte[] issuerCertDer = null;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered checkServerTrusted(chain, ocspData, tlsSctData, " +
+            "authType, host)");
+
+        /* First verify the cert chain normally, throws if chain invalid
+         * including checks that chain != null and chain.length > 0 */
+        List<X509Certificate> certList =
+            checkServerTrusted(chain, authType, host);
+
+        /* Verify OCSP response data if provided */
+        if (ocspData != null && ocspData.length > 0) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Verifying OCSP response data (" +
+                    ocspData.length + " bytes)");
+
+            try {
+                cm = new WolfSSLCertManager();
+
+                /* Load trusted CAs that were used for cert verification */
+                ret = cm.CertManagerLoadCAKeyStore(this.store);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new CertificateException(
+                        "Failed to load trusted CAs for OCSP verification, " +
+                        "ret = " + ret);
+                }
+
+                /* Get DER-encoded leaf certificate from chain */
+                leafCertDer = chain[0].getEncoded();
+
+                /* Get issuer certificate if available in chain. Issuer
+                 * needed to compute issuer key hash for OCSP matching. */
+                if (chain.length > 1) {
+                    issuerCertDer = chain[1].getEncoded();
+                }
+
+                /* Check OCSP response against the specific certificate */
+                ret = cm.CertManagerCheckOCSPResponse(ocspData, leafCertDer,
+                    issuerCertDer);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new CertificateException(
+                        "OCSP response validation failed: " + ret);
+                }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "OCSP response validation successful");
+
+            } catch (WolfSSLException e) {
+                String msg = e.getMessage();
+                if (msg != null && msg.contains("not compiled")) {
+                    /* OCSP not available, log and continue */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "OCSP support not available, skipping " +
+                        "OCSP validation");
+                } else {
+                    throw new CertificateException("OCSP validation error", e);
+                }
+
+            } catch (CertificateEncodingException e) {
+                throw new CertificateException(
+                    "Failed to encode certificate for OCSP verification", e);
+
+            } finally {
+                if (cm != null) {
+                    cm.free();
+                }
+            }
+
+        } else {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "No OCSP data provided, not doing OCSP validation");
+        }
+
+        /* Ignore TLS SCT data as wolfSSL doesn't support it */
+        if (tlsSctData != null && tlsSctData.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "TLS SCT data provided (" + tlsSctData.length +
+                " bytes), currently not processed");
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "leaving checkServerTrusted(chain, ocspData, tlsSctData, " +
+            "authType, host), success");
 
         return certList;
     }
