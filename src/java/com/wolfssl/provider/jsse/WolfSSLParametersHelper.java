@@ -287,11 +287,11 @@ public class WolfSSLParametersHelper
                         "getEndpointIdentificationAlgorithm", paramList);
                     mth.invoke(obj, in, out);
                 }
-                if (getSNIMatchers != null){
+                if (getSNIMatchers != null) {
                     mth = cls.getDeclaredMethod("getSNIMatchers", paramList);
                     mth.invoke(obj, in, out);
                 }
-                if (getUseCipherSuitesOrder != null){
+                if (getUseCipherSuitesOrder != null) {
                     mth = cls.getDeclaredMethod("getUseCipherSuitesOrder",
                                                  paramList);
                     mth.invoke(obj, in, out);

@@ -179,7 +179,7 @@ public class WolfSSLSocketTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
+            /* TODO Auto-generated catch block */
             e.printStackTrace();
         }
 
@@ -317,6 +317,99 @@ public class WolfSSLSocketTest {
                 fail("SSLSocket.setEnabledCipherSuites() failed");
             }
         }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testServerUsesClientCipherSuitePreference() throws Exception {
+
+        System.out.print("\tTesting client suite preference");
+
+        this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
+
+        String[] serverSuites = {
+            "TLS_AES_256_GCM_SHA384",
+            "TLS_AES_128_GCM_SHA256"
+        };
+
+        String[] clientSuites = {
+            "TLS_AES_128_GCM_SHA256",
+            "TLS_AES_256_GCM_SHA384"
+        };
+
+        /* --- Case 1: default (server order) --- */
+        SSLServerSocket ss1 = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+        ss1.setEnabledCipherSuites(serverSuites);
+
+        SSLSocket cs1 = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs1.setEnabledCipherSuites(clientSuites);
+        cs1.connect(new InetSocketAddress(ss1.getLocalPort()));
+
+        final SSLSocket server1 = (SSLSocket)ss1.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> f1 = es.submit(() -> {
+            server1.startHandshake();
+            return null;
+        });
+
+        cs1.startHandshake();
+        f1.get();
+
+        String chosen1 = cs1.getSession().getCipherSuite();
+        /* Note: WolfSSL may report TLS 1.3 ciphers in IANA standard or wolfSSL
+         * alias depending on wolfSSL configuration. */
+        if (!"TLS_AES_256_GCM_SHA384".equals(chosen1) &&
+            !"TLS13-AES256-GCM-SHA384".equals(chosen1)) {
+            System.out.println("\t... failed");
+            fail("Expected server preference cipher (AES_256), got "
+                  + chosen1);
+        }
+
+        cs1.close();
+        server1.close();
+        ss1.close();
+
+        /* --- Case 2: server honors client order --- */
+        SSLServerSocket ss2 = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
+        ss2.setEnabledCipherSuites(serverSuites);
+
+        /* Do not honor local cipher suites preference */
+        SSLParameters ss2Params = ss2.getSSLParameters();
+        ss2Params.setUseCipherSuitesOrder(false);
+        ss2.setSSLParameters(ss2Params);
+
+        SSLSocket cs2 = (SSLSocket)ctx.getSocketFactory().createSocket();
+        cs2.setEnabledCipherSuites(clientSuites);
+        cs2.connect(new InetSocketAddress(ss2.getLocalPort()));
+
+        final SSLSocket server2 = (SSLSocket)ss2.accept();
+
+        Future<Void> f2 = es.submit(() -> {
+            server2.startHandshake();
+            return null;
+        });
+
+        cs2.startHandshake();
+        f2.get();
+
+        String chosen2 = cs2.getSession().getCipherSuite();
+        /* Note: WolfSSL may report TLS 1.3 ciphers in IANA standard or wolfSSL
+         * alias depending on wolfSSL configuration. */
+        if (!"TLS_AES_128_GCM_SHA256".equals(chosen2) &&
+            !"TLS13-AES128-GCM-SHA256".equals(chosen2)) {
+            System.out.println("\t... failed");
+            fail("Expected client preference cipher (AES_128), got "
+                 + chosen2);
+        }
+
+        cs2.close();
+        server2.close();
+        ss2.close();
+        es.shutdown();
 
         System.out.println("\t... passed");
     }
@@ -659,7 +752,7 @@ public class WolfSSLSocketTest {
 
             try {
                 client.join(1000);
-                //server.join(1000);
+                /* server.join(1000); */
 
             } catch (InterruptedException e) {
                 System.out.println("interrupt happened");
@@ -3402,14 +3495,14 @@ public class WolfSSLSocketTest {
     public void testSNIMatchers() throws Exception {
 
         System.out.print("\tTesting SNI Matchers");
-    
+
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
-    
+
         /* create SSLServerSocket first to get ephemeral port */
         final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
             .createServerSocket(0);
-    
+
         /* Configure SNI matcher for server*/
         SNIMatcher matcher = SNIHostName.createSNIMatcher("www\\.example\\.com");
         Collection<SNIMatcher> matchers = new ArrayList<>();
@@ -3436,7 +3529,7 @@ public class WolfSSLSocketTest {
             cs.setSSLParameters(cp);
 
             final SSLSocket serverMatched = (SSLSocket)ss.accept();
-        
+
             ExecutorService es = Executors.newSingleThreadExecutor();
             Future<Void> serverFuture = es.submit(new Callable<Void>() {
                 @Override
@@ -3451,10 +3544,10 @@ public class WolfSSLSocketTest {
                     return null;
                 }
             });
-    
+
             cs.startHandshake();
             cs.close();
-    
+
             es.shutdown();
             serverFuture.get();
 
@@ -3473,7 +3566,7 @@ public class WolfSSLSocketTest {
             cs.setSSLParameters(cp);
 
             final SSLSocket serverUnmatched = (SSLSocket)ss.accept();
-            
+
             es = Executors.newSingleThreadExecutor();
             serverFuture = es.submit(() -> {
                 try {
