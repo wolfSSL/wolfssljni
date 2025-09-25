@@ -145,3 +145,48 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
     return (jint)ret;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerCheckOCSPResponse
+  (JNIEnv* jenv, jclass jcl, jlong cmPtr, jbyteArray response)
+{
+#ifdef HAVE_OCSP
+    int ret = 0;
+    jint responseSz = 0;
+    byte* responseBuffer = NULL;
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)(uintptr_t)cmPtr;
+    (void)jcl;
+
+    if (jenv == NULL || response == NULL || cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        responseSz = (*jenv)->GetArrayLength(jenv, response);
+        responseBuffer = (byte*)(*jenv)->GetByteArrayElements(jenv,
+            response, NULL);
+        if (responseBuffer == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+
+    /* Call native wolfSSL OCSP response validation. Pass NULL for unused
+     * parameters as we only need basic response validation. */
+    if (ret == 0) {
+        ret = wolfSSL_CertManagerCheckOCSPResponse(cm, responseBuffer,
+            responseSz, NULL, NULL, NULL, NULL);
+    }
+
+    if (responseBuffer != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, response,
+            (jbyte*)responseBuffer, JNI_ABORT);
+    }
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)cmPtr;
+    (void)response;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+

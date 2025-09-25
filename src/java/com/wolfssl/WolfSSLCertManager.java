@@ -49,10 +49,11 @@ public class WolfSSLCertManager {
     static native void CertManagerFree(long cm);
     static native int CertManagerLoadCA(long cm, String f, String d);
     static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz,
-                                              int format);
+        int format);
     static native int CertManagerUnloadCAs(long cm);
     static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz,
-                                              int format);
+        int format);
+    static native int CertManagerCheckOCSPResponse(long cm, byte[] response);
 
     /**
      * Create new WolfSSLCertManager object
@@ -243,6 +244,41 @@ public class WolfSSLCertManager {
                 ", format: " + format + ")");
 
             return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
+        }
+    }
+
+    /**
+     * Check OCSP response for certificate revocation status
+     *
+     * @param response DER-encoded OCSP response data
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     *
+     * @throws IllegalStateException if WolfSSLCertManager has been freed
+     * @throws WolfSSLException if OCSP is not compiled in
+     */
+    public synchronized int CertManagerCheckOCSPResponse(byte[] response)
+        throws IllegalStateException, WolfSSLException {
+
+        confirmObjectIsActive();
+
+        if (response == null || response.length == 0) {
+            throw new IllegalArgumentException(
+                "OCSP response data is null or invalid size");
+        }
+
+        synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr,
+                () -> "entered CertManagerCheckOCSPResponse(responseSz: " +
+                response.length + ")");
+
+            int ret = CertManagerCheckOCSPResponse(this.cmPtr, response);
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                throw new WolfSSLException(
+                    "OCSP support not compiled into wolfSSL");
+            }
+            return ret;
         }
     }
 
