@@ -2424,7 +2424,7 @@ public class WolfSSLSessionTest {
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
 
-        System.out.print("\tTesting ByteBuffer read() method");
+        System.out.print("\tTesting ByteBuffer read()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);

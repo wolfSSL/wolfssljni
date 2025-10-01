@@ -29,6 +29,7 @@ import org.junit.runners.Suite;
     WolfSSLTrustX509Test.class,
     WolfSSLContextTest.class,
     WolfSSLEngineTest.class,
+    WolfSSLEngineMemoryLeakTest.class,
     WolfSSLSocketFactoryTest.class,
     WolfSSLSocketTest.class,
     WolfSSLServerSocketFactoryTest.class,

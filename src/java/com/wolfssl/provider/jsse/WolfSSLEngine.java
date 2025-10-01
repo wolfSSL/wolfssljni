@@ -354,6 +354,7 @@ public class WolfSSLEngine extends SSLEngine {
             ssl.setIOSendByteBuffer(null);
             ssl.setIOReadCtx(null);
             ssl.setIOWriteCtx(null);
+            ssl.setSessionTicketCb(null, null);
         }
     }
 
@@ -773,148 +774,155 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException(e);
         }
 
-        if (needInit) {
-            checkAndInitSSLEngine();
-        }
-
-        synchronized (netDataLock) {
-            this.netData = null;
-        }
-
-        /* Force out buffer to be large enough to hold max packet size */
-        if (out.remaining() <
-            this.engineHelper.getSession().getPacketBufferSize()) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "out.remaining() too small (" +
-                out.remaining() + "), need at least: " +
-                this.engineHelper.getSession().getPacketBufferSize());
-            return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
-        }
-
-        /* Copy buffered data to be sent into output buffer */
-        produced = CopyOutPacket(out);
-
-        /* Closing down connection if buffered data has been sent and:
-         * 1. Outbound has been closed (!outBoundOpen)
-         * 2. Inbound is closed and close_notify has been sent
-         */
-        if (produced >= 0 &&
-            (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
-            /* Mark SSLEngine status as CLOSED */
-            status = SSLEngineResult.Status.CLOSED;
-            /* Handshake has finished and SSLEngine is closed, release
-             * global JNI verify callback pointer */
-            this.engineHelper.unsetVerifyCallback();
-
-            try {
-                ClosingConnection();
-            } catch (SocketException | SocketTimeoutException e) {
-                throw new SSLException(e);
+        /* Wrap in try/finally to ensure we unset callbacks on any exit path */
+        try {
+            if (needInit) {
+                checkAndInitSSLEngine();
             }
-            produced += CopyOutPacket(out);
-        }
-        else if ((produced > 0) && !inBoundOpen &&
-                 (!this.closeNotifySent && !this.closeNotifyReceived)) {
-            /* We had buffered data to send, but inbound was already closed.
-             * Most likely this is because we needed to send an alert to
-             * the peer. We should now mark outbound as closed since we
-             * won't be sending anything after the alert went out. */
-            this.outBoundOpen = false;
-        }
-        else if (produced == 0) {
-            /* continue handshake or application data */
-            if (!this.handshakeFinished) {
-                ret = DoHandshake(true);
+
+            synchronized (netDataLock) {
+                this.netData = null;
             }
-            else {
+
+            /* Force out buffer to be large enough to hold max packet size */
+            if (out.remaining() <
+                this.engineHelper.getSession().getPacketBufferSize()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "out.remaining() too small (" +
+                    out.remaining() + "), need at least: " +
+                    this.engineHelper.getSession().getPacketBufferSize());
+                return new SSLEngineResult(Status.BUFFER_OVERFLOW, hs, 0, 0);
+            }
+
+            /* Copy buffered data to be sent into output buffer */
+            produced = CopyOutPacket(out);
+
+            /* Closing down connection if buffered data has been sent and:
+             * 1. Outbound has been closed (!outBoundOpen)
+             * 2. Inbound is closed and close_notify has been sent
+             */
+            if (produced >= 0 &&
+                (!outBoundOpen || (!inBoundOpen && this.closeNotifySent))) {
+                /* Mark SSLEngine status as CLOSED */
+                status = SSLEngineResult.Status.CLOSED;
+                /* Handshake has finished and SSLEngine is closed, release
+                 * global JNI verify callback pointer */
+                this.engineHelper.unsetVerifyCallback();
+
                 try {
-                    ret = SendAppData(in, ofst, len);
-                    if (ret > 0) {
-                        consumed += ret;
-                    }
+                    ClosingConnection();
                 } catch (SocketException | SocketTimeoutException e) {
                     throw new SSLException(e);
                 }
+                produced += CopyOutPacket(out);
+            }
+            else if ((produced > 0) && !inBoundOpen &&
+                     (!this.closeNotifySent && !this.closeNotifyReceived)) {
+                /* We had buffered data to send, but inbound was already
+                 * closed. Most likely this is because we needed to send an
+                 * alert to the peer. We should now mark outbound as closed
+                 * since we won't be sending anything after the alert went
+                 * out. */
+                this.outBoundOpen = false;
+            }
+            else if (produced == 0) {
+                /* continue handshake or application data */
+                if (!this.handshakeFinished) {
+                    ret = DoHandshake(true);
+                }
+                else {
+                    try {
+                        ret = SendAppData(in, ofst, len);
+                        if (ret > 0) {
+                            consumed += ret;
+                        }
+                    } catch (SocketException | SocketTimeoutException e) {
+                        throw new SSLException(e);
+                    }
+                }
+
+                /* copy any produced data into output buffer */
+                produced += CopyOutPacket(out);
             }
 
-            /* copy any produced data into output buffer */
-            produced += CopyOutPacket(out);
-        }
+            SetHandshakeStatus(ret);
 
-        SetHandshakeStatus(ret);
-
-        if (extraDebugEnabled) {
-            final HandshakeStatus tmpHs = hs;
-            final Status tmpStatus = status;
-            final int tmpConsumed = consumed;
-            final int tmpProduced = produced;
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "==== [ exiting wrap() ] =============================");
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "setUseClientMode: " +
-                this.engineHelper.getUseClientMode());
-            for (i = 0; i < len; i++) {
-                final int idx = i;
+            if (extraDebugEnabled) {
+                final HandshakeStatus tmpHs = hs;
+                final Status tmpStatus = status;
+                final int tmpConsumed = consumed;
+                final int tmpProduced = produced;
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "ByteBuffer in["+idx+"].remaining(): " +
-                    in[idx].remaining());
+                    () -> "==== [ exiting wrap() ] ==========================");
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "ByteBuffer in["+idx+"].position(): " +
-                    in[idx].position());
+                    () -> "setUseClientMode: " +
+                    this.engineHelper.getUseClientMode());
+                for (i = 0; i < len; i++) {
+                    final int idx = i;
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ByteBuffer in["+idx+"].remaining(): " +
+                        in[idx].remaining());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ByteBuffer in["+idx+"].position(): " +
+                        in[idx].position());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ByteBuffer in["+idx+"].limit(): " +
+                        in[idx].limit());
+                }
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "ByteBuffer in["+idx+"].limit(): " +
-                    in[idx].limit());
+                    () -> "ofst: " + ofst + ", len: " + len);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "out.remaining(): " + out.remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "out.position(): " + out.position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "out.limit(): " + out.limit());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "internalIOSendBufOffset: " +
+                    this.internalIOSendBufOffset);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "closeNotifySent: " + this.closeNotifySent);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "closeNotifyReceived: " + this.closeNotifyReceived);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "handshakeFinished: " + this.handshakeFinished);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "inBoundOpen: " + this.inBoundOpen);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "outBoundOpen: " + this.outBoundOpen);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "handshakeStatus: " + tmpHs);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "status: " + tmpStatus);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "consumed: " + tmpConsumed);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "produced: " + tmpProduced);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeHandshakeState: " +
+                    this.ssl.getStateStringLong());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeWantsToRead: " + this.nativeWantsToRead);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "==================================================");
             }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "ofst: " + ofst + ", len: " + len);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "out.remaining(): " + out.remaining());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "out.position(): " + out.position());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "out.limit(): " + out.limit());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "internalIOSendBufOffset: " +
-                this.internalIOSendBufOffset);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "closeNotifySent: " + this.closeNotifySent);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "handshakeFinished: " + this.handshakeFinished);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "inBoundOpen: " + this.inBoundOpen);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "outBoundOpen: " + this.outBoundOpen);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "handshakeStatus: " + tmpHs);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "status: " + tmpStatus);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "consumed: " + tmpConsumed);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "produced: " + tmpProduced);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeHandshakeState: " +
-                this.ssl.getStateStringLong());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "=====================================================");
+
+            return new SSLEngineResult(status, hs, consumed, produced);
+
+        } finally {
+            try {
+                /* Don't hold references to this SSLEngine object in
+                 * WolfSSLSession, can prevent proper garbage collection */
+                unsetSSLCallbacks();
+            } catch (WolfSSLJNIException e) {
+                /* Don't throw from finally block, just log for info */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "unsetSSLCallbacks() exception during wrap(), " +
+                    "just logging: " + e.getMessage());
+            }
         }
-
-        try {
-            /* Don't hold references to this SSLEngine object in WolfSSLSession,
-             * can prevent proper garbage collection */
-            unsetSSLCallbacks();
-
-        } catch (WolfSSLJNIException e) {
-            throw new SSLException(e);
-        }
-
-        return new SSLEngineResult(status, hs, consumed, produced);
     }
 
     /**
@@ -1210,302 +1218,321 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException(e);
         }
 
-        if (getUseClientMode() && needInit) {
-            /* If unwrap() is called before handshake has started, return
-             * WANT_WRAP since we'll need to send a ClientHello first */
-            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-        }
-        else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
-                 this.internalIOSendBufOffset > 0) {
-            /* Already have data buffered to send and in NEED_WRAP state,
-             * just return so wrap() can be called */
-            hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-        }
-        else {
-
-            if (needInit) {
-                checkAndInitSSLEngine();
+        /* Wrap in try/finally to ensure we unset callbacks on any exit path */
+        try {
+            if (getUseClientMode() && needInit) {
+                /* If unwrap() is called before handshake has started, return
+                 * WANT_WRAP since we'll need to send a ClientHello first */
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
             }
+            else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP &&
+                     this.internalIOSendBufOffset > 0) {
+                /* Already have data buffered to send and in NEED_WRAP state,
+                 * just return so wrap() can be called */
+                hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
+            }
+            else {
 
-            if (outBoundOpen == false) {
-                try {
-                    if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                if (needInit) {
+                    checkAndInitSSLEngine();
+                }
+
+                if (outBoundOpen == false) {
+                    try {
+                        if (ClosingConnection() == WolfSSL.SSL_SUCCESS) {
+                            /* Mark SSLEngine status as CLOSED */
+                            status = SSLEngineResult.Status.CLOSED;
+                            /* Handshake has finished and SSLEngine is closed,
+                             * release, global JNI verify callback pointer */
+                            this.engineHelper.unsetVerifyCallback();
+                        }
+                    } catch (SocketException | SocketTimeoutException e) {
+                        throw new SSLException(e);
+                    }
+                }
+                else {
+                    /* Get previous DTLS drop count and session ticket count,
+                     * before we process any incomming data. Allows us to set
+                     * BUFFER_UNDERFLOW status (or not if packet decrypt failed
+                     * and was dropped) */
+                    synchronized (ioLock) {
+                        dtlsPrevDropCount = ssl.getDtlsMacDropCount();
+                        prevSessionTicketCount = this.sessionTicketCount;
+                    }
+
+                    if (this.handshakeFinished == false) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "starting or continuing handshake");
+                        ret = DoHandshake(false);
+                    }
+                    else {
+                        /* If we have input data, make sure output buffer
+                         * length is greater than zero, otherwise ask app to
+                         * expand out buffer. There may be edge cases where
+                         * this could be tightened up, but this will err on
+                         * the side of giving us more output space than we
+                         * need. */
+                        if (inRemaining > 0 &&
+                            getTotalOutputSize(out, ofst, length) == 0) {
+                            status = SSLEngineResult.Status.BUFFER_OVERFLOW;
+                        }
+                        else {
+
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "receiving application data");
+                            ret = RecvAppData(out, ofst, length);
+                            tmpRet = ret;
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "received application data: " + tmpRet +
+                                " bytes (from RecvAppData)");
+                            if (ret > 0) {
+                                produced += ret;
+                            }
+
+                            /* Check for BUFFER_OVERFLOW status. This can
+                             * happen if either we have data cached internally
+                             * (in.remaining()) and we have no more output
+                             * space, or if we have more decrypted plaintext
+                             * in the native wolfSSL output buffer and
+                             * ssl.pending() is > 0. */
+                            synchronized (ioLock) {
+                                if ((ret > 0) && (ssl.pending() > 0)) {
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
+                                else if ((ret == 0) && (ssl.pending() > 0) &&
+                                   getTotalOutputSize(out, ofst, length) == 0) {
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
+                            }
+                            synchronized (netDataLock) {
+                                if (ret == 0 && in.remaining() > 0 &&
+                                    getTotalOutputSize(out, ofst,
+                                        length) == 0) {
+                                    /* We have more data to read, but no more
+                                     * out space left in ByteBuffer[], ask for
+                                     * more */
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
+                            }
+                        }
+
+                        /* If we haven't stored session yet, try again. For
+                         * TLS 1.3 we may need to wait for session ticket. We
+                         * do try right after wolfSSL_connect/accept() finishes,
+                         * but we might not have had session ticket at that
+                         * time. */
+                        synchronized (ioLock) {
+                            if (this.handshakeFinished &&
+                                (ssl.getError(0) == 0) &&
+                                !this.sessionStored) {
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    () -> "calling engineHelper.saveSession()");
+                                int ret2 = this.engineHelper.saveSession();
+                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    () -> "return from saveSession(), ret = " +
+                                    ret2);
+                                if (ret2 == WolfSSL.SSL_SUCCESS) {
+                                    this.sessionStored = true;
+                                }
+                            }
+                        }
+                    } /* end DoHandshake() / RecvAppData() */
+
+                    if (outBoundOpen == false || this.closeNotifySent) {
                         /* Mark SSLEngine status as CLOSED */
                         status = SSLEngineResult.Status.CLOSED;
                         /* Handshake has finished and SSLEngine is closed,
                          * release, global JNI verify callback pointer */
                         this.engineHelper.unsetVerifyCallback();
                     }
-                } catch (SocketException | SocketTimeoutException e) {
-                    throw new SSLException(e);
-                }
-            }
-            else {
-                /* Get previous DTLS drop count and session ticket count,
-                 * before we process any incomming data. Allows us to set
-                 * BUFFER_UNDERFLOW status (or not if packet decrypt failed
-                 * and was dropped) */
-                synchronized (ioLock) {
-                    dtlsPrevDropCount = ssl.getDtlsMacDropCount();
-                    prevSessionTicketCount = this.sessionTicketCount;
-                }
 
-                if (this.handshakeFinished == false) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "starting or continuing handshake");
-                    ret = DoHandshake(false);
-                }
-                else {
-                    /* If we have input data, make sure output buffer length is
-                     * greater than zero, otherwise ask app to expand out buffer.
-                     * There may be edge cases where this could be tightened up,
-                     * but this will err on the side of giving us more output
-                     * space than we need. */
-                    if (inRemaining > 0 &&
-                        getTotalOutputSize(out, ofst, length) == 0) {
-                        status = SSLEngineResult.Status.BUFFER_OVERFLOW;
-                    }
-                    else {
-
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "receiving application data");
-                        ret = RecvAppData(out, ofst, length);
-                        tmpRet = ret;
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "received application data: " + tmpRet +
-                            " bytes (from RecvAppData)");
-                        if (ret > 0) {
-                            produced += ret;
-                        }
-
-                        /* Check for BUFFER_OVERFLOW status. This can happen
-                         * if either we have data cached internally
-                         * (in.remaining()) and we have no more output space,
-                         * or if we have more decrypted plaintext in the native
-                         * wolfSSL output buffer and ssl.pending() is > 0. */
-                        synchronized (ioLock) {
-                            if ((ret > 0) && (ssl.pending() > 0)) {
-                                status =
-                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
-                            }
-                            else if ((ret == 0) && (ssl.pending() > 0) &&
-                                getTotalOutputSize(out, ofst, length) == 0) {
-                                status =
-                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
-                            }
-                        }
-                        synchronized (netDataLock) {
-                            if (ret == 0 && in.remaining() > 0 &&
-                                getTotalOutputSize(out, ofst,
-                                    length) == 0) {
-                                /* We have more data to read, but no more
-                                 * out space left in ByteBuffer[], ask for
-                                 * more */
-                                status =
-                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
-                            }
-                        }
-                    }
-
-                    /* If we haven't stored session yet, try again. For TLS 1.3
-                     * we may need to wait for session ticket. We do try
-                     * right after wolfSSL_connect/accept() finishes, but
-                     * we might not have had session ticket at that time. */
                     synchronized (ioLock) {
-                        if (this.handshakeFinished && (ssl.getError(0) == 0) &&
-                            !this.sessionStored) {
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                () -> "calling engineHelper.saveSession()");
-                            int ret2 = this.engineHelper.saveSession();
-                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                () -> "return from saveSession(), ret = " +
-                                ret2);
-                            if (ret2 == WolfSSL.SSL_SUCCESS) {
-                                this.sessionStored = true;
+                        err = ssl.getError(ret);
+                    }
+                    if (ret < 0 && (this.ssl.dtls() == 1) &&
+                        (err == WolfSSL.OUT_OF_ORDER_E)) {
+                        /* Received out of order DTLS message. Ignore and set
+                         * our status to NEED_UNWRAP again to wait for correct
+                         * data */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "out of order message, dropping and " +
+                            "putting state back to NEED_UNWRAP");
+                    }
+                    else if (ret < 0 &&
+                        (err != WolfSSL.SSL_ERROR_WANT_READ) &&
+                        (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+
+                        if (err == WolfSSL.UNKNOWN_ALPN_PROTOCOL_NAME_E) {
+                            /* Native wolfSSL could not negotiate a common ALPN
+                             * protocol */
+                            this.inBoundOpen = false;
+                            throw new SSLHandshakeException(
+                                "Unrecognized protocol name error, ret:err = " +
+                                ret + " : " + err);
+                        }
+                        else {
+                            /* Native wolfSSL threw an exception when unwrapping
+                             * data, close inbound since we can't receive more
+                             * data */
+                            this.inBoundOpen = false;
+                            if (err == WolfSSL.FATAL_ERROR) {
+                                /* If client side and we received fatal alert,
+                                 * close outbound since we won't be receiving
+                                 * any more data */
+                                this.outBoundOpen = false;
+                            }
+                            throw new SSLException(
+                                "wolfSSL error, ret:err = " + ret + " : " +
+                                err);
+                        }
+                    }
+
+                    /* Get DTLS drop count after data has been processed. To be
+                     * used below when setting BUFFER_UNDERFLOW status. */
+                    synchronized (ioLock) {
+                        dtlsCurrDropCount = ssl.getDtlsMacDropCount();
+                    }
+
+                    /* Detect if we need to set BUFFER_UNDERFLOW.
+                     * If we consume data in unwrap() but it's just a session
+                     * ticket, we don't set BUFFER_UNDERFLOW and just continue
+                     * on to set status as OK. */
+                    synchronized (toSendLock) {
+                        synchronized (netDataLock) {
+                            if (ret <= 0 &&
+                                err == WolfSSL.SSL_ERROR_WANT_READ &&
+                                in.remaining() == 0 &&
+                                (this.internalIOSendBufOffset == 0) &&
+                                (prevSessionTicketCount ==
+                                    this.sessionTicketCount)) {
+
+                                if ((this.ssl.dtls() == 0) ||
+                                    (this.handshakeFinished &&
+                                     (dtlsPrevDropCount ==
+                                         dtlsCurrDropCount))) {
+                                    /* Need more data. For DTLS only set
+                                     * after handshake has completed, since
+                                     * apps expect to switch on NEED_UNWRAP
+                                     * HandshakeStatus at that point */
+                                    status =
+                                        SSLEngineResult.Status.BUFFER_UNDERFLOW;
+                                }
                             }
                         }
                     }
-                } /* end DoHandshake() / RecvAppData() */
-
-                if (outBoundOpen == false || this.closeNotifySent) {
-                    /* Mark SSLEngine status as CLOSED */
-                    status = SSLEngineResult.Status.CLOSED;
-                    /* Handshake has finished and SSLEngine is closed,
-                     * release, global JNI verify callback pointer */
-                    this.engineHelper.unsetVerifyCallback();
                 }
 
-                synchronized (ioLock) {
-                    err = ssl.getError(ret);
+                synchronized (netDataLock) {
+                    consumed += in.position() - inPosition;
                 }
-                if (ret < 0 && (this.ssl.dtls() == 1) &&
-                    (err == WolfSSL.OUT_OF_ORDER_E)) {
-                    /* Received out of order DTLS message. Ignore and set our
-                     * status to NEED_UNWRAP again to wait for correct data */
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "out of order message, dropping and " +
-                        "putting state back to NEED_UNWRAP");
-                }
-                else if (ret < 0 &&
-                    (err != WolfSSL.SSL_ERROR_WANT_READ) &&
-                    (err != WolfSSL.SSL_ERROR_WANT_WRITE)) {
+                SetHandshakeStatus(ret);
+            }
 
-                    if (err == WolfSSL.UNKNOWN_ALPN_PROTOCOL_NAME_E) {
-                        /* Native wolfSSL could not negotiate a common ALPN
-                         * protocol */
-                        this.inBoundOpen = false;
-                        throw new SSLHandshakeException(
-                            "Unrecognized protocol name error, ret:err = " +
-                            ret + " : " + err);
+            /* If client side, handshake is done, and we have just received a
+             * TLS 1.3 session ticket, we should return FINISHED HandshakeStatus
+             * from unwrap() directly but not from getHandshakeStatus(). Keep
+             * track of if we have received ticket, so we only set/return this
+             * once */
+            synchronized (ioLock) {
+                if (this.getUseClientMode() && this.handshakeFinished &&
+                    this.ssl.hasSessionTicket() &&
+                    this.sessionTicketReceived == false) {
+                    if (this.ssl.dtls() == 1 &&
+                        this.internalIOSendBufOffset > 0) {
+                        /* DTLS 1.3 ACK has been produced in response to
+                         * session ticket message, let's set HS status to
+                         * NEED_WRAP so application knows it needs to be sent */
+                        hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                     }
                     else {
-                        /* Native wolfSSL threw an exception when unwrapping
-                         * data, close inbound since we can't receive more
-                         * data */
-                        this.inBoundOpen = false;
-                        if (err == WolfSSL.FATAL_ERROR) {
-                            /* If client side and we received fatal alert,
-                             * close outbound since we won't be receiving
-                             * any more data */
-                            this.outBoundOpen = false;
-                        }
-                        throw new SSLException(
-                            "wolfSSL error, ret:err = " + ret + " : " + err);
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "received session ticket, returning " +
+                            "HandshakeStatus FINISHED");
+                        hs = SSLEngineResult.HandshakeStatus.FINISHED;
                     }
-                }
-
-                /* Get DTLS drop count after data has been processed. To be
-                 * used below when setting BUFFER_UNDERFLOW status. */
-                synchronized (ioLock) {
-                    dtlsCurrDropCount = ssl.getDtlsMacDropCount();
-                }
-
-                /* Detect if we need to set BUFFER_UNDERFLOW.
-                 * If we consume data in unwrap() but it's just a session
-                 * ticket, we don't set BUFFER_UNDERFLOW and just continue
-                 * on to set status as OK. */
-                synchronized (toSendLock) {
-                    synchronized (netDataLock) {
-                        if (ret <= 0 && err == WolfSSL.SSL_ERROR_WANT_READ &&
-                            in.remaining() == 0 &&
-                            (this.internalIOSendBufOffset == 0) &&
-                            (prevSessionTicketCount ==
-                                this.sessionTicketCount)) {
-
-                            if ((this.ssl.dtls() == 0) ||
-                                (this.handshakeFinished &&
-                                 (dtlsPrevDropCount == dtlsCurrDropCount))) {
-                                /* Need more data. For DTLS only set
-                                 * after handshake has completed, since
-                                 * apps expect to switch on NEED_UNWRAP
-                                 * HandshakeStatus at that point */
-                                status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
-                            }
-                        }
-                    }
+                    this.sessionTicketReceived = true;
                 }
             }
 
-            synchronized (netDataLock) {
-                consumed += in.position() - inPosition;
-            }
-            SetHandshakeStatus(ret);
-        }
-
-        /* If client side, handshake is done, and we have just received a
-         * TLS 1.3 session ticket, we should return FINISHED HandshakeStatus
-         * from unwrap() directly but not from getHandshakeStatus(). Keep track
-         * of if we have received ticket, so we only set/return this once */
-        synchronized (ioLock) {
-            if (this.getUseClientMode() && this.handshakeFinished &&
-                this.ssl.hasSessionTicket() &&
-                this.sessionTicketReceived == false) {
-                if (this.ssl.dtls() == 1 && this.internalIOSendBufOffset > 0) {
-                    /* DTLS 1.3 ACK has been produced in response to
-                     * session ticket message, let's set HS status to
-                     * NEED_WRAP so application knows it needs to be sent. */
-                    hs = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                }
-                else {
+            if (extraDebugEnabled == true) {
+                final Status tmpStatus = status;
+                final int tmpConsumed = consumed;
+                final int tmpProduced = produced;
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "==== [ exiting unwrap() ] " +
+                    "============================");
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "setUseClientMode: " +
+                    this.engineHelper.getUseClientMode());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "in.remaining(): " + in.remaining());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "in.position(): " + in.position());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "in.limit(): " + in.limit());
+                for (i = 0; i < length; i++) {
+                    final int idx = i;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "received session ticket, returning " +
-                        "HandshakeStatus FINISHED");
-                    hs = SSLEngineResult.HandshakeStatus.FINISHED;
+                        () -> "out["+idx+"].remaining(): " +
+                        out[idx].remaining());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "out["+idx+"].position(): " +
+                        out[idx].position());
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "out["+idx+"].limit(): " +
+                        out[idx].limit());
                 }
-                this.sessionTicketReceived = true;
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "ofst: " + ofst + ", length: " + length);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "internalIOSendBufOffset: " +
+                    this.internalIOSendBufOffset);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "handshakeFinished: " + this.handshakeFinished);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "closeNotifySent: " + this.closeNotifySent);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "closeNotifyReceived: " + this.closeNotifyReceived);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "inBoundOpen: " + this.inBoundOpen);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "outBoundOpen: " + this.outBoundOpen);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "handshakeStatus: " + hs);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "status: " + tmpStatus);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "consumed: " + tmpConsumed);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "produced: " + tmpProduced);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeHandshakeState: " +
+                    this.ssl.getStateStringLong());
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeWantsToRead: " + this.nativeWantsToRead);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "==================================================");
+            }
+
+            return new SSLEngineResult(status, hs, consumed, produced);
+
+        } finally {
+            try {
+                /* Don't hold references to this SSLEngine object in
+                 * WolfSSLSession, can prevent proper garbage collection */
+                unsetSSLCallbacks();
+            } catch (WolfSSLJNIException e) {
+                /* Don't throw from finally block, just log for info */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "unsetSSLCallbacks() exception during unwrap(), " +
+                    "just logging: " + e.getMessage());
             }
         }
-
-        if (extraDebugEnabled == true) {
-            final Status tmpStatus = status;
-            final int tmpConsumed = consumed;
-            final int tmpProduced = produced;
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "==== [ exiting unwrap() ] ============================");
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "setUseClientMode: " +
-                this.engineHelper.getUseClientMode());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "in.remaining(): " + in.remaining());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "in.position(): " + in.position());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "in.limit(): " + in.limit());
-            for (i = 0; i < length; i++) {
-                final int idx = i;
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "out["+idx+"].remaining(): " +
-                    out[idx].remaining());
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "out["+idx+"].position(): " +
-                    out[idx].position());
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "out["+idx+"].limit(): " +
-                    out[idx].limit());
-            }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "ofst: " + ofst + ", length: " + length);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "internalIOSendBufOffset: " +
-                this.internalIOSendBufOffset);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "handshakeFinished: " + this.handshakeFinished);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "closeNotifySent: " + this.closeNotifySent);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "closeNotifyReceived: " + this.closeNotifyReceived);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "inBoundOpen: " + this.inBoundOpen);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "outBoundOpen: " + this.outBoundOpen);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "handshakeStatus: " + hs);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "status: " + tmpStatus);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "consumed: " + tmpConsumed);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "produced: " + tmpProduced);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeHandshakeState: " + this.ssl.getStateStringLong());
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeWantsToRead: " + this.nativeWantsToRead);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "nativeWantsToWrite: " + this.nativeWantsToWrite);
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "=====================================================");
-        }
-
-        try {
-            /* Don't hold references to this SSLEngine object in WolfSSLSession,
-             * can prevent proper garbage collection */
-            unsetSSLCallbacks();
-
-        } catch (WolfSSLJNIException e) {
-            throw new SSLException(e);
-        }
-
-        return new SSLEngineResult(status, hs, consumed, produced);
     }
 
     /**
@@ -1844,11 +1871,11 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException(e);
         }
 
-        /* will throw SSLHandshakeException if session creation is
-           not allowed */
-        checkAndInitSSLEngine();
-
         try {
+            /* will throw SSLHandshakeException if session creation is
+               not allowed */
+            checkAndInitSSLEngine();
+
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "calling engineHelper.doHandshake()");
 
@@ -1870,14 +1897,15 @@ public class WolfSSLEngine extends SSLEngine {
             throw new SSLException(e);
 
         } finally {
-
             try {
                 /* Don't hold references to this SSLEngine object in
                  * WolfSSLSession, can prevent proper garbage collection */
                 unsetSSLCallbacks();
-
-            } catch (WolfSSLJNIException e) {
-                throw new SSLException(e);
+            } catch (Exception e) {
+                /* Don't throw from finally block, just log for info */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "unsetSSLCallbacks() exception during " +
+                    "beginHandshake(), just logging: " + e.getMessage());
             }
         }
     }
