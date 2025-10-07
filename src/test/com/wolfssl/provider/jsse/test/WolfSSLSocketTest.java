@@ -179,7 +179,6 @@ public class WolfSSLSocketTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            /* TODO Auto-generated catch block */
             e.printStackTrace();
         }
 
@@ -1127,8 +1126,9 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting ExtendedThreadingUse");
 
-        /* This test hangs on Android, marking TODO for later investigation. Seems to be
-         * something specific to the test code, not library proper. */
+        /* This test hangs on Android, marking TODO for later investigation.
+         * Seems to be something specific to the test code, not library
+         * proper. */
         if (WolfSSLTestFactory.isAndroid()) {
             System.out.println("\t... skipped");
             return;
@@ -1137,7 +1137,8 @@ public class WolfSSLSocketTest {
         /* Start up simple TLS test server */
         CountDownLatch serverOpenLatch = new CountDownLatch(1);
         InternalMultiThreadedSSLSocketServer server =
-            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch, numThreads);
+            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch,
+                numThreads);
         server.start();
 
         /* Wait for server thread to start up before connecting clients */
@@ -3496,15 +3497,29 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting SNI Matchers");
 
+        /* SNI matcher functionality requires wolfSSL 5.7.2 or later.
+         * Older versions have a limitation where wolfSSL_SNI_GetRequest()
+         * only returns SNI data if native wolfSSL already matched it, but
+         * wolfJSSE relies on retrieving the SNI to do matching at the Java
+         * level. This was fixed in wolfSSL 5.7.2 by adding an ignoreStatus
+         * parameter to TLSX_SNI_GetRequest(). */
+        long libVerHex = WolfSSL.getLibVersionHex();
+        if (libVerHex < 0x05007002L) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        final SSLServerSocket ss =
+            (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
 
         /* Configure SNI matcher for server*/
-        SNIMatcher matcher = SNIHostName.createSNIMatcher("www\\.example\\.com");
+        SNIMatcher matcher =
+            SNIHostName.createSNIMatcher("www\\.example\\.com");
         Collection<SNIMatcher> matchers = new ArrayList<>();
         matchers.add(matcher);
         SSLParameters sp = ss.getSSLParameters();
@@ -3592,7 +3607,8 @@ public class WolfSSLSocketTest {
             System.out.println("\t\t... passed");
         } catch (Exception e) {
             System.out.println("\t\t... failed");
-            fail();
+            e.printStackTrace();
+            fail("SNI Matcher test failed: " + e.getMessage());
         } finally {
             ss.close();
         }
