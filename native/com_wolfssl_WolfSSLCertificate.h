@@ -183,6 +183,14 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_extended_key_usage
+ * Signature: (J)[Ljava/lang/String;
+ */
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extended_1key_1usage
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_get_extension
  * Signature: (JLjava/lang/String;)[B
  */

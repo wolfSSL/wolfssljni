@@ -40,6 +40,7 @@ import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
@@ -317,6 +318,34 @@ public class WolfSSLX509 extends X509Certificate {
             return null;
         }
         return this.cert.getKeyUsage();
+    }
+
+    @Override
+    public List<String> getExtendedKeyUsage()
+        throws CertificateParsingException {
+
+        String[] ekuArray;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered getExtendedKeyUsage()");
+
+        if (this.cert == null) {
+            return null;
+        }
+
+        ekuArray = this.cert.getExtendedKeyUsage();
+        if (ekuArray == null) {
+            return null;
+        }
+
+        /* Convert String[] to List<String> as required by
+         * X509Certificate.getExtendedKeyUsage() API */
+        List<String> ekuList = new ArrayList<String>();
+        for (String oid : ekuArray) {
+            ekuList.add(oid);
+        }
+
+        return Collections.unmodifiableList(ekuList);
     }
 
     @Override

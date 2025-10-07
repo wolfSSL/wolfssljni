@@ -1565,6 +1565,107 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
     return ret;
 }
 
+/* Helper function to add an Extended Key Usage (EKU) OID string to the
+ * jobjectArray array if the flag is set. Returns updated index in array. */
+static int addEkuOid(JNIEnv* jenv, jobjectArray ret, int idx,
+    unsigned int ekuBits, unsigned int flag, int nid)
+{
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    jstring ekuStr = NULL;
+    char oidBuf[128];
+    int oidLen = 0;
+
+    if (ekuBits & flag) {
+
+        /* Convert NID to WOLFSSL_ASN1_OBJECT */
+        obj = wolfSSL_OBJ_nid2obj(nid);
+        if (obj != NULL) {
+
+            /* Convert WOLFSSL_ASN1_OBJECT to OID string */
+            oidLen = wolfSSL_OBJ_obj2txt(oidBuf, sizeof(oidBuf), obj, 1);
+            if (oidLen > 0) {
+
+                /* Create Java String and add to array */
+                ekuStr = (*jenv)->NewStringUTF(jenv, oidBuf);
+                if (ekuStr != NULL) {
+                    (*jenv)->SetObjectArrayElement(jenv, ret, idx, ekuStr);
+                    (*jenv)->DeleteLocalRef(jenv, ekuStr);
+                    idx++;
+                }
+            }
+
+            /* Free WOLFSSL_ASN1_OBJECT */
+            wolfSSL_ASN1_OBJECT_free(obj);
+        }
+    }
+
+    return idx;
+}
+
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extended_1key_1usage
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+    jobjectArray ret = NULL;
+    jclass stringClass = NULL;
+    unsigned int ekuBits = 0;
+    int ekuCount = 0;
+    int idx = 0;
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    /* Get extended key usage bitmask from wolfSSL */
+    ekuBits = wolfSSL_X509_get_extended_key_usage(x509);
+    if (ekuBits == 0) {
+        return NULL;
+    }
+
+    /* Count how many EKU bits are set */
+    if (ekuBits & XKU_SSL_SERVER) ekuCount++;
+    if (ekuBits & XKU_SSL_CLIENT) ekuCount++;
+    if (ekuBits & XKU_CODE_SIGN)  ekuCount++;
+    if (ekuBits & XKU_SMIME)      ekuCount++;
+    if (ekuBits & XKU_TIMESTAMP)  ekuCount++;
+    if (ekuBits & XKU_OCSP_SIGN)  ekuCount++;
+
+    if (ekuCount == 0) {
+        return NULL;
+    }
+
+    /* Create String[] array to return */
+    stringClass = (*jenv)->FindClass(jenv, "java/lang/String");
+    if (stringClass == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewObjectArray(jenv, ekuCount, stringClass, NULL);
+    if (ret == NULL) {
+        (*jenv)->DeleteLocalRef(jenv, stringClass);
+        return NULL;
+    }
+
+    /* Add each EKU OID string to array */
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SSL_SERVER,
+        EKU_SERVER_AUTH_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SSL_CLIENT,
+        EKU_CLIENT_AUTH_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_CODE_SIGN,
+        EKU_CODESIGNING_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SMIME,
+        EKU_EMAILPROTECT_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_TIMESTAMP,
+        EKU_TIMESTAMP_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN,
+        EKU_OCSP_SIGN_OID);
+
+    (*jenv)->DeleteLocalRef(jenv, stringClass);
+
+    return ret;
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jstring oidIn)
 {

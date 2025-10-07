@@ -98,6 +98,7 @@ public class WolfSSLCertificate implements Serializable {
     static native int X509_get_pathLength(long x509);
     static native int X509_verify(long x509, byte[] pubKey, int pubKeySz);
     static native boolean[] X509_get_key_usage(long x509);
+    static native String[] X509_get_extended_key_usage(long x509);
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
@@ -1547,6 +1548,34 @@ public class WolfSSLCertificate implements Serializable {
                 () -> "entering getKeyUsage()");
 
             return X509_get_key_usage(this.x509Ptr);
+        }
+    }
+
+    /**
+     * Get extended key usage OIDs from X.509 certificate.
+     *
+     * Returns an array of OID strings representing the extended key usage
+     * values present in the certificate. Common OIDs include:
+     *   - 1.3.6.1.5.5.7.3.1 (TLS Web Server Authentication / serverAuth)
+     *   - 1.3.6.1.5.5.7.3.2 (TLS Web Client Authentication / clientAuth)
+     *   - 1.3.6.1.5.5.7.3.3 (Code Signing / codeSigning)
+     *   - 1.3.6.1.5.5.7.3.4 (Email Protection / emailProtection)
+     *
+     * @return Array of OID strings, or null if Extended Key Usage extension
+     *         is not present in certificate
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed
+     */
+    public String[] getExtendedKeyUsage() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getExtendedKeyUsage()");
+
+            return X509_get_extended_key_usage(this.x509Ptr);
         }
     }
 

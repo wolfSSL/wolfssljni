@@ -94,7 +94,6 @@ public class WolfSSLX509Test {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
@@ -799,6 +798,70 @@ public class WolfSSLX509Test {
             error("\t... failed");
             fail("Exception during WolfSSLPrincipal interface test: " +
                  e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testGetExtendedKeyUsage() {
+        X509Certificate x509;
+        List<String> eku;
+
+        System.out.print("\tTesting getExtendedKeyUsage");
+
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        if (WolfSSL.FileSystemEnabled() == false) {
+            pass("\t... skipped");
+            return;
+        }
+
+        try {
+            /* Test with server certificate which has Extended Key Usage
+             * extension with serverAuth and clientAuth */
+            byte[] der = tf.getCert("server");
+            x509 = new WolfSSLX509(der);
+            eku = x509.getExtendedKeyUsage();
+
+            /* Server cert should have EKU extension */
+            if (eku == null) {
+                error("\t... failed");
+                fail("getExtendedKeyUsage() returned null for server cert");
+            }
+
+            /* Server cert should have serverAuth (1.3.6.1.5.5.7.3.1) and
+             * clientAuth (1.3.6.1.5.5.7.3.2) */
+            if (eku.size() != 2) {
+                error("\t... failed");
+                fail("Expected 2 EKU OIDs, got: " + eku.size());
+            }
+
+            if (!eku.contains("1.3.6.1.5.5.7.3.1")) {
+                error("\t... failed");
+                fail("Missing serverAuth OID 1.3.6.1.5.5.7.3.1");
+            }
+
+            if (!eku.contains("1.3.6.1.5.5.7.3.2")) {
+                error("\t... failed");
+                fail("Missing clientAuth OID 1.3.6.1.5.5.7.3.2");
+            }
+
+            /* Verify all OIDs are properly formatted */
+            for (String oid : eku) {
+                if (oid == null || oid.isEmpty()) {
+                    error("\t... failed");
+                    fail("EKU OID is null or empty");
+                }
+                if (!oid.matches("^[0-9]+(\\.[0-9]+)*$")) {
+                    error("\t... failed");
+                    fail("Invalid OID format: " + oid);
+                }
+            }
+
+        } catch (Exception ex) {
+            error("\t... failed");
+            ex.printStackTrace();
+            fail("unexpected exception: " + ex.getMessage());
         }
 
         pass("\t... passed");
