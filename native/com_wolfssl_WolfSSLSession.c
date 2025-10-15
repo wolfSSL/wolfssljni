@@ -5874,6 +5874,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useClientSuites
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+    (void)jcl;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    if (jenv == NULL || ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    return (jint)wolfSSL_UseClientSuites(ssl);
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_interruptBlockedIO
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {

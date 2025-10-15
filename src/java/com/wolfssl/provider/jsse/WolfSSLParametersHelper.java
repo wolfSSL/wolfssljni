@@ -43,6 +43,8 @@ public class WolfSSLParametersHelper
     private static Method setSNIMatchers = null;
     private static Method getMaximumPacketSize = null;
     private static Method setMaximumPacketSize = null;
+    private static Method setUseCipherSuitesOrder = null;
+    private static Method getUseCipherSuitesOrder = null;
 
     /** Default WolfSSLParametersHelper constructor */
     public WolfSSLParametersHelper() { }
@@ -91,6 +93,12 @@ public class WolfSSLParametersHelper
                                 case "setMaximumPacketSize":
                                     setMaximumPacketSize = m;
                                     continue;
+                                case "setUseCipherSuitesOrder":
+                                    setUseCipherSuitesOrder = m;
+                                    continue;
+                                case "getUseCipherSuitesOrder":
+                                    getUseCipherSuitesOrder = m;
+                                    continue;
                                 default:
                                     continue;
                             }
@@ -134,7 +142,8 @@ public class WolfSSLParametersHelper
          * do not existing in older JDKs. Since older JDKs will not have them,
          * use Java reflection to detect availability in helper class. */
         if (setServerNames != null || setApplicationProtocols != null ||
-            setEndpointIdentificationAlgorithm != null || setSNIMatchers != null) {
+            setEndpointIdentificationAlgorithm != null ||
+            setSNIMatchers != null || setUseCipherSuitesOrder != null) {
 
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled
@@ -167,6 +176,11 @@ public class WolfSSLParametersHelper
                     mth = cls.getDeclaredMethod("setSNIMatchers", paramList);
                     mth.invoke(obj, ret, setSNIMatchers, in);
                 }
+                if (setUseCipherSuitesOrder != null) {
+                    mth = cls.getDeclaredMethod("setUseCipherSuitesOrder",
+                                                 paramList);
+                    mth.invoke(obj, ret, setUseCipherSuitesOrder, in);
+                }
 
             } catch (Exception e) {
                 /* ignore, class not found */
@@ -193,15 +207,20 @@ public class WolfSSLParametersHelper
             /* Not available, just ignore and continue */
         }
 
+        try {
+            if (setUseCipherSuitesOrder != null) {
+                ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
+            }
+        } catch (Exception e) {
+            /* Not available, just ignore and continue */
+        }
+
         /* The following SSLParameters features are not yet supported
          * by wolfJSSE (see Android API 23 note above). They are supported
          * with newer versions of SSLParameters, but will need to be added
          * conditionally to wolfJSSE when supported. */
         /*ret.setAlgorithmConstraints(in.getAlgorithmConstraints());
         ret.setEnableRetransmissions(in.getEnableRetransmissions());
-        ret.setMaximumPacketSize(in.getMaximumPacketSize());
-        ret.setSNIMatchers(in.getSNIMatchers());
-        ret.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         */
 
         return ret;
@@ -242,7 +261,8 @@ public class WolfSSLParametersHelper
          * do not existing in older JDKs. Since older JDKs will not have them,
          * use Java reflection to detect availability in helper class. */
         if (getServerNames != null || getApplicationProtocols != null ||
-            getEndpointIdentificationAlgorithm != null || getSNIMatchers != null) {
+            getEndpointIdentificationAlgorithm != null ||
+            getSNIMatchers != null || getUseCipherSuitesOrder != null) {
             try {
                 /* load WolfSSLJDK8Helper at runtime, not compiled on older JDKs */
                 Class<?> cls = Class.forName(
@@ -267,8 +287,13 @@ public class WolfSSLParametersHelper
                         "getEndpointIdentificationAlgorithm", paramList);
                     mth.invoke(obj, in, out);
                 }
-                if (getSNIMatchers != null){
+                if (getSNIMatchers != null) {
                     mth = cls.getDeclaredMethod("getSNIMatchers", paramList);
+                    mth.invoke(obj, in, out);
+                }
+                if (getUseCipherSuitesOrder != null) {
+                    mth = cls.getDeclaredMethod("getUseCipherSuitesOrder",
+                                                 paramList);
                     mth.invoke(obj, in, out);
                 }
 
@@ -296,12 +321,21 @@ public class WolfSSLParametersHelper
          * conditionally to wolfJSSE when supported. */
         /*out.setAlgorithmConstraints(in.getAlgorithmConstraints());
         out.setEnableRetransmissions(in.getEnableRetransmissions());
-        out.setMaximumPacketSize(in.getMaximumPacketSize());
-        out.setSNIMatchers(in.getSNIMatchers());
-        out.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
         */
 
-        out.setSNIMatchers(in.getSNIMatchers());
+        try {
+            out.setSNIMatchers(in.getSNIMatchers());
+        } catch (Exception e) {
+            /* Not available, just ignore and continue */
+        }
+
+        try {
+            if (getUseCipherSuitesOrder != null) {
+                out.setUseCipherSuitesOrder(in.getUseCipherSuitesOrder());
+            }
+        } catch (Exception e) {
+            /* Not available, just ignore and continue */
+        }
 
     }
 }

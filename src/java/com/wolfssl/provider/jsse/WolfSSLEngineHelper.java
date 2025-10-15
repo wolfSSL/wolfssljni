@@ -759,6 +759,11 @@ public class WolfSSLEngineHelper {
                 }
             }
 
+            if (this.ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END &&
+                !this.params.getUseCipherSuitesOrder()) {
+                this.ssl.useClientSuites();
+            }
+
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException(e);
         }

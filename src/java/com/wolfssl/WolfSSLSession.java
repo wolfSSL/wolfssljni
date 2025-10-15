@@ -693,6 +693,7 @@ public class WolfSSLSession {
     private native int useSupportedCurve(long ssl, int name);
     private native int disableExtendedMasterSecret(long ssl);
     private native int hasTicket(long session);
+    private native int useClientSuites(long ssl);
     private native int interruptBlockedIO(long ssl);
     private native int getThreadsBlockedInPoll(long ssl);
     private native int setMTU(long ssl, int mtu);
@@ -2473,6 +2474,26 @@ public class WolfSSLSession {
                 WolfSSLDebug.INFO, this.sslPtr, () -> "timeout: " + ret);
 
             return ret;
+        }
+    }
+
+    /**
+     * Set SSL session to use Client cipher suite order preference.
+     * @return      <code>SSL_SUCCESS</code> upon success. <code>
+     *              SSL_FAILURE</code> upon failure.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     *
+     */
+    public int useClientSuites() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered useClientSuites()");
+
+            return useClientSuites(this.sslPtr);
         }
     }
 

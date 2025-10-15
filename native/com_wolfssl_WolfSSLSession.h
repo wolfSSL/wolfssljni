@@ -961,6 +961,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    useClientSuites
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useClientSuites
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    interruptBlockedIO
  * Signature: (J)I
  */
