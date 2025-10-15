@@ -140,6 +140,7 @@ public class WolfSSLCertificateTest {
             /* Key Usage and Extended Key Usage only work with wolfSSL
              * later than 5.6.3 */
             test_getKeyUsage();
+            test_getExtendedKeyUsage();
         }
         test_getExtensionSet();
         test_toString();
@@ -598,6 +599,60 @@ public class WolfSSLCertificateTest {
             fail("Error loading external certificate");
         }
         System.out.println("\t\t... passed");
+    }
+
+    public void test_getExtendedKeyUsage() {
+        int i;
+        String[] eku;
+        String[] expected = {
+            "1.3.6.1.5.5.7.3.1",  /* TLS Web Server Authentication */
+            "1.3.6.1.5.5.7.3.2"   /* TLS Web Client Authentication */
+        };
+
+        System.out.print("\t\tgetExtendedKeyUsage");
+
+        /* Client cert has Extended Key Usage extension with serverAuth
+         * and clientAuth */
+        eku = this.cert.getExtendedKeyUsage();
+        if (eku == null) {
+            System.out.println("\t... failed");
+            fail("getExtendedKeyUsage() returned null for client cert");
+        }
+
+        if (eku.length != expected.length) {
+            System.out.println("\t... failed");
+            fail("Expected " + expected.length + " EKU OIDs, got: " +
+                 eku.length);
+        }
+
+        /* Verify expected OIDs are present */
+        for (i = 0; i < expected.length; i++) {
+            boolean found = false;
+            for (String oid : eku) {
+                if (oid.equals(expected[i])) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("\t... failed");
+                fail("Missing expected OID: " + expected[i]);
+            }
+        }
+
+        /* Verify all OIDs are properly formatted */
+        for (i = 0; i < eku.length; i++) {
+            if (eku[i] == null || eku[i].isEmpty()) {
+                System.out.println("\t... failed");
+                fail("Extended key usage OID is null or empty");
+            }
+            if (!eku[i].matches("^[0-9]+(\\.[0-9]+)*$")) {
+                System.out.println("\t... failed");
+                fail("Invalid OID format: " + eku[i]);
+            }
+        }
+
+        System.out.println("\t... passed");
     }
 
     public void test_getExtensionSet() {

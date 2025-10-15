@@ -34,6 +34,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 
 /**
  * Internal verify callback.
@@ -47,9 +48,13 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
     private X509TrustManager tm = null;
     private boolean clientMode;
-    private SSLSocket callingSocket = null;
-    private SSLEngine callingEngine = null;
     private WolfSSLParameters params = null;
+
+    /* Use WeakReference for SSLSocket and SSLEngine to avoid
+     * holding back garbage collection of WolfSSLSocket/WolfSSLEngine
+     * objects */
+    private WeakReference<SSLSocket> callingSocket = null;
+    private WeakReference<SSLEngine> callingEngine = null;
 
     /**
      * Create new WolfSSLInternalVerifyCb
@@ -64,9 +69,19 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         SSLSocket socket, SSLEngine engine, WolfSSLParameters params) {
         this.tm = xtm;
         this.clientMode = client;
-        this.callingSocket = socket;
-        this.callingEngine = engine;
         this.params = params;
+
+        if (socket != null) {
+            this.callingSocket = new WeakReference<>(socket);
+        } else {
+            this.callingSocket = null;
+        }
+
+        if (engine != null) {
+            this.callingEngine = new WeakReference<>(engine);
+        } else {
+            this.callingEngine = null;
+        }
     }
 
     /**
@@ -99,19 +114,25 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         WolfSSLTrustX509 wolfTM = (WolfSSLTrustX509)tm;
 
         try {
-            if (this.callingSocket != null) {
+            if (this.callingSocket != null &&
+                this.callingSocket.get() != null) {
+
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "checking hostname verification using SSLSocket");
+
                 /* Throws CertificateException when verify fails */
-                wolfTM.verifyHostname(peer, this.callingSocket,
+                wolfTM.verifyHostname(peer, this.callingSocket.get(),
                     null, clientMode);
             }
-            else if (this.callingEngine != null) {
+            else if (this.callingEngine != null &&
+                     this.callingEngine.get() != null) {
+
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "checking hostname verification using SSLEngine");
+
                 /* Throws CertificateException when verify fails */
                 wolfTM.verifyHostname(peer, null,
-                    this.callingEngine, clientMode);
+                    this.callingEngine.get(), clientMode);
             }
             else {
                 throw new CertificateException(
@@ -159,19 +180,26 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                 if (this.tm instanceof X509ExtendedTrustManager) {
                     X509ExtendedTrustManager xtm =
                         (X509ExtendedTrustManager)this.tm;
-                    if (this.callingSocket != null) {
+
+                    if (this.callingSocket != null &&
+                        this.callingSocket.get() != null) {
+
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkServerTrusted(" +
                           "SSLSocket)");
+
                         xtm.checkServerTrusted(certs, authType,
-                            this.callingSocket);
+                            this.callingSocket.get());
                     }
-                    else if (this.callingEngine != null) {
+                    else if (this.callingEngine != null &&
+                             this.callingEngine.get() != null) {
+
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkServerTrusted(" +
                           "SSLEngine)");
+
                         xtm.checkServerTrusted(certs, authType,
-                            this.callingEngine);
+                            this.callingEngine.get());
                     }
                     else {
                         /* If we do have access to X509ExtendedTrustManager,
@@ -194,19 +222,26 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                 if (this.tm instanceof X509ExtendedTrustManager) {
                     X509ExtendedTrustManager xtm =
                         (X509ExtendedTrustManager)this.tm;
-                    if (this.callingSocket != null) {
+
+                    if (this.callingSocket != null &&
+                        this.callingSocket.get() != null) {
+
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkClientTrusted(" +
                           "SSLSocket)");
+
                         xtm.checkClientTrusted(certs, authType,
-                            this.callingSocket);
+                            this.callingSocket.get());
                     }
-                    else if (this.callingEngine != null) {
+                    else if (this.callingEngine != null &&
+                             this.callingEngine.get() != null) {
+
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkClientTrusted(" +
                           "SSLEngine)");
+
                         xtm.checkClientTrusted(certs, authType,
-                            this.callingEngine);
+                            this.callingEngine.get());
                     }
                     else {
                         /* If we do have access to X509ExtendedTrustManager,

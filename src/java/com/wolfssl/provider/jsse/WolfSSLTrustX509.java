@@ -94,6 +94,7 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             X509Certificate[] certs) throws CertificateException {
 
         int i, curr, next;
+        int leafIdx = -1;
         boolean nextFound = false;
         final X509Certificate[] chain;
         X509Certificate[] retChain = null;
@@ -120,7 +121,38 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                 chain[tmpI].getSubjectX500Principal().getName());
         }
 
-        /* Assume peer/leaf cert is first in array */
+        /* Find the leaf certificate using BasicConstraints extension.
+         * Per RFC 5280, leaf/end-entity certs have getBasicConstraints()
+         * return -1, while CA certs return >= 0. */
+        for (i = 0; i < chain.length; i++) {
+            if (chain[i].getBasicConstraints() == -1) {
+                leafIdx = i;
+                final int tmpLeaf = i;
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Identified leaf cert at index " + tmpLeaf +
+                    " (BasicConstraints CA=false)");
+                break;
+            }
+        }
+
+        /* If we couldn't identify leaf cert by BasicConstraints, default
+         * to treat the first cert as peer */
+        if (leafIdx == -1) {
+            final int tmpLeaf = 0;
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Could not identify leaf cert by BasicConstraints, " +
+                "assuming index " + tmpLeaf);
+            leafIdx = 0;
+        }
+
+        /* Move leaf cert to position 0 if not already there */
+        if (leafIdx != 0) {
+            X509Certificate tmp = chain[0];
+            chain[0] = chain[leafIdx];
+            chain[leafIdx] = tmp;
+        }
+
+        /* Now build chain from leaf to root */
         for (curr = 0; curr < chain.length; curr++) {
             nextFound = false;
             for (next = curr + 1; next < chain.length; next++) {

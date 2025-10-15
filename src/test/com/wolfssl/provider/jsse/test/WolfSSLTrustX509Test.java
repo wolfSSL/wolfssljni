@@ -45,6 +45,7 @@ import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.net.Socket;
 import java.net.InetSocketAddress;
@@ -1144,6 +1145,7 @@ public class WolfSSLTrustX509Test {
 
         pass("\t... passed");
     }
+
 
     @Test
     public void testCheckServerTrustedWithChainReturnsChain()
@@ -2485,6 +2487,117 @@ public class WolfSSLTrustX509Test {
         testX509ExtendedTrustManagerSSLSocketExtNoServerStartHandshakeSuccess();
 
         pass("\t... passed");
+    }
+
+    @Test
+    public void testExtendedKeyUsageWithLeafNotFirst() throws Exception {
+
+        System.out.print("\tEKU validation leaf not first");
+
+        /* This test reproduces the case where a certificate chain arrives
+         * with CA before leaf cert and helps verify the peer chain sorting
+         * logic. It exercises a common code path to validate the Extended
+         * Key Usage as a sanity check. */
+
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt2CaCert =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String eccIntCaCert =
+            "examples/certs/intermediate/ca-int-ecc-cert.pem";
+
+        FileInputStream fis;
+        BufferedInputStream bis;
+        X509Certificate[] certArray = new X509Certificate[3];
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            eccServerCert = "/sdcard/" + eccServerCert;
+            eccInt2CaCert = "/sdcard/" + eccInt2CaCert;
+            eccIntCaCert = "/sdcard/" + eccIntCaCert;
+        }
+
+        /* Load certificates in REVERSE order (CA first, server last)
+         * to simulate the bug scenario */
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        /* certArray[0]: Intermediate2 CA - has CA:TRUE, no serverAuth EKU */
+        fis = new FileInputStream(eccInt2CaCert);
+        bis = new java.io.BufferedInputStream(fis);
+        certArray[0] = (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        /* certArray[1]: Intermediate CA - has CA:TRUE, no serverAuth EKU */
+        fis = new FileInputStream(eccIntCaCert);
+        bis = new java.io.BufferedInputStream(fis);
+        certArray[1] = (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        /* certArray[2]: Server cert - has CA:FALSE, HAS serverAuth EKU */
+        fis = new FileInputStream(eccServerCert);
+        bis = new java.io.BufferedInputStream(fis);
+        certArray[2] = (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        /* Create wolfSSL TrustManager for verification. */
+        TrustManager[] baseTm = tf.createTrustManager("SunX509",
+            tf.caJKS, provider);
+        WolfSSLTrustX509 wolfTm = (WolfSSLTrustX509) baseTm[0];
+
+        /* Call checkServerTrusted() with chain-returning overload.
+         * The sorting logic code should:
+         * 1. Identify the leaf using BasicConstraints (index 2)
+         * 2. Move server cert to index 0
+         * 3. Return chain with server cert first */
+        List<X509Certificate> sortedChain = null;
+        try {
+            sortedChain = wolfTm.checkServerTrusted(
+                certArray, "EC", (String)null);
+
+        } catch (CertificateException e) {
+            e.printStackTrace();
+            fail("checkServerTrusted() threw exception: " + e.getMessage());
+        }
+
+        /* Validate Extended Key Usage on the peer cert.
+         * The peer cert should be first in the sorted chain. */
+        if (sortedChain == null || sortedChain.size() == 0) {
+            fail("Sorted chain is null or empty");
+        }
+
+        X509Certificate peerCert = sortedChain.get(0);
+        List<String> ekuOids = null;
+
+        try {
+            ekuOids = peerCert.getExtendedKeyUsage();
+
+        } catch (java.security.cert.CertificateParsingException e) {
+            e.printStackTrace();
+            fail("Failed to parse Extended Key Usage: " + e.getMessage());
+        }
+
+        /* Check for serverAuth EKU (1.3.6.1.5.5.7.3.1) */
+        boolean hasServerAuth = false;
+        if (ekuOids != null) {
+            for (String oid : ekuOids) {
+                if (oid.equals("1.3.6.1.5.5.7.3.1")) {
+                    hasServerAuth = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasServerAuth) {
+            fail("EKU validation failed. The certificate chain was not " +
+                 "properly sorted, and a CA cert (without serverAuth EKU) " +
+                 "was treated as the peer cert instead of the server cert. " +
+                 "Peer cert: " + peerCert.getSubjectX500Principal() +
+                ", EKU list: " + ekuOids);
+        }
+
+        System.out.println("\t... passed");
     }
 
     /* TrustManager that trusts all certificates */

@@ -58,6 +58,10 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.HandshakeCompletedListener;
@@ -81,7 +85,13 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.PrivateKey;
+import java.security.KeyFactory;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.lang.reflect.Field;
+import java.io.BufferedInputStream;
+import java.util.Base64;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
@@ -179,7 +189,6 @@ public class WolfSSLSocketTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            /* TODO Auto-generated catch block */
             e.printStackTrace();
         }
 
@@ -1127,8 +1136,9 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting ExtendedThreadingUse");
 
-        /* This test hangs on Android, marking TODO for later investigation. Seems to be
-         * something specific to the test code, not library proper. */
+        /* This test hangs on Android, marking TODO for later investigation.
+         * Seems to be something specific to the test code, not library
+         * proper. */
         if (WolfSSLTestFactory.isAndroid()) {
             System.out.println("\t... skipped");
             return;
@@ -1137,7 +1147,8 @@ public class WolfSSLSocketTest {
         /* Start up simple TLS test server */
         CountDownLatch serverOpenLatch = new CountDownLatch(1);
         InternalMultiThreadedSSLSocketServer server =
-            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch, numThreads);
+            new InternalMultiThreadedSSLSocketServer(svrPort, serverOpenLatch,
+                numThreads);
         server.start();
 
         /* Wait for server thread to start up before connecting clients */
@@ -3496,15 +3507,29 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting SNI Matchers");
 
+        /* SNI matcher functionality requires wolfSSL 5.7.2 or later.
+         * Older versions have a limitation where wolfSSL_SNI_GetRequest()
+         * only returns SNI data if native wolfSSL already matched it, but
+         * wolfJSSE relies on retrieving the SNI to do matching at the Java
+         * level. This was fixed in wolfSSL 5.7.2 by adding an ignoreStatus
+         * parameter to TLSX_SNI_GetRequest(). */
+        long libVerHex = WolfSSL.getLibVersionHex();
+        if (libVerHex < 0x05007002L) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        final SSLServerSocket ss =
+            (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
 
         /* Configure SNI matcher for server*/
-        SNIMatcher matcher = SNIHostName.createSNIMatcher("www\\.example\\.com");
+        SNIMatcher matcher =
+            SNIHostName.createSNIMatcher("www\\.example\\.com");
         Collection<SNIMatcher> matchers = new ArrayList<>();
         matchers.add(matcher);
         SSLParameters sp = ss.getSSLParameters();
@@ -3592,7 +3617,8 @@ public class WolfSSLSocketTest {
             System.out.println("\t\t... passed");
         } catch (Exception e) {
             System.out.println("\t\t... failed");
-            fail();
+            e.printStackTrace();
+            fail("SNI Matcher test failed: " + e.getMessage());
         } finally {
             ss.close();
         }
@@ -4010,6 +4036,247 @@ public class WolfSSLSocketTest {
         } catch (IOException e) {
             /* IOException from close() is acceptable */
         }
+
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * This test verifies that WolfSSLX509StoreCtx.getCerts() returns
+     * certificates in the correct peer to root order during a TLS
+     * handshake. Register a custom X509TrustManager (not WolfSSLTrustX509)
+     * so that the internal sorting logic in WolfSSLTrustX509 doesn't run.
+     * This exposes the raw certificate order coming from the JNI layer.
+     */
+    @Test
+    public void testCertificateChainOrderingFromStoreCtx()
+        throws Exception {
+
+        System.out.print("\tProper chain ordering");
+
+        /* Custom TrustManager that checks certificate order */
+        final boolean[] wasCalled = {false};
+        final boolean[] orderCorrect = {false};
+        final String[] errorMsg = {null};
+        final int[] chainLen = {0};
+
+        String serverIntCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String serverIntKey = "examples/certs/ecc-key.pem";
+        String intCaCert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String int2CaCert =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        X509TrustManager customTM = new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                /* Not used in this test */
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                wasCalled[0] = true;
+
+                if (chain == null || chain.length == 0) {
+                    errorMsg[0] = "Certificate chain is null or empty";
+                    throw new CertificateException(errorMsg[0]);
+                }
+
+                chainLen[0] = chain.length;
+
+                /* Per RFC 5280, leaf/end-entity certs have
+                 * getBasicConstraints() return -1, while CA certs return
+                 * >= 0. The first certificate in the chain MUST be the
+                 * peer/leaf certificate. */
+                int firstCertBC = chain[0].getBasicConstraints();
+
+                if (firstCertBC == -1) {
+                    /* First cert is leaf/peer cert, order is correct */
+                    orderCorrect[0] = true;
+
+                } else {
+                    /* First cert is a CA cert, order is WRONG */
+                    orderCorrect[0] = false;
+                    errorMsg[0] = "Certificate chain order is incorrect: " +
+                        "first cert is CA (BasicConstraints=" + firstCertBC +
+                        "), expected leaf/peer cert (BasicConstraints=-1). " +
+                        "Chain length: " + chain.length + ". " +
+                        "First cert subject: " +
+                        chain[0].getSubjectX500Principal().getName();
+                    /* NOTE: We don't throw here so test can verify the flag,
+                     * but in production a wrapper TrustManager would fail */
+                }
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        };
+
+        /* Build server KeyStore with intermediate chain from pem files */
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        FileInputStream fis = new FileInputStream(serverIntCert);
+        BufferedInputStream bis = new BufferedInputStream(fis);
+        X509Certificate serverCert =
+            (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        fis = new FileInputStream(intCaCert);
+        bis = new BufferedInputStream(fis);
+        X509Certificate intCert = (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        fis = new FileInputStream(int2CaCert);
+        bis = new BufferedInputStream(fis);
+        X509Certificate int2Cert = (X509Certificate)cf.generateCertificate(bis);
+        bis.close();
+        fis.close();
+
+        /* Create KeyStore and add server cert with chain */
+        KeyStore serverKeyStore = KeyStore.getInstance("JKS");
+        serverKeyStore.load(null, null);
+
+        /* Build certificate chain: server, int2 (immediate issuer), int */
+        Certificate[] certChain = new Certificate[3];
+        certChain[0] = serverCert;
+        certChain[1] = int2Cert;
+        certChain[2] = intCert;
+
+        /* Load existing ECC private key from server-ecc.jks, since Java
+         * doesn't natively support SEC1 ECC format without Bouncy Castle */
+        KeyStore tmpKS = KeyStore.getInstance("JKS");
+        fis = new FileInputStream("examples/provider/server-ecc.jks");
+        tmpKS.load(fis, "wolfSSL test".toCharArray());
+        fis.close();
+
+        java.security.PrivateKey privateKey =
+            (java.security.PrivateKey)tmpKS.getKey("server-ecc",
+                "wolfSSL test".toCharArray());
+
+        /* Add private key with intermediate certificate chain to keystore */
+        serverKeyStore.setKeyEntry("server-int-ecc", privateKey,
+            "wolfSSL test".toCharArray(), certChain);
+
+        /* Set up server with intermediate certificate chain */
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        SSLServerSocket serverSocket = null;
+
+        try {
+            KeyManagerFactory serverKM =
+                KeyManagerFactory.getInstance("SunX509");
+            serverKM.init(serverKeyStore, "wolfSSL test".toCharArray());
+
+            /* Server uses default wolfSSL TrustManager */
+            TrustManagerFactory serverTM =
+                TrustManagerFactory.getInstance("SunX509");
+            serverTM.init(serverKeyStore);
+
+            SSLContext serverCtx =
+                SSLContext.getInstance("TLSv1.2", "wolfJSSE");
+            serverCtx.init(serverKM.getKeyManagers(),
+                           serverTM.getTrustManagers(), null);
+
+            serverSocket =
+                (SSLServerSocket)serverCtx.getServerSocketFactory()
+                    .createServerSocket(0);
+            final int serverPort = serverSocket.getLocalPort();
+            final SSLServerSocket finalServerSocket = serverSocket;
+
+            /* Start server thread */
+            Future<Void> serverFuture =
+                executor.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    SSLSocket serverSock = null;
+                    try {
+                        serverSock =
+                            (SSLSocket)finalServerSocket.accept();
+                        InputStream in = serverSock.getInputStream();
+                        OutputStream out = serverSock.getOutputStream();
+
+                        /* Simple echo */
+                        byte[] buf = new byte[1024];
+                        int read = in.read(buf);
+                        if (read > 0) {
+                            out.write(buf, 0, read);
+                        }
+                    } finally {
+                        if (serverSock != null) {
+                            serverSock.close();
+                        }
+                    }
+                    return null;
+                }
+            });
+
+            /* Set up client with CUSTOM TrustManager (not WolfSSLTrustX509) */
+            KeyStore clientKeyStore = KeyStore.getInstance(tf.keyStoreType);
+            InputStream stream = new FileInputStream(tf.clientJKS);
+            clientKeyStore.load(stream, jksPass);
+            stream.close();
+
+            KeyManagerFactory clientKM =
+                KeyManagerFactory.getInstance("SunX509");
+            clientKM.init(clientKeyStore, jksPass);
+
+            /* Client uses our CUSTOM TrustManager */
+            SSLContext clientCtx =
+                SSLContext.getInstance("TLSv1.2", "wolfJSSE");
+            clientCtx.init(clientKM.getKeyManagers(),
+                           new TrustManager[] { customTM }, null);
+
+            /* Connect client */
+            SSLSocket clientSocket = null;
+            try {
+                clientSocket = (SSLSocket)clientCtx.getSocketFactory()
+                    .createSocket("localhost", serverPort);
+
+                /* Force handshake - this will call our custom TrustManager */
+                clientSocket.startHandshake();
+
+                /* Send test data */
+                OutputStream out = clientSocket.getOutputStream();
+                out.write("test".getBytes());
+                out.flush();
+
+                /* Read response */
+                InputStream in = clientSocket.getInputStream();
+                byte[] buf = new byte[1024];
+                in.read(buf);
+
+            } finally {
+                if (clientSocket != null) {
+                    clientSocket.close();
+                }
+            }
+
+            /* Wait for server to finish */
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
+            executor.shutdown();
+        }
+
+        /* Verify TrustManager was called */
+        assertTrue("Custom TrustManager.checkServerTrusted() was not called",
+            wasCalled[0]);
+
+        /* Verify we got a chain with multiple certs */
+        assertTrue("Expected chain length > 1, got: " + chainLen[0],
+            chainLen[0] > 1);
+
+        assertTrue("Certificate chain order is incorrect: " +
+            (errorMsg[0] != null ? errorMsg[0] :
+                "first cert was not peer/leaf cert"),
+            orderCorrect[0]);
 
         System.out.println("\t... passed");
     }
