@@ -391,7 +391,12 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
         /* Walk backwards down list of intermediate CA certs, verify each one
          * based on trusted certs we already have loaded in the CertManager,
          * then once verified load the intermediate into the CertManager
-         * as a root that can be used to verify our peer cert. */
+         * as a root that can be used to verify our peer cert.
+         *
+         * Similarly to native wolfSSL WOLFSSL_ALT_CERT_CHAINS behavior: if a CA
+         * certificate cannot be verified, we skip it and continue building
+         * the chain through other certificates. This allows handling of
+         * cross-signed certificates and extra certificates in the chain. */
 
         for (int i = sortedCerts.length-1; i > 0; i--) {
             final int tmpI = i;
@@ -405,6 +410,19 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
+                /* Failure here is ok if this is a CA cert and we can still
+                 * build and verify a complete chain. Some cert chains may
+                 * include extra CA certs. Similar to native wolfSSL
+                 * WOLFSSL_ALT_CERT_CHAINS. */
+                if (sortedCerts[tmpI].getBasicConstraints() != -1) {
+                    /* This is a CA certificate, skip it and continue.
+                     * Do not add it to the certificate manager. */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Using alternate cert chain (skipping CA): " +
+                        sortedCerts[tmpI].getSubjectX500Principal().getName());
+                    continue;
+                }
+                /* Non-CA certificates must verify successfully */
                 cm.free();
                 throw new CertificateException(
                     "Failed to verify intermediate chain cert");

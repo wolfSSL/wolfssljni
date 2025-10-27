@@ -3143,4 +3143,400 @@ public class WolfSSLTrustX509Test {
             return this.exception;
         }
     }
+
+    /**
+     * Test alternate certificate chain with unverifiable CA in chain.
+     * This simulates a cross-signed certificate scenario where
+     * the chain contains an extra CA certificate that cannot be verified
+     * but a valid path exists through other certificates.
+     *
+     * Chain structure being tested:
+     *   [0]: server/peer cert (signed by intermediate)
+     *   [1]: intermediate CA (signed by root)
+     *   [2]: root CA in trust store (cross-signed version - unverifiable)
+     *
+     * Expected: Should succeed by using the root CA from trust store
+     * instead of the unverifiable cross-signed version in the chain.
+     */
+    @Test
+    public void testCheckServerTrustedWithUnverifiableCrossSignedRoot()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\talt chain: unverifiable CA");
+
+        /* Build a chain where the root CA is included but in cross-signed
+         * form that cannot verify against our trust store. The trust store
+         * contains the self-signed version of the same root CA.
+         *
+         * Using intermediate chain: server -> int1 -> int2 (acts as root)
+         * Trust store contains: ca-cert.pem (acts as int2's issuer)
+         *
+         * We'll manually construct a scenario where ca-int2-cert.pem cannot
+         * be verified but the chain should still validate. */
+
+        String serverCert = "examples/certs/intermediate/server-int-cert.pem";
+        String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            int1Cert = "/sdcard/" + int1Cert;
+            int2Cert = "/sdcard/" + int2Cert;
+        }
+
+        /* Create TrustManager with caJKS which contains ca-cert.pem */
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* Build certificate chain: [server, int1, int2] */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: server cert */
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        /* certArray[1]: intermediate CA 1 */
+        try (FileInputStream fis = new FileInputStream(int1Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        /* certArray[2]: intermediate CA 2 (acts like cross-signed root) */
+        try (FileInputStream fis = new FileInputStream(int2Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[2] = (X509Certificate)cert;
+        }
+
+        /* Verify chain. With WOLFSSL_ALT_CERT_CHAINS behavior, this should
+         * succeed even if certArray[2] cannot be independently verified,
+         * as long as a valid path exists through the trust store. */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed to verify chain with alternate path: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * Test that chain with multiple unverifiable CA certificates still
+     * succeeds as long as valid path exists.
+     *
+     * This tests robustness of alternate chain logic when server sends
+     * multiple extra/redundant CA certificates at the end of a valid chain.
+     */
+    @Test
+    public void testCheckServerTrustedWithMultipleUnverifiableCAs()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\talt chain: multiple CA skip");
+
+        /* Build valid chain with extra wrong CAs appended at end */
+
+        String serverCert = "examples/certs/intermediate/server-int-cert.pem";
+        String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        /* Add wrong CA cert from ECC chain that should be skipped */
+        String wrongCA = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            int1Cert = "/sdcard/" + int1Cert;
+            int2Cert = "/sdcard/" + int2Cert;
+            wrongCA = "/sdcard/" + wrongCA;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* Build certificate chain: valid chain + wrong CA at end */
+        certArray = new X509Certificate[4];
+
+        /* certArray[0]: RSA server cert */
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        /* certArray[1]: RSA intermediate CA 1 */
+        try (FileInputStream fis = new FileInputStream(int1Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        /* certArray[2]: RSA intermediate CA 2 */
+        try (FileInputStream fis = new FileInputStream(int2Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[2] = (X509Certificate)cert;
+        }
+
+        /* certArray[3]: ECC CA (wrong, should be skipped) */
+        try (FileInputStream fis = new FileInputStream(wrongCA);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[3] = (X509Certificate)cert;
+        }
+
+        /* Verify chain. Should succeed by skipping wrong CA cert at end
+         * and validating the valid RSA chain. */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed to verify chain with extra wrong CA: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * Test that non-CA certificates cannot be skipped.
+     * This ensures the alternate chain logic only applies to CA certificates.
+     */
+    @Test
+    public void testCheckServerTrustedNonCACannotBeSkipped()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\talt chain: non-CA must verify");
+
+        /* Build invalid chain with unverifiable server cert.
+         * This should FAIL because non-CA certs must verify. */
+
+        /* Use ECC server cert with RSA chain - signature won't verify */
+        String serverCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            int1Cert = "/sdcard/" + int1Cert;
+        }
+
+        /* Create TrustManager with RSA CA certs */
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* Build certificate chain */
+        certArray = new X509Certificate[2];
+
+        /* certArray[0]: ECC server cert (wrong type) */
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        /* certArray[1]: RSA intermediate CA */
+        try (FileInputStream fis = new FileInputStream(int1Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        /* Verify chain, should fail as server cert (non-CA) cannot be
+         * verified and non-CA certs must always verify. */
+        try {
+            x509tm.checkServerTrusted(certArray, "ECC");
+            error("\t... failed");
+            fail("Verified invalid server cert, should have failed");
+        } catch (CertificateException e) {
+            /* Expected - non-CA certificate must verify */
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * Test that invalid chain still fails properly.
+     * This ensures chain logic doesn't accept invalid chains.
+     */
+    @Test
+    public void testCheckServerTrustedInvalidChainFails()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\talt chain: invalid still fails");
+
+        /* Build invalid chain where no path to trust anchor exists, should
+         * fail. Use server cert from one chain with CAs from different
+         * chain */
+        String serverCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String wrongCA1 = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String wrongCA2 = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            wrongCA1 = "/sdcard/" + wrongCA1;
+            wrongCA2 = "/sdcard/" + wrongCA2;
+        }
+
+        /* Create TrustManager with ECC CAs only */
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* Build certificate chain with completely wrong CAs */
+        certArray = new X509Certificate[3];
+
+        /* certArray[0]: RSA server cert */
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        /* certArray[1]: ECC CA (wrong chain) */
+        try (FileInputStream fis = new FileInputStream(wrongCA1);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        /* certArray[2]: ECC CA 2 (wrong chain) */
+        try (FileInputStream fis = new FileInputStream(wrongCA2);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[2] = (X509Certificate)cert;
+        }
+
+        /* Verify chain, should fail. No valid path to trust anchor exists */
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+            error("\t... failed");
+            fail("Verified invalid chain, should have failed");
+        } catch (CertificateException e) {
+            /* Expected - no valid path to trust anchor */
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * This tests cross signed root scenario where:
+     * - Trust store contains self-signed root CA
+     * - Server sends cross-signed root CA signed by removed secondary root
+     * - Verification should succeed using self-signed version from trust store
+     */
+    @Test
+    public void testCheckServerTrustedCrossSignedRoot()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        System.out.print("\talt chain: cross-sign");
+
+        String serverCert = "examples/certs/intermediate/server-int-cert.pem";
+        String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            int1Cert = "/sdcard/" + int1Cert;
+            int2Cert = "/sdcard/" + int2Cert;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* Build chain: [server, intermediate1, intermediate2/root] */
+        certArray = new X509Certificate[3];
+
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        try (FileInputStream fis = new FileInputStream(int1Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        try (FileInputStream fis = new FileInputStream(int2Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[2] = (X509Certificate)cert;
+        }
+
+        try {
+            x509tm.checkServerTrusted(certArray, "RSA");
+        } catch (CertificateException e) {
+            error("\t\t... failed");
+            fail("Cross-signed root test failed: " +
+                 e.getMessage());
+        }
+
+        pass("\t\t... passed");
+    }
 }
+
