@@ -251,6 +251,7 @@ list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_load.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_misc.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_p7p12.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sess.c)
+list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sk.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509_str.c)
 
