@@ -1007,6 +1007,22 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_stateStringLong
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getMaxOutputSize
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sessionToDerNative
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sessionToDerNative
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sessionFromDerNative
+ * Signature: ([BI)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_sessionFromDerNative
+  (JNIEnv *, jclass, jbyteArray, jint);
+
 #ifdef __cplusplus
 }
 #endif

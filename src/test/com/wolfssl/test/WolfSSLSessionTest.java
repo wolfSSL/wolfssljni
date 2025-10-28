@@ -2595,5 +2595,214 @@ public class WolfSSLSessionTest {
 
         System.out.println("\t... passed");
     }
+
+    @Test
+    public void test_WolfSSLSession_sessionToDerFromDer() throws Exception {
+
+        int ret = 0;
+        int err = 0;
+        long deserializedSessionPtr = 0;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+        byte[] serializedSession = null;
+
+        /* Create client/server WolfSSLContext objects, Server context
+         * must be final since used inside inner class. */
+        final WolfSSLContext srvCtx;
+        WolfSSLContext cliCtx;
+
+        System.out.print("\tTesting sessionToDer/sessionFromDer()");
+
+        /* Create ServerSocket first to get ephemeral port */
+        final ServerSocket srvSocket = new ServerSocket(0);
+
+        srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+            WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.SSLv23_ServerMethod());
+        cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+            WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.SSLv23_ClientMethod());
+
+        /* Start server, handles 2 connections */
+        try {
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Loop twice to handle one resumption */
+                        for (int i = 0; i < 2; i++) {
+                            server = srvSocket.accept();
+                            srvSes = new WolfSSLSession(srvCtx);
+
+                            ret = srvSes.setFd(server);
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.setFd() failed: " + ret);
+                            }
+
+                            do {
+                                ret = srvSes.accept();
+                                err = srvSes.getError(ret);
+                            } while (ret != WolfSSL.SSL_SUCCESS &&
+                                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                            if (ret != WolfSSL.SSL_SUCCESS) {
+                                throw new Exception(
+                                    "WolfSSLSession.accept() failed: " + ret);
+                            }
+
+                            srvSes.shutdownSSL();
+                            srvSes.freeSSL();
+                            srvSes = null;
+                        }
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                    }
+
+                    return null;
+                }
+            });
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+        }
+
+        try {
+            /* -------------------------------------------------------------- */
+            /* Client connection #1 - get session and serialize it */
+            /* -------------------------------------------------------------- */
+            cliSock = new Socket(InetAddress.getLocalHost(),
+                srvSocket.getLocalPort());
+
+            cliSes = new WolfSSLSession(cliCtx);
+
+            ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setFd() failed, ret = " + ret);
+            }
+
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.connect() failed: " + err);
+            }
+
+            /* Convert session to DER format */
+            serializedSession = cliSes.sessionToDer();
+            if (serializedSession == null) {
+                /* Feature not compiled in, skip test */
+                System.out.println("\t... skipped");
+                return;
+            }
+
+            if (serializedSession.length == 0) {
+                throw new Exception("DER session has zero length");
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSes = null;
+            cliSock.close();
+            cliSock = null;
+
+            /* -------------------------------------------------------------- */
+            /* Client connection #2 - deserialize session and resume */
+            /* -------------------------------------------------------------- */
+            cliSock = new Socket(InetAddress.getLocalHost(),
+                srvSocket.getLocalPort());
+            cliSes = new WolfSSLSession(cliCtx);
+
+            ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setFd() failed, ret = " + ret);
+            }
+
+            /* Create session from DER format */
+            deserializedSessionPtr = cliSes.sessionFromDer(serializedSession);
+            if (deserializedSessionPtr == 0) {
+                throw new Exception(
+                    "WolfSSLSession.sessionFromDer() returned null pointer");
+            }
+
+            /* Set the DER-created session for resumption */
+            ret = cliSes.setSession(deserializedSessionPtr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.setSession() failed: " + ret);
+            }
+
+            /* Now connect - this should result in session resumption */
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "WolfSSLSession.connect() failed: " + err);
+            }
+
+            /* Check if session was resumed */
+            if (cliSes.sessionReused() == 0) {
+                throw new Exception(
+                    "Session was not resumed");
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSes = null;
+            cliSock.close();
+            cliSock = null;
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+
+        } finally {
+            if (deserializedSessionPtr != 0) {
+                WolfSSLSession.freeSession(deserializedSessionPtr);
+            }
+            if (cliSes != null) {
+                cliSes.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+
+        System.out.println("\t... passed");
+    }
 }
 

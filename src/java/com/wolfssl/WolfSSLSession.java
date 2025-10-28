@@ -699,6 +699,8 @@ public class WolfSSLSession {
     private native int setMTU(long ssl, int mtu);
     private native String stateStringLong(long ssl);
     private native int getMaxOutputSize(long ssl);
+    private native byte[] sessionToDerNative(long sessPtr);
+    private static native long sessionFromDerNative(byte[] data, int len);
 
     /* ------------------- session-specific methods --------------------- */
 
@@ -5216,7 +5218,7 @@ public class WolfSSLSession {
     public synchronized byte[] getSessionTicket() throws IllegalStateException {
 
         confirmObjectIsActive();
-    
+
         if (sessionTicketsEnabled()) {
 
             synchronized (sslLock) {
@@ -5591,6 +5593,86 @@ public class WolfSSLSession {
     }
 
     /**
+     * Convert a WOLFSSL_SESSION object to DER format.
+     * This is useful for persisting session data across application restarts
+     * or for session resumption. The DER data contains sensitive
+     * cryptographic material and should be encrypted before storage.
+     *
+     * <p>This method requires that:
+     * <ul>
+     *   <li>Native wolfSSL was compiled with OPENSSL_EXTRA</li>
+     *   <li>The session pointer is valid</li>
+     * </ul>
+     *
+     * @return byte array containing DER-encoded session data, or null if
+     *         the feature is not compiled into native wolfSSL or an error
+     *         occurred
+     * @throws IllegalArgumentException if sessPtr is 0
+     * @see #sessionFromDer(byte[])
+     */
+    public synchronized byte[] sessionToDer()
+        throws IllegalArgumentException {
+
+        confirmObjectIsActive();
+        synchronized (sslLock) {
+            WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered sessionToDer()");
+            long sessPtr = this.getSession();
+            return sessionToDerNative(sessPtr);
+        }
+
+    }
+
+    /**
+     * Create a WOLFSSL_SESSION object from DER format.
+     * This creates a new WOLFSSL_SESSION object from previously DER-encoded
+     * session data. The caller is responsible for freeing the returned session
+     * using {@link #freeSession(long)}.
+     *
+     * <p>This method requires that:
+     * <ul>
+     *   <li>Native wolfSSL was compiled with OPENSSL_EXTRA</li>
+     *   <li>The data array contains valid DER-encoded session data</li>
+     * </ul>
+     *
+     * @param data byte array containing DER-encoded session data from a
+     *        previous call to {@link #sessionToDer()}
+     * @return pointer to new WOLFSSL_SESSION object, or 0 if conversion
+     *         failed or the feature is not compiled in
+     * @throws IllegalArgumentException if data is null or empty
+     * @see #sessionToDer()
+     * @see #freeSession(long)
+     */
+    public synchronized long sessionFromDer(byte[] data)
+        throws IllegalArgumentException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered sessionFromDer()");
+
+            if (data == null || data.length == 0) {
+                throw new IllegalArgumentException(
+                    "Session data cannot be null or empty");
+            }
+
+            return sessionFromDerNative(data, data.length);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable
+    {
+        /* free resources, freeSSL() checks and sets state */
+        this.freeSSL();
+        super.finalize();
+    }
+
+    /**
      * Enable use of secure renegotiation on this session. Calling this
      * API does not initiate secure renegotiation, but enables it. If enabled,
      * and peer requests secure renegotiation, this session will renegotiate.
@@ -5667,15 +5749,6 @@ public class WolfSSLSession {
         }
 
         return ret;
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    protected void finalize() throws Throwable
-    {
-        /* free resources, freeSSL() checks and sets state */
-        this.freeSSL();
-        super.finalize();
     }
 
 } /* end WolfSSLSession */

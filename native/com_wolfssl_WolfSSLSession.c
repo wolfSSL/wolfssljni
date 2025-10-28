@@ -6261,3 +6261,102 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     return retval;
 }
 
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sessionToDerNative
+  (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
+{
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    unsigned char* buf = NULL;
+    unsigned char* bufStart = NULL;
+    int len = 0;
+    jbyteArray result = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || session == NULL) {
+        return NULL;
+    }
+
+    /* Get required buffer size */
+    len = wolfSSL_i2d_SSL_SESSION(session, NULL);
+    if (len <= 0) {
+        printf("Length less than or equal to 0\n");
+        return NULL;
+    }
+
+    buf = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    bufStart = buf;
+
+    len = wolfSSL_i2d_SSL_SESSION(session, &buf);
+    if (len <= 0) {
+        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    result = (*jenv)->NewByteArray(jenv, len);
+    if (result == NULL) {
+        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, result, 0, len, (jbyte*)bufStart);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sessionPtr;
+    return NULL;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_sessionFromDerNative
+  (JNIEnv* jenv, jclass jcl, jbyteArray data, jint len)
+{
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_SESSION* session = NULL;
+    unsigned char* buf = NULL;
+    const unsigned char* p = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || data == NULL || len <= 0) {
+        return 0;
+    }
+
+    buf = (unsigned char*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
+    if (buf == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        return 0;
+    }
+
+    p = buf;
+    session = wolfSSL_d2i_SSL_SESSION(NULL, &p, len);
+
+    (*jenv)->ReleaseByteArrayElements(jenv, data, (jbyte*)buf, JNI_ABORT);
+
+    if (session == NULL) {
+        return 0;
+    }
+
+    return (jlong)(uintptr_t)session;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)data;
+    (void)len;
+    return 0;
+#endif
+}
