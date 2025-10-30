@@ -3538,5 +3538,146 @@ public class WolfSSLTrustX509Test {
 
         pass("\t\t... passed");
     }
+
+    /**
+     * Test that when checkServerTrusted() returns the cert chain, it excludes
+     * CA certificates that were skipped during verification due to alternate
+     * chain logic. This prevents returning certificates that weren't
+     * actually part of the trust path.
+     */
+    @Test
+    public void testCheckServerTrustedReturnsChainWithoutSkippedCAs()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException {
+
+        TrustManager[] tm;
+        X509TrustManager x509tm;
+        WolfSSLTrustX509 wolfX509tm;
+        Certificate cert = null;
+        X509Certificate[] certArray = null;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        List<X509Certificate> retChain = null;
+
+        System.out.print("\tret chain excludes skipped CAs");
+
+        /* Build valid RSA chain with extra wrong CA appended at end */
+        String serverCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
+        String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        /* Add wrong CA cert from ECC chain that should be skipped */
+        String wrongCA = "examples/certs/intermediate/ca-int-ecc-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverCert = "/sdcard/" + serverCert;
+            int1Cert = "/sdcard/" + int1Cert;
+            int2Cert = "/sdcard/" + int2Cert;
+            wrongCA = "/sdcard/" + wrongCA;
+        }
+
+        tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
+        if (tm == null) {
+            error("\t... failed");
+            fail("failed to create trustmanager");
+            return;
+        }
+        x509tm = (X509TrustManager) tm[0];
+
+        /* checkServerTrusted() that returns List<X509Certificate> is non
+         * standard, must call directly from WolfSSLTrustX509. Called by
+         * okhttp on Android. */
+        wolfX509tm = (WolfSSLTrustX509)x509tm;
+
+        /* Build certificate chain: valid RSA chain + wrong ECC CA at end */
+        certArray = new X509Certificate[4];
+
+        /* certArray[0]: RSA server cert */
+        try (FileInputStream fis = new FileInputStream(serverCert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[0] = (X509Certificate)cert;
+        }
+
+        /* certArray[1]: RSA intermediate CA 1 */
+        try (FileInputStream fis = new FileInputStream(int1Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[1] = (X509Certificate)cert;
+        }
+
+        /* certArray[2]: RSA intermediate CA 2 */
+        try (FileInputStream fis = new FileInputStream(int2Cert);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[2] = (X509Certificate)cert;
+        }
+
+        /* certArray[3]: ECC CA (wrong, should be skipped) */
+        X509Certificate skippedCA = null;
+        try (FileInputStream fis = new FileInputStream(wrongCA);
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            cert = cf.generateCertificate(bis);
+            certArray[3] = (X509Certificate)cert;
+            skippedCA = (X509Certificate)cert;
+        }
+
+        /* Verify chain and get returned chain. Should succeed by skipping
+         * wrong CA cert at end and validating the valid RSA chain. */
+        try {
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                "RSA", "localhost");
+        } catch (CertificateException e) {
+            error("\t... failed");
+            fail("Failed to verify chain with extra wrong CA: " +
+                 e.getMessage());
+        }
+
+        if (retChain == null) {
+            error("\t... failed");
+            fail("checkServerTrusted() did not return expected List of certs");
+        }
+
+        /* Returned chain should include peer + 2 intermediates + root = 4.
+         * It should not include the skipped ECC CA cert. */
+        if (retChain.size() != 4) {
+            error("\t... failed");
+            fail("Expected 4 certs in chain (peer + 2 ints + root), got: " +
+                 retChain.size());
+        }
+
+        /* Verify skipped CA is NOT in returned chain */
+        if (retChain.contains(skippedCA)) {
+            error("\t... failed");
+            fail("Returned chain should not contain skipped CA certificate");
+        }
+
+        /* Verify returned chain has expected certificates:
+         * - Position 0 must be peer cert
+         * - Chain must contain both intermediates (int1 and int2)
+         * - Chain must not contain the skipped ECC CA */
+        if (!retChain.get(0).equals(certArray[0])) {
+            error("\t... failed");
+            fail("Expected peer cert at position 0 in returned chain");
+        }
+
+        /* Verify both valid intermediates are present in the chain */
+        if (!retChain.contains(certArray[1])) {
+            error("\t... failed");
+            fail("Returned chain missing intermediate 1 (ca-int-cert.pem)");
+        }
+
+        if (!retChain.contains(certArray[2])) {
+            error("\t... failed");
+            fail("Returned chain missing intermediate 2 (ca-int2-cert.pem)");
+        }
+
+        /* Verify skipped CA is definitely NOT in the chain */
+        if (retChain.contains(certArray[3])) {
+            error("\t... failed");
+            fail("Returned chain should NOT contain skipped ECC CA");
+        }
+
+        pass("\t... passed");
+    }
 }
 
