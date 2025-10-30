@@ -277,7 +277,7 @@ public class WolfSSLAuthStore {
         SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
                 new SessionStore<>(sz);
 
-        //@TODO check for side server/client, currently a resize is for all
+        /* @TODO check for side server/client, currently a resize is for all */
         synchronized (storeLock) {
             store.putAll(newStore);
             store = newStore;
@@ -675,10 +675,10 @@ public class WolfSSLAuthStore {
                 session.getPeerHost() + ", port: " +
                 session.getPeerPort() + ") " + "hashCode = " + hashCode +
                 " side = " + session.getSideString());
-            session.isInTable = true;
 
             /* Lock access to store while adding new session, store is global */
             synchronized (storeLock) {
+                session.isInTable = true;
                 store.put(hashCode, session);
             }
 
