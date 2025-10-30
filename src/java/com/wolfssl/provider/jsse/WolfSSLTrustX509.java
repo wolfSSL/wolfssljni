@@ -388,6 +388,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
          * assume cert chain starts with peer certificate (certs[0]). */
         sortedCerts = sortCertChainBySubjectIssuer(certs);
 
+        /* If requested to return full chain, initialize new list and add
+         * peer cert first. Intermediate and root CAs added as verified. */
+        if (returnChain) {
+            fullChain = new ArrayList<X509Certificate>();
+            fullChain.add(sortedCerts[0]); /* Add peer cert */
+        }
+
         /* Walk backwards down list of intermediate CA certs, verify each one
          * based on trusted certs we already have loaded in the CertManager,
          * then once verified load the intermediate into the CertManager
@@ -440,6 +447,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "Loaded intermediate CA: " +
                 sortedCerts[tmpI].getSubjectX500Principal().getName());
+
+            /* Chain cert verified successfully, add to fullChain if requested.
+             * Inserting at position 1 maintains peer to root order and shifts
+             * all other certs in the list down a position. */
+            if (returnChain) {
+                fullChain.add(1, sortedCerts[tmpI]);
+            }
         }
 
         /* Verify peer certificate */
@@ -468,17 +482,18 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
         cm.free();
 
-        if (returnChain == true) {
-            /* Find root CA from KeyStore to append to chain */
+        if (returnChain) {
+            /* Find root CA from KeyStore to append to chain. Use the last
+             * cert in fullChain (last verified intermediate) to find its
+             * issuer root CA. */
             rootCA = findRootCAFromKeyStoreForCert(
-                        sortedCerts[sortedCerts.length - 1], this.store);
+                        fullChain.get(fullChain.size() - 1), this.store);
             if (rootCA == null) {
                 throw new CertificateException("Unable to find root CA " +
                     "in KeyStore to append to chain list");
             }
 
-            fullChain = new ArrayList<X509Certificate>();
-            fullChain.addAll(Arrays.asList(sortedCerts));
+            /* Append root CA if not already present */
             if (!fullChain.contains(rootCA)) {
                 fullChain.add(rootCA);
             }

@@ -157,12 +157,12 @@ jobs:
       javash_cflags: ${{ matrix.javash_cflags }}
 
   # ------------------ Facebook Infer static analysis -------------------
-  # Run Facebook infer over PR code, only running on Linux with one
-  # JDK/version for now.
+  # Run Facebook infer over PR code on both Linux and macOS to catch
+  # platform-specific issues.
   fb-infer:
     strategy:
       matrix:
-        os: [ 'ubuntu-latest' ]
+        os: [ 'ubuntu-latest', 'macos-latest' ]
         jdk_version: [ '11' ]
         wolfssl_configure: [ '--enable-jni --enable-all' ]
     name: Facebook Infer (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure }})
