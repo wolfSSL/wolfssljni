@@ -22,10 +22,12 @@
 package com.wolfssl.provider.jsse;
 
 import java.net.Socket;
+import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.PrivilegedAction;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -87,15 +89,23 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "creating new WolfSSLKeyX509 object");
 
-        /* Check Security property once at construction time */
-        this.cacheDisabled = "true".equalsIgnoreCase(
-            Security.getProperty(DISABLE_CACHE_PROPERTY));
+        /* Check Security property once at construction time.
+         * Use doPrivileged for SecurityManager compatibility. */
+        @SuppressWarnings("removal")
+        String disableCacheValue = AccessController.doPrivileged(
+            new PrivilegedAction<String>() {
+                public String run() {
+                    return Security.getProperty(DISABLE_CACHE_PROPERTY);
+                }
+            }
+        );
+        this.cacheDisabled = "true".equalsIgnoreCase(disableCacheValue);
 
         if (this.cacheDisabled) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "KeyStore caching disabled via " +
-                DISABLE_CACHE_PROPERTY +
-                " Security property, using direct KeyStore access");
+                DISABLE_CACHE_PROPERTY + " Security property, " +
+                "using direct KeyStore access");
 
             this.keyStore = store;
             this.keyStorePassword =

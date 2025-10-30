@@ -254,6 +254,7 @@ list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sess.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sk.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509.c)
 list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/x509_str.c)
+list(REMOVE_ITEM TLS_SOURCES ${wolfssl_DIR}/src/ssl_sk.c)
 
 if ("${WOLFSSL_PKG_TYPE}" MATCHES "normal")
         # Add crypto sources to CRYPTO_SOURCES, remove files that are included inline by other files
