@@ -221,3 +221,7 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # ----------------- Windows Visual Studio build --------------------
+  windows-build:
+    uses: ./.github/workflows/windows-vs.yml
+

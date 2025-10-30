@@ -1,0 +1,897 @@
+name: Windows Visual Studio Build
+
+on:
+  workflow_call:
+    inputs:
+      ant_version:
+        description: 'Apache Ant version to use'
+        required: false
+        default: '1.10.15'
+        type: string
+      platform_toolset:
+        description: 'Visual Studio platform toolset (auto-detect if not specified)'
+        required: false
+        default: ''
+        type: string
+      windows_sdk_version:
+        description: 'Windows SDK version (auto-detect if not specified)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  windows-vs-build:
+    runs-on: windows-latest
+    name: Windows Visual Studio (Normal wolfSSL non-FIPS)
+
+    steps:
+      - name: Debug workflow trigger
+        run: |
+          Write-Output "Workflow triggered successfully"
+          Write-Output "Event: ${{ github.event_name }}"
+          Write-Output "Ref: ${{ github.ref }}"
+          Write-Output "Working directory: $(Get-Location)"
+
+      - uses: actions/checkout@v4
+        with:
+          path: wolfssljni
+
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: master
+          path: wolfssl
+
+      - name: Verify file structure
+        run: |
+          Write-Output "Checking repository structure..."
+          Write-Output "Current directory contents:"
+          Get-ChildItem
+
+          Write-Output "`nwolfssl directory contents:"
+          if (Test-Path "wolfssl") {
+            Get-ChildItem wolfssl | Select-Object Name, Mode
+          } else {
+            Write-Error "wolfssl directory not found!"
+          }
+
+          Write-Output "`nwolfssljni directory contents:"
+          if (Test-Path "wolfssljni") {
+            Get-ChildItem wolfssljni | Select-Object Name, Mode
+          } else {
+            Write-Error "wolfssljni directory not found!"
+          }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Setup Apache Ant
+        run: |
+          $antVersion = "${{ inputs.ant_version }}"
+          Write-Output "Setting up Apache Ant $antVersion..."
+
+          $antUrl = "https://dlcdn.apache.org/ant/binaries/apache-ant-$antVersion-bin.zip"
+          $antDir = "C:\apache-ant-$antVersion"
+
+          Write-Output "Downloading from: $antUrl"
+          Invoke-WebRequest -Uri $antUrl -OutFile "ant.zip"
+          Expand-Archive -Path "ant.zip" -DestinationPath "C:\"
+          echo "ANT_HOME=$antDir" >> $env:GITHUB_ENV
+          echo "$antDir\bin" >> $env:GITHUB_PATH
+          Write-Output "Ant setup complete"
+
+      - name: Download JUnit dependencies
+        run: |
+          Write-Output "Downloading JUnit dependencies..."
+          New-Item -ItemType Directory -Force -Path "junit"
+          Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar" -OutFile "junit\junit-4.13.2.jar"
+          Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar" -OutFile "junit\hamcrest-all-1.3.jar"
+          echo "JUNIT_HOME=${{ github.workspace }}\junit" >> $env:GITHUB_ENV
+
+          # Verify downloads
+          if (Test-Path "junit\junit-4.13.2.jar") {
+            Write-Output "JUnit JAR downloaded successfully"
+          } else {
+            throw "Failed to download JUnit JAR"
+          }
+          if (Test-Path "junit\hamcrest-all-1.3.jar") {
+            Write-Output "Hamcrest JAR downloaded successfully"
+          } else {
+            throw "Failed to download Hamcrest JAR"
+          }
+
+      - name: Verify required solution files
+        run: |
+          Write-Output "Verifying required Visual Studio solution files..."
+
+          $wolfSSLSolution = "wolfssl\wolfssl64.sln"
+          if (Test-Path $wolfSSLSolution) {
+            Write-Output "Found wolfSSL solution: $wolfSSLSolution"
+          } else {
+            Write-Output "Available wolfssl files:"
+            Get-ChildItem wolfssl -Filter "*.sln" -Recurse
+            throw "wolfSSL solution file not found at $wolfSSLSolution"
+          }
+
+          $wolfSSLJNISolution = "wolfssljni\IDE\WIN\wolfssljni.sln"
+          if (Test-Path $wolfSSLJNISolution) {
+            Write-Output "Found wolfSSL JNI solution: $wolfSSLJNISolution"
+          } else {
+            Write-Output "Available wolfssljni IDE/WIN files:"
+            if (Test-Path "wolfssljni\IDE\WIN") {
+              Get-ChildItem "wolfssljni\IDE\WIN"
+            } else {
+              Write-Output "IDE/WIN directory does not exist"
+              Write-Output "Available directories in wolfssljni:"
+              Get-ChildItem wolfssljni -Directory
+            }
+            throw "wolfSSL JNI solution file not found at $wolfSSLJNISolution"
+          }
+
+      - name: Detect Visual Studio environment
+        id: detect-vs
+        run: |
+          Write-Output "Detecting Visual Studio environment..."
+
+          # Initialize with defaults or user inputs
+          $platformToolset = "${{ inputs.platform_toolset }}"
+          $windowsSDKVersion = "${{ inputs.windows_sdk_version }}"
+
+          # Auto-detect if not provided
+          if ([string]::IsNullOrEmpty($platformToolset) -or [string]::IsNullOrEmpty($windowsSDKVersion)) {
+            Write-Output "Auto-detecting Visual Studio configuration..."
+
+            try {
+              # Use vswhere to find Visual Studio installation
+              $vswherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+              if (Test-Path $vswherePath) {
+                Write-Output "Found vswhere.exe"
+
+                # Get latest VS installation with MSBuild
+                $vsInfo = & $vswherePath -latest -requires Microsoft.Component.MSBuild -property installationPath,installationVersion
+                if ($vsInfo -and $vsInfo.Count -ge 2) {
+                  $vsPath = $vsInfo[0]
+                  $vsVersion = $vsInfo[1]
+                  Write-Output "Found Visual Studio at: $vsPath"
+                  Write-Output "Version: $vsVersion"
+
+                  # Detect platform toolset from VS version
+                  if ([string]::IsNullOrEmpty($platformToolset)) {
+                    $majorVersion = [int]($vsVersion.Split('.')[0])
+                    switch ($majorVersion) {
+                      17 { $platformToolset = "v143" }  # VS 2022
+                      16 { $platformToolset = "v142" }  # VS 2019
+                      15 { $platformToolset = "v141" }  # VS 2017
+                      default { $platformToolset = "v143" }  # Default to latest
+                    }
+                    Write-Output "Auto-detected platform toolset: $platformToolset"
+                  }
+
+                  # Detect Windows SDK version
+                  if ([string]::IsNullOrEmpty($windowsSDKVersion)) {
+                    # Check for available Windows SDKs
+                    $sdkPaths = @(
+                      "${env:ProgramFiles(x86)}\Windows Kits\10\Include",
+                      "${env:ProgramFiles}\Windows Kits\10\Include"
+                    )
+
+                    $availableSDKs = @()
+                    foreach ($sdkPath in $sdkPaths) {
+                      if (Test-Path $sdkPath) {
+                        $availableSDKs += Get-ChildItem $sdkPath -Directory | Where-Object { $_.Name -match '^\d+\.' } | Sort-Object Name -Descending
+                        break
+                      }
+                    }
+
+                    if ($availableSDKs.Count -gt 0) {
+                      $windowsSDKVersion = $availableSDKs[0].Name
+                      Write-Output "Auto-detected Windows SDK: $windowsSDKVersion"
+                    } else {
+                      $windowsSDKVersion = "10.0"
+                      Write-Output "WARNING: No specific SDK found, using default: $windowsSDKVersion"
+                    }
+                  }
+                } else {
+                  Write-Output "WARNING: vswhere did not return expected VS information"
+                }
+              } else {
+                Write-Output "WARNING: vswhere.exe not found"
+              }
+            } catch {
+              Write-Output "WARNING: Error during auto-detection: $_"
+            }
+          }
+
+          # Fallback to defaults if detection failed
+          if ([string]::IsNullOrEmpty($platformToolset)) {
+            $platformToolset = "v143"
+            Write-Output "Using fallback platform toolset: $platformToolset"
+          }
+          if ([string]::IsNullOrEmpty($windowsSDKVersion)) {
+            $windowsSDKVersion = "10.0"
+            Write-Output "Using fallback Windows SDK: $windowsSDKVersion"
+          }
+
+          # Verify toolset availability
+          $toolsetPaths = @(
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset",
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset",
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Professional\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset",
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\$platformToolset"
+          )
+
+          $toolsetFound = $false
+          foreach ($path in $toolsetPaths) {
+            if (Test-Path $path) {
+              Write-Output "Verified toolset exists at: $path"
+              $toolsetFound = $true
+              break
+            }
+          }
+
+          if (-not $toolsetFound) {
+            Write-Output "WARNING: Platform toolset $platformToolset not found in expected locations"
+            # Show available toolsets for debugging
+            $baseToolsetPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets"
+            if (Test-Path $baseToolsetPath) {
+              Write-Output "Available toolsets:"
+              Get-ChildItem $baseToolsetPath -Directory | ForEach-Object { Write-Output "  - $($_.Name)" }
+            }
+          }
+
+          # Set outputs for use in subsequent steps
+          echo "platform_toolset=$platformToolset" >> $env:GITHUB_OUTPUT
+          echo "windows_sdk_version=$windowsSDKVersion" >> $env:GITHUB_OUTPUT
+
+          Write-Output "Final configuration:"
+          Write-Output "  Platform Toolset: $platformToolset"
+          Write-Output "  Windows SDK: $windowsSDKVersion"
+
+      - name: Configure wolfSSL user_settings.h for wolfSSL JNI
+        run: |
+          $userSettingsPath = "wolfssl\IDE\WIN\user_settings.h"
+          Write-Output "Configuring wolfSSL user_settings.h at: $userSettingsPath"
+
+          if (-not (Test-Path $userSettingsPath)) {
+            Write-Output "Searching for user_settings.h in wolfssl directory..."
+            Get-ChildItem wolfssl -Filter "user_settings.h" -Recurse | ForEach-Object {
+              Write-Output "Found: $($_.FullName)"
+            }
+            throw "user_settings.h not found at expected path: $userSettingsPath"
+          }
+
+          $content = Get-Content $userSettingsPath -Raw
+          Write-Output "Original file size: $($content.Length) characters"
+
+          $newDefines = "#define NO_OLD_TLS`n#define WOLFSSL_ALWAYS_KEEP_SNI`n#define WOLFSSL_JNI`n#define HAVE_EX_DATA`n#define OPENSSL_EXTRA`n#define OPENSSL_ALL`n#define HAVE_CRL`n#define HAVE_OCSP`n#define PERSIST_SESSION_CACHE`n#define PERSIST_CERT_CACHE`n#define HAVE_ECC`n#define HAVE_DH`n#define WOLFSSL_CERT_EXT`n#define WOLFSSL_CERT_GEN`n#define WOLFSSL_KEY_GEN`n#define WOLFSSL_CERT_REQ`n#define WOLFSSL_ALT_NAMES`n#define HAVE_TLS_EXTENSIONS`n#define HAVE_SNI`n#define HAVE_ALPN`n#define KEEP_PEER_CERT`n#define SESSION_CERTS`n#define WOLFSSL_ALT_CERT_CHAINS`n#define WOLFSSL_ALWAYS_VERIFY_CB`n`n"
+
+          # Try multiple possible insertion points
+          $insertPoints = @(
+            "/* Configuration */",
+            "#ifndef WOLFSSL_USER_SETTINGS",
+            "/* wolfSSL */",
+            "#define"
+          )
+          $inserted = $false
+
+          foreach ($point in $insertPoints) {
+            $insertIndex = $content.IndexOf($point)
+            if ($insertIndex -ne -1) {
+              $newContent = $content.Insert($insertIndex, $newDefines)
+              Set-Content -Path $userSettingsPath -Value $newContent -Encoding UTF8
+              Write-Output "Successfully inserted defines before: $point"
+              $inserted = $true
+              break
+            }
+          }
+
+          if (-not $inserted) {
+            # Fallback: append to end of file
+            Add-Content -Path $userSettingsPath -Value $newDefines -Encoding UTF8
+            Write-Output "Appended defines to end of file"
+          }
+
+          # Verify the changes and disable DTLS by commenting out the defines
+          $newContent = Get-Content $userSettingsPath -Raw
+          if ($newContent.Contains("WOLFSSL_KEY_GEN")) {
+            Write-Output "Configuration added successfully"
+
+            # Now comment out DTLS defines to disable DTLS
+            Write-Output "Disabling DTLS by commenting out WOLFSSL_DTLS defines..."
+            $newContent = $newContent -replace '(?m)^(\s*#define\s+WOLFSSL_DTLS13?\s*)$', '/* $1 */ // Disabled for JNI compatibility'
+            Set-Content -Path $userSettingsPath -Value $newContent -Encoding UTF8
+            Write-Output "DTLS defines disabled"
+
+            # Show the first 100 lines of the modified file for debugging
+            Write-Output "`nFirst 100 lines of modified user_settings.h:"
+            Write-Output "================================================"
+            $lines = Get-Content $userSettingsPath | Select-Object -First 100
+            $lineNum = 1
+            foreach ($line in $lines) {
+              Write-Output "$lineNum`: $line"
+              $lineNum++
+            }
+            Write-Output "================================================"
+          } else {
+            throw "Failed to add configuration to user_settings.h"
+          }
+
+      - name: Upgrade Visual Studio project files
+        run: |
+          Write-Output "Upgrading Visual Studio project files..."
+          cd wolfssl
+
+          $platformToolset = "${{ steps.detect-vs.outputs.platform_toolset }}"
+          $windowsSDKVersion = "${{ steps.detect-vs.outputs.windows_sdk_version }}"
+
+          Write-Output "Using toolset: $platformToolset"
+          Write-Output "Using Windows SDK: $windowsSDKVersion"
+
+          # Method 1: Use MSBuild to retarget (preferred method)
+          Write-Output "Attempting MSBuild retarget..."
+
+          # Capture MSBuild output to a log file for better error reporting
+          $msbuildLog = "msbuild_retarget.log"
+          msbuild wolfssl64.sln -p:PlatformToolset=$platformToolset -p:WindowsTargetPlatformVersion=$windowsSDKVersion -t:_CheckForInvalidConfigurationAndPlatform -verbosity:minimal -flp:logfile=$msbuildLog
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "MSBuild retarget method failed with exit code: $LASTEXITCODE"
+
+            # Show detailed error information
+            if (Test-Path $msbuildLog) {
+              Write-Output "MSBuild error details:"
+              Write-Output "====================="
+              Get-Content $msbuildLog | Where-Object { $_ -match "(error|warning|failed)" -or $_ -match "MSB\d+" } | ForEach-Object {
+                Write-Output "  $_"
+              }
+              Write-Output "====================="
+
+              # Show full log if in debug mode or if it's short
+              $logContent = Get-Content $msbuildLog
+              if ($logContent.Count -le 20) {
+                Write-Output "Complete MSBuild log (short):"
+                $logContent | ForEach-Object { Write-Output "  $_" }
+              }
+            } else {
+              Write-Output "No MSBuild log file was created"
+            }
+
+            Write-Output "Trying alternative upgrade method..."
+
+            # Method 2: Use devenv upgrade (dynamically located)
+            try {
+              $devenvPath = $null
+
+              # First try to use vswhere to find the exact devenv.exe path
+              $vswherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+              if (Test-Path $vswherePath) {
+                Write-Output "Using vswhere to locate devenv.exe..."
+                $vsInstallPath = & $vswherePath -latest -requires Microsoft.Component.MSBuild -property installationPath
+                if ($vsInstallPath) {
+                  $potentialDevenvPath = Join-Path $vsInstallPath "Common7\IDE\devenv.exe"
+                  if (Test-Path $potentialDevenvPath) {
+                    $devenvPath = $potentialDevenvPath
+                    Write-Output "Found devenv.exe via vswhere: $devenvPath"
+                  } else {
+                    Write-Output "WARNING: devenv.exe not found at expected vswhere location: $potentialDevenvPath"
+                  }
+                } else {
+                  Write-Output "WARNING: vswhere did not return VS installation path"
+                }
+              } else {
+                Write-Output "WARNING: vswhere.exe not found, trying fallback paths..."
+              }
+
+              # Fallback to common paths if vswhere method failed
+              if (-not $devenvPath) {
+                $fallbackPaths = @(
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles}\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
+                  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe"
+                )
+
+                foreach ($path in $fallbackPaths) {
+                  if (Test-Path $path) {
+                    $devenvPath = $path
+                    Write-Output "Found devenv.exe via fallback: $devenvPath"
+                    break
+                  }
+                }
+              }
+
+              if ($devenvPath) {
+                Write-Output "Upgrading solution using devenv..."
+                & "$devenvPath" wolfssl64.sln /Upgrade
+                Start-Sleep -Seconds 5  # Give devenv time to complete
+                Write-Output "devenv upgrade completed"
+              } else {
+                Write-Output "WARNING: devenv.exe not found in any location, proceeding with manual project file modification..."
+              }
+            } catch {
+              Write-Output "ERROR: devenv upgrade failed: $_"
+              Write-Output "Proceeding with manual project file modification..."
+            }
+          }
+
+          # Method 3: Manual project file modification as fallback
+          Write-Output "Applying manual project file updates..."
+
+          # Find and update all .vcxproj files
+          Get-ChildItem . -Filter "*.vcxproj" -Recurse | ForEach-Object {
+            $projectFile = $_.FullName
+            Write-Output "Updating project file: $projectFile"
+
+            try {
+              # Load the project file as XML for robust manipulation
+              [xml]$xmlContent = Get-Content $projectFile -Raw
+              $modified = $false
+
+              # Find all PropertyGroup elements and update platform toolset and SDK version
+              foreach ($propertyGroup in $xmlContent.Project.PropertyGroup) {
+                # Update PlatformToolset if it exists in this PropertyGroup
+                if ($propertyGroup.PlatformToolset) {
+                  $oldToolset = $propertyGroup.PlatformToolset
+                  $propertyGroup.PlatformToolset = $platformToolset
+                  Write-Output "  Updated PlatformToolset: $oldToolset -> $platformToolset"
+                  $modified = $true
+                }
+
+                # Update WindowsTargetPlatformVersion if it exists in this PropertyGroup
+                if ($propertyGroup.WindowsTargetPlatformVersion) {
+                  $oldSDK = $propertyGroup.WindowsTargetPlatformVersion
+                  $propertyGroup.WindowsTargetPlatformVersion = $windowsSDKVersion
+                  Write-Output "  Updated WindowsTargetPlatformVersion: $oldSDK -> $windowsSDKVersion"
+                  $modified = $true
+                }
+
+                # If this PropertyGroup has a PlatformToolset but no WindowsTargetPlatformVersion, add it
+                if ($propertyGroup.PlatformToolset -and -not $propertyGroup.WindowsTargetPlatformVersion) {
+                  # Create element without namespace to avoid xmlns attribute issues
+                  $windowsSDKElement = $xmlContent.CreateElement("WindowsTargetPlatformVersion", $xmlContent.DocumentElement.NamespaceURI)
+                  $windowsSDKElement.InnerText = $windowsSDKVersion
+                  $propertyGroup.AppendChild($windowsSDKElement) | Out-Null
+                  Write-Output "  Added WindowsTargetPlatformVersion: $windowsSDKVersion"
+                  $modified = $true
+                }
+              }
+
+              # If no PlatformToolset was found in any PropertyGroup, add both to the first PropertyGroup
+              if (-not ($xmlContent.Project.PropertyGroup | Where-Object { $_.PlatformToolset })) {
+                $firstPropertyGroup = $xmlContent.Project.PropertyGroup | Select-Object -First 1
+                if ($firstPropertyGroup) {
+                  # Add PlatformToolset (using proper namespace)
+                  $platformToolsetElement = $xmlContent.CreateElement("PlatformToolset", $xmlContent.DocumentElement.NamespaceURI)
+                  $platformToolsetElement.InnerText = $platformToolset
+                  $firstPropertyGroup.AppendChild($platformToolsetElement) | Out-Null
+                  Write-Output "  Added PlatformToolset: $platformToolset"
+
+                  # Add WindowsTargetPlatformVersion (using proper namespace)
+                  $windowsSDKElement = $xmlContent.CreateElement("WindowsTargetPlatformVersion", $xmlContent.DocumentElement.NamespaceURI)
+                  $windowsSDKElement.InnerText = $windowsSDKVersion
+                  $firstPropertyGroup.AppendChild($windowsSDKElement) | Out-Null
+                  Write-Output "  Added WindowsTargetPlatformVersion: $windowsSDKVersion"
+                  $modified = $true
+                }
+              }
+
+              # Save the updated XML back to the file if modifications were made
+              if ($modified) {
+                # Use XmlWriterSettings to control output formatting
+                $settings = New-Object System.Xml.XmlWriterSettings
+                $settings.Indent = $true
+                $settings.IndentChars = "  "
+                $settings.NewLineChars = "`r`n"
+                $settings.Encoding = [System.Text.Encoding]::UTF8
+
+                $writer = [System.Xml.XmlWriter]::Create($projectFile, $settings)
+                try {
+                  $xmlContent.Save($writer)
+                  Write-Output "  Saved XML changes to $($_.Name)"
+                } finally {
+                  $writer.Close()
+                }
+              } else {
+                Write-Output "  No changes needed for $($_.Name)"
+              }
+
+            } catch {
+              Write-Output "  WARNING: Failed to parse $($_.Name) as XML, falling back to regex method: $_"
+
+              # Fallback to regex method if XML parsing fails
+              $content = Get-Content $projectFile -Raw
+
+              # Update platform toolset (more robust regex with optional whitespace)
+              $content = $content -replace '<PlatformToolset\s*>\s*v\d+\s*</PlatformToolset\s*>', "<PlatformToolset>$platformToolset</PlatformToolset>"
+
+              # Add Windows SDK version if not present (flexible regex)
+              if (-not ($content -match '<WindowsTargetPlatformVersion\s*>')) {
+                $content = $content -replace "(<PlatformToolset\s*>$platformToolset</PlatformToolset\s*>)", "`$1`n    <WindowsTargetPlatformVersion>$windowsSDKVersion</WindowsTargetPlatformVersion>"
+              } else {
+                # Update existing Windows SDK version (flexible regex)
+                $content = $content -replace '<WindowsTargetPlatformVersion\s*>[^<]*</WindowsTargetPlatformVersion\s*>', "<WindowsTargetPlatformVersion>$windowsSDKVersion</WindowsTargetPlatformVersion>"
+              }
+
+              # Save the updated content
+              Set-Content -Path $projectFile -Value $content -Encoding UTF8
+              Write-Output "  Updated $($_.Name) using regex fallback"
+            }
+          }
+
+          Write-Output "Project file upgrade completed"
+
+      - name: Build wolfSSL DLL (x64 DLL Release)
+        run: |
+          Write-Output "Building wolfSSL DLL..."
+          cd wolfssl
+
+          # Verify the upgrade worked by checking a project file
+          $sampleProject = Get-ChildItem . -Filter "*.vcxproj" | Select-Object -First 1
+          if ($sampleProject) {
+            $content = Get-Content $sampleProject.FullName -Raw
+            $detectedToolset = if ($content -match '<PlatformToolset>(.*?)</PlatformToolset>') { $matches[1] } else { "unknown" }
+            $detectedSDK = if ($content -match '<WindowsTargetPlatformVersion>(.*?)</WindowsTargetPlatformVersion>') { $matches[1] } else { "unknown" }
+
+            Write-Output "Project files upgraded:"
+            Write-Output "  Toolset: $detectedToolset"
+            Write-Output "  SDK: $detectedSDK"
+          }
+
+          # Build the solution
+          Write-Output "Building with upgraded project files..."
+
+          # Capture build output for better error reporting
+          $buildLog = "wolfssl_build.log"
+          msbuild wolfssl64.sln -p:Configuration="DLL Release" -p:Platform=x64 -verbosity:minimal -nologo -flp:logfile=$buildLog
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Build failed with exit code: $LASTEXITCODE"
+
+            # Show detailed build error information
+            if (Test-Path $buildLog) {
+              Write-Output "Build error details:"
+              Write-Output "===================="
+              Get-Content $buildLog | Where-Object {
+                $_ -match "(error|failed)" -or
+                $_ -match "MSB\d+" -or
+                $_ -match "C\d+:" -or
+                $_ -match "LNK\d+:"
+              } | Select-Object -First 20 | ForEach-Object {
+                Write-Output "  $_"
+              }
+              Write-Output "===================="
+            } else {
+              Write-Output "No build log file was created"
+            }
+
+            Write-Output "Checking project details for additional diagnostics..."
+
+            # Show project file details for debugging
+            Get-ChildItem . -Filter "*.vcxproj" | ForEach-Object {
+              Write-Output "`nProject file: $($_.Name)"
+              $content = Get-Content $_.FullName -Raw
+
+              # Extract platform toolset
+              if ($content -match '<PlatformToolset>(.*?)</PlatformToolset>') {
+                Write-Output "  Platform Toolset: $($matches[1])"
+              }
+
+              # Extract Windows SDK version
+              if ($content -match '<WindowsTargetPlatformVersion>(.*?)</WindowsTargetPlatformVersion>') {
+                Write-Output "  Windows SDK Version: $($matches[1])"
+              }
+            }
+
+            # Show available toolsets
+            Write-Output "`nAvailable Platform Toolsets:"
+            $toolsetPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets"
+            if (Test-Path $toolsetPath) {
+              Get-ChildItem $toolsetPath -Directory | ForEach-Object { Write-Output "  - $($_.Name)" }
+            }
+
+            Get-ChildItem . -Filter "*.sln"
+            throw "wolfSSL build failed with exit code $LASTEXITCODE"
+          }
+
+          Write-Output "wolfSSL DLL build completed successfully"
+
+          # Verify output files
+          Write-Output "Checking for generated DLL files..."
+          Get-ChildItem . -Filter "*.dll" -Recurse | Select-Object FullName, Length
+
+      - name: Build wolfSSL JNI DLL (x64 DLL Release)
+        run: |
+          Write-Output "Building wolfSSL JNI DLL..."
+          cd wolfssljni\IDE\WIN
+
+          # Disable post-build event by passing a property
+          # This prevents the post-build ant from running with wrong JUNIT_HOME
+          Write-Output "Building DLL without post-build event..."
+
+          # Capture build output for better error reporting
+          $buildLog = "wolfssljni_build.log"
+          msbuild wolfssljni.sln -p:Configuration="DLL Release" -p:Platform=x64 -p:RunPostBuildEvent=Never -verbosity:minimal -nologo -flp:logfile=$buildLog
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Build failed with exit code: $LASTEXITCODE"
+
+            # Show detailed build error information
+            if (Test-Path $buildLog) {
+              Write-Output "wolfSSL JNI build error details:"
+              Write-Output "=================================="
+              Get-Content $buildLog | Where-Object {
+                $_ -match "(error|failed)" -or
+                $_ -match "MSB\d+" -or
+                $_ -match "C\d+:" -or
+                $_ -match "LNK\d+:"
+              } | Select-Object -First 20 | ForEach-Object {
+                Write-Output "  $_"
+              }
+              Write-Output "=================================="
+            } else {
+              Write-Output "No build log file was created"
+            }
+
+            Write-Output "Checking project structure..."
+            Get-ChildItem . -Filter "*.vcxproj"
+            throw "wolfSSL JNI build failed with exit code $LASTEXITCODE"
+          }
+
+          Write-Output "wolfSSL JNI DLL build completed successfully"
+
+          # Verify output files
+          Write-Output "Checking for generated DLL files..."
+          Get-ChildItem . -Filter "*.dll" -Recurse | Select-Object FullName, Length
+
+      - name: Verify build outputs
+        run: |
+          Write-Output "Verifying all required build outputs exist..."
+
+          # Look for DLL files in common output directories
+          $searchPaths = @(
+            "wolfssl",
+            "wolfssljni",
+            "wolfssl\x64",
+            "wolfssljni\x64",
+            "wolfssl\DLL Release",
+            "wolfssljni\DLL Release"
+          )
+
+          foreach ($path in $searchPaths) {
+            if (Test-Path $path) {
+              Write-Output "`nChecking $path for DLL files:"
+              Get-ChildItem $path -Filter "*.dll" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Output "  Found: $($_.FullName)"
+              }
+            }
+          }
+
+      - name: Setup environment for tests
+        run: |
+          Write-Output "Verifying test environment setup..."
+
+          # Verify Ant installation
+          & ant -version
+          if ($LASTEXITCODE -ne 0) {
+            throw "Ant is not properly installed"
+          }
+
+          # Verify Java installation
+          & java -version
+          if ($LASTEXITCODE -ne 0) {
+            throw "Java is not properly installed"
+          }
+
+          # Show and verify environment variables
+          Write-Output "Environment variables:"
+          Write-Output "JAVA_HOME: $env:JAVA_HOME"
+          Write-Output "ANT_HOME: $env:ANT_HOME"
+          Write-Output "JUNIT_HOME: $env:JUNIT_HOME"
+          Write-Output "GITHUB_WORKSPACE: ${{ github.workspace }}"
+
+          # Verify JUNIT_HOME is set and contains the required JARs
+          if ([string]::IsNullOrEmpty($env:JUNIT_HOME)) {
+            throw "JUNIT_HOME environment variable is not set"
+          }
+
+          if (-not (Test-Path "$env:JUNIT_HOME\junit-4.13.2.jar")) {
+            Write-Output "ERROR: junit-4.13.2.jar not found at $env:JUNIT_HOME"
+            Write-Output "Contents of JUNIT_HOME directory:"
+            if (Test-Path $env:JUNIT_HOME) {
+              Get-ChildItem $env:JUNIT_HOME
+            } else {
+              Write-Output "JUNIT_HOME directory does not exist!"
+            }
+            throw "JUnit JAR not found"
+          }
+
+          if (-not (Test-Path "$env:JUNIT_HOME\hamcrest-all-1.3.jar")) {
+            throw "hamcrest-all-1.3.jar not found at $env:JUNIT_HOME"
+          }
+
+          Write-Output "All required JUnit dependencies verified"
+
+          # Add DLL directories to PATH so tests can find the native libraries
+          Write-Output "`nConfiguring PATH for native library loading..."
+          $wolfsslDllPath = "${{ github.workspace }}\wolfssl\DLL Release\x64"
+          $wolfssljniDllPath = "${{ github.workspace }}\wolfssljni\IDE\WIN\DLL Release\x64"
+
+          Write-Output "Adding to PATH:"
+          Write-Output "  wolfSSL DLL: $wolfsslDllPath"
+          Write-Output "  wolfSSL JNI DLL: $wolfssljniDllPath"
+
+          # Verify DLLs exist before adding to PATH
+          if (Test-Path "$wolfsslDllPath\wolfssl.dll") {
+            Write-Output "  Verified: wolfssl.dll exists"
+          } else {
+            Write-Output "  WARNING: wolfssl.dll not found at $wolfsslDllPath"
+          }
+
+          if (Test-Path "$wolfssljniDllPath\wolfssljni.dll") {
+            Write-Output "  Verified: wolfssljni.dll exists"
+          } else {
+            Write-Output "  WARNING: wolfssljni.dll not found at $wolfssljniDllPath"
+          }
+
+          # Add to PATH for this step and all subsequent steps
+          $env:PATH = "$wolfsslDllPath;$wolfssljniDllPath;$env:PATH"
+          echo "PATH=$wolfsslDllPath;$wolfssljniDllPath;$env:PATH" >> $env:GITHUB_ENV
+
+          Write-Output "PATH updated successfully"
+
+          # Clean any existing build artifacts to ensure fresh build with correct JUNIT_HOME
+          Write-Output "`nCleaning existing build artifacts..."
+          cd wolfssljni
+          if (Test-Path "build") {
+            Write-Output "Removing build directory..."
+            Remove-Item -Path "build" -Recurse -Force
+          }
+          if (Test-Path "lib\wolfssl.jar") {
+            Write-Output "Removing lib\wolfssl.jar..."
+            Remove-Item -Path "lib\wolfssl.jar" -Force
+          }
+          if (Test-Path "lib\wolfssl-jsse.jar") {
+            Write-Output "Removing lib\wolfssl-jsse.jar..."
+            Remove-Item -Path "lib\wolfssl-jsse.jar" -Force
+          }
+          Write-Output "Clean complete - ready for fresh build with correct environment"
+
+      - name: Build Java and JAR files
+        run: |
+          Write-Output "Building Java classes and JAR files..."
+          cd wolfssljni
+
+          # Build Java classes and create JARs (but don't run clean to preserve any existing builds)
+          Write-Output "Compiling Java sources..."
+          & ant init compile-nativeheaderdir compile-javah jar jar-jsse
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Java build failed"
+            throw "Failed to compile Java and create JARs"
+          }
+
+          Write-Output "Java build completed successfully"
+
+          # Verify JARs were created
+          if (Test-Path "lib\wolfssl.jar") {
+            $jarSize = (Get-Item "lib\wolfssl.jar").Length
+            Write-Output "  wolfssl.jar created: $jarSize bytes"
+          } else {
+            throw "wolfssl.jar was not created"
+          }
+
+          if (Test-Path "lib\wolfssl-jsse.jar") {
+            $jarSize = (Get-Item "lib\wolfssl-jsse.jar").Length
+            Write-Output "  wolfssl-jsse.jar created: $jarSize bytes"
+          } else {
+            throw "wolfssl-jsse.jar was not created"
+          }
+
+      - name: Run JUnit tests (Windows x64 Release)
+        run: |
+          Write-Output "Running JUnit tests..."
+          cd wolfssljni
+
+          # Verify environment one more time before tests
+          Write-Output "Pre-test environment check:"
+          Write-Output "JUNIT_HOME: $env:JUNIT_HOME"
+          Write-Output "JAVA_HOME: $env:JAVA_HOME"
+
+          # Verify DLLs are in expected location
+          Write-Output "Checking for DLL files..."
+          if (Test-Path "IDE\WIN\DLL Release\x64\wolfssljni.dll") {
+            $dllSize = (Get-Item "IDE\WIN\DLL Release\x64\wolfssljni.dll").Length
+            Write-Output "  wolfssljni.dll: EXISTS ($dllSize bytes)"
+          } else {
+            Write-Output "  wolfssljni.dll: MISSING from expected location"
+          }
+
+          if (Test-Path "..\wolfssl\DLL Release\x64\wolfssl.dll") {
+            $dllSize = (Get-Item "..\wolfssl\DLL Release\x64\wolfssl.dll").Length
+            Write-Output "  wolfssl.dll: EXISTS ($dllSize bytes)"
+          } else {
+            Write-Output "  wolfssl.dll: MISSING from expected location"
+          }
+
+          # Build test classes
+          Write-Output "`nBuilding test classes..."
+          & ant build-test
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Test build failed"
+            throw "Failed to compile test classes"
+          }
+
+          # Run tests directly using junit without rebuilding everything
+          Write-Output "`nRunning JUnit tests..."
+          & ant setup-win64-release test
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "Tests failed with exit code $LASTEXITCODE"
+
+            # Try to show any test output
+            if (Test-Path "build") {
+              Write-Output "Build directory contents:"
+              Get-ChildItem build -Recurse | Select-Object FullName
+            }
+
+            throw "JUnit tests failed"
+          }
+
+          Write-Output "All tests passed successfully"
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          Write-Output "=== FAILURE DIAGNOSTICS ==="
+
+          # Show build reports if they exist
+          $reportPaths = @(
+            "wolfssljni\build\reports",
+            "wolfssljni\build",
+            "wolfssl\build"
+          )
+
+          foreach ($path in $reportPaths) {
+            if (Test-Path $path) {
+              Write-Output "`n=== Contents of $path ==="
+              Get-ChildItem $path -Recurse | ForEach-Object {
+                if ($_.Extension -in @('.txt', '.log', '.xml')) {
+                  Write-Output "`n--- $($_.FullName) ---"
+                  Get-Content $_.FullName -ErrorAction SilentlyContinue
+                }
+              }
+            }
+          }
+
+          # Show recent Windows event logs related to application errors
+          Write-Output "`n=== Recent Application Errors ==="
+          try {
+            Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2; StartTime=(Get-Date).AddHours(-1)} -MaxEvents 5 -ErrorAction SilentlyContinue |
+              Select-Object TimeCreated, Id, LevelDisplayName, Message
+          } catch {
+            Write-Output "No recent application errors found"
+          }
+
+          # Show environment for debugging
+          Write-Output "`n=== Environment Variables ==="
+          Get-ChildItem env: | Where-Object { $_.Name -match "(JAVA|ANT|JUNIT|WOLFSSL)" } | Sort-Object Name

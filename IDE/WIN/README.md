@@ -135,6 +135,8 @@ before compiling the library DLL and insert the following defines above the
 section titled `/* Configuration */`:
 
 ```
+#define NO_OLD_TLS
+#define WOLFSSL_ALWAYS_KEEP_SNI
 #define WOLFSSL_JNI
 #define HAVE_EX_DATA
 #define OPENSSL_EXTRA
