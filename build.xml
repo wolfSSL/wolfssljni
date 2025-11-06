@@ -119,6 +119,10 @@
             <include name="com/wolfssl/provider/jsse/adapter/**" />
             <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
         </javac>
+        <!-- Copy resources to build directory for ServiceLoader -->
+        <copy todir="${build.dir}" failonerror="false">
+            <fileset dir="src/resources" includes="**/*" />
+        </copy>
     </target>
 
     <target name="compile-javah" unless="have-nativeheaderdir">
@@ -138,6 +142,10 @@
             <include name="com/wolfssl/provider/jsse/adapter/**" />
             <exclude name="com/wolfssl/provider/jsse/adapter/WolfSSLJDK8Helper.java" unless="have-SNIHostName" />
         </javac>
+        <!-- Copy resources to build directory for ServiceLoader -->
+        <copy todir="${build.dir}" failonerror="false">
+            <fileset dir="src/resources" includes="**/*" />
+        </copy>
     </target>
 
     <target name="javah" unless="have-nativeheaderdir">
