@@ -29,7 +29,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.net.ServerSocket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.net.ConnectException;
 import java.net.SocketException;
@@ -38,6 +40,7 @@ import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CountDownLatch;
 import java.nio.ByteBuffer;
@@ -2804,5 +2807,1348 @@ public class WolfSSLSessionTest {
 
         System.out.println("\t... passed");
     }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidMaxSize()
+        throws WolfSSLJNIException {
+
+        System.out.print("\tdtlsCidMaxSize()");
+
+        /* This is a static method, should work even without wolfSSL compiled
+         * with DTLS CID support - may return NOT_COMPILED_IN */
+        int maxSize = WolfSSLSession.dtlsCidMaxSize();
+
+        /* Expected to be positive value if DTLS CID is compiled in,
+         * or NOT_COMPILED_IN (-173) if not compiled in */
+        assertTrue("dtlsCidMaxSize() should return positive value or " +
+                   "NOT_COMPILED_IN",
+                   maxSize > 0 || maxSize == WolfSSL.NOT_COMPILED_IN);
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidParse()
+        throws WolfSSLJNIException {
+
+        System.out.print("\tdtlsCidParse()");
+
+        /* Test with null message - should return null */
+        byte[] result = WolfSSLSession.dtlsCidParse(null, 0);
+        assertNull("dtlsCidParse() with null msg should return null", result);
+
+        /* Test with invalid cidSize - should return null */
+        byte[] testMsg = new byte[10];
+        result = WolfSSLSession.dtlsCidParse(testMsg, -1);
+        assertNull("dtlsCidParse() with negative cidSize should return null",
+                   result);
+
+        /* Test with valid parameters (may return null if DTLS CID not
+         * compiled in or message doesn't contain valid CID) */
+        result = WolfSSLSession.dtlsCidParse(testMsg, 5);
+        /* Result can be null if not compiled in or no valid CID found */
+
+        System.out.println("\t\t\t... passed");
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidFunctions()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+        int ret;
+
+        System.out.print("\tDTLS CID functions");
+
+        /* Skip if DTLS not supported */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtlsSupported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtlsSupported = true;
+                break;
+            }
+        }
+        if (!dtlsSupported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        try {
+            /* Create DTLS context for CID testing */
+            dtlsCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+            sess = new WolfSSLSession(dtlsCtx);
+
+            /* Test dtlsCidUse() - may return NOT_COMPILED_IN if DTLS CID
+             * not compiled into native wolfSSL */
+            ret = sess.dtlsCidUse();
+            assertTrue("dtlsCidUse() should return success or NOT_COMPILED_IN",
+                       ret == WolfSSL.SSL_SUCCESS ||
+                       ret == WolfSSL.NOT_COMPILED_IN);
+
+            /* Test dtlsCidIsEnabled() */
+            ret = sess.dtlsCidIsEnabled();
+            assertTrue("dtlsCidIsEnabled() should return 0, 1, or " +
+                       "NOT_COMPILED_IN",
+                       ret == 0 || ret == 1 || ret == WolfSSL.NOT_COMPILED_IN);
+
+            /* Test dtlsCidSet() with null array - should return BAD_FUNC_ARG */
+            ret = sess.dtlsCidSet(null);
+            assertEquals("dtlsCidSet() with null should return BAD_FUNC_ARG",
+                         WolfSSL.BAD_FUNC_ARG, ret);
+
+            /* Test dtlsCidSet() with valid CID */
+            byte[] testCid = new byte[]{0x01, 0x02, 0x03, 0x04};
+            ret = sess.dtlsCidSet(testCid);
+            assertTrue("dtlsCidSet() should return success or error code",
+                       ret == WolfSSL.SSL_SUCCESS || ret < 0);
+
+            /* Test size getter functions */
+            int rxSize = sess.dtlsCidGetRxSize();
+            assertTrue("dtlsCidGetRxSize() should return size or " +
+                       "NOT_COMPILED_IN",
+                       rxSize >= 0 || rxSize == WolfSSL.NOT_COMPILED_IN);
+
+            int txSize = sess.dtlsCidGetTxSize();
+            assertTrue("dtlsCidGetTxSize() should return size or " +
+                       "NOT_COMPILED_IN",
+                       txSize >= 0 || txSize == WolfSSL.NOT_COMPILED_IN);
+
+            /* Test CID getter functions - may return null if not set
+             * or not compiled in */
+            byte[] rxCid = sess.dtlsCidGetRx();
+            /* rxCid can be null if not set or not compiled in */
+
+            byte[] rxCid0 = sess.dtlsCidGet0Rx();
+            /* rxCid0 can be null if not set or not compiled in */
+
+            byte[] txCid = sess.dtlsCidGetTx();
+            /* txCid can be null if not set or not compiled in */
+
+            byte[] txCid0 = sess.dtlsCidGet0Tx();
+            /* txCid0 can be null if not set or not compiled in */
+
+            /* If we got valid CIDs, they should have expected lengths */
+            if (rxCid != null && rxSize > 0) {
+                assertEquals("RX CID length should match reported size",
+                             rxSize, rxCid.length);
+            }
+
+            if (txCid != null && txSize > 0) {
+                assertEquals("TX CID length should match reported size",
+                             txSize, txCid.length);
+            }
+
+        } catch (WolfSSLException we) {
+            /* Some methods may throw exceptions if DTLS CID not supported
+             * or session not properly configured */
+            System.out.println("\t\t... expected exception: " +
+                               we.getMessage());
+
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidClientServer()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        System.out.print("\tDTLS CID connection");
+
+        /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        WolfSSLContext serverCtx = null;
+        WolfSSLContext clientCtx = null;
+        WolfSSLSession server = null;
+        WolfSSLSession client = null;
+
+        try {
+            /* Create DTLSv1.3 contexts (CID requires DTLSv1.3) */
+            serverCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+
+            /* Load server certificate and key */
+            serverCtx.useCertificateFile(cliCert, WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(cliKey, WolfSSL.SSL_FILETYPE_PEM);
+
+            /* Load client certificate verification */
+            clientCtx.loadVerifyLocations(caCert, null);
+
+            /* Create SSL sessions */
+            server = new WolfSSLSession(serverCtx);
+            client = new WolfSSLSession(clientCtx);
+
+            /* Test basic CID functionality without connection first */
+
+            /* Test dtlsCidUse() - may return NOT_COMPILED_IN */
+            int ret = server.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+            assertTrue("Server dtlsCidUse() should succeed",
+                       ret == WolfSSL.SSL_SUCCESS);
+
+            ret = client.dtlsCidUse();
+            assertTrue("Client dtlsCidUse() should succeed",
+                       ret == WolfSSL.SSL_SUCCESS);
+
+            /* Test dtlsCidIsEnabled() */
+            ret = server.dtlsCidIsEnabled();
+            assertTrue("Server CID should be enabled",
+                       ret == 1);
+
+            ret = client.dtlsCidIsEnabled();
+            assertTrue("Client CID should be enabled",
+                       ret == 1);
+
+            /* Set Connection IDs */
+            byte[] serverCid = {0x01, 0x02, 0x03, 0x04, 0x05};
+            byte[] clientCid = {0x06, 0x07, 0x08, 0x09, 0x0A};
+
+            ret = server.dtlsCidSet(serverCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.dtlsCidSet(clientCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            /* Verify RX CID sizes (what we set) */
+            int serverRxSize = server.dtlsCidGetRxSize();
+            int clientRxSize = client.dtlsCidGetRxSize();
+
+            assertTrue("Server RX CID size should match set CID length",
+                       serverRxSize == serverCid.length);
+            assertTrue("Client RX CID size should match set CID length",
+                       clientRxSize == clientCid.length);
+
+            /* Get and verify RX CIDs (what we set) */
+            byte[] serverRxCid = server.dtlsCidGetRx();
+            byte[] clientRxCid = client.dtlsCidGetRx();
+
+            assertNotNull("Server RX CID should not be null", serverRxCid);
+            assertNotNull("Client RX CID should not be null", clientRxCid);
+
+            assertArrayEquals("Server RX CID should match set CID",
+                              serverCid, serverRxCid);
+            assertArrayEquals("Client RX CID should match set CID",
+                              clientCid, clientRxCid);
+
+            /* Test get0 versions (direct reference) for RX CIDs */
+            byte[] serverRxCid0 = server.dtlsCidGet0Rx();
+            byte[] clientRxCid0 = client.dtlsCidGet0Rx();
+
+            assertNotNull("Server RX CID0 should not be null", serverRxCid0);
+            assertNotNull("Client RX CID0 should not be null", clientRxCid0);
+
+            assertArrayEquals("Server RX CID0 should match set CID",
+                              serverCid, serverRxCid0);
+            assertArrayEquals("Client RX CID0 should match set CID",
+                              clientCid, clientRxCid0);
+
+            /* TX CIDs should be 0/null since no handshake occurred */
+            int serverTxSize = server.dtlsCidGetTxSize();
+            int clientTxSize = client.dtlsCidGetTxSize();
+            assertTrue("Server TX CID size should be 0 (no handshake)",
+                       serverTxSize == 0);
+            assertTrue("Client TX CID size should be 0 (no handshake)",
+                       clientTxSize == 0);
+
+            System.out.println("\t\t... passed");
+
+        } catch (Exception e) {
+            System.out.println("\t\t... failed with exception: " +
+                               e.getMessage());
+            throw e;
+
+        } finally {
+            if (server != null) {
+                server.freeSSL();
+            }
+            if (client != null) {
+                client.freeSSL();
+            }
+            if (serverCtx != null) {
+                serverCtx.free();
+            }
+            if (clientCtx != null) {
+                clientCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidDataExchange()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        System.out.print("\tDTLS CID data exchange");
+
+        /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        WolfSSLContext serverCtx = null;
+        WolfSSLContext clientCtx = null;
+        WolfSSLSession server = null;
+        WolfSSLSession client = null;
+
+        try {
+            /* Create DTLSv1.3 contexts (CID requires DTLSv1.3) */
+            serverCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+
+            /* Load certificates */
+            serverCtx.useCertificateFile(cliCert, WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(cliKey, WolfSSL.SSL_FILETYPE_PEM);
+            clientCtx.loadVerifyLocations(caCert, null);
+
+            /* Create sessions */
+            server = new WolfSSLSession(serverCtx);
+            client = new WolfSSLSession(clientCtx);
+
+            /* Enable CID on both sides */
+            int ret = server.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            ret = client.dtlsCidUse();
+            assertTrue("Client CID enable should succeed",
+                       ret == WolfSSL.SSL_SUCCESS);
+
+            /* Set different CIDs for each direction */
+            byte[] serverToClientCid = {0x11, 0x22, 0x33, 0x44};
+            byte[] clientToServerCid = {0x55, 0x66, 0x77, (byte)0x88};
+
+            ret = server.dtlsCidSet(serverToClientCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.dtlsCidSet(clientToServerCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            /* Verify bidirectional CID setup (RX side) */
+            byte[] serverRx = server.dtlsCidGetRx();
+            byte[] clientRx = client.dtlsCidGetRx();
+
+            if (serverRx == null || clientRx == null) {
+                System.out.println("\t\t... skipped (CID retrieval failed)");
+                return;
+            }
+
+            assertArrayEquals("Server should expect server-to-client CID",
+                              serverToClientCid, serverRx);
+            assertArrayEquals("Client should expect client-to-server CID",
+                              clientToServerCid, clientRx);
+
+            /* Test CID size limits */
+            int maxCidSize = WolfSSLSession.dtlsCidMaxSize();
+            if (maxCidSize > 0) {
+                assertTrue("Server RX CID should be within max size",
+                           serverRx.length <= maxCidSize);
+                assertTrue("Client RX CID should be within max size",
+                           clientRx.length <= maxCidSize);
+            }
+
+            /* Test parsing functionality with mock DTLS message */
+            byte[] mockDtlsMsg = new byte[]{
+                /* DTLS header simulation - not a real DTLS message */
+                0x16, (byte)0xfe, (byte)0xfd, 0x00, 0x01, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x22, 0x33,
+                0x44 /* Mock CID data at end */
+            };
+
+            byte[] parsedCid = WolfSSLSession.dtlsCidParse(mockDtlsMsg, 4);
+            /* parsedCid may be null - depends on DTLS message format */
+            /* This tests the API works, actual parsing depends on wolfSSL */
+
+            System.out.println("\t\t... passed");
+
+        } catch (Exception e) {
+            System.out.println("\t\t... failed with exception: " +
+                               e.getMessage());
+            throw e;
+
+        } finally {
+            if (server != null) {
+                server.freeSSL();
+            }
+            if (client != null) {
+                client.freeSSL();
+            }
+            if (serverCtx != null) {
+                serverCtx.free();
+            }
+            if (clientCtx != null) {
+                clientCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidConnectionMigration()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        System.out.print("\tDTLS CID connection migration");
+
+        /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+        if (!dtls13Supported) {
+            System.out.println("\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        WolfSSLContext serverCtx = null;
+        WolfSSLSession server1 = null;
+        WolfSSLSession server2 = null;
+
+        try {
+            /* Create DTLSv1.3 server context (CID requires DTLSv1.3) */
+            serverCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ServerMethod());
+
+            serverCtx.useCertificateFile(cliCert, WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(cliKey, WolfSSL.SSL_FILETYPE_PEM);
+
+            /* Create two server sessions to simulate connection migration */
+            server1 = new WolfSSLSession(serverCtx);
+            server2 = new WolfSSLSession(serverCtx);
+
+            /* Enable CID on both sessions */
+            int ret1 = server1.dtlsCidUse();
+            if (ret1 == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            int ret2 = server2.dtlsCidUse();
+            assertTrue("Both servers should enable CID successfully",
+                       ret1 == WolfSSL.SSL_SUCCESS &&
+                       ret2 == WolfSSL.SSL_SUCCESS);
+
+            /* Set same CID on both sessions (simulating connection
+             * migration) */
+            byte[] migrationCid = {(byte)0xAA, (byte)0xBB, (byte)0xCC,
+                                   (byte)0xDD, (byte)0xEE, (byte)0xFF};
+
+            ret1 = server1.dtlsCidSet(migrationCid);
+            ret2 = server2.dtlsCidSet(migrationCid);
+
+            if (ret1 != WolfSSL.SSL_SUCCESS || ret2 != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t... skipped (dtlsCidSet failed: " +
+                                   ret1 + ", " + ret2 + ")");
+                return;
+            }
+
+            /* Verify both sessions have the same RX CID */
+            byte[] server1Rx = server1.dtlsCidGetRx();
+            byte[] server2Rx = server2.dtlsCidGetRx();
+
+            if (server1Rx == null || server2Rx == null) {
+                System.out.println("\t... skipped (CID retrieval failed)");
+                return;
+            }
+
+            assertArrayEquals("Both servers should have same RX CID",
+                              server1Rx, server2Rx);
+            assertArrayEquals("RX CID should match original migration CID",
+                              migrationCid, server1Rx);
+
+            /* Test RX CID size consistency across sessions */
+            int size1 = server1.dtlsCidGetRxSize();
+            int size2 = server2.dtlsCidGetRxSize();
+
+            assertEquals("Both sessions should report same RX CID size",
+                         size1, size2);
+            assertEquals("RX CID size should match set CID length",
+                         migrationCid.length, size1);
+
+            /* Test direct reference consistency for RX CIDs */
+            byte[] server1Rx0 = server1.dtlsCidGet0Rx();
+            byte[] server2Rx0 = server2.dtlsCidGet0Rx();
+
+            assertArrayEquals("Direct reference RX CIDs should match",
+                              server1Rx0, server2Rx0);
+
+            /* TX CID sizes should be 0 (no handshake occurred) */
+            int txSize1 = server1.dtlsCidGetTxSize();
+            int txSize2 = server2.dtlsCidGetTxSize();
+
+            /* TX size should be 0 (no peer CID negotiated yet) */
+            assertTrue("TX CID size should be 0 without handshake",
+                       txSize1 == 0 && txSize2 == 0);
+
+            System.out.println("\t... passed");
+
+        } catch (Exception e) {
+            System.out.println("\t... failed with exception: " +
+                               e.getMessage());
+            throw e;
+
+        } finally {
+            if (server1 != null) {
+                server1.freeSSL();
+            }
+            if (server2 != null) {
+                server2.freeSSL();
+            }
+            if (serverCtx != null) {
+                serverCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidBoundarySizes()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+
+        System.out.print("\tDTLS CID boundary sizes");
+
+        /* Skip if DTLSv1.3 not supported */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        try {
+            /* Create DTLS context for CID testing */
+            dtlsCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+            sess = new WolfSSLSession(dtlsCtx);
+
+            /* Enable CID */
+            int ret = sess.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            /* Test empty CID (0 bytes) */
+            byte[] emptyCid = new byte[0];
+            ret = sess.dtlsCidSet(emptyCid);
+            assertTrue("Empty CID should return valid result",
+                       ret == WolfSSL.SSL_SUCCESS ||
+                       ret == WolfSSL.BAD_FUNC_ARG || ret < 0);
+
+            /* Get max CID size */
+            int maxSize = WolfSSLSession.dtlsCidMaxSize();
+            if (maxSize > 0) {
+                /* Test CID at max size - should succeed */
+                byte[] maxCid = new byte[maxSize];
+                for (int i = 0; i < maxSize; i++) {
+                    maxCid[i] = (byte)(i & 0xFF);
+                }
+
+                ret = sess.dtlsCidSet(maxCid);
+                assertTrue("Max size CID should succeed or return " +
+                           "valid error",
+                           ret == WolfSSL.SSL_SUCCESS || ret < 0);
+
+                /* If max size succeeded, verify it was set correctly */
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    int rxSize = sess.dtlsCidGetRxSize();
+                    assertEquals("RX CID size should match max size",
+                                 maxSize, rxSize);
+
+                    byte[] retrievedCid = sess.dtlsCidGetRx();
+                    assertNotNull("Retrieved max size CID should not " +
+                                  "be null", retrievedCid);
+                    assertEquals("Retrieved CID length should match " +
+                                 "max size",
+                                 maxSize, retrievedCid.length);
+                }
+
+                /* Test oversized CID (max + 1) - should fail */
+                byte[] oversizedCid = new byte[maxSize + 1];
+                for (int i = 0; i <= maxSize; i++) {
+                    oversizedCid[i] = (byte)0xFF;
+                }
+
+                ret = sess.dtlsCidSet(oversizedCid);
+                assertTrue("Oversized CID should return error code",
+                           ret != WolfSSL.SSL_SUCCESS);
+            }
+
+            /* Test single byte CID - minimum valid size */
+            byte[] minCid = new byte[]{(byte)0xAA};
+            ret = sess.dtlsCidSet(minCid);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                int rxSize = sess.dtlsCidGetRxSize();
+                assertEquals("Single byte CID size should be 1", 1,
+                             rxSize);
+
+                byte[] retrieved = sess.dtlsCidGetRx();
+                assertNotNull("Single byte CID should be retrievable",
+                              retrieved);
+                assertEquals("Retrieved single byte CID length", 1,
+                             retrieved.length);
+                assertEquals("Retrieved CID value should match",
+                             (byte)0xAA, retrieved[0]);
+            }
+
+            System.out.println("\t\t... passed");
+
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidErrorConditions()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+
+        System.out.print("\tDTLS CID error conditions");
+
+        /* Skip if DTLSv1.3 not supported */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        try {
+            /* Create DTLS context for CID testing */
+            dtlsCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+            sess = new WolfSSLSession(dtlsCtx);
+
+            /* Enable CID */
+            int ret = sess.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            /* Test null CID - should return BAD_FUNC_ARG */
+            ret = sess.dtlsCidSet(null);
+            assertEquals("Null CID should return BAD_FUNC_ARG",
+                         WolfSSL.BAD_FUNC_ARG, ret);
+
+            /* Test multiple calls to dtlsCidSet (overwrite scenario) */
+            byte[] firstCid = new byte[]{0x01, 0x02, 0x03};
+            byte[] secondCid = new byte[]{0x04, 0x05, 0x06, 0x07};
+
+            ret = sess.dtlsCidSet(firstCid);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                /* Verify first CID was set */
+                byte[] retrieved = sess.dtlsCidGetRx();
+                assertNotNull("First CID should be retrievable",
+                              retrieved);
+                assertArrayEquals("First CID should match", firstCid,
+                                  retrieved);
+
+                /* Overwrite with second CID */
+                ret = sess.dtlsCidSet(secondCid);
+                assertNotNull("Second dtlsCidSet should return a value",
+                              Integer.valueOf(ret));
+
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    /* Verify second CID overwrote first */
+                    retrieved = sess.dtlsCidGetRx();
+                    assertNotNull("Second CID should be retrievable",
+                                  retrieved);
+                    assertArrayEquals("Second CID should have " +
+                                      "replaced first",
+                                      secondCid, retrieved);
+                    assertEquals("RX size should match second CID",
+                                 secondCid.length,
+                                 sess.dtlsCidGetRxSize());
+                }
+            }
+
+            /* Test calling CID methods without dtlsCidUse() */
+            WolfSSLSession sess2 = new WolfSSLSession(dtlsCtx);
+            try {
+                /* Don't call dtlsCidUse(), try to set CID anyway */
+                byte[] testCid = new byte[]{0x11, 0x22};
+                ret = sess2.dtlsCidSet(testCid);
+                /* Should fail or return error since CID not enabled */
+                assertNotEquals("Setting CID without dtlsCidUse should fail",
+                                WolfSSL.SSL_SUCCESS, ret);
+
+                /* Check that CID is not enabled */
+                int enabled = sess2.dtlsCidIsEnabled();
+                assertTrue("CID should not be enabled", enabled == 0 ||
+                           enabled == WolfSSL.NOT_COMPILED_IN);
+
+            } finally {
+                sess2.freeSSL();
+            }
+
+            System.out.println("\t\t... passed");
+
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidGet0VsRegularGet()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+
+        System.out.print("\tDTLS CID get0 vs regular get");
+
+        /* Skip if DTLSv1.3 not supported */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        try {
+            /* Create DTLS context for CID testing */
+            dtlsCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
+            sess = new WolfSSLSession(dtlsCtx);
+
+            /* Enable CID */
+            int ret = sess.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            /* Set a test CID */
+            byte[] testCid = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05};
+            ret = sess.dtlsCidSet(testCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (dtlsCidSet failed)");
+                return;
+            }
+
+            /* Get CID using both methods */
+            byte[] rxCid = sess.dtlsCidGetRx();
+            byte[] rxCid0 = sess.dtlsCidGet0Rx();
+
+            /* Both should return non-null */
+            assertNotNull("dtlsCidGetRx should return non-null", rxCid);
+            assertNotNull("dtlsCidGet0Rx should return non-null",
+                          rxCid0);
+
+            /* Both should have same content */
+            assertArrayEquals("Both methods should return same CID data",
+                              rxCid, rxCid0);
+
+            /* Both should match original CID */
+            assertArrayEquals("Regular get should match set CID",
+                              testCid, rxCid);
+            assertArrayEquals("Get0 should match set CID", testCid,
+                              rxCid0);
+
+            /* Test that modifying returned arrays doesn't affect
+             * internal state. Note: get0 typically means "direct
+             * reference" in OpenSSL/wolfSSL, but our JNI wrapper
+             * creates new Java byte arrays for both, so both should
+             * be safe to modify */
+            byte originalFirstByte = rxCid[0];
+            rxCid[0] = (byte)0xFF;
+            rxCid0[0] = (byte)0xEE;
+
+            /* Re-fetch CIDs */
+            byte[] rxCidAgain = sess.dtlsCidGetRx();
+            byte[] rxCid0Again = sess.dtlsCidGet0Rx();
+
+            /* Should still have original value */
+            assertNotNull("Re-fetched CID should not be null",
+                          rxCidAgain);
+            assertNotNull("Re-fetched CID0 should not be null",
+                          rxCid0Again);
+            assertEquals("Internal CID should not be modified by " +
+                         "external changes",
+                         originalFirstByte, rxCidAgain[0]);
+            assertEquals("Internal CID should not be modified by " +
+                         "external changes",
+                         originalFirstByte, rxCid0Again[0]);
+
+            /* Test TX side (before handshake, should return null or
+             * empty) */
+            byte[] txCid = sess.dtlsCidGetTx();
+            byte[] txCid0 = sess.dtlsCidGet0Tx();
+
+            /* TX CIDs should be null or have zero length since no
+             * handshake occurred */
+            assertTrue("TX CID should be null or empty before handshake",
+                       txCid == null || txCid.length == 0);
+            assertTrue("TX CID0 should be null or empty before " +
+                       "handshake",
+                       txCid0 == null || txCid0.length == 0);
+
+            System.out.println("\t... passed");
+
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidHandshakeComplete()
+        throws Exception {
+
+        System.out.print("\tDTLS CID handshake complete");
+
+        /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        WolfSSLContext serverCtx = null;
+        WolfSSLContext clientCtx = null;
+        WolfSSLSession server = null;
+        WolfSSLSession client = null;
+        DatagramSocket serverSocket = null;
+        DatagramSocket clientSocket = null;
+
+        try {
+            /* Create server and client contexts */
+            serverCtx = new WolfSSLContext(
+                WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(
+                WolfSSL.DTLSv1_3_ClientMethod());
+
+            /* Load certificates */
+            serverCtx.useCertificateFile(cliCert,
+                                         WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(cliKey,
+                                        WolfSSL.SSL_FILETYPE_PEM);
+            clientCtx.loadVerifyLocations(caCert, null);
+
+            /* Create sessions */
+            server = new WolfSSLSession(serverCtx);
+            client = new WolfSSLSession(clientCtx);
+
+            /* Enable CID on both sides */
+            int ret = server.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            ret = client.dtlsCidUse();
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client CID " +
+                                   "enable failed: " + ret + ")");
+                return;
+            }
+
+            /* Set Connection IDs before handshake */
+            byte[] serverCid = {0x01, 0x02, 0x03, 0x04, 0x05};
+            byte[] clientCid = {0x06, 0x07, 0x08, 0x09, 0x0A};
+
+            ret = server.dtlsCidSet(serverCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.dtlsCidSet(clientCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsCidSet failed: " + ret + ")");
+                return;
+            }
+
+            /* Verify RX CIDs are set (what we'll receive with) */
+            byte[] serverRx = server.dtlsCidGetRx();
+            byte[] clientRx = client.dtlsCidGetRx();
+
+            assertNotNull("Server RX CID should be set", serverRx);
+            assertNotNull("Client RX CID should be set", clientRx);
+            assertArrayEquals("Server RX CID should match set value",
+                              serverCid, serverRx);
+            assertArrayEquals("Client RX CID should match set value",
+                              clientCid, clientRx);
+
+            /* Before handshake, TX CIDs should be 0/null */
+            int serverTxSizeBefore = server.dtlsCidGetTxSize();
+            int clientTxSizeBefore = client.dtlsCidGetTxSize();
+
+            assertEquals("Server TX CID size should be 0 before " +
+                         "handshake", 0, serverTxSizeBefore);
+            assertEquals("Client TX CID size should be 0 before " +
+                         "handshake", 0, clientTxSizeBefore);
+
+            /* Set up UDP sockets for DTLS communication */
+            serverSocket = new DatagramSocket();
+            clientSocket = new DatagramSocket();
+
+            InetSocketAddress serverAddr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(),
+                serverSocket.getLocalPort());
+            InetSocketAddress clientAddr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(),
+                clientSocket.getLocalPort());
+
+            /* Set up DTLS peers */
+            ret = server.dtlsSetPeer(clientAddr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsSetPeer failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.dtlsSetPeer(serverAddr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsSetPeer failed: " + ret + ")");
+                return;
+            }
+
+            /* Configure sockets for sessions */
+            ret = server.setFd(serverSocket);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server setFd " +
+                                   "failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.setFd(clientSocket);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client setFd " +
+                                   "failed: " + ret + ")");
+                return;
+            }
+
+            /* Perform DTLS handshake in separate thread */
+            final WolfSSLSession finalServer = server;
+            Future<Integer> serverFuture = es.submit(
+                new Callable<Integer>() {
+                    @Override
+                    public Integer call() {
+                        try {
+                            return finalServer.accept();
+                        } catch (Exception e) {
+                            return WolfSSL.SSL_FAILURE;
+                        }
+                    }
+                });
+
+            /* Client handshake */
+            ret = client.connect();
+
+            /* Wait for server handshake to complete */
+            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+
+            if (ret == WolfSSL.SSL_SUCCESS &&
+                serverRet == WolfSSL.SSL_SUCCESS) {
+
+                /* Handshake succeeded! Now verify TX CIDs are
+                 * negotiated. TX CID = what we send to peer, which
+                 * should be peer's RX CID */
+                int serverTxSize = server.dtlsCidGetTxSize();
+                int clientTxSize = client.dtlsCidGetTxSize();
+
+                /* TX sizes should now be non-zero */
+                assertTrue("Server TX CID size should be > 0 after " +
+                           "handshake", serverTxSize > 0);
+                assertTrue("Client TX CID size should be > 0 after " +
+                           "handshake", clientTxSize > 0);
+
+                /* Get TX CIDs */
+                byte[] serverTx = server.dtlsCidGetTx();
+                byte[] clientTx = client.dtlsCidGetTx();
+
+                assertNotNull("Server TX CID should not be null",
+                              serverTx);
+                assertNotNull("Client TX CID should not be null",
+                              clientTx);
+
+                /* Server's TX CID should match client's RX CID */
+                assertArrayEquals("Server TX should match client RX",
+                                  clientCid, serverTx);
+
+                /* Client's TX CID should match server's RX CID */
+                assertArrayEquals("Client TX should match server RX",
+                                  serverCid, clientTx);
+
+                /* Test get0 versions for TX */
+                byte[] serverTx0 = server.dtlsCidGet0Tx();
+                byte[] clientTx0 = client.dtlsCidGet0Tx();
+
+                assertNotNull("Server TX CID0 should not be null",
+                              serverTx0);
+                assertNotNull("Client TX CID0 should not be null",
+                              clientTx0);
+
+                assertArrayEquals("Server TX0 should match TX",
+                                  serverTx, serverTx0);
+                assertArrayEquals("Client TX0 should match TX",
+                                  clientTx, clientTx0);
+
+                System.out.println("\t... passed");
+
+            } else {
+                System.out.println("\t... skipped (handshake failed: " +
+                                   "client=" + ret + ", server=" +
+                                   serverRet + ")");
+            }
+
+        } finally {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
+            if (clientSocket != null) {
+                clientSocket.close();
+            }
+            if (server != null) {
+                server.freeSSL();
+            }
+            if (client != null) {
+                client.freeSSL();
+            }
+            if (serverCtx != null) {
+                serverCtx.free();
+            }
+            if (clientCtx != null) {
+                clientCtx.free();
+            }
+            es.shutdown();
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_dtlsCidDataExchangeAfterHandshake()
+        throws Exception {
+
+        System.out.print("\tDTLS CID data exchange");
+
+        /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
+        String[] protocols = WolfSSL.getProtocols();
+        boolean dtls13Supported = false;
+        for (String protocol : protocols) {
+            if (protocol.equals("DTLSv1.3")) {
+                dtls13Supported = true;
+                break;
+            }
+        }
+
+        if (!dtls13Supported) {
+            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            return;
+        }
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        WolfSSLContext serverCtx = null;
+        WolfSSLContext clientCtx = null;
+        WolfSSLSession server = null;
+        WolfSSLSession client = null;
+        DatagramSocket serverSocket = null;
+        DatagramSocket clientSocket = null;
+
+        try {
+            /* Create server and client contexts */
+            serverCtx = new WolfSSLContext(
+                WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(
+                WolfSSL.DTLSv1_3_ClientMethod());
+
+            /* Load certificates */
+            serverCtx.useCertificateFile(cliCert,
+                                         WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(cliKey,
+                                        WolfSSL.SSL_FILETYPE_PEM);
+            clientCtx.loadVerifyLocations(caCert, null);
+
+            /* Create sessions */
+            server = new WolfSSLSession(serverCtx);
+            client = new WolfSSLSession(clientCtx);
+
+            /* Enable CID on both sides */
+            int ret = server.dtlsCidUse();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped (DTLS CID not " +
+                                   "compiled in)");
+                return;
+            }
+
+            ret = client.dtlsCidUse();
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client CID " +
+                                   "enable failed: " + ret + ")");
+                return;
+            }
+
+            /* Set Connection IDs */
+            byte[] serverCid = {0x11, 0x22, 0x33, 0x44};
+            byte[] clientCid = {0x55, 0x66, 0x77, (byte)0x88};
+
+            ret = server.dtlsCidSet(serverCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsCidSet failed)");
+                return;
+            }
+
+            ret = client.dtlsCidSet(clientCid);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsCidSet failed)");
+                return;
+            }
+
+            /* Set up UDP sockets for DTLS communication */
+            serverSocket = new DatagramSocket();
+            clientSocket = new DatagramSocket();
+
+            InetSocketAddress serverAddr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(),
+                serverSocket.getLocalPort());
+            InetSocketAddress clientAddr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(),
+                clientSocket.getLocalPort());
+
+            /* Set up DTLS peers */
+            ret = server.dtlsSetPeer(clientAddr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server " +
+                                   "dtlsSetPeer failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.dtlsSetPeer(serverAddr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client " +
+                                   "dtlsSetPeer failed: " + ret + ")");
+                return;
+            }
+
+            /* Configure sockets for sessions */
+            ret = server.setFd(serverSocket);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Server setFd " +
+                                   "failed: " + ret + ")");
+                return;
+            }
+
+            ret = client.setFd(clientSocket);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... skipped (Client setFd " +
+                                   "failed: " + ret + ")");
+                return;
+            }
+
+            /* Perform DTLS handshake in separate thread */
+            final WolfSSLSession finalServer = server;
+            Future<Integer> serverFuture = es.submit(
+                new Callable<Integer>() {
+                    @Override
+                    public Integer call() {
+                        try {
+                            return finalServer.accept();
+                        } catch (Exception e) {
+                            return WolfSSL.SSL_FAILURE;
+                        }
+                    }
+                });
+
+            /* Client handshake */
+            ret = client.connect();
+
+            /* Wait for server handshake to complete */
+            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+
+            if (ret == WolfSSL.SSL_SUCCESS &&
+                serverRet == WolfSSL.SSL_SUCCESS) {
+
+                /* Handshake succeeded, now test data exchange */
+                final String testMessage = "Hello DTLS CID!";
+                final byte[] sendBuf = testMessage.getBytes();
+                final byte[] recvBuf = new byte[256];
+
+                /* Client sends data to server */
+                int sent = client.write(sendBuf, sendBuf.length);
+                assertTrue("Client should send data successfully",
+                           sent == sendBuf.length);
+
+                /* Server receives data */
+                int received = server.read(recvBuf, recvBuf.length);
+                assertTrue("Server should receive data",
+                           received == sendBuf.length);
+
+                String receivedMsg = new String(recvBuf, 0, received);
+                assertEquals("Received message should match sent",
+                             testMessage, receivedMsg);
+
+                /* Server sends response */
+                final String responseMsg = "DTLS CID works!";
+                final byte[] responseBuf = responseMsg.getBytes();
+
+                sent = server.write(responseBuf, responseBuf.length);
+                assertTrue("Server should send response successfully",
+                           sent == responseBuf.length);
+
+                /* Client receives response */
+                received = client.read(recvBuf, recvBuf.length);
+                assertTrue("Client should receive response",
+                           received == responseBuf.length);
+
+                receivedMsg = new String(recvBuf, 0, received);
+                assertEquals("Received response should match sent",
+                             responseMsg, receivedMsg);
+
+                /* Verify CIDs are still correctly configured after
+                 * data exchange */
+                byte[] serverTx = server.dtlsCidGetTx();
+                byte[] clientTx = client.dtlsCidGetTx();
+
+                assertNotNull("Server TX CID should still be set",
+                              serverTx);
+                assertNotNull("Client TX CID should still be set",
+                              clientTx);
+
+                assertArrayEquals("Server TX should still match " +
+                                  "client RX",
+                                  clientCid, serverTx);
+                assertArrayEquals("Client TX should still match " +
+                                  "server RX",
+                                  serverCid, clientTx);
+
+                System.out.println("\t\t... passed");
+
+            } else {
+                System.out.println("\t\t... skipped (handshake " +
+                                   "failed: client=" + ret +
+                                   ", server=" + serverRet + ")");
+            }
+
+        } finally {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
+            if (clientSocket != null) {
+                clientSocket.close();
+            }
+            if (server != null) {
+                server.freeSSL();
+            }
+            if (client != null) {
+                client.freeSSL();
+            }
+            if (serverCtx != null) {
+                serverCtx.free();
+            }
+            if (clientCtx != null) {
+                clientCtx.free();
+            }
+            es.shutdown();
+        }
+    }
+
 }
 

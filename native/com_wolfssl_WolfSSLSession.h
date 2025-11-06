@@ -321,6 +321,94 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidUse
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidUse
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidIsEnabled
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidIsEnabled
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidSet
+ * Signature: (J[BI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidSet
+  (JNIEnv *, jobject, jlong, jbyteArray, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGetRxSize
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetRxSize
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGetRx
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetRx
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGet0Rx
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGet0Rx
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGetTxSize
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetTxSize
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGetTx
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetTx
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidGet0Tx
+ * Signature: (J)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGet0Tx
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidMaxSizeNative
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidMaxSizeNative
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    dtlsCidParseNative
+ * Signature: ([BII)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidParseNative
+  (JNIEnv *, jclass, jbyteArray, jint, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    sendHrrCookie
  * Signature: (J[B)I
  */
