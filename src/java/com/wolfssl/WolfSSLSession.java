@@ -608,6 +608,18 @@ public class WolfSSLSession {
     private native int dtlsRetransmit(long ssl);
     private native int dtls(long ssl);
     private native int dtlsSetPeer(long ssl, InetSocketAddress peer);
+    private native int dtlsCidUse(long ssl);
+    private native int dtlsCidIsEnabled(long ssl);
+    private native int dtlsCidSet(long ssl, byte[] cid, int size);
+    private native int dtlsCidGetRxSize(long ssl);
+    private native byte[] dtlsCidGetRx(long ssl);
+    private native byte[] dtlsCidGet0Rx(long ssl);
+    private native int dtlsCidGetTxSize(long ssl);
+    private native byte[] dtlsCidGetTx(long ssl);
+    private native byte[] dtlsCidGet0Tx(long ssl);
+    private static native int dtlsCidMaxSizeNative();
+    private static native byte[] dtlsCidParseNative(byte[] msg, int msgSz,
+        int cidSz);
     private native int sendHrrCookie(long ssl, byte[] secret);
     private native long getDtlsMacDropCount(long ssl);
     private native long getDtlsReplayDropCount(long ssl);
@@ -2909,6 +2921,185 @@ public class WolfSSLSession {
         synchronized (sslLock) {
             return setMTU(this.sslPtr, mtu);
         }
+    }
+
+    /**
+     * Enable DTLS Connection ID (CID) extension support for this session.
+     *
+     * @return SSL_SUCCESS on success, or negative value on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int dtlsCidUse() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidUse(this.sslPtr);
+        }
+    }
+
+    /**
+     * Check if DTLS Connection ID (CID) extension is enabled for this session.
+     *
+     * @return 1 if enabled, 0 if disabled, or negative value on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int dtlsCidIsEnabled() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidIsEnabled(this.sslPtr);
+        }
+    }
+
+    /**
+     * Set the Connection ID (CID) for this DTLS session.
+     *
+     * @param cid byte array containing the CID to set
+     *
+     * @return SSL_SUCCESS on success, or negative value on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int dtlsCidSet(byte[] cid) throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        if (cid == null) {
+            return WolfSSL.BAD_FUNC_ARG;
+        }
+
+        synchronized (sslLock) {
+            return dtlsCidSet(this.sslPtr, cid, cid.length);
+        }
+    }
+
+    /**
+     * Get the size of the received (RX) Connection ID for this DTLS session.
+     *
+     * @return size of RX CID on success, or negative value on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int dtlsCidGetRxSize() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGetRxSize(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get the received (RX) Connection ID for this DTLS session.
+     *
+     * @return byte array containing the RX CID, or null on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public byte[] dtlsCidGetRx() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGetRx(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get a reference to the received (RX) Connection ID for this DTLS
+     * session. This version returns a direct reference without copying.
+     *
+     * @return byte array containing the RX CID, or null on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public byte[] dtlsCidGet0Rx() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGet0Rx(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get the size of the transmitted (TX) Connection ID for this DTLS
+     * session.
+     *
+     * @return size of TX CID on success, or negative value on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int dtlsCidGetTxSize() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGetTxSize(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get the transmitted (TX) Connection ID for this DTLS session.
+     *
+     * @return byte array containing the TX CID, or null on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public byte[] dtlsCidGetTx() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGetTx(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get a reference to the transmitted (TX) Connection ID for this DTLS
+     * session. This version returns a direct reference without copying.
+     *
+     * @return byte array containing the TX CID, or null on error
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public byte[] dtlsCidGet0Tx() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return dtlsCidGet0Tx(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get the maximum allowed size for DTLS Connection IDs.
+     *
+     * @return maximum CID size in bytes
+     */
+    public static int dtlsCidMaxSize() {
+        return dtlsCidMaxSizeNative();
+    }
+
+    /**
+     * Parse a DTLS message to extract the Connection ID.
+     *
+     * @param msg byte array containing the DTLS message
+     * @param cidSize expected size of the Connection ID
+     *
+     * @return byte array containing the parsed CID, or null on error
+     */
+    public static byte[] dtlsCidParse(byte[] msg, int cidSize) {
+
+        if (msg == null || cidSize < 0) {
+            return null;
+        }
+
+        return dtlsCidParseNative(msg, msg.length, cidSize);
     }
 
     /**

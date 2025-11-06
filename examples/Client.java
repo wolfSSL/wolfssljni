@@ -72,6 +72,7 @@ public class Client {
         int pkCallbacks = 0;                  /* public key callbacks */
         int logCallback = 0;                  /* use test logging callback */
         int usePsk = 0;                       /* use pre shared keys */
+        int useDtlsCid = 0;                   /* use DTLS CID extension */
 
         boolean useSecretCallback = false;    /* enable TLS 1.3 secret cb */
         String keyLogFile = "sslkeylog.log";  /* output keylog file */
@@ -215,6 +216,9 @@ public class Client {
                     useSecretCallback = true;
                     keyLogFile = args[++i];
 
+                } else if (arg.equals("-cid")) {
+                    useDtlsCid = 1;
+
                 } else {
                     printUsage();
                 }
@@ -355,12 +359,12 @@ public class Client {
                 }
             }
 
-            /* register I/O callbacks, I/O ctx setup is later */
+            /* register I/O callbacks, saved for session level later */
+            MyRecvCallback rcb = null;
+            MySendCallback scb = null;
             if (useIOCallbacks || (doDTLS == 1)) {
-                MyRecvCallback rcb = new MyRecvCallback();
-                MySendCallback scb = new MySendCallback();
-                sslCtx.setIORecv(rcb);
-                sslCtx.setIOSend(scb);
+                rcb = new MyRecvCallback();
+                scb = new MySendCallback();
                 System.out.println("Registered I/O callbacks");
             }
 
@@ -488,6 +492,26 @@ public class Client {
                     keyLogFile);
             }
 
+            /* Enable DTLS CID if requested */
+            if (useDtlsCid == 1) {
+                ret = ssl.dtlsCidUse();
+                if (ret == WolfSSL.NOT_COMPILED_IN) {
+                    System.out.println("DTLS CID not compiled in wolfSSL");
+                    System.exit(1);
+                } else if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("Failed to enable DTLS CID: " + ret);
+                    System.exit(1);
+                }
+                /* Set CID value (example: random bytes) */
+                byte[] clientCid = {0x01, 0x02, 0x03, 0x04, 0x05};
+                ret = ssl.dtlsCidSet(clientCid);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    System.out.println("Failed to set DTLS CID: " + ret);
+                    System.exit(1);
+                }
+                System.out.println("Enabled DTLS CID extension");
+            }
+
             /* open Socket */
             if (doDTLS == 1) {
                 dsock = new DatagramSocket();
@@ -510,6 +534,10 @@ public class Client {
             }
 
             if (useIOCallbacks || (doDTLS == 1)) {
+                /* register I/O callbacks at session level */
+                ssl.setIORecv(rcb);
+                ssl.setIOSend(scb);
+
                 /* register I/O callback user context */
                 MyIOCtx ioctx = new MyIOCtx(outstream, instream, dsock,
                         hostAddr, port);
@@ -584,6 +612,69 @@ public class Client {
             /* show peer info */
             showPeer(ssl);
 
+            /* Test all DTLS CID APIs if enabled */
+            if (useDtlsCid == 1) {
+                System.out.println("\nTesting DTLS CID APIs:");
+
+                /* API 1: dtlsCidIsEnabled */
+                ret = ssl.dtlsCidIsEnabled();
+                System.out.println("dtlsCidIsEnabled: " + ret);
+
+                /* API 2: dtlsCidGetRxSize */
+                int rxSize = ssl.dtlsCidGetRxSize();
+                System.out.println("dtlsCidGetRxSize: " + rxSize);
+
+                /* API 3: dtlsCidGetRx */
+                byte[] rxCid = ssl.dtlsCidGetRx();
+                if (rxCid != null) {
+                    System.out.print("dtlsCidGetRx: ");
+                    for (byte b : rxCid) {
+                        System.out.print(String.format("%02X ", b));
+                    }
+                    System.out.println();
+                }
+
+                /* API 4: dtlsCidGet0Rx */
+                byte[] rxCid0 = ssl.dtlsCidGet0Rx();
+                if (rxCid0 != null) {
+                    System.out.print("dtlsCidGet0Rx: ");
+                    for (byte b : rxCid0) {
+                        System.out.print(String.format("%02X ", b));
+                    }
+                    System.out.println();
+                }
+
+                /* API 5: dtlsCidGetTxSize */
+                int txSize = ssl.dtlsCidGetTxSize();
+                System.out.println("dtlsCidGetTxSize: " + txSize);
+
+                /* API 6: dtlsCidGetTx */
+                byte[] txCid = ssl.dtlsCidGetTx();
+                if (txCid != null) {
+                    System.out.print("dtlsCidGetTx: ");
+                    for (byte b : txCid) {
+                        System.out.print(String.format("%02X ", b));
+                    }
+                    System.out.println();
+                }
+
+                /* API 7: dtlsCidGet0Tx */
+                byte[] txCid0 = ssl.dtlsCidGet0Tx();
+                if (txCid0 != null) {
+                    System.out.print("dtlsCidGet0Tx: ");
+                    for (byte b : txCid0) {
+                        System.out.print(String.format("%02X ", b));
+                    }
+                    System.out.println();
+                }
+
+                /* API 8: dtlsCidMaxSize (static) */
+                int maxSize = WolfSSLSession.dtlsCidMaxSize();
+                System.out.println("dtlsCidMaxSize: " + maxSize);
+
+                System.out.println();
+            }
+
             /* test write(long, byte[], int) */
             do {
                 ret = ssl.write(msg.getBytes(), msg.length());
@@ -650,6 +741,10 @@ public class Client {
                 }
 
                 if (useIOCallbacks || (doDTLS == 1)) {
+                    /* register I/O callbacks at session level */
+                    ssl.setIORecv(rcb);
+                    ssl.setIOSend(scb);
+
                     /* register I/O callback user context */
                     MyIOCtx ioctx = new MyIOCtx(outstream, instream, dsock,
                             hostAddr, port);
@@ -795,6 +890,9 @@ public class Client {
         if (WolfSSL.isEnabledDTLS() == 1)
             System.out.println("-u\t\tUse UDP DTLS, add -v 2 for DTLSv1 " +
                     "(default), -v 3 for DTLSv1.2, -v 4 for DTLSv1.3");
+        if (WolfSSL.isEnabledDTLS() == 1)
+            System.out.println("-cid\t\tEnable DTLS Connection ID (CID) " +
+                    "extension (requires -u -v 4 for DTLSv1.3)");
         System.out.println("-iocb\t\tEnable test I/O callbacks");
         System.out.println("-logtest\tEnable test logging callback");
         if (WolfSSL.isEnabledOCSP() == 1) {
