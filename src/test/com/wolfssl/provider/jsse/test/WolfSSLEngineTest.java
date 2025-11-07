@@ -24,8 +24,11 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import java.io.EOFException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -2073,6 +2076,328 @@ public class WolfSSLEngineTest {
             fail("Failed DTLSv1.3 session resumption test " +
                  "with exception: " + e);
         }
+    }
+
+    /**
+     * Test for incorrect BUFFER_OVERFLOW handling in non-blocking I/O.
+     * Uses real SocketChannel I/O to verify unwrap() correctly handles
+     * buffer overflow conditions.
+     */
+    @Test
+    public void testNonBlockingIO() throws Exception {
+
+        System.out.print("\tNon-blocking I/O");
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+            String protocol = enabledProtocols.get(i);
+
+            if (protocol.equals("TLS") || protocol.contains("DTLS")) {
+                continue;
+            }
+
+            final boolean[] serverReady = new boolean[] { false };
+            final int[] serverPort = new int[] { 0 };
+            final Exception[] serverException = new Exception[] { null };
+            final Exception[] clientException = new Exception[] { null };
+
+            Thread serverThread = new Thread() {
+                public void run() {
+                    try {
+                        doNonBlockingIO(protocol, serverPort, serverReady,
+                            false);
+                    } catch (Exception e) {
+                        serverReady[0] = true;
+                        serverException[0] = e;
+                    }
+                }
+            };
+
+            serverThread.start();
+            while (!serverReady[0]) {
+                Thread.sleep(50);
+            }
+            if (serverException[0] != null) {
+                throw serverException[0];
+            }
+
+            Thread clientThread = new Thread() {
+                public void run() {
+                    try {
+                        doNonBlockingIO(protocol, serverPort, serverReady,
+                            true);
+                    } catch (Exception e) {
+                        clientException[0] = e;
+                    }
+                }
+            };
+
+            clientThread.start();
+
+            /* 5 second timeout */
+            serverThread.join(5000);
+            clientThread.join(5000);
+
+            if (serverThread.isAlive() || clientThread.isAlive()) {
+                error("\t... failed");
+                fail("Test timed out for " + protocol);
+            }
+
+            if (serverException[0] != null) {
+                error("\t... failed");
+                throw serverException[0];
+            }
+            if (clientException[0] != null) {
+                error("\t... failed");
+                throw clientException[0];
+            }
+        }
+
+        pass("\t... passed");
+    }
+
+    private void doNonBlockingIO(String protocol, int[] serverPort,
+        boolean[] serverReady, boolean isClient) throws Exception {
+
+        ServerSocketChannel ssc = null;
+        SocketChannel sc = null;
+
+        try {
+            SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
+            SSLEngine engine = ctx.createSSLEngine(
+                "wolfSSL test", 11111);
+            engine.setUseClientMode(isClient);
+            if (!isClient) {
+                engine.setNeedClientAuth(false);
+            }
+
+            if (!isClient) {
+                ssc = ServerSocketChannel.open();
+                ssc.socket().bind(new InetSocketAddress(
+                    InetAddress.getLocalHost(), 0));
+                serverPort[0] = ssc.socket().getLocalPort();
+                serverReady[0] = true;
+                sc = ssc.accept();
+            } else {
+                sc = SocketChannel.open();
+                sc.connect(new InetSocketAddress(
+                    InetAddress.getLocalHost(), serverPort[0]));
+                engine.setEnabledProtocols(new String[] { protocol });
+            }
+
+            sc.configureBlocking(false);
+            while (!sc.finishConnect()) {
+                Thread.sleep(50);
+            }
+
+            doHandshake(engine, sc);
+            if (!isClient) {
+                doDataTransfer(engine, sc, true);
+                doDataTransfer(engine, sc, false);
+            } else {
+                doDataTransfer(engine, sc, false);
+                doDataTransfer(engine, sc, true);
+            }
+
+        } finally {
+            if (sc != null) {
+                try { sc.close(); } catch (Exception e) {}
+            }
+            if (ssc != null) {
+                try { ssc.close(); } catch (Exception e) {}
+            }
+        }
+    }
+
+    private void doHandshake(SSLEngine engine, SocketChannel sc)
+        throws Exception {
+
+        int netSize = engine.getSession().getPacketBufferSize();
+        ByteBuffer localNet = ByteBuffer.allocate(netSize / 10);
+        ByteBuffer peerNet = ByteBuffer.allocate(netSize / 10);
+        ByteBuffer localApp = ByteBuffer.allocate(0);
+        ByteBuffer peerApp = ByteBuffer.allocate(0);
+
+        engine.beginHandshake();
+        HandshakeStatus hs = engine.getHandshakeStatus();
+        boolean underflow = false;
+
+        while (hs != HandshakeStatus.FINISHED &&
+               hs != HandshakeStatus.NOT_HANDSHAKING) {
+
+            SSLEngineResult res;
+            switch (hs) {
+                case NEED_UNWRAP:
+                    if (peerNet.position() == 0 || underflow) {
+                        if (sc.read(peerNet) < 0) {
+                            engine.closeInbound();
+                            throw new EOFException();
+                        }
+                        underflow = false;
+                    }
+                    peerNet.flip();
+                    res = engine.unwrap(peerNet, peerApp);
+                    peerNet.compact();
+                    hs = res.getHandshakeStatus();
+
+                    if (res.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+                        int size = engine.getSession().getPacketBufferSize();
+                        if (size > peerNet.capacity()) {
+                            peerNet = enlargeBuffer(peerNet, size);
+                        }
+                        underflow = true;
+                    } else if (res.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        int size = engine.getSession()
+                            .getApplicationBufferSize();
+                        if (size > peerApp.capacity()) {
+                            peerApp = enlargeBuffer(peerApp, size);
+                        }
+                    }
+                    break;
+
+                case NEED_WRAP:
+                    localNet.clear();
+                    res = engine.wrap(localApp, localNet);
+                    hs = res.getHandshakeStatus();
+                    if (res.getStatus() == SSLEngineResult.Status.OK) {
+                        localNet.flip();
+                        while (localNet.hasRemaining()) {
+                            sc.write(localNet);
+                        }
+                    } else if (res.getStatus() ==
+                        SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        int size = engine.getSession().getPacketBufferSize();
+                        if (size > localNet.capacity()) {
+                            localNet = enlargeBuffer(localNet, size);
+                        }
+                    }
+                    break;
+
+                case NEED_TASK:
+                    Runnable task;
+                    while ((task = engine.getDelegatedTask()) != null) {
+                        task.run();
+                    }
+                    hs = engine.getHandshakeStatus();
+                    break;
+
+                default:
+                    break;
+            }
+            hs = engine.getHandshakeStatus();
+        }
+    }
+
+    private void doDataTransfer(SSLEngine engine, SocketChannel sc,
+        boolean send) throws Exception {
+
+        int appSize = engine.getSession().getApplicationBufferSize();
+        int netSize = engine.getSession().getPacketBufferSize();
+
+        if (send) {
+            /* Large data to span multiple TLS records */
+            ByteBuffer appData = ByteBuffer.allocate(
+                appSize * (Integer.SIZE / 8));
+            appData.putInt(appSize * (Integer.SIZE / 8));
+            for (int i = 1; i < appSize; i++) {
+                appData.putInt(i);
+            }
+            appData.flip();
+            ByteBuffer netData = ByteBuffer.allocate(netSize / 2);
+
+            while (appData.hasRemaining()) {
+                netData.clear();
+                SSLEngineResult res = engine.wrap(appData, netData);
+                if (res.getStatus() == SSLEngineResult.Status.OK) {
+                    netData.flip();
+                    while (netData.hasRemaining()) {
+                        sc.write(netData);
+                    }
+                    if (res.getHandshakeStatus() ==
+                        HandshakeStatus.NEED_TASK) {
+                        Runnable task;
+                        while ((task = engine.getDelegatedTask()) != null) {
+                            task.run();
+                        }
+                    }
+                } else if (res.getStatus() ==
+                    SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                    int size = engine.getSession().getPacketBufferSize();
+                    if (size > netData.capacity()) {
+                        netData = enlargeBuffer(netData, size);
+                    }
+                }
+            }
+        } else {
+            /* Small buffer to test BUFFER_OVERFLOW logic */
+            ByteBuffer appData = ByteBuffer.allocate(appSize / 2);
+            ByteBuffer netData = ByteBuffer.allocate(netSize);
+            int received = -1;
+            boolean needToReadMore = true;
+
+            while (received != 0) {
+                if (needToReadMore) {
+                    if (engine.isInboundDone() || sc.read(netData) < 0) {
+                        break;
+                    }
+                }
+
+                netData.flip();
+                SSLEngineResult res = engine.unwrap(netData, appData);
+                netData.compact();
+
+                switch (res.getStatus()) {
+                    case OK:
+                        if (res.getHandshakeStatus() ==
+                            HandshakeStatus.NEED_TASK) {
+                            Runnable task;
+                            while ((task = engine.getDelegatedTask())
+                                != null) {
+                                task.run();
+                            }
+                        }
+                        if (received < 0 && res.bytesProduced() >= 4) {
+                            received = appData.getInt(0);
+                        }
+                        appData.clear();
+                        received -= res.bytesProduced();
+                        needToReadMore = (res.bytesProduced() == 0);
+                        break;
+
+                    case BUFFER_OVERFLOW:
+                        /* Bug manifests: needToReadMore=false creates
+                         * infinite loop if unwrap() falsely returns
+                         * BUFFER_OVERFLOW based on ssl.pending(). */
+                        int size = engine.getSession()
+                            .getApplicationBufferSize();
+                        if (size > appData.capacity()) {
+                            appData = enlargeBuffer(appData, size);
+                        }
+                        needToReadMore = false;
+                        break;
+
+                    case BUFFER_UNDERFLOW:
+                        size = engine.getSession().getPacketBufferSize();
+                        if (size > netData.capacity()) {
+                            netData = enlargeBuffer(netData, size);
+                        }
+                        needToReadMore = true;
+                        break;
+
+                    default:
+                        throw new IOException("Invalid status: " +
+                            res.getStatus());
+                }
+            }
+        }
+    }
+
+    private ByteBuffer enlargeBuffer(ByteBuffer buffer, int size) {
+        ByteBuffer bb = ByteBuffer.allocate(size);
+        buffer.flip();
+        bb.put(buffer);
+        return bb;
     }
 }
 

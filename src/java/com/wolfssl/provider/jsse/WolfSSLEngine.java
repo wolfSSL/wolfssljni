@@ -1290,22 +1290,9 @@ public class WolfSSLEngine extends SSLEngine {
                             }
 
                             /* Check for BUFFER_OVERFLOW status. This can
-                             * happen if either we have data cached internally
-                             * (in.remaining()) and we have no more output
-                             * space, or if we have more decrypted plaintext
-                             * in the native wolfSSL output buffer and
-                             * ssl.pending() is > 0. */
-                            synchronized (ioLock) {
-                                if ((ret > 0) && (ssl.pending() > 0)) {
-                                    status =
-                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
-                                }
-                                else if ((ret == 0) && (ssl.pending() > 0) &&
-                                   getTotalOutputSize(out, ofst, length) == 0) {
-                                    status =
-                                        SSLEngineResult.Status.BUFFER_OVERFLOW;
-                                }
-                            }
+                             * happen if we have data cached internally
+                             * (in.remaining()) and there is no more output
+                             * space. */
                             synchronized (netDataLock) {
                                 if (ret == 0 && in.remaining() > 0 &&
                                     getTotalOutputSize(out, ofst,
@@ -1315,6 +1302,28 @@ public class WolfSSLEngine extends SSLEngine {
                                      * more */
                                     status =
                                         SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                }
+                            }
+
+                            /* Check for BUFFER_OVERFLOW using ssl.pending().
+                             * For DTLS only. */
+                            if (status == SSLEngineResult.Status.OK) {
+                                synchronized (ioLock) {
+                                    try {
+                                        if (this.ssl.dtls() == 1) {
+                                            int pending = this.ssl.pending();
+                                            if (pending > 0) {
+                                                status =
+                                                    SSLEngineResult.Status.
+                                                    BUFFER_OVERFLOW;
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        WolfSSLDebug.log(getClass(),
+                                            WolfSSLDebug.INFO,
+                                            () -> "Exception calling "
+                                                + "ssl.pending(): " + e);
+                                    }
                                 }
                             }
                         }
