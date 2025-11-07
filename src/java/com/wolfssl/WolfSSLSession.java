@@ -5244,11 +5244,11 @@ public class WolfSSLSession {
      *
      * @throws IllegalStateException WolfSSLSession has been freed
      */
-    public int setSessionTicket(byte[] sessionTicket){
+    public synchronized int setSessionTicket(byte[] sessionTicket){
         int ret = WolfSSL.SSL_SUCCESS;
         confirmObjectIsActive();
-        if (sessionTicketsEnabled()){
-            synchronized (sslLock) {
+        synchronized (sslLock) {
+            if (sessionTicketsEnabled()){
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                     WolfSSLDebug.INFO, this.sslPtr,
                     () -> "entered setSessionTicket()");
@@ -5261,12 +5261,11 @@ public class WolfSSLSession {
                         () -> "session ticket is null, not setting");
                     ret = WolfSSL.SSL_FAILURE;
                 }
-
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.INFO, this.sslPtr,
+                    () -> "session tickets not enabled");
             }
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr,
-                () -> "session tickets not enabled");
         }
 
         return ret;

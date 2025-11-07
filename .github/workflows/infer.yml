@@ -22,13 +22,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Download Facebook Infer
-      - name: Download Infer
-        run: wget https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz
-      - name: Extract Infer
-        run: tar -xvf infer-linux64-v1.1.0.tar.xz
-      - name: Symlink Infer
-        run: ln -s "$GITHUB_WORKSPACE/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
+      # Download Facebook Infer (Linux)
+      - name: Download Infer (Linux)
+        if: runner.os == 'Linux'
+        run: wget https://github.com/facebook/infer/releases/download/v1.2.0/infer-linux-x86_64-v1.2.0.tar.xz
+      - name: Extract Infer (Linux)
+        if: runner.os == 'Linux'
+        run: tar -xvf infer-linux-x86_64-v1.2.0.tar.xz
+      - name: Symlink Infer (Linux)
+        if: runner.os == 'Linux'
+        run: ln -s "$GITHUB_WORKSPACE/infer-linux-x86_64-v1.2.0/bin/infer" /usr/local/bin/infer
+
+      # Download Facebook Infer (macOS)
+      - name: Download Infer (macOS x86_64)
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: wget https://github.com/facebook/infer/releases/download/v1.2.0/infer-osx-x86_64-v1.2.0.tar.xz
+      - name: Download Infer (macOS ARM64)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
+        run: wget https://github.com/facebook/infer/releases/download/v1.2.0/infer-osx-arm64-v1.2.0.tar.xz
+      - name: Extract Infer (macOS x86_64)
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: tar -xvf infer-osx-x86_64-v1.2.0.tar.xz
+      - name: Extract Infer (macOS ARM64)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
+        run: tar -xvf infer-osx-arm64-v1.2.0.tar.xz
+      - name: Symlink Infer (macOS x86_64)
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: ln -s "$GITHUB_WORKSPACE/infer-osx-x86_64-v1.2.0/bin/infer" /usr/local/bin/infer
+      - name: Symlink Infer (macOS ARM64)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
+        run: ln -s "$GITHUB_WORKSPACE/infer-osx-arm64-v1.2.0/bin/infer" /usr/local/bin/infer
+
       - name: Test Infer get version
         run: infer --version
 
@@ -68,9 +92,16 @@ jobs:
       - name: Set JUNIT_HOME
         run: |
           echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
-      - name: Set LD_LIBRARY_PATH
+
+      - name: Set LD_LIBRARY_PATH (Linux)
+        if: runner.os == 'Linux'
         run: |
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+
+      - name: Set DYLD_LIBRARY_PATH (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
 
       # Build wolfssljni JNI library (libwolfssljni.so)
       - name: Build JNI library
