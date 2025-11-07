@@ -1280,8 +1280,6 @@ public class WolfSSLEngine extends SSLEngine {
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 () -> "receiving application data");
-                            int maxOutSz = getTotalOutputSize(out, ofst,
-                                length);
                             ret = RecvAppData(out, ofst, length);
                             tmpRet = ret;
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1308,11 +1306,8 @@ public class WolfSSLEngine extends SSLEngine {
                             }
 
                             /* Check for BUFFER_OVERFLOW using ssl.pending().
-                             * DTLS-only, post-handshake, small buffers. */
-                            if (status == SSLEngineResult.Status.OK &&
-                                ret > 0 && ret == maxOutSz &&
-                                maxOutSz > 0 && maxOutSz <= 20 &&
-                                this.handshakeFinished) {
+                             * For DTLS only. */
+                            if (status == SSLEngineResult.Status.OK) {
                                 synchronized (ioLock) {
                                     try {
                                         if (this.ssl.dtls() == 1) {

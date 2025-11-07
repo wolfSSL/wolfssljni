@@ -24,8 +24,11 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import java.io.EOFException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -2155,8 +2158,8 @@ public class WolfSSLEngineTest {
     private void doNonBlockingIO(String protocol, int[] serverPort,
         boolean[] serverReady, boolean isClient) throws Exception {
 
-        java.nio.channels.ServerSocketChannel ssc = null;
-        java.nio.channels.SocketChannel sc = null;
+        ServerSocketChannel ssc = null;
+        SocketChannel sc = null;
 
         try {
             SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
@@ -2168,16 +2171,16 @@ public class WolfSSLEngineTest {
             }
 
             if (!isClient) {
-                ssc = java.nio.channels.ServerSocketChannel.open();
-                ssc.socket().bind(new java.net.InetSocketAddress(
-                    java.net.InetAddress.getLocalHost(), 0));
+                ssc = ServerSocketChannel.open();
+                ssc.socket().bind(new InetSocketAddress(
+                    InetAddress.getLocalHost(), 0));
                 serverPort[0] = ssc.socket().getLocalPort();
                 serverReady[0] = true;
                 sc = ssc.accept();
             } else {
-                sc = java.nio.channels.SocketChannel.open();
-                sc.connect(new java.net.InetSocketAddress(
-                    java.net.InetAddress.getLocalHost(), serverPort[0]));
+                sc = SocketChannel.open();
+                sc.connect(new InetSocketAddress(
+                    InetAddress.getLocalHost(), serverPort[0]));
                 engine.setEnabledProtocols(new String[] { protocol });
             }
 
@@ -2205,8 +2208,8 @@ public class WolfSSLEngineTest {
         }
     }
 
-    private void doHandshake(SSLEngine engine,
-        java.nio.channels.SocketChannel sc) throws Exception {
+    private void doHandshake(SSLEngine engine, SocketChannel sc)
+        throws Exception {
 
         int netSize = engine.getSession().getPacketBufferSize();
         ByteBuffer localNet = ByteBuffer.allocate(netSize / 10);
@@ -2227,7 +2230,7 @@ public class WolfSSLEngineTest {
                     if (peerNet.position() == 0 || underflow) {
                         if (sc.read(peerNet) < 0) {
                             engine.closeInbound();
-                            throw new java.io.EOFException();
+                            throw new EOFException();
                         }
                         underflow = false;
                     }
@@ -2286,8 +2289,8 @@ public class WolfSSLEngineTest {
         }
     }
 
-    private void doDataTransfer(SSLEngine engine,
-        java.nio.channels.SocketChannel sc, boolean send) throws Exception {
+    private void doDataTransfer(SSLEngine engine, SocketChannel sc,
+        boolean send) throws Exception {
 
         int appSize = engine.getSession().getApplicationBufferSize();
         int netSize = engine.getSession().getPacketBufferSize();
@@ -2383,7 +2386,7 @@ public class WolfSSLEngineTest {
                         break;
 
                     default:
-                        throw new java.io.IOException("Invalid status: " +
+                        throw new IOException("Invalid status: " +
                             res.getStatus());
                 }
             }
