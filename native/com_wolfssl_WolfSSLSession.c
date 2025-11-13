@@ -6367,6 +6367,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray inData;
     jobject    directBuf;
+    jboolean   useByteBuffer = 0;      /* ByteBuffer or byte[] I/O callbacks */
 
     if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
@@ -6402,7 +6403,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
-    jboolean useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
+    useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
             (jobject)(*g_cachedSSLObj), g_isByteBufferIORecvCallbackSet);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
@@ -6542,6 +6543,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray outData;               /* jbyteArray for data to send */
     jobject    directBuf;
+    jboolean   useByteBuffer = 0;     /* ByteBuffer I/O callbacks */
 
     if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
@@ -6577,7 +6579,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
-    jboolean useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
+    useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
             (jobject)(*g_cachedSSLObj), g_isByteBufferIOSendCallbackSet);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);

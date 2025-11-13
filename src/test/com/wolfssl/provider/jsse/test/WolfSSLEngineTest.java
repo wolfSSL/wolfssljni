@@ -2138,21 +2138,21 @@ public class WolfSSLEngineTest {
             clientThread.join(5000);
 
             if (serverThread.isAlive() || clientThread.isAlive()) {
-                error("\t... failed");
+                error("... failed");
                 fail("Test timed out for " + protocol);
             }
 
             if (serverException[0] != null) {
-                error("\t... failed");
+                error("... failed");
                 throw serverException[0];
             }
             if (clientException[0] != null) {
-                error("\t... failed");
+                error("... failed");
                 throw clientException[0];
             }
         }
 
-        pass("\t... passed");
+        pass("... passed");
     }
 
     private void doNonBlockingIO(String protocol, int[] serverPort,
@@ -2335,12 +2335,32 @@ public class WolfSSLEngineTest {
             ByteBuffer netData = ByteBuffer.allocate(netSize);
             int received = -1;
             boolean needToReadMore = true;
+            int readRetries = 0;
+            int maxReadRetries = 3;
 
             while (received != 0) {
                 if (needToReadMore) {
-                    if (engine.isInboundDone() || sc.read(netData) < 0) {
+                    int bytesRead = -1;
+                    try {
+                        if (engine.isInboundDone()) {
+                            break;
+                        }
+                        bytesRead = sc.read(netData);
+                    } catch (IOException e) {
+                        if (readRetries < maxReadRetries) {
+                            readRetries++;
+                            try {
+                                Thread.sleep(10);
+                            } catch (InterruptedException ie) {
+                            }
+                            continue;
+                        }
+                        throw e;
+                    }
+                    if (bytesRead < 0) {
                         break;
                     }
+                    readRetries = 0;
                 }
 
                 netData.flip();
