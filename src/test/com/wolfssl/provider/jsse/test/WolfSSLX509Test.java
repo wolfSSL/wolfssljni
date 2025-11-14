@@ -43,6 +43,7 @@ import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.Principal;
 import javax.security.auth.Subject;
+import javax.security.auth.x500.X500Principal;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -930,6 +931,76 @@ public class WolfSSLX509Test {
             error("\t... failed");
             fail("Exception during WolfSSLPrincipal implies test: " +
                  e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testX500Principal() {
+        System.out.print("\tTesting X500Principal methods");
+
+        try {
+            assertNotNull("x509 should not be null", x509);
+
+            /* Test getSubjectX500Principal() */
+            X500Principal subjectX500 = x509.getSubjectX500Principal();
+            assertNotNull("getSubjectX500Principal() should not return null",
+                subjectX500);
+
+            /* Test getIssuerX500Principal() */
+            X500Principal issuerX500 = x509.getIssuerX500Principal();
+            assertNotNull("getIssuerX500Principal() should not return null",
+                issuerX500);
+
+            /* Verify X500Principal contains expected values.
+             * Server cert subject should contain "www.example.com" */
+            String subjectName = subjectX500.getName();
+            assertNotNull("X500Principal.getName() should not be null",
+                subjectName);
+            assertTrue("Subject should contain CN",
+                subjectName.contains("CN="));
+
+            String issuerName = issuerX500.getName();
+            assertNotNull("Issuer X500Principal.getName() should not be null",
+                issuerName);
+            assertTrue("Issuer should contain CN",
+                issuerName.contains("CN="));
+
+            /* Test that X500Principal can be used to compare certs */
+            byte[] der = tf.getCert("server");
+            WolfSSLX509 x509_2 = new WolfSSLX509(der);
+            X500Principal subjectX500_2 = x509_2.getSubjectX500Principal();
+            X500Principal issuerX500_2 = x509_2.getIssuerX500Principal();
+
+            assertTrue("X500Principal.equals() should return true for " +
+                "same cert", subjectX500.equals(subjectX500_2));
+            assertTrue("Issuer X500Principal.equals() should return true " +
+                "for same cert", issuerX500.equals(issuerX500_2));
+
+            /* Test with different cert (CA cert) */
+            byte[] caDer = tf.getCert("ca");
+            WolfSSLX509 caX509 = new WolfSSLX509(caDer);
+            X500Principal caSubjectX500 = caX509.getSubjectX500Principal();
+            X500Principal caIssuerX500 = caX509.getIssuerX500Principal();
+
+            assertNotNull("CA cert getSubjectX500Principal() should not " +
+                "be null", caSubjectX500);
+            assertNotNull("CA cert getIssuerX500Principal() should not " +
+                "be null", caIssuerX500);
+
+            /* Server cert issuer should match CA cert subject for
+             * chain-signed certs */
+            assertTrue("Server issuer should match CA subject",
+                issuerX500.equals(caSubjectX500));
+
+            /* Clean up */
+            x509_2.free();
+            caX509.free();
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("Exception during X500Principal test: " + e.getMessage());
         }
 
         pass("\t... passed");
