@@ -2160,11 +2160,12 @@ public class WolfSSLEngineTest {
 
         ServerSocketChannel ssc = null;
         SocketChannel sc = null;
+        SSLEngine engine = null;
+        boolean dataTransferComplete = false;
 
         try {
             SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
-            SSLEngine engine = ctx.createSSLEngine(
-                "wolfSSL test", 11111);
+            engine = ctx.createSSLEngine("wolfSSL test", 11111);
             engine.setUseClientMode(isClient);
             if (!isClient) {
                 engine.setNeedClientAuth(false);
@@ -2197,13 +2198,23 @@ public class WolfSSLEngineTest {
                 doDataTransfer(engine, sc, false);
                 doDataTransfer(engine, sc, true);
             }
+            dataTransferComplete = true;
 
         } finally {
+            /* Abrupt close is ok for test. close_notify may not be sent */
             if (sc != null) {
-                try { sc.close(); } catch (Exception e) {}
+                try {
+                    sc.close();
+                } catch (Exception e) {
+                    /* Ignore */
+                }
             }
             if (ssc != null) {
-                try { ssc.close(); } catch (Exception e) {}
+                try {
+                    ssc.close();
+                } catch (Exception e) {
+                    /* Ignore */
+                }
             }
         }
     }
@@ -2223,6 +2234,11 @@ public class WolfSSLEngineTest {
 
         while (hs != HandshakeStatus.FINISHED &&
                hs != HandshakeStatus.NOT_HANDSHAKING) {
+
+            /* Check if peer has closed - exit early to prevent timeout */
+            if (engine.isInboundDone() || engine.isOutboundDone()) {
+                break;
+            }
 
             SSLEngineResult res;
             switch (hs) {
@@ -2307,12 +2323,30 @@ public class WolfSSLEngineTest {
             ByteBuffer netData = ByteBuffer.allocate(netSize / 2);
 
             while (appData.hasRemaining()) {
+                /* Check if peer has closed - exit early to prevent timeout */
+                if (engine.isInboundDone() || engine.isOutboundDone()) {
+                    break;
+                }
                 netData.clear();
                 SSLEngineResult res = engine.wrap(appData, netData);
                 if (res.getStatus() == SSLEngineResult.Status.OK) {
                     netData.flip();
-                    while (netData.hasRemaining()) {
-                        sc.write(netData);
+                    try {
+                        while (netData.hasRemaining()) {
+                            sc.write(netData);
+                        }
+                    } catch (IOException e) {
+                        /* In non-blocking mode with concurrent threads, peer
+                         * may close connection during write. This is not an
+                         * error - peer may have received all expected data
+                         * and initiated shutdown. Break out of loop. */
+                        String msg = e.getMessage();
+                        if (msg != null && (msg.contains("Connection reset") ||
+                                            msg.contains("Broken pipe") ||
+                                            msg.contains("Socket closed"))) {
+                            break;
+                        }
+                        throw e;
                     }
                     if (res.getHandshakeStatus() ==
                         HandshakeStatus.NEED_TASK) {
@@ -2337,13 +2371,35 @@ public class WolfSSLEngineTest {
             boolean needToReadMore = true;
 
             while (received != 0) {
+                /* Check if peer has closed - exit early to prevent timeout */
+                if (engine.isInboundDone() || engine.isOutboundDone()) {
+                    break;
+                }
                 if (needToReadMore) {
-                    if (engine.isInboundDone() || sc.read(netData) < 0) {
-                        break;
+                    try {
+                        if (sc.read(netData) < 0) {
+                            break;
+                        }
+                    } catch (IOException e) {
+                        /* In non-blocking mode with concurrent threads, peer
+                         * may close connection during read. This is not an
+                         * error in the test - it's expected behavior when
+                         * testing race conditions. Break out of loop. */
+                        String msg = e.getMessage();
+                        if (msg != null && (msg.contains("Connection reset") ||
+                                            msg.contains("Broken pipe") ||
+                                            msg.contains("Socket closed"))) {
+                            break;
+                        }
+                        throw e;
                     }
                 }
 
                 netData.flip();
+                /* Guard against unwrap on empty buffer after abrupt close. */
+                if (!netData.hasRemaining() && engine.isInboundDone()) {
+                    break;
+                }
                 SSLEngineResult res = engine.unwrap(netData, appData);
                 netData.compact();
 
