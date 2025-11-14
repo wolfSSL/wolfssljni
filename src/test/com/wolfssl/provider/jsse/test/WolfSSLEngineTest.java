@@ -2160,11 +2160,12 @@ public class WolfSSLEngineTest {
 
         ServerSocketChannel ssc = null;
         SocketChannel sc = null;
+        SSLEngine engine = null;
+        boolean dataTransferComplete = false;
 
         try {
             SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
-            SSLEngine engine = ctx.createSSLEngine(
-                "wolfSSL test", 11111);
+            engine = ctx.createSSLEngine("wolfSSL test", 11111);
             engine.setUseClientMode(isClient);
             if (!isClient) {
                 engine.setNeedClientAuth(false);
@@ -2197,8 +2198,60 @@ public class WolfSSLEngineTest {
                 doDataTransfer(engine, sc, false);
                 doDataTransfer(engine, sc, true);
             }
+            dataTransferComplete = true;
 
         } finally {
+            /* Perform bidirectional SSL shutdown before closing socket.
+             * Only attempt if data transfer completed successfully. */
+            if (dataTransferComplete && sc != null && engine != null &&
+                !engine.isOutboundDone()) {
+                try {
+                    /* Step 1: Send our close_notify alert */
+                    engine.closeOutbound();
+                    ByteBuffer netBuf = ByteBuffer.allocate(
+                        engine.getSession().getPacketBufferSize());
+                    ByteBuffer appBuf = ByteBuffer.allocate(
+                        engine.getSession().getApplicationBufferSize());
+
+                    /* Wrap and send close_notify */
+                    SSLEngineResult res = engine.wrap(
+                        ByteBuffer.allocate(0), netBuf);
+                    if (res.getStatus() == SSLEngineResult.Status.CLOSED) {
+                        netBuf.flip();
+                        while (netBuf.hasRemaining()) {
+                            sc.write(netBuf);
+                        }
+                    }
+
+                    /* Step 2: Read peer's close_notify alert.
+                     * This ensures both sides complete shutdown handshake. */
+                    netBuf.clear();
+                    int timeout = 0;
+                    while (!engine.isInboundDone() && timeout < 100) {
+                        int n = sc.read(netBuf);
+                        if (n > 0) {
+                            netBuf.flip();
+                            res = engine.unwrap(netBuf, appBuf);
+                            netBuf.compact();
+                            if (res.getStatus() ==
+                                SSLEngineResult.Status.CLOSED) {
+                                /* Received close_notify from peer */
+                                engine.closeInbound();
+                                break;
+                            }
+                        } else if (n < 0) {
+                            /* Peer closed connection */
+                            break;
+                        }
+                        Thread.sleep(10);
+                        timeout++;
+                    }
+                } catch (IOException | InterruptedException e) {
+                    /* Expected if peer already closed.
+                     * Broken pipe or connection reset are non-fatal here. */
+                }
+            }
+
             if (sc != null) {
                 try { sc.close(); } catch (Exception e) {}
             }
