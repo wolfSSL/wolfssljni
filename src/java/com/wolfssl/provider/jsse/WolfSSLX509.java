@@ -28,6 +28,7 @@ import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.Provider;
 import java.security.PublicKey;
+import javax.security.auth.x500.X500Principal;
 import java.security.Signature;
 import java.security.KeyFactory;
 import java.security.SignatureException;
@@ -204,6 +205,46 @@ public class WolfSSLX509 extends X509Certificate {
         }
         String name = this.cert.getSubject();
         return new WolfSSLPrincipal(name);
+    }
+
+    @Override
+    public X500Principal getSubjectX500Principal() {
+
+        byte[] derName;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered getSubjectX500Principal()");
+
+        if (this.cert == null) {
+            return null;
+        }
+
+        derName = this.cert.getSubjectNameDER();
+        if (derName == null) {
+            return null;
+        }
+
+        return new X500Principal(derName);
+    }
+
+    @Override
+    public X500Principal getIssuerX500Principal() {
+
+        byte[] derName;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered getIssuerX500Principal()");
+
+        if (this.cert == null) {
+            return null;
+        }
+
+        derName = this.cert.getIssuerNameDER();
+        if (derName == null) {
+            return null;
+        }
+
+        return new X500Principal(derName);
     }
 
     @Override
