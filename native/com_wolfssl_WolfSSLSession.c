@@ -2783,6 +2783,407 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsReplayDropCount
     return (jlong)dropCount;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidUse
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    if (ssl == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_dtls_cid_use(ssl);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidIsEnabled
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    if (ssl == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_dtls_cid_is_enabled(ssl);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidSet
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray cid, jint size)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    jbyte* cidBuf = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL || cid == NULL || size < 0) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    cidBuf = (*jenv)->GetByteArrayElements(jenv, cid, NULL);
+    if (cidBuf == NULL) {
+        return (jint)MEMORY_E;
+    }
+
+    ret = wolfSSL_dtls_cid_set(ssl, (unsigned char*)cidBuf,
+                               (unsigned int)size);
+
+    (*jenv)->ReleaseByteArrayElements(jenv, cid, cidBuf, JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)cid;
+    (void)size;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetRxSize
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned int size = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    if (ssl == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &size);
+    if (ret == WOLFSSL_SUCCESS) {
+        return (jint)size;
+    }
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetRx
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned int size = 0;
+    unsigned char* buffer = NULL;
+    jbyteArray result = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    /* First get the size */
+    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &size);
+    if (ret != WOLFSSL_SUCCESS || size == 0) {
+        return NULL;
+    }
+
+    /* Allocate buffer */
+    buffer = (unsigned char*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    /* Get the CID data */
+    ret = wolfSSL_dtls_cid_get_rx(ssl, buffer, size);
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Create Java byte array */
+        result = (*jenv)->NewByteArray(jenv, (jsize)size);
+        if (result != NULL) {
+            (*jenv)->SetByteArrayRegion(jenv, result, 0, (jsize)size,
+                                        (const jbyte*)buffer);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                (*jenv)->DeleteLocalRef(jenv, result);
+                result = NULL;
+            }
+        }
+    }
+
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return NULL;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGet0Rx
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned char* cid = NULL;
+    jbyteArray result = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_dtls_cid_get0_rx(ssl, &cid);
+    if (ret == WOLFSSL_SUCCESS && cid != NULL) {
+        /* Get size to determine array length */
+        unsigned int size = 0;
+        ret = wolfSSL_dtls_cid_get_rx_size(ssl, &size);
+        if (ret == WOLFSSL_SUCCESS && size > 0) {
+            result = (*jenv)->NewByteArray(jenv, (jsize)size);
+            if (result != NULL) {
+                (*jenv)->SetByteArrayRegion(jenv, result, 0, (jsize)size,
+                                            (const jbyte*)cid);
+                if ((*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, result);
+                    result = NULL;
+                }
+            }
+        }
+    }
+
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return NULL;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetTxSize
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned int size = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    if (ssl == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &size);
+    if (ret == WOLFSSL_SUCCESS) {
+        return (jint)size;
+    }
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGetTx
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned int size = 0;
+    unsigned char* buffer = NULL;
+    jbyteArray result = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    /* First get the size */
+    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &size);
+    if (ret != WOLFSSL_SUCCESS || size == 0) {
+        return NULL;
+    }
+
+    /* Allocate buffer */
+    buffer = (unsigned char*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    /* Get the CID data */
+    ret = wolfSSL_dtls_cid_get_tx(ssl, buffer, size);
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Create Java byte array */
+        result = (*jenv)->NewByteArray(jenv, (jsize)size);
+        if (result != NULL) {
+            (*jenv)->SetByteArrayRegion(jenv, result, 0, (jsize)size,
+                                        (const jbyte*)buffer);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                (*jenv)->DeleteLocalRef(jenv, result);
+                result = NULL;
+            }
+        }
+    }
+
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return NULL;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidGet0Tx
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    unsigned char* cid = NULL;
+    jbyteArray result = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_dtls_cid_get0_tx(ssl, &cid);
+    if (ret == WOLFSSL_SUCCESS && cid != NULL) {
+        /* Get size to determine array length */
+        unsigned int size = 0;
+        ret = wolfSSL_dtls_cid_get_tx_size(ssl, &size);
+        if (ret == WOLFSSL_SUCCESS && size > 0) {
+            result = (*jenv)->NewByteArray(jenv, (jsize)size);
+            if (result != NULL) {
+                (*jenv)->SetByteArrayRegion(jenv, result, 0, (jsize)size,
+                                            (const jbyte*)cid);
+                if ((*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, result);
+                    result = NULL;
+                }
+            }
+        }
+    }
+
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
+    return NULL;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidMaxSizeNative
+  (JNIEnv* jenv, jclass jcl)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    int ret = WOLFSSL_FAILURE;
+    (void)jenv;
+    (void)jcl;
+
+    ret = wolfSSL_dtls_cid_max_size();
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidParseNative
+  (JNIEnv* jenv, jclass jcl, jbyteArray msg, jint msgSz, jint cidSz)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    jbyte* msgBuf = NULL;
+    const unsigned char* cidPtr = NULL;
+    jbyteArray result = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0) {
+        return NULL;
+    }
+
+    msgBuf = (*jenv)->GetByteArrayElements(jenv, msg, NULL);
+    if (msgBuf == NULL) {
+        return NULL;
+    }
+
+    cidPtr = wolfSSL_dtls_cid_parse((const unsigned char*)msgBuf,
+                                    (unsigned int)msgSz,
+                                    (unsigned int)cidSz);
+
+    if (cidPtr != NULL && cidSz > 0) {
+        /* Create Java byte array */
+        result = (*jenv)->NewByteArray(jenv, (jsize)cidSz);
+        if (result != NULL) {
+            (*jenv)->SetByteArrayRegion(jenv, result, 0, (jsize)cidSz,
+                                        (const jbyte*)cidPtr);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                (*jenv)->DeleteLocalRef(jenv, result);
+                result = NULL;
+            }
+        }
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, msg, msgBuf, JNI_ABORT);
+
+    return result;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)msg;
+    (void)msgSz;
+    (void)cidSz;
+
+    return NULL;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint mtu)
 {
@@ -4825,8 +5226,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionTicket
 
         if (ret == WOLFSSL_SUCCESS && dataSz > 0){
             sessionTicket = (*jenv)->NewByteArray(jenv, dataSz);
-            (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
-                                        (jbyte*)dataBuf);
+            if (sessionTicket != NULL) {
+                (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
+                                            (jbyte*)dataBuf);
+                if ((*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, sessionTicket);
+                    sessionTicket = NULL;
+                }
+            }
         } else if (ret == WOLFSSL_SUCCESS && dataSz == 0) {
             /* no session ticket available */
             printf("No ticket available or Session "
@@ -4848,8 +5255,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionTicket
 
             if (ret == WOLFSSL_SUCCESS && dataSz > 0){
                 sessionTicket = (*jenv)->NewByteArray(jenv, dataSz);
-                (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
-                                            (jbyte*)dataBuf);
+                if (sessionTicket != NULL) {
+                    (*jenv)->SetByteArrayRegion(jenv, sessionTicket, 0, dataSz,
+                                                (jbyte*)dataBuf);
+                    if ((*jenv)->ExceptionCheck(jenv)) {
+                        (*jenv)->DeleteLocalRef(jenv, sessionTicket);
+                        sessionTicket = NULL;
+                    }
+                }
             }
 
             XFREE(dataBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5954,6 +6367,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray inData;
     jobject    directBuf;
+    jboolean   useByteBuffer = 0;      /* ByteBuffer or byte[] I/O callbacks */
 
     if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
@@ -5989,8 +6403,18 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
-    if ((*jenv)->CallBooleanMethod(jenv, (jobject)(*g_cachedSSLObj),
-            g_isByteBufferIORecvCallbackSet)) {
+    useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
+            (jobject)(*g_cachedSSLObj), g_isByteBufferIORecvCallbackSet);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (useByteBuffer) {
 
         /* Call receive callback using ByteBuffer */
         if (!g_sslIORecvMethodId_BB) {
@@ -6119,6 +6543,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject*   g_cachedSSLObj;        /* WolfSSLSession cached object */
     jbyteArray outData;               /* jbyteArray for data to send */
     jobject    directBuf;
+    jboolean   useByteBuffer = 0;     /* ByteBuffer I/O callbacks */
 
     if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
         /* can't throw exception yet, just return error */
@@ -6154,8 +6579,18 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* Detect if we should use ByteBuffer or byte[] I/O callbacks */
-    if ((*jenv)->CallBooleanMethod(jenv, (jobject)(*g_cachedSSLObj),
-            g_isByteBufferIOSendCallbackSet)) {
+    useByteBuffer = (*jenv)->CallBooleanMethod(jenv,
+            (jobject)(*g_cachedSSLObj), g_isByteBufferIOSendCallbackSet);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if (useByteBuffer) {
 
         /* Call send callback using ByteBuffer */
         if (!g_sslIOSendMethodId_BB) {
