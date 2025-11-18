@@ -93,6 +93,8 @@ public class WolfSSLCertificate implements Serializable {
     static native String X509_get_subject_name(long x509);
     static native String X509_get_issuer_name(long x509);
     static native long X509_get_issuer_name_ptr(long x509);
+    static native byte[] X509_get_subject_name_DER(long x509);
+    static native byte[] X509_get_issuer_name_DER(long x509);
     static native byte[] X509_get_pubkey(long x509);
     static native String X509_get_pubkey_type(long x509);
     static native int X509_get_pathLength(long x509);
@@ -1486,6 +1488,52 @@ public class WolfSSLCertificate implements Serializable {
                 WolfSSLDebug.INFO, this.x509Ptr, () -> "entering getIssuer()");
 
             return X509_get_issuer_name(this.x509Ptr);
+        }
+    }
+
+    /**
+     * Get certificate Subject in DER format
+     *
+     * This returns the DER-encoded subject name (X500 Distinguished Name)
+     * which can be used to create an X500Principal object in Java.
+     *
+     * @return DER-encoded subject name as byte array, or null on error
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     */
+    public byte[] getSubjectNameDER() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getSubjectNameDER()");
+
+            return X509_get_subject_name_DER(this.x509Ptr);
+        }
+    }
+
+    /**
+     * Get certificate Issuer in DER format
+     *
+     * This returns the DER-encoded issuer name (X500 Distinguished Name)
+     * which can be used to create an X500Principal object in Java.
+     *
+     * @return DER-encoded issuer name as byte array, or null on error
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     */
+    public byte[] getIssuerNameDER() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getIssuerNameDER()");
+
+            return X509_get_issuer_name_DER(this.x509Ptr);
         }
     }
 

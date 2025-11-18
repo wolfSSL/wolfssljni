@@ -1349,6 +1349,140 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1n
 #endif
 }
 
+JNIEXPORT jbyteArray JNICALL
+Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1name_1DER
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_NAME* name = NULL;
+    unsigned char* derBuf = NULL;
+    unsigned char* derPtr = NULL;
+    int derSz = 0;
+    jbyteArray ret = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    /* Get subject name */
+    name = wolfSSL_X509_get_subject_name(x509);
+    if (name == NULL) {
+        return NULL;
+    }
+
+    /* Convert to DER, first call gets size */
+    derSz = wolfSSL_i2d_X509_NAME(name, NULL);
+    if (derSz <= 0) {
+        return NULL;
+    }
+
+    /* Allocate buffer */
+    derBuf = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (derBuf == NULL) {
+        return NULL;
+    }
+
+    /* Convert to DER */
+    derPtr = derBuf;
+    derSz = wolfSSL_i2d_X509_NAME(name, &derPtr);
+    if (derSz <= 0) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    /* Create Java byte array */
+    ret = (*jenv)->NewByteArray(jenv, derSz);
+    if (ret == NULL) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, derSz, (jbyte*)derBuf);
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+    XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name_1DER
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509_NAME* name = NULL;
+    unsigned char* derBuf = NULL;
+    unsigned char* derPtr = NULL;
+    int derSz = 0;
+    jbyteArray ret = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    /* Get issuer name */
+    name = wolfSSL_X509_get_issuer_name(x509);
+    if (name == NULL) {
+        return NULL;
+    }
+
+    /* Convert to DER, first call gets size */
+    derSz = wolfSSL_i2d_X509_NAME(name, NULL);
+    if (derSz <= 0) {
+        return NULL;
+    }
+
+    /* Allocate buffer */
+    derBuf = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (derBuf == NULL) {
+        return NULL;
+    }
+
+    /* Convert to DER */
+    derPtr = derBuf;
+    derSz = wolfSSL_i2d_X509_NAME(name, &derPtr);
+    if (derSz <= 0) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    /* Create Java byte array */
+    ret = (*jenv)->NewByteArray(jenv, derSz);
+    if (ret == NULL) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, ret, 0, derSz, (jbyte*)derBuf);
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+    XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
