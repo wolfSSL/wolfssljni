@@ -508,6 +508,104 @@ public class WolfSSLSessionTest {
         pass("\t... passed");
     }
 
+    /* Tests that setting/restricting TLS Signature Schemes with the
+     * 'jdk.tls.client.SignatureSchemes' and 'jdk.tls.server.SignatureSchemes'
+     * system properties works as expected.
+     */
+    @Test
+    public void testSignatureSchemes()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        String cSigSchemes = "jdk.tls.client.SignatureSchemes";
+        String sSigSchemes = "jdk.tls.server.SignatureSchemes";
+        String origClient = System.getProperty(cSigSchemes);
+        String origServer = System.getProperty(sSigSchemes);
+
+        System.out.print("\tTesting Signature Schemes");
+
+        try {
+            /* Case 1: Mismatching schemes - Should Fail */
+            /* Client: ECDSA only */
+            System.setProperty(cSigSchemes, "ecdsa_secp256r1_sha256");
+            /* Server: RSA only */
+            System.setProperty(sSigSchemes, "rsa_pkcs1_sha256");
+
+            SSLContext ctx1 = tf.createSSLContext("TLS", engineProvider);
+            SSLEngine client = ctx1.createSSLEngine("server", 12345);
+            SSLEngine server = ctx1.createSSLEngine();
+
+            if (client == null || server == null) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+                return;
+            }
+
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+
+            /* Handshake should fail due to signature scheme mismatch */
+            ret = tf.testConnection(server, client, null, null,
+                "Test sig mismatch");
+            
+            if (ret == 0) {
+                error("\t\t... failed");
+                fail("Handshake succeeded with mismatching signature schemes");
+            }
+
+            /* Case 2: Matching schemes - Should Pass */
+            if (WolfSSL.EccEnabled()) {
+                System.setProperty(cSigSchemes, "ecdsa_secp256r1_sha256");
+                System.setProperty(sSigSchemes, "ecdsa_secp256r1_sha256");
+            }
+            else {
+                System.setProperty(cSigSchemes, "rsa_pkcs1_sha256");
+                System.setProperty(sSigSchemes, "rsa_pkcs1_sha256");
+            }
+
+            /* Create new SSLContext to ensure clean state */
+            SSLContext ctx2 = tf.createSSLContext("TLS", engineProvider);
+            client = ctx2.createSSLEngine("server", 12345);
+            server = ctx2.createSSLEngine();
+
+            if (client == null || server == null) {
+                error("\t\t... failed");
+                fail("failed to create engine");
+                return;
+            }
+
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test sig match");
+            if (ret != 0) {
+                error("\t\t... failed");
+                fail("Handshake failed with matching signature schemes");
+            }
+
+            pass("\t\t... passed");
+
+        } finally {
+            /* Restore properties */
+            if (origClient != null) {
+                System.setProperty(cSigSchemes, origClient);
+            } else {
+                System.clearProperty(cSigSchemes);
+            }
+
+            if (origServer != null) {
+                System.setProperty(sSigSchemes, origServer);
+            } else {
+                System.clearProperty(sSigSchemes);
+            }
+        }
+    }
+
     /**
      * Test SSLSocket.getSession() and calling methods on the
      * SSLSession retrieved. */
