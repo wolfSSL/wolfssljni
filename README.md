@@ -602,6 +602,12 @@ are enabled in different ways depending on the JDK implementation. For
 Oracle/OpenJDK and variants, this System property enables session tickets and
 was added in Java 13. Should be set to "true" to enable.
 
+**jdk.tls.server.SignatureSchemes (String)** - Controls which signature algorithms are
+advertised and used by the server if set.
+
+**jdk.tls.client.SignatureSchemes (String)** - Controls which signature algorithms are
+advertised and used by the client if set.
+
 **jdk.tls.useExtendedMasterSecret (boolean)** - Can be used to enable or
 disable the use of the Extended Master Secret (EMS) extension. This extension
 is enabled by default, unless explicitly disabled by setting this property to

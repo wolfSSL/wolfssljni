@@ -87,7 +87,7 @@ public class WolfSSLUtil {
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             () -> "jdk.tls.disabledAlgorithms: " + tmpDisabledAlgos);
 
-        /* 
+        /*
          * WolfJSSE only supports DTLSv1.3, automatically add DTLSv1,
          * and DTLSv1.2 to disabled algorithms for now */
 
@@ -173,6 +173,115 @@ public class WolfSSLUtil {
     }
 
     /**
+     * Translate SignatureSchemes property string to wolfJSSE
+     * Signature Algorithm format.
+     *
+     * Signature Algorithms produced from the signature schemes property
+     * will not appear in the returned string if they already appear in the
+     * given signature algorithms list.
+     *
+     * @param sigAlgs Full list of TLS signature algorithms to format, provided
+     *        by "wolfjsse.enabledSignatureAlgorithms". Should be in format
+     *        similar to: "SCHEME1:SCHEME2". See {@link
+     *        #getSignatureAlgorithms()}.
+     *
+     * @param sigSchemes String list of TLS signature schemes to format,
+     *        provided by Signature Schemes property. Should be in format
+     *        similar to: "SCHEME1,SCHEME2", etc. See {@link
+     *        #getSignatureSchemes(boolean)}.
+     *
+     * @return New colon separated String of filtered signature algorithms.
+     *         Returns null if both signature algorithms and signature schemes
+     *         lists are null.
+     */
+    protected static String formatSigSchemes(String sigAlgs,
+                                             String sigSchemes) {
+        ArrayList<String> sigAlgList = null;
+        if (sigAlgs == null && sigSchemes == null) {
+            return null;
+        }
+        else if (sigAlgs != null && sigSchemes == null) {
+            return sigAlgs;
+        }
+
+        if (sigAlgs != null) {
+            sigAlgList = new ArrayList<>(Arrays.asList(sigAlgs.split(":")));
+        }
+        else {
+            sigAlgList = new ArrayList<String>();
+        }
+
+        /* Separate schemes */
+        sigSchemes = sigSchemes.trim();
+        String[] schemes = sigSchemes.split(",");
+
+        /* Tokenize scheme components and convert to signature
+           algorithm format */
+        for (String scheme : schemes) {
+            scheme = scheme.toUpperCase();
+            if (scheme.isEmpty()) {
+                continue;
+            }
+
+            String[] schemeComp = scheme.split("_");
+            String algorithm = schemeComp[0];
+            String hash = null;
+
+            /* Handle standalone algorithms with no hash component */
+            if (schemeComp.length == 1) {
+                if (algorithm.equals("ED25519") || algorithm.equals("ED448")) {
+                    if (!sigAlgList.contains(algorithm)) {
+                        sigAlgList.add(algorithm);
+                    }
+                    continue;
+                } else {
+                    /* Invalid format, skip */
+                    continue;
+                }
+            }
+
+            if (schemeComp.length < 2) {
+                /* Invalid format, skip */
+                continue;
+            }
+
+            if (schemeComp.length >= 3 &&
+                schemeComp[0].equals("RSA") &&
+                schemeComp[1].equals("PSS")) {
+                algorithm = "RSA-PSS";
+                hash = schemeComp[schemeComp.length - 1];
+            } else {
+                /* Standard case: algorithm_curvePadding_hash */
+                hash = schemeComp[schemeComp.length - 1];
+            }
+
+            /* Validate algorithm is supported */
+            if (!algorithm.equals("ECDSA") && !algorithm.equals("RSA") &&
+                !algorithm.equals("RSA-PSS") && !algorithm.equals("ED25519") &&
+                !algorithm.equals("ED448") && !algorithm.equals("DSA")) {
+                /* Unknown algorithm, skip */
+                WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+                    () -> "Unknown algorithm, skip");
+                continue;
+            }
+
+            if (!hash.startsWith("SHA") &&
+                !hash.equals("MD5")) {
+                /* Invalid hash format, skip */
+                continue;
+            }
+
+            String sigAlg = algorithm + "+" + hash;
+
+            if (!sigAlgList.contains(sigAlg)) {
+                sigAlgList.add(sigAlg);
+            }
+        }
+
+        return String.join(":", sigAlgList);
+    }
+
+    /**
      * Check if a given String-based Security property is set.
      *
      * @param property security property to check
@@ -219,6 +328,46 @@ public class WolfSSLUtil {
         sigAlgos = sigAlgos.replaceAll(" : ", ":");
 
         return sigAlgos;
+    }
+
+    /**
+     * Return TLS signature algorithms allowed if set in
+     * jdk.tls.client.SignatureSchemes or jdk.tls.server.SignatureSchemes
+     * System property.
+     *
+     * This security property should contain a comma-separated list of
+     * values, for example:
+     *      jdk.tls.server.SignatureSchemes=
+     *          "ecdsa_secp384r1_sha384"
+     *      jdk.tls.client.SignatureSchemes=
+     *          "ecdsa_secp256r1_sha256,ecdsa_secp384r1_sha384"
+     *
+     * @param clientMode Get Client or Server SignatureSchemes
+     * @return comma delimited list of signature schemes.
+     *         Returns null if property has not been set or is empty.
+     */
+    protected static String getSignatureSchemes(boolean clientMode) {
+        String sigSchemes;
+        if (clientMode) {
+            sigSchemes = System.getProperty("jdk.tls.client.SignatureSchemes");
+        }
+        else {
+            sigSchemes = System.getProperty("jdk.tls.server.SignatureSchemes");
+        }
+
+        if (sigSchemes == null || sigSchemes.isEmpty()) {
+            return null;
+        }
+
+        final String tmpSigSchemes = sigSchemes;
+        WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
+            () -> "jdk.tls." + (clientMode ? "client" : "server")
+                + ".SignatureSchemes: " + tmpSigSchemes);
+
+        /* Remove spaces between colons if present */
+        sigSchemes = sigSchemes.replaceAll(" , ", ",");
+
+        return sigSchemes;
     }
 
     /**

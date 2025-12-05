@@ -1116,24 +1116,36 @@ public class WolfSSLEngineHelper {
     private void setLocalSigAlgorithms() {
 
         int ret = 0;
+        String sigAlgos = null;
+        String sigSchemes = null;
+        String cleanSigList = null;
 
         if (this.clientMode) {
             /* Get restricted signature algorithms for ClientHello if set by
              * user in "wolfjsse.enabledSigAlgorithms" Security property */
-            String sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
+            sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
+        }
+        sigSchemes =
+            WolfSSLUtil.getSignatureSchemes(this.clientMode);
+        cleanSigList =
+            WolfSSLUtil.formatSigSchemes(sigAlgos, sigSchemes);
 
-            if (sigAlgos != null) {
-                ret = this.ssl.setSignatureAlgorithms(sigAlgos);
-                if (ret != WolfSSL.SSL_SUCCESS &&
-                    ret != WolfSSL.NOT_COMPILED_IN) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "error restricting signature algorithms based " +
-                        "on wolfjsse.enabledSignatureAlgorithms property");
-                } else if (ret == WolfSSL.SSL_SUCCESS) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "restricted signature algorithms based on " +
-                        "wolfjsse.enabledSignatureAlgorithms property");
-                }
+        if (cleanSigList != null) {
+            ret = this.ssl.setSignatureAlgorithms(cleanSigList);
+
+            if (ret != WolfSSL.SSL_SUCCESS &&
+                ret != WolfSSL.NOT_COMPILED_IN) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "error restricting signature algorithms based " +
+                    "on \"wolfjsse.enabledSigAlgorithms\" and " +
+                    "\"jdk.tls."+ (this.clientMode ? "client" : "server") +
+                    ".SignatureSchemes\" properties");
+            } else if (ret == WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "restricted signature algorithms based on " +
+                    "on \"wolfjsse.enabledSigAlgorithms\" and " +
+                    "\"jdk.tls."+ (this.clientMode ? "client" : "server") +
+                    ".SignatureSchemes\" properties");
             }
         }
     }
@@ -1557,13 +1569,13 @@ public class WolfSSLEngineHelper {
     /**
      * Validates Server Name Indication (SNI) match between client request and
      * server matchers.
-     * 
+     *
      * This helper method is used only on the server side during the TLS
      * handshake to check if there is a server name in the list of requested
      * server names that matches the SNI matcher parameter. The check will be
      * ignored (return true) if no requested server name were sent by client
      * or if the SNI matcher parameter has not been set.
-     * 
+     *
      * Triggers an SSLHandshakeException on server side during handshake when
      * false.
      *
