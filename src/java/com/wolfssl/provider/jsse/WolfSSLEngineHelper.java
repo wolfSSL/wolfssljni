@@ -1129,7 +1129,7 @@ public class WolfSSLEngineHelper {
             WolfSSLUtil.getSignatureSchemes(this.clientMode);
         cleanSigList =
             WolfSSLUtil.formatSigSchemes(sigAlgos, sigSchemes);
- 
+
         if (cleanSigList != null) {
             ret = this.ssl.setSignatureAlgorithms(cleanSigList);
 

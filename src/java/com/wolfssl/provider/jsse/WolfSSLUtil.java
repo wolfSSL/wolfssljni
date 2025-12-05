@@ -176,22 +176,23 @@ public class WolfSSLUtil {
      * Translate SignatureSchemes property string to wolfJSSE
      * Signature Algorithm format.
      *
-     * This security property should contain a comma-separated list of
-     * values, for example:
-     *      jdk.tls.server.SignatureSchemes=
-     *          "ecdsa_secp384r1_sha384"
-     *      jdk.tls.client.SignatureSchemes=
-     *          "ecdsa_secp256r1_sha256,ecdsa_secp384r1_sha384"
+     * Signature Algorithms produced from the signature schemes property
+     * will not appear in the returned string if they already appear in the
+     * given signature algorithms list.
      *
-     * Do not include duplicate signature schemes.
-     * 
-     * @param sigAlgs Full list of TLS signature suites to format
+     * @param sigAlgs Full list of TLS signature algorithms to format, provided
+     *        by "wolfjsse.enabledSignatureAlgorithms". Should be in format
+     *        similar to: "SCHEME1:SCHEME2". See {@link
+     *        #getSignatureAlgorithms()}.
      *
-     * @param sigSchemes List of TLS signature schemes to format, provided
-     *        by Signature Schemes property. Should be in format similar
-     *        to: "SCHEME1","SCHEME2", etc.
+     * @param sigSchemes String list of TLS signature schemes to format,
+     *        provided by Signature Schemes property. Should be in format
+     *        similar to: "SCHEME1,SCHEME2", etc. See {@link
+     *        #getSignatureSchemes(boolean)}.
      *
-     * @return New filtered String of signature algorithms.
+     * @return New colon separated String of filtered signature algorithms.
+     *         Returns null if both signature algorithms and signature schemes
+     *         lists are null.
      */
     protected static String formatSigSchemes(String sigAlgs,
                                              String sigSchemes) {
@@ -202,7 +203,7 @@ public class WolfSSLUtil {
         else if (sigAlgs != null && sigSchemes == null) {
             return sigAlgs;
         }
-        
+
         if (sigAlgs != null) {
             sigAlgList = new ArrayList<>(Arrays.asList(sigAlgs.split(":")));
         }
@@ -334,9 +335,16 @@ public class WolfSSLUtil {
      * jdk.tls.client.SignatureSchemes or jdk.tls.server.SignatureSchemes
      * System property.
      *
+     * This security property should contain a comma-separated list of
+     * values, for example:
+     *      jdk.tls.server.SignatureSchemes=
+     *          "ecdsa_secp384r1_sha384"
+     *      jdk.tls.client.SignatureSchemes=
+     *          "ecdsa_secp256r1_sha256,ecdsa_secp384r1_sha384"
+     *
      * @param clientMode Get Client or Server SignatureSchemes
-     * @return Colon delimited list of signature algorithms to be set
-     *         in the ClientHello.
+     * @return comma delimited list of signature schemes.
+     *         Returns null if property has not been set or is empty.
      */
     protected static String getSignatureSchemes(boolean clientMode) {
         String sigSchemes;
