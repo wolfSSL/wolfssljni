@@ -3908,7 +3908,6 @@ public class WolfSSLSessionTest {
             return;
         }
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
         WolfSSLSession server = null;
@@ -4002,50 +4001,59 @@ public class WolfSSLSessionTest {
             client.setIOReadCtx(ioCtx);
             client.setIOWriteCtx(ioCtx);
 
-            /* Perform DTLS handshake in separate thread */
-            final WolfSSLSession finalServer = server;
-            Future<Integer> serverFuture = es.submit(
-                new Callable<Integer>() {
-                    @Override
-                    public Integer call() {
-                        int srvRet;
-                        int srvErr;
-                        do {
-                            try {
-                                srvRet = finalServer.accept();
-                                srvErr = finalServer.getError(srvRet);
-                            } catch (Exception e) {
-                                return WolfSSL.SSL_FAILURE;
-                            }
-                        } while (srvRet != WolfSSL.SSL_SUCCESS &&
-                                 (srvErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                                  srvErr == WolfSSL.SSL_ERROR_WANT_WRITE));
-                        if (srvRet != WolfSSL.SSL_SUCCESS) {
-                            System.out.println("\nServer accept failed: " +
-                                srvRet + ", error: " + srvErr + " - " +
-                                WolfSSL.getErrorString(srvErr));
-                        }
-                        return srvRet;
+            /* Perform DTLS handshake in single thread to avoid race
+             * conditions. With pure in-memory I/O (no real socket), we
+             * need to alternate between client and server operations
+             * to properly exchange handshake messages. */
+            int srvRet = WolfSSL.SSL_FAILURE;
+            int cliRet = WolfSSL.SSL_FAILURE;
+            int srvErr = 0;
+            int cliErr = 0;
+            int iterations = 0;
+            final int maxIterations = 100;
+
+            /* Alternate between client connect and server accept until
+             * both complete or we hit max iterations */
+            while (iterations < maxIterations) {
+                iterations++;
+
+                /* Client step */
+                if (cliRet != WolfSSL.SSL_SUCCESS) {
+                    cliRet = client.connect();
+                    cliErr = client.getError(cliRet);
+                    if (cliRet != WolfSSL.SSL_SUCCESS &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nClient connect failed: " +
+                            cliRet + ", error: " + cliErr + " - " +
+                            WolfSSL.getErrorString(cliErr));
+                        break;
                     }
-                });
+                }
 
-            /* Client handshake with retry loop */
-            int clientErr;
-            do {
-                ret = client.connect();
-                clientErr = client.getError(ret);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     (clientErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                      clientErr == WolfSSL.SSL_ERROR_WANT_WRITE));
+                /* Server step */
+                if (srvRet != WolfSSL.SSL_SUCCESS) {
+                    srvRet = server.accept();
+                    srvErr = server.getError(srvRet);
+                    if (srvRet != WolfSSL.SSL_SUCCESS &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nServer accept failed: " +
+                            srvRet + ", error: " + srvErr + " - " +
+                            WolfSSL.getErrorString(srvErr));
+                        break;
+                    }
+                }
 
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\nClient connect failed: " + ret +
-                    ", error: " + clientErr + " - " +
-                    WolfSSL.getErrorString(clientErr));
+                /* Check if both completed */
+                if (cliRet == WolfSSL.SSL_SUCCESS &&
+                    srvRet == WolfSSL.SSL_SUCCESS) {
+                    break;
+                }
             }
 
-            /* Wait for server handshake to complete */
-            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+            ret = cliRet;
+            Integer serverRet = srvRet;
 
             if (ret == WolfSSL.SSL_SUCCESS &&
                 serverRet == WolfSSL.SSL_SUCCESS) {
@@ -4114,7 +4122,6 @@ public class WolfSSLSessionTest {
             if (clientCtx != null) {
                 clientCtx.free();
             }
-            es.shutdown();
         }
     }
 
@@ -4139,7 +4146,6 @@ public class WolfSSLSessionTest {
             return;
         }
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
         WolfSSLSession server = null;
@@ -4213,50 +4219,59 @@ public class WolfSSLSessionTest {
             client.setIOReadCtx(ioCtx);
             client.setIOWriteCtx(ioCtx);
 
-            /* Perform DTLS handshake in separate thread */
-            final WolfSSLSession finalServer = server;
-            Future<Integer> serverFuture = es.submit(
-                new Callable<Integer>() {
-                    @Override
-                    public Integer call() {
-                        int srvRet;
-                        int srvErr;
-                        do {
-                            try {
-                                srvRet = finalServer.accept();
-                                srvErr = finalServer.getError(srvRet);
-                            } catch (Exception e) {
-                                return WolfSSL.SSL_FAILURE;
-                            }
-                        } while (srvRet != WolfSSL.SSL_SUCCESS &&
-                                 (srvErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                                  srvErr == WolfSSL.SSL_ERROR_WANT_WRITE));
-                        if (srvRet != WolfSSL.SSL_SUCCESS) {
-                            System.out.println("\nServer accept failed: " +
-                                srvRet + ", error: " + srvErr + " - " +
-                                WolfSSL.getErrorString(srvErr));
-                        }
-                        return srvRet;
+            /* Perform DTLS handshake in single thread to avoid race
+             * conditions. With pure in-memory I/O (no real socket), we
+             * need to alternate between client and server operations
+             * to properly exchange handshake messages. */
+            int srvRet = WolfSSL.SSL_FAILURE;
+            int cliRet = WolfSSL.SSL_FAILURE;
+            int srvErr = 0;
+            int cliErr = 0;
+            int iterations = 0;
+            final int maxIterations = 100;
+
+            /* Alternate between client connect and server accept until
+             * both complete or we hit max iterations */
+            while (iterations < maxIterations) {
+                iterations++;
+
+                /* Client step */
+                if (cliRet != WolfSSL.SSL_SUCCESS) {
+                    cliRet = client.connect();
+                    cliErr = client.getError(cliRet);
+                    if (cliRet != WolfSSL.SSL_SUCCESS &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nClient connect failed: " +
+                            cliRet + ", error: " + cliErr + " - " +
+                            WolfSSL.getErrorString(cliErr));
+                        break;
                     }
-                });
+                }
 
-            /* Client handshake with retry loop */
-            int clientErr;
-            do {
-                ret = client.connect();
-                clientErr = client.getError(ret);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     (clientErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                      clientErr == WolfSSL.SSL_ERROR_WANT_WRITE));
+                /* Server step */
+                if (srvRet != WolfSSL.SSL_SUCCESS) {
+                    srvRet = server.accept();
+                    srvErr = server.getError(srvRet);
+                    if (srvRet != WolfSSL.SSL_SUCCESS &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nServer accept failed: " +
+                            srvRet + ", error: " + srvErr + " - " +
+                            WolfSSL.getErrorString(srvErr));
+                        break;
+                    }
+                }
 
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\nClient connect failed: " + ret +
-                    ", error: " + clientErr + " - " +
-                    WolfSSL.getErrorString(clientErr));
+                /* Check if both completed */
+                if (cliRet == WolfSSL.SSL_SUCCESS &&
+                    srvRet == WolfSSL.SSL_SUCCESS) {
+                    break;
+                }
             }
 
-            /* Wait for server handshake to complete */
-            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+            ret = cliRet;
+            Integer serverRet = srvRet;
 
             if (ret == WolfSSL.SSL_SUCCESS &&
                 serverRet == WolfSSL.SSL_SUCCESS) {
@@ -4335,7 +4350,6 @@ public class WolfSSLSessionTest {
             if (clientCtx != null) {
                 clientCtx.free();
             }
-            es.shutdown();
         }
     }
 
