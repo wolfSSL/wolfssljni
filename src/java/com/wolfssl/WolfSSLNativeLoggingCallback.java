@@ -20,7 +20,7 @@
  */
 package com.wolfssl;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 
 /**
  * Utility class to help with JSSE-level functionality.
@@ -35,10 +35,11 @@ class WolfSSLNativeLoggingCallback implements WolfSSLLoggingCallback
 {
     public synchronized void loggingCallback(int logLevel, String logMessage) {
 
-        System.err.println(new Timestamp(new java.util.Date().getTime()) +
-                           " [wolfSSL: TID " +
-                           Thread.currentThread().getId() +
-                           "] " + logMessage);
+        System.err.println(
+            WolfSSLDebug.TIME_FORMATTER.format(Instant.now()) +
+            " [wolfSSL: TID " +
+            Thread.currentThread().getId() +
+            "] " + logMessage);
     }
 }
 
