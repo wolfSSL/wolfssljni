@@ -2267,31 +2267,44 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
-  (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
-    unsigned int sz;
-    const unsigned char* id;
-    jbyteArray ret;
-    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    unsigned int sz = 0;
+    const unsigned char* id = NULL;
+    jbyteArray ret = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    WOLFSSL_SESSION* session = NULL;
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    session = wolfSSL_get1_session(ssl);
+    if (session == NULL) {
+        return NULL;
+    }
 
     id = wolfSSL_SESSION_get_id(session, &sz);
-    if (id == NULL) {
-        return NULL;
+    if (id != NULL) {
+
+        ret = (*jenv)->NewByteArray(jenv, sz);
+        if (!ret) {
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to create byte array in native getSessionID");
+            wolfSSL_SESSION_free(session);
+            return NULL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)id);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            wolfSSL_SESSION_free(session);
+            return NULL;
+        }
     }
 
-    ret = (*jenv)->NewByteArray(jenv, sz);
-    if (!ret) {
-        (*jenv)->ThrowNew(jenv, jcl,
-            "Failed to create byte array in native getSessionID");
-        return NULL;
-    }
-
-    (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)id);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        return NULL;
-    }
+    wolfSSL_SESSION_free(session);
 
     return ret;
 }

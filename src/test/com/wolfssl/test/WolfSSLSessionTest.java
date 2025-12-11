@@ -544,8 +544,9 @@ public class WolfSSLSessionTest {
         cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
             WolfSSL.SSL_FILETYPE_PEM, caCert,
             WolfSSL.TLSv1_3_ClientMethod());
-        /* Start server, handles 1 resumption */
+
         try {
+            /* Start server, handles 1 resumption */
             ExecutorService es = Executors.newSingleThreadExecutor();
             es.submit(new Callable<Void>() {
                 @Override
@@ -611,8 +612,9 @@ public class WolfSSLSessionTest {
             ssl = new WolfSSLSession(cliCtx);
 
             ret = ssl.setFd(cliSock);
-            if (ret != WolfSSL.SSL_SUCCESS)
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 throw new Exception("setFd() failed");
+            }
 
             do {
                 ret = ssl.connect();
@@ -641,12 +643,14 @@ public class WolfSSLSessionTest {
             ssl = new WolfSSLSession(cliCtx);
 
             ret = ssl.setFd(cliSock);
-            if (ret != WolfSSL.SSL_SUCCESS)
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 throw new Exception("setFd() failed");
+            }
 
             ret = ssl.setSessionTicket(sessionTicket);
-            if (ret != WolfSSL.SSL_SUCCESS)
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 throw new Exception("setSessionTicket() failed");
+            }
 
             do {
                 ret = ssl.connect();
@@ -655,8 +659,9 @@ public class WolfSSLSessionTest {
                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-            if (ret != WolfSSL.SSL_SUCCESS)
-            throw new Exception("Resumption connect failed");
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("Resumption connect failed");
+            }
 
             /* Check if session was resumed */
             assertEquals("Session was not resumed", 1, ssl.sessionReused());
@@ -909,27 +914,101 @@ public class WolfSSLSessionTest {
         throws WolfSSLJNIException {
 
         int ret, err;
-        WolfSSL sslLib = null;
-        WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
-        Socket sock = null;
+        Socket cliSock = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
 
         System.out.print("\tTesting use after free");
 
         try {
+            /* Create ServerSocket first to get ephemeral port,
+             * set 10 sec timeout on accept() to prevent test hangs. */
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
 
-            /* setup library, context, session, socket */
-            sslLib = new WolfSSL();
-            assertNotNull(sslLib);
-            sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
-            sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
-            ssl = new WolfSSLSession(sslCtx);
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket finalSrvSocket = srvSocket;
 
-            sock = new Socket(exampleHost, examplePort);
-            ret = ssl.setFd(sock);
+            /* Setup server and client contexts */
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            final WolfSSLContext finalSrvCtx = srvCtx;
+
+            /* Flush session cache to avoid interference from other tests.
+             * Native wolfSSL session cache is static and shared.
+            srvCtx.flushSessions(-1);
+            cliCtx.flushSessions(-1); */
+
+            /* Latch to signal when server is ready to accept */
+            final CountDownLatch serverReady = new CountDownLatch(1);
+
+            /* Start server thread */
+            es = Executors.newSingleThreadExecutor();
+            es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Signal that we're ready to accept */
+                        serverReady.countDown();
+                        server = finalSrvSocket.accept();
+                        srvSes = new WolfSSLSession(finalSrvCtx);
+
+                        ret = srvSes.setFd(server);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.setFd() failed: " + ret);
+                        }
+
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.accept() failed: " + ret);
+                        }
+
+                        srvSes.shutdownSSL();
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                        finalSrvSocket.close();
+                    }
+
+                    return null;
+                }
+            });
+
+            /* Wait for server thread to be ready before connecting */
+            serverReady.await(2, TimeUnit.SECONDS);
+
+            /* Client connects to local server */
+            cliSock = new Socket("localhost", port);
+            ssl = new WolfSSLSession(cliCtx);
+
+            ret = ssl.setFd(cliSock);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                ssl.freeSSL();
-                sslCtx.free();
                 fail("Failed to set file descriptor");
             }
 
@@ -942,31 +1021,40 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                fail("Failed WolfSSL.connect() to " + exampleHost);
+                fail("Failed WolfSSL.connect() to localhost");
             }
 
-        } catch (UnknownHostException | ConnectException e) {
-            /* skip if no Internet connection */
-            System.out.println("\t\t... skipped");
-            return;
+            ssl.shutdownSSL();
+            ssl.freeSSL();
+            /* Don't set ssl to null - we need to test use-after-free below */
 
         } catch (Exception e) {
             System.out.println("\t\t... failed");
-            fail("Failed UseAfterFree test");
+            fail("Failed UseAfterFree test: " + e.getMessage());
             e.printStackTrace();
             return;
 
         } finally {
-            if (ssl != null) {
-                ssl.freeSSL();
+            /* Clean up resources */
+            if (cliSock != null) {
+                try { cliSock.close(); } catch (Exception e) { }
             }
-            if (sslCtx != null) {
-                sslCtx.free();
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (Exception e) { }
             }
         }
 
         try {
-            /* this should fail, use after free */
+            /* this should fail, use after free - ssl has been freed above */
             ret = ssl.connect();
 
         } catch (IllegalStateException ise) {
@@ -991,22 +1079,40 @@ public class WolfSSLSessionTest {
         throws WolfSSLJNIException {
 
         int ret, err;
-        WolfSSL sslLib = null;
-        WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
-        Socket sock = null;
+        Socket cliSock = null;
         byte[] sessionID = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
 
         System.out.print("\tTesting getSessionID()");
 
         try {
+            /* Create ServerSocket first to get ephemeral port, set
+             * 10 sec timeout on accept() to prevent test hangs. */
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
 
-            /* setup library, context, session, socket */
-            sslLib = new WolfSSL();
-            assertNotNull(sslLib);
-            sslCtx = new WolfSSLContext(WolfSSL.TLSv1_2_ClientMethod());
-            sslCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
-            ssl = new WolfSSLSession(sslCtx);
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket finalSrvSocket = srvSocket;
+
+            /* Setup server and client contexts */
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            final WolfSSLContext finalSrvCtx = srvCtx;
+
+            /* Flush session cache to avoid interference from other tests.
+             * Native wolfSSL session cache is static and shared.
+            srvCtx.flushSessions(-1);
+            cliCtx.flushSessions(-1); */
+
+            ssl = new WolfSSLSession(cliCtx);
 
             sessionID = ssl.getSessionID();
             if (sessionID == null || sessionID.length != 0) {
@@ -1014,8 +1120,66 @@ public class WolfSSLSessionTest {
                 fail("Session ID should be empty array before connection");
             }
 
-            sock = new Socket(exampleHost, examplePort);
-            ret = ssl.setFd(sock);
+            /* Latch to signal when server is ready to accept */
+            final CountDownLatch serverReady = new CountDownLatch(1);
+
+            /* Start server thread */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Signal that we're ready to accept */
+                        serverReady.countDown();
+                        server = finalSrvSocket.accept();
+                        srvSes = new WolfSSLSession(finalSrvCtx);
+
+                        ret = srvSes.setFd(server);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.setFd() failed: " + ret);
+                        }
+
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.accept() failed: " + ret);
+                        }
+
+                        srvSes.shutdownSSL();
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                        finalSrvSocket.close();
+                    }
+
+                    return null;
+                }
+            });
+
+            /* Wait for server thread to be ready before connecting */
+            serverReady.await(5, TimeUnit.SECONDS);
+
+            /* Client connects to local server */
+            cliSock = new Socket("localhost", port);
+
+            ret = ssl.setFd(cliSock);
             if (ret != WolfSSL.SSL_SUCCESS) {
                 fail("Failed to set file descriptor");
             }
@@ -1029,33 +1193,48 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                fail("Failed WolfSSL.connect() to " + exampleHost);
+                fail("Failed WolfSSL.connect() to localhost");
             }
 
+            /* Wait for server thread to complete and check for errors */
+            serverFuture.get(5, TimeUnit.SECONDS);
+
+            /* Test getSessionID() - for TLS 1.2 connections, a session ID
+             * should always be present after successful handshake */
             sessionID = ssl.getSessionID();
+
             if (sessionID == null || sessionID.length == 0) {
-                /* session ID should not be null or zero length */
                 fail("Session ID should not be null or 0 length " +
                      "after connection");
             }
 
-        } catch (UnknownHostException | ConnectException e) {
-            /* skip if no Internet connection */
-            System.out.println("\t\t... skipped");
-            return;
+            ssl.shutdownSSL();
 
         } catch (Exception e) {
             System.out.println("\t\t... failed");
-            fail("Failed getSessionID test");
+            fail("Failed getSessionID test: " + e.getMessage());
             e.printStackTrace();
             return;
 
         } finally {
+            /* Clean up resources */
             if (ssl != null) {
                 ssl.freeSSL();
             }
-            if (sslCtx != null) {
-                sslCtx.free();
+            if (cliSock != null) {
+                try { cliSock.close(); } catch (Exception e) { }
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (Exception e) { }
             }
         }
 
@@ -1420,27 +1599,40 @@ public class WolfSSLSessionTest {
         long sesDup = 0;
         Socket cliSock = null;
         WolfSSLSession cliSes = null;
+        ExecutorService es = null;
+        ServerSocket srvSocket = null;
 
         /* Create client/server WolfSSLContext objects, Server context
          * must be final since used inside inner class. */
-        final WolfSSLContext srvCtx;
-        WolfSSLContext cliCtx;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
 
         System.out.print("\tTesting get/setSession()");
 
-        /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
-
-        srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
-            WolfSSL.SSL_FILETYPE_PEM, cliCert,
-            WolfSSL.SSLv23_ServerMethod());
-        cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
-            WolfSSL.SSL_FILETYPE_PEM, caCert,
-            WolfSSL.SSLv23_ClientMethod());
-
-        /* Start server, handles 1 resumption */
         try {
-            ExecutorService es = Executors.newSingleThreadExecutor();
+            /* Create ServerSocket first to get ephemeral port, set 10 sec
+             * timeout on accept() to prevent test hangs. */
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket finalSrvSocket = srvSocket;
+
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.SSLv23_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.SSLv23_ClientMethod());
+            final WolfSSLContext finalSrvCtx = srvCtx;
+
+            /* Flush session cache to avoid interference from other tests
+            srvCtx.flushSessions(-1);
+            cliCtx.flushSessions(-1); */
+
+            /* Latch to signal when server is ready to accept */
+            final CountDownLatch serverReady = new CountDownLatch(1);
+
+            /* Start server, handles 1 resumption */
+            es = Executors.newSingleThreadExecutor();
             es.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
@@ -1450,10 +1642,14 @@ public class WolfSSLSessionTest {
                     WolfSSLSession srvSes = null;
 
                     try {
-                        /* Loop twice to allow handle one resumption */
+                        /* Loop twice to handle one resumption */
                         for (int i = 0; i < 2; i++) {
-                            server = srvSocket.accept();
-                            srvSes = new WolfSSLSession(srvCtx);
+                            /* Signal ready before first accept */
+                            if (i == 0) {
+                                serverReady.countDown();
+                            }
+                            server = finalSrvSocket.accept();
+                            srvSes = new WolfSSLSession(finalSrvCtx);
 
                             ret = srvSes.setFd(server);
                             if (ret != WolfSSL.SSL_SUCCESS) {
@@ -1476,6 +1672,8 @@ public class WolfSSLSessionTest {
                             srvSes.shutdownSSL();
                             srvSes.freeSSL();
                             srvSes = null;
+                            server.close();
+                            server = null;
                         }
 
                     } finally {
@@ -1491,13 +1689,9 @@ public class WolfSSLSessionTest {
                 }
             });
 
-        } catch (Exception e) {
-            System.out.println("\t... failed");
-            e.printStackTrace();
-            fail();
-        }
+            /* Wait for server thread to be ready before connecting */
+            serverReady.await(2, TimeUnit.SECONDS);
 
-        try {
             /* -------------------------------------------------------------- */
             /* Client connection #1 */
             /* -------------------------------------------------------------- */
@@ -1631,13 +1825,22 @@ public class WolfSSLSessionTest {
                 cliSes.freeSSL();
             }
             if (cliSock != null) {
-                cliSock.close();
+                try { cliSock.close(); } catch (Exception e) { }
             }
             if (srvSocket != null) {
-                srvSocket.close();
+                try { srvSocket.close(); } catch (Exception e) { }
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
             }
             if (srvCtx != null) {
                 srvCtx.free();
+            }
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(2, TimeUnit.SECONDS);
+                } catch (Exception e) { }
             }
         }
 
@@ -2614,7 +2817,7 @@ public class WolfSSLSessionTest {
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
 
-        System.out.print("\tTesting sessionToDer/sessionFromDer()");
+        System.out.print("\tsessionToDer/sessionFromDer()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
@@ -3705,7 +3908,6 @@ public class WolfSSLSessionTest {
             return;
         }
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
         WolfSSLSession server = null;
@@ -3799,50 +4001,59 @@ public class WolfSSLSessionTest {
             client.setIOReadCtx(ioCtx);
             client.setIOWriteCtx(ioCtx);
 
-            /* Perform DTLS handshake in separate thread */
-            final WolfSSLSession finalServer = server;
-            Future<Integer> serverFuture = es.submit(
-                new Callable<Integer>() {
-                    @Override
-                    public Integer call() {
-                        int srvRet;
-                        int srvErr;
-                        do {
-                            try {
-                                srvRet = finalServer.accept();
-                                srvErr = finalServer.getError(srvRet);
-                            } catch (Exception e) {
-                                return WolfSSL.SSL_FAILURE;
-                            }
-                        } while (srvRet != WolfSSL.SSL_SUCCESS &&
-                                 (srvErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                                  srvErr == WolfSSL.SSL_ERROR_WANT_WRITE));
-                        if (srvRet != WolfSSL.SSL_SUCCESS) {
-                            System.out.println("\nServer accept failed: " +
-                                srvRet + ", error: " + srvErr + " - " +
-                                WolfSSL.getErrorString(srvErr));
-                        }
-                        return srvRet;
+            /* Perform DTLS handshake in single thread to avoid race
+             * conditions. With pure in-memory I/O (no real socket), we
+             * need to alternate between client and server operations
+             * to properly exchange handshake messages. */
+            int srvRet = WolfSSL.SSL_FAILURE;
+            int cliRet = WolfSSL.SSL_FAILURE;
+            int srvErr = 0;
+            int cliErr = 0;
+            int iterations = 0;
+            final int maxIterations = 100;
+
+            /* Alternate between client connect and server accept until
+             * both complete or we hit max iterations */
+            while (iterations < maxIterations) {
+                iterations++;
+
+                /* Client step */
+                if (cliRet != WolfSSL.SSL_SUCCESS) {
+                    cliRet = client.connect();
+                    cliErr = client.getError(cliRet);
+                    if (cliRet != WolfSSL.SSL_SUCCESS &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nClient connect failed: " +
+                            cliRet + ", error: " + cliErr + " - " +
+                            WolfSSL.getErrorString(cliErr));
+                        break;
                     }
-                });
+                }
 
-            /* Client handshake with retry loop */
-            int clientErr;
-            do {
-                ret = client.connect();
-                clientErr = client.getError(ret);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     (clientErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                      clientErr == WolfSSL.SSL_ERROR_WANT_WRITE));
+                /* Server step */
+                if (srvRet != WolfSSL.SSL_SUCCESS) {
+                    srvRet = server.accept();
+                    srvErr = server.getError(srvRet);
+                    if (srvRet != WolfSSL.SSL_SUCCESS &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nServer accept failed: " +
+                            srvRet + ", error: " + srvErr + " - " +
+                            WolfSSL.getErrorString(srvErr));
+                        break;
+                    }
+                }
 
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\nClient connect failed: " + ret +
-                    ", error: " + clientErr + " - " +
-                    WolfSSL.getErrorString(clientErr));
+                /* Check if both completed */
+                if (cliRet == WolfSSL.SSL_SUCCESS &&
+                    srvRet == WolfSSL.SSL_SUCCESS) {
+                    break;
+                }
             }
 
-            /* Wait for server handshake to complete */
-            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+            ret = cliRet;
+            Integer serverRet = srvRet;
 
             if (ret == WolfSSL.SSL_SUCCESS &&
                 serverRet == WolfSSL.SSL_SUCCESS) {
@@ -3911,7 +4122,6 @@ public class WolfSSLSessionTest {
             if (clientCtx != null) {
                 clientCtx.free();
             }
-            es.shutdown();
         }
     }
 
@@ -3936,7 +4146,6 @@ public class WolfSSLSessionTest {
             return;
         }
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
         WolfSSLSession server = null;
@@ -4010,50 +4219,59 @@ public class WolfSSLSessionTest {
             client.setIOReadCtx(ioCtx);
             client.setIOWriteCtx(ioCtx);
 
-            /* Perform DTLS handshake in separate thread */
-            final WolfSSLSession finalServer = server;
-            Future<Integer> serverFuture = es.submit(
-                new Callable<Integer>() {
-                    @Override
-                    public Integer call() {
-                        int srvRet;
-                        int srvErr;
-                        do {
-                            try {
-                                srvRet = finalServer.accept();
-                                srvErr = finalServer.getError(srvRet);
-                            } catch (Exception e) {
-                                return WolfSSL.SSL_FAILURE;
-                            }
-                        } while (srvRet != WolfSSL.SSL_SUCCESS &&
-                                 (srvErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                                  srvErr == WolfSSL.SSL_ERROR_WANT_WRITE));
-                        if (srvRet != WolfSSL.SSL_SUCCESS) {
-                            System.out.println("\nServer accept failed: " +
-                                srvRet + ", error: " + srvErr + " - " +
-                                WolfSSL.getErrorString(srvErr));
-                        }
-                        return srvRet;
+            /* Perform DTLS handshake in single thread to avoid race
+             * conditions. With pure in-memory I/O (no real socket), we
+             * need to alternate between client and server operations
+             * to properly exchange handshake messages. */
+            int srvRet = WolfSSL.SSL_FAILURE;
+            int cliRet = WolfSSL.SSL_FAILURE;
+            int srvErr = 0;
+            int cliErr = 0;
+            int iterations = 0;
+            final int maxIterations = 100;
+
+            /* Alternate between client connect and server accept until
+             * both complete or we hit max iterations */
+            while (iterations < maxIterations) {
+                iterations++;
+
+                /* Client step */
+                if (cliRet != WolfSSL.SSL_SUCCESS) {
+                    cliRet = client.connect();
+                    cliErr = client.getError(cliRet);
+                    if (cliRet != WolfSSL.SSL_SUCCESS &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nClient connect failed: " +
+                            cliRet + ", error: " + cliErr + " - " +
+                            WolfSSL.getErrorString(cliErr));
+                        break;
                     }
-                });
+                }
 
-            /* Client handshake with retry loop */
-            int clientErr;
-            do {
-                ret = client.connect();
-                clientErr = client.getError(ret);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     (clientErr == WolfSSL.SSL_ERROR_WANT_READ ||
-                      clientErr == WolfSSL.SSL_ERROR_WANT_WRITE));
+                /* Server step */
+                if (srvRet != WolfSSL.SSL_SUCCESS) {
+                    srvRet = server.accept();
+                    srvErr = server.getError(srvRet);
+                    if (srvRet != WolfSSL.SSL_SUCCESS &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        System.out.println("\nServer accept failed: " +
+                            srvRet + ", error: " + srvErr + " - " +
+                            WolfSSL.getErrorString(srvErr));
+                        break;
+                    }
+                }
 
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\nClient connect failed: " + ret +
-                    ", error: " + clientErr + " - " +
-                    WolfSSL.getErrorString(clientErr));
+                /* Check if both completed */
+                if (cliRet == WolfSSL.SSL_SUCCESS &&
+                    srvRet == WolfSSL.SSL_SUCCESS) {
+                    break;
+                }
             }
 
-            /* Wait for server handshake to complete */
-            Integer serverRet = serverFuture.get(5, TimeUnit.SECONDS);
+            ret = cliRet;
+            Integer serverRet = srvRet;
 
             if (ret == WolfSSL.SSL_SUCCESS &&
                 serverRet == WolfSSL.SSL_SUCCESS) {
@@ -4132,7 +4350,6 @@ public class WolfSSLSessionTest {
             if (clientCtx != null) {
                 clientCtx.free();
             }
-            es.shutdown();
         }
     }
 

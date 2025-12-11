@@ -4278,7 +4278,7 @@ public class WolfSSLSocketTest {
                 "first cert was not peer/leaf cert"),
             orderCorrect[0]);
 
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 }
 

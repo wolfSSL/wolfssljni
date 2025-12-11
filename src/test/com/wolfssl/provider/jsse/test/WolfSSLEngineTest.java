@@ -58,6 +58,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -2100,14 +2102,21 @@ public class WolfSSLEngineTest {
             final Exception[] serverException = new Exception[] { null };
             final Exception[] clientException = new Exception[] { null };
 
+            /* Barrier to synchronize data transfer phases between threads.
+             * With this, both sides should complete each send/receive phase
+             * before proceeding, preventing race conditions where one side
+             * closes while the other is still processing. */
+            final CyclicBarrier dataBarrier = new CyclicBarrier(2);
+
             Thread serverThread = new Thread() {
                 public void run() {
                     try {
                         doNonBlockingIO(protocol, serverPort, serverReady,
-                            false);
+                            false, dataBarrier);
                     } catch (Exception e) {
                         serverReady[0] = true;
                         serverException[0] = e;
+                        dataBarrier.reset();
                     }
                 }
             };
@@ -2124,9 +2133,10 @@ public class WolfSSLEngineTest {
                 public void run() {
                     try {
                         doNonBlockingIO(protocol, serverPort, serverReady,
-                            true);
+                            true, dataBarrier);
                     } catch (Exception e) {
                         clientException[0] = e;
+                        dataBarrier.reset();
                     }
                 }
             };
@@ -2156,12 +2166,12 @@ public class WolfSSLEngineTest {
     }
 
     private void doNonBlockingIO(String protocol, int[] serverPort,
-        boolean[] serverReady, boolean isClient) throws Exception {
+        boolean[] serverReady, boolean isClient,
+        CyclicBarrier dataBarrier) throws Exception {
 
         ServerSocketChannel ssc = null;
         SocketChannel sc = null;
         SSLEngine engine = null;
-        boolean dataTransferComplete = false;
 
         try {
             SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
@@ -2191,14 +2201,43 @@ public class WolfSSLEngineTest {
             }
 
             doHandshake(engine, sc);
+
+            /* Synchronize after handshake to ensure both sides are ready
+             * before starting data transfer */
+            try {
+                dataBarrier.await(5, TimeUnit.SECONDS);
+            } catch (BrokenBarrierException e) {
+                return;
+            }
+
+            /* Phase 1: Server sends, client receives */
             if (!isClient) {
                 doDataTransfer(engine, sc, true);
-                doDataTransfer(engine, sc, false);
             } else {
                 doDataTransfer(engine, sc, false);
+            }
+
+            /* Synchronize before phase 2. BrokenBarrierException means
+             * peer hit an error and reset barrier - exit gracefully. */
+            try {
+                dataBarrier.await(5, TimeUnit.SECONDS);
+            } catch (BrokenBarrierException e) {
+                return;
+            }
+
+            /* Phase 2: Client sends, server receives */
+            if (!isClient) {
+                doDataTransfer(engine, sc, false);
+            } else {
                 doDataTransfer(engine, sc, true);
             }
-            dataTransferComplete = true;
+
+            /* Synchronize before closing sockets */
+            try {
+                dataBarrier.await(5, TimeUnit.SECONDS);
+            } catch (BrokenBarrierException e) {
+                return;
+            }
 
         } finally {
             /* Abrupt close is ok for test. close_notify may not be sent */

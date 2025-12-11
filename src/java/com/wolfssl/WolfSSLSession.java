@@ -596,7 +596,7 @@ public class WolfSSLSession {
     private static native long wolfsslSessionDup(long session);
     private static native String wolfsslSessionCipherGetName(long ssl);
     private static native void freeNativeSession(long session);
-    private native byte[] getSessionID(long session);
+    private native byte[] getSessionID(long ssl);
     private native int setServerID(long ssl, byte[] id, int len, int newSess);
     private native int setTimeout(long ssl, long t);
     private native long getTimeout(long ssl);
@@ -2246,11 +2246,8 @@ public class WolfSSLSession {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.sslPtr, () -> "entered getSessionID()");
 
-            long sess = getSession(this.sslPtr);
-            if (sess != 0) {
-                /* returns new byte[] independent of sess ptr */
-                 sessId = getSessionID(sess);
-            } else {
+            sessId = getSessionID(this.sslPtr);
+            if (sessId == null) {
                 sessId = new byte[0];
             }
 

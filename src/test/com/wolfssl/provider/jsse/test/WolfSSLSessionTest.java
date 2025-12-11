@@ -538,7 +538,7 @@ public class WolfSSLSessionTest {
             SSLEngine server = ctx1.createSSLEngine();
 
             if (client == null || server == null) {
-                error("\t\t... failed");
+                error("\t... failed");
                 fail("failed to create engine");
                 return;
             }
@@ -550,9 +550,9 @@ public class WolfSSLSessionTest {
             /* Handshake should fail due to signature scheme mismatch */
             ret = tf.testConnection(server, client, null, null,
                 "Test sig mismatch");
-            
+
             if (ret == 0) {
-                error("\t\t... failed");
+                error("\t... failed");
                 fail("Handshake succeeded with mismatching signature schemes");
             }
 
@@ -572,7 +572,7 @@ public class WolfSSLSessionTest {
             server = ctx2.createSSLEngine();
 
             if (client == null || server == null) {
-                error("\t\t... failed");
+                error("\t... failed");
                 fail("failed to create engine");
                 return;
             }
@@ -584,11 +584,11 @@ public class WolfSSLSessionTest {
             ret = tf.testConnection(server, client, null, null,
                 "Test sig match");
             if (ret != 0) {
-                error("\t\t... failed");
+                error("\t... failed");
                 fail("Handshake failed with matching signature schemes");
             }
 
-            pass("\t\t... passed");
+            pass("\t... passed");
 
         } finally {
             /* Restore properties */
