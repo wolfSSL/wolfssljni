@@ -21,7 +21,9 @@
 
 package com.wolfssl;
 
-import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.logging.*;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -35,6 +37,13 @@ import java.util.function.Supplier;
  * @author wolfSSL
  */
 public class WolfSSLDebug {
+
+    /**
+     * Shared time formatter for all debug log messages.
+     */
+    public static final DateTimeFormatter TIME_FORMATTER =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+            .withZone(ZoneId.systemDefault());
 
     /**
      * Create one Logger per logging layer:
@@ -205,7 +214,7 @@ public class WolfSSLDebug {
             }
 
             return String.format("%s [%s %s: TID %d: %s] %s%n",
-                new Timestamp(record.getMillis()),
+                TIME_FORMATTER.format(Instant.ofEpochMilli(record.getMillis())),
                 component,
                 levelStr,
                 threadId,
@@ -266,7 +275,7 @@ public class WolfSSLDebug {
                 "    \"thread_name\": \"%s\",\n" +
                 "    \"thread_id\": \"%d\"\n" +
                 "}\n",
-                new Timestamp(record.getMillis()),
+                TIME_FORMATTER.format(Instant.ofEpochMilli(record.getMillis())),
                 levelStr,
                 component,
                 message,
