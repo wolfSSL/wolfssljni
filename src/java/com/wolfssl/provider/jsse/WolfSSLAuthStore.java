@@ -73,11 +73,14 @@ public class WolfSSLAuthStore {
      * @param trustman trust manager to use
      * @param random secure random
      * @param version TLS protocol version to use
+     * @param serverCtx server session context (created by WolfSSLContext)
+     * @param clientCtx client session context (created by WolfSSLContext)
      * @throws IllegalArgumentException when bad values are passed in
      * @throws KeyManagementException in the case that getting keys fails
      */
     protected WolfSSLAuthStore(KeyManager[] keyman, TrustManager[] trustman,
-        SecureRandom random, TLS_VERSION version)
+        SecureRandom random, TLS_VERSION version,
+        WolfSSLSessionContext serverCtx, WolfSSLSessionContext clientCtx)
         throws IllegalArgumentException, KeyManagementException {
 
             /* default session cache size of 33 to match native wolfSSL
@@ -99,10 +102,11 @@ public class WolfSSLAuthStore {
         if (store == null) {
             store = new SessionStore<>(defaultCacheSize);
         }
-        this.serverCtx = new WolfSSLSessionContext(
-            defaultCacheSize, WolfSSL.WOLFSSL_SERVER_END);
-        this.clientCtx = new WolfSSLSessionContext(
-            defaultCacheSize, WolfSSL.WOLFSSL_CLIENT_END);
+
+        /* Use session contexts passed in from WolfSSLContext, allowing
+         * session context access before init() is called */
+        this.serverCtx = serverCtx;
+        this.clientCtx = clientCtx;
     }
 
     /**

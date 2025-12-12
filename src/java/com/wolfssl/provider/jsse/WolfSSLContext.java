@@ -55,8 +55,19 @@ public class WolfSSLContext extends SSLContextSpi {
     private com.wolfssl.WolfSSLContext ctx = null;
     private WolfSSLParameters params = null;
 
+    /* Created during construction to allow access before init() is called */
+    private WolfSSLSessionContext serverSessionCtx = null;
+    private WolfSSLSessionContext clientSessionCtx = null;
+
+    /* Default session cache size of 33 to match native wolfSSL default */
+    private static final int DEFAULT_CACHE_SIZE = 33;
+
     private WolfSSLContext(TLS_VERSION version) {
         this.currentVersion = version;
+        this.serverSessionCtx = new WolfSSLSessionContext(
+            DEFAULT_CACHE_SIZE, WolfSSL.WOLFSSL_SERVER_END);
+        this.clientSessionCtx = new WolfSSLSessionContext(
+            DEFAULT_CACHE_SIZE, WolfSSL.WOLFSSL_CLIENT_END);
     }
 
     private void createCtx() throws WolfSSLException {
@@ -399,9 +410,14 @@ public class WolfSSLContext extends SSLContextSpi {
             Arrays.toString(tm) + ", sr=" + sr +")");
 
         try {
-            authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion);
+            authStore = new WolfSSLAuthStore(km, tm, sr, currentVersion,
+                this.serverSessionCtx, this.clientSessionCtx);
             params = new WolfSSLParameters();
             createCtx();
+
+            /* Link authStore to session contexts for session operations */
+            this.serverSessionCtx.setWolfSSLAuthStore(authStore);
+            this.clientSessionCtx.setWolfSSLAuthStore(authStore);
 
         } catch (IllegalArgumentException iae) {
             throw new KeyManagementException(iae);
@@ -507,21 +523,27 @@ public class WolfSSLContext extends SSLContextSpi {
     /**
      * Returns the SSLServerSessionContext associated with this SSLContext.
      *
-     * @throws UnsupportedOperationException operation not yet supported
+     * Session contexts are created during SSLContext construction to allow
+     * access before init() is called.
+     *
+     * @return SSLSessionContext for server sessions
      */
     @Override
     protected SSLSessionContext engineGetServerSessionContext() {
-        return authStore.getServerContext();
+        return this.serverSessionCtx;
     }
 
     /**
      * Returns the SSLClientSessionContext associated with this SSLContext.
      *
-     * @throws UnsupportedOperationException operation not yet supported
+     * Session contexts are created during SSLContext construction to allow
+     * access before init() is called.
+     *
+     * @return SSLSessionContext for client sessions
      */
     @Override
     protected SSLSessionContext engineGetClientSessionContext() {
-        return authStore.getClientContext();
+        return this.clientSessionCtx;
     }
 
     /**
