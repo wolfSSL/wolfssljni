@@ -3679,5 +3679,85 @@ public class WolfSSLTrustX509Test {
 
         pass("\t... passed");
     }
+
+    /**
+     * Test that TrustManagerFactory can load system cacerts using java.home
+     * system property when JAVA_HOME environment variable is not set.
+     */
+    @Test
+    public void testSystemCaCertsLoadingViaJavaHome()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException {
+
+        System.out.print("\tTesting cacerts via java.home");
+
+        /* Verify java.home system property is set (should always be by JVM) */
+        String javaHome = System.getProperty("java.home");
+        if (javaHome == null || javaHome.isEmpty()) {
+            error("\t... failed");
+            fail("java.home system property not set");
+            return;
+        }
+
+        /* Check if cacerts file exists at expected location */
+        String cacertsPath = javaHome + File.separator + "lib" +
+            File.separator + "security" + File.separator + "cacerts";
+        File cacertsFile = new File(cacertsPath);
+
+        if (!cacertsFile.exists()) {
+            /* cacerts may not exist on all systems, skip test */
+            pass("\t... skipped (no cacerts)");
+            return;
+        }
+
+        /* Create TrustManagerFactory and init with null KeyStore.
+         * This triggers loading of system CA certs from cacerts file. */
+        TrustManagerFactory tmf =
+            TrustManagerFactory.getInstance("PKIX", provider);
+        if (tmf == null) {
+            error("\t... failed");
+            fail("failed to get TrustManagerFactory instance");
+            return;
+        }
+
+        try {
+            tmf.init((KeyStore)null);
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("TrustManagerFactory.init(null) failed: " + e.getMessage());
+            return;
+        }
+
+        /* Verify TrustManagers were created */
+        TrustManager[] tms = tmf.getTrustManagers();
+        if (tms == null || tms.length == 0) {
+            error("\t... failed");
+            fail("No TrustManagers returned after init with null KeyStore");
+            return;
+        }
+
+        /* Verify we have an X509TrustManager with accepted issuers,
+         * indicating cacerts were successfully loaded */
+        boolean foundX509TM = false;
+        for (TrustManager tm : tms) {
+            if (tm instanceof X509TrustManager) {
+                X509TrustManager x509tm = (X509TrustManager)tm;
+                X509Certificate[] issuers = x509tm.getAcceptedIssuers();
+                if (issuers != null && issuers.length > 0) {
+                    foundX509TM = true;
+                    break;
+                }
+            }
+        }
+
+        if (!foundX509TM) {
+            error("\t... failed");
+            fail("No X509TrustManager with accepted issuers found, " +
+                 "system cacerts may not have been loaded");
+            return;
+        }
+
+        pass("\t... passed");
+    }
 }
 

@@ -564,13 +564,20 @@ public class WolfSSLUtil {
     }
 
     /**
-     * Get path that JAVA_HOME is set, append trailing slash if needed.
+     * Get Java home directory path, append trailing slash if needed.
      *
-     * @return String that JAVA_HOME is set to, otherwise null if not set
+     * First checks JAVA_HOME environment variable. If not set, falls back
+     * to java.home system property which should be set by the JVM.
+     *
+     * @return String path to Java home directory, otherwise null if not set
      */
     protected static String GetJavaHome() {
 
         String javaHome = System.getenv("JAVA_HOME");
+
+        if (javaHome == null) {
+            javaHome = System.getProperty("java.home");
+        }
 
         if (javaHome != null) {
             if (!javaHome.endsWith("/") &&
