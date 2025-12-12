@@ -31,10 +31,12 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Collections;
@@ -1159,6 +1161,56 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         } /* synchronized sesPtr */
 
         super.finalize();
+    }
+
+    /**
+     * Return hash code for this SSLSession.
+     *
+     * Hash code is computed from session ID, host, port, and creation time
+     * to handle cases where session ID may be null or empty (such as with
+     * TLS 1.3 session tickets before resumption, or error conditions).
+     *
+     * @return hash code for this SSLSession
+     */
+    @Override
+    public int hashCode() {
+
+        byte[] id = getId();
+
+        return Objects.hash(
+            id == null ? 0 : Arrays.hashCode(id), host, port, creation);
+    }
+
+    /**
+     * Compares this SSLSession with another object for equality.
+     *
+     * Two WolfSSLImplementSSLSession objects are considered equal if they
+     * have the same session ID, host, port, and creation time. This method
+     * maintains the general contract with hashCode() as required by
+     * Object.equals().
+     *
+     * @param obj the object to compare with
+     * @return true if the objects are equal, false otherwise
+     */
+    @Override
+    public boolean equals(Object obj) {
+
+        WolfSSLImplementSSLSession other;
+
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
+        other = (WolfSSLImplementSSLSession) obj;
+
+        return Objects.deepEquals(this.getId(), other.getId())
+            && Objects.equals(this.host, other.host)
+            && this.port == other.port
+            && Objects.equals(this.creation, other.creation);
     }
 }
 

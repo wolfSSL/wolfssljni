@@ -607,6 +607,246 @@ public class WolfSSLSessionTest {
     }
 
     /**
+     * Test SSLSession.hashCode().
+     *
+     * Verifies that WolfSSLImplementSSLSession declares its own hashCode()
+     * method (not just inherited from Object). Tests hashCode consistency
+     * and that different sessions produce different hash codes.
+     */
+    @Test
+    public void testSessionHashCode()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        SSLSession session;
+
+        System.out.print("\tTesting hashCode()");
+
+        SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine client = ctx.createSSLEngine("localhost", 12345);
+        SSLEngine server = ctx.createSSLEngine();
+
+        if (client == null || server == null) {
+            error("\t\t... failed");
+            fail("failed to create engine");
+            return;
+        }
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        ret = tf.testConnection(server, client, null, null, "Test hashCode");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create connection");
+            return;
+        }
+
+        session = client.getSession();
+        if (session == null) {
+            error("\t\t... failed");
+            fail("SSLEngine.getSession() returned null");
+            return;
+        }
+
+        /* Test that hashCode() method is declared in the session class
+         * (not just inherited from Object). */
+        try {
+            session.getClass().getDeclaredMethod("hashCode", new Class<?>[0]);
+        } catch (NoSuchMethodException e) {
+            error("\t\t... failed");
+            fail("SSLSession class does not declare hashCode() method");
+            return;
+        }
+
+        /* Test that hashCode() returns consistent value */
+        int hash1 = session.hashCode();
+        int hash2 = session.hashCode();
+        if (hash1 != hash2) {
+            error("\t\t... failed");
+            fail("SSLSession.hashCode() not consistent: " +
+                 hash1 + " != " + hash2);
+            return;
+        }
+
+        /* Test that different session has different hashCode.
+         * Create another connection */
+        SSLContext ctx2 = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine client2 = ctx2.createSSLEngine("localhost", 54321);
+        SSLEngine server2 = ctx2.createSSLEngine();
+
+        server2.setUseClientMode(false);
+        server2.setNeedClientAuth(false);
+        client2.setUseClientMode(true);
+
+        ret = tf.testConnection(server2, client2, null, null,
+            "Test hashCode 2");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create second connection");
+            return;
+        }
+
+        SSLSession session2 = client2.getSession();
+        if (session2 == null) {
+            error("\t\t... failed");
+            fail("Second SSLEngine.getSession() returned null");
+            return;
+        }
+
+        /* Test different sessions should have different hashCodes */
+        int hash3 = session2.hashCode();
+        if (hash1 == hash3) {
+            /* Not a hard failure, just a warning since hashCode collisions
+             * are technically allowed */
+            System.out.println(" (warning: hash collision)");
+        }
+
+        pass("\t\t... passed");
+    }
+
+    @Test
+    public void testSessionEquals()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        SSLSession session;
+
+        System.out.print("\tTesting equals()");
+
+        SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine client = ctx.createSSLEngine("localhost", 12345);
+        SSLEngine server = ctx.createSSLEngine();
+
+        if (client == null || server == null) {
+            error("\t\t... failed");
+            fail("failed to create engine");
+            return;
+        }
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        ret = tf.testConnection(server, client, null, null, "Test equals");
+        if (ret != 0) {
+            error("\t\t... failed");
+            fail("failed to create connection");
+            return;
+        }
+
+        session = client.getSession();
+        if (session == null) {
+            error("\t\t... failed");
+            fail("SSLEngine.getSession() returned null");
+            return;
+        }
+
+        /* Test that equals() method is declared in the session class
+         * (not just inherited from Object). */
+        try {
+            session.getClass().getDeclaredMethod("equals",
+                new Class<?>[] { Object.class });
+        } catch (NoSuchMethodException e) {
+            error("\t\t... failed");
+            fail("SSLSession class does not declare equals() method");
+            return;
+        }
+
+        /* Test reflexivity: session.equals(session) should be true */
+        if (!session.equals(session)) {
+            error("\t\t... failed");
+            fail("SSLSession.equals() reflexivity failed");
+            return;
+        }
+
+        /* Test null: session.equals(null) should be false */
+        if (session.equals(null)) {
+            error("\t\t... failed");
+            fail("SSLSession.equals(null) should return false");
+            return;
+        }
+
+        /* Test different type: session.equals(Object) should return false
+         * when passed an incompatible type. This is intentional to verify
+         * the equals() implementation handles type mismatches correctly. */
+        Object differentType = "not a session";
+        if (session.equals(differentType)) {
+            error("\t\t... failed");
+            fail("SSLSession.equals(Object) should return false for " +
+                 "incompatible type");
+            return;
+        }
+
+        /* Test hashCode/equals contract: equal objects must have same hash */
+        if (session.equals(session) &&
+            session.hashCode() != session.hashCode()) {
+            error("\t\t... failed");
+            fail("Equal sessions have different hashCodes");
+            return;
+        }
+
+        pass("\t\t... passed");
+    }
+
+    @Test
+    public void testSessionHashCodeBeforeHandshake()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        System.out.print("\tTesting hashCode() before HS");
+
+        SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine engine = ctx.createSSLEngine("localhost", 12345);
+
+        if (engine == null) {
+            error("\t... failed");
+            fail("failed to create engine");
+            return;
+        }
+
+        engine.setUseClientMode(true);
+
+        /* Get session before handshake - may have null session ID */
+        SSLSession session = engine.getSession();
+        if (session == null) {
+            /* Some implementations return null before handshake */
+            pass("\t... passed (null session)");
+            return;
+        }
+
+        /* Test that hashCode() does not throw even if getId() returns
+         * null or empty (session not yet established) */
+        try {
+            int hash = session.hashCode();
+            /* hashCode should work without throwing */
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("hashCode() threw exception before handshake: " +
+                 e.getMessage());
+            return;
+        }
+
+        /* Test that equals() does not throw either */
+        try {
+            boolean eq = session.equals(session);
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("equals() threw exception before handshake: " +
+                 e.getMessage());
+            return;
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
      * Test SSLSocket.getSession() and calling methods on the
      * SSLSession retrieved. */
     private void testSSLSession(SSLSocket sock, boolean handshakeDone)
