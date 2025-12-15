@@ -96,7 +96,6 @@ public class WolfSSLContextTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
@@ -283,6 +282,42 @@ public class WolfSSLContextTest {
             }
         }
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testGetSessionContextBeforeInit()
+        throws NoSuchProviderException, NoSuchAlgorithmException {
+
+        System.out.print("\tgetSessionContext before init");
+
+        SSLContext ctx = null;
+        SSLSessionContext sess = null;
+
+        for (int i = 0; i < enabledProtocols.size(); i++) {
+
+            ctx = SSLContext.getInstance(enabledProtocols.get(i), ctxProvider);
+
+            /* getServerSessionContext() should work before init() */
+            sess = ctx.getServerSessionContext();
+            if (sess == null) {
+                System.out.println("\t... failed");
+                fail("getServerSessionContext() returned null before init()");
+                return;
+            }
+
+            /* getClientSessionContext() should work before init() */
+            sess = ctx.getClientSessionContext();
+            if (sess == null) {
+                System.out.println("\t... failed");
+                fail("getClientSessionContext() returned null before init()");
+                return;
+            }
+
+            /* Verify session context operations work before init() */
+            int timeout = sess.getSessionTimeout();
+            sess.setSessionTimeout(timeout);
+        }
+        System.out.println("\t... passed");
     }
 
     @Test
