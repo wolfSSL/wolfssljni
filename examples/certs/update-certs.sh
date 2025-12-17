@@ -70,6 +70,21 @@ do
     fi
 done
 
+# Copy OCSP certs (stored flat, not in subdirectory)
+printf "Updating: ocsp-root-ca-cert.pem\n"
+cp $CERT_LOCATION/ocsp/root-ca-cert.pem ./ocsp-root-ca-cert.pem
+if [ $? -ne 0 ]; then
+    printf "Failed to copy cert: ocsp/root-ca-cert.pem\n"
+    exit 1
+fi
+
+printf "Updating: ocsp-intermediate1-ca-cert.pem\n"
+cp $CERT_LOCATION/ocsp/intermediate1-ca-cert.pem ./ocsp-intermediate1-ca-cert.pem
+if [ $? -ne 0 ]; then
+    printf "Failed to copy cert: ocsp/intermediate1-ca-cert.pem\n"
+    exit 1
+fi
+
 # Generate ca-keyPkcs8.der, used by examples/X509CertificateGeneration.java
 openssl pkcs8 -topk8 -inform DER -outform DER -in ca-key.der -out ca-keyPkcs8.der -nocrypt
 if [ $? -ne 0 ]; then

@@ -49,10 +49,12 @@ public class WolfSSLCertManager {
     static native void CertManagerFree(long cm);
     static native int CertManagerLoadCA(long cm, String f, String d);
     static native int CertManagerLoadCABuffer(long cm, byte[] in, long sz,
-                                              int format);
+        int format);
     static native int CertManagerUnloadCAs(long cm);
     static native int CertManagerVerifyBuffer(long cm, byte[] in, long sz,
-                                              int format);
+        int format);
+    static native int CertManagerCheckOCSPResponse(long cm,
+        byte[] response, byte[] cert, byte[] issuerCert);
 
     /**
      * Create new WolfSSLCertManager object
@@ -243,6 +245,65 @@ public class WolfSSLCertManager {
                 ", format: " + format + ")");
 
             return CertManagerVerifyBuffer(this.cmPtr, in, sz, format);
+        }
+    }
+
+    /**
+     * Check OCSP response for revocation status.
+     *
+     * This method validates that the OCSP response is signed by a trusted
+     * OCSP responder, contains a status for the specified certificate (matches
+     * serial number and issuer), and checks that the certificate is neither
+     * revoked nor reported with an unknown status by the OCSP responder.
+     * Certificates with an unknown status in the OCSP response cause this
+     * method to fail and return a specific negative OCSP error code.
+     *
+     * @param response DER-encoded OCSP response data
+     * @param cert DER-encoded certificate to check against the OCSP response
+     * @param issuerCert DER-encoded issuer certificate (optional)
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, or a negative error code on
+     *         failure. This includes specific OCSP error codes indicating
+     *         revoked or unknown certificate status as reported by the OCSP
+     *         responder.
+     *
+     * @throws IllegalStateException if WolfSSLCertManager has been freed
+     * @throws IllegalArgumentException if response or cert is null/empty
+     * @throws WolfSSLException if OCSP is not compiled in
+     */
+    public synchronized int CertManagerCheckOCSPResponse(
+        byte[] response, byte[] cert, byte[] issuerCert)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        if (response == null || response.length == 0) {
+            throw new IllegalArgumentException(
+                "OCSP response data is null or invalid size");
+        }
+
+        if (cert == null || cert.length == 0) {
+            throw new IllegalArgumentException(
+                "Certificate data is null or invalid size");
+        }
+
+        synchronized (cmLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.cmPtr,
+                () -> "entered CertManagerCheckOCSPResponse(" +
+                "responseSz: " + response.length + ", certSz: " +
+                cert.length + ", issuerCertSz: " +
+                (issuerCert != null ? issuerCert.length : 0) + ")");
+
+            ret = CertManagerCheckOCSPResponse(this.cmPtr, response, cert,
+                issuerCert);
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                throw new WolfSSLException(
+                    "OCSP support not compiled into wolfSSL");
+            }
+            return ret;
         }
     }
 

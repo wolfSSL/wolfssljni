@@ -41,7 +41,19 @@ jobs:
             # Skip WolfSSLProvider.java...
             # that legitimately exceed 80 characters
             if [[ "$file" == "src/java/com/wolfssl/provider/jsse/WolfSSLProvider.java" ]]; then
-              echo "⚠️ Skipping $file (contains security service mappings)"
+              echo " Skipping $file (contains security service mappings)"
+              continue
+            fi
+
+            # Skip certificate and key files
+            if [[ "$file" =~ \.(pem|crt|cer|der|key)$ ]]; then
+              echo " Skipping $file (certificate/key file)"
+              continue
+            fi
+
+            # Skip shell scripts (often have long command lines)
+            if [[ "$file" =~ \.sh$ ]]; then
+              echo " Skipping $file (shell script)"
               continue
             fi
 
@@ -72,10 +84,10 @@ jobs:
                        [[ "$added_line" =~ ^[[:space:]]*return[[:space:]]+Java_com_wolfssl_.* ]] || \
                        [[ "$added_line" =~ ^[[:space:]]*\(JNIEnv\*[[:space:]]+env.*\) ]] || \
                        [[ "$added_line" =~ ^[[:space:]]*JNIEnv\*[[:space:]]+env.* ]]; then
-                      echo "⚠️ $file:$new_line_num - Skipping JNI method signature/call/parameters ($char_count characters)"
+                      echo " $file:$new_line_num - Skipping JNI method signature/call/parameters ($char_count characters)"
                       echo "   Line: $added_line"
                     else
-                      echo "❌ $file:$new_line_num - Line too long ($char_count characters)"
+                      echo " $file:$new_line_num - Line too long ($char_count characters)"
                       echo "   Line: $added_line"
                       echo "violation" >> "$violations_file"
                     fi
@@ -99,7 +111,7 @@ jobs:
         echo "================================================================"
 
         if [[ $violation_count -gt 0 ]]; then
-          echo "❌ Found $violation_count line(s) exceeding 80 " \
+          echo " Found $violation_count line(s) exceeding 80 " \
             "characters in PR changes"
           echo ""
           echo "Please ensure all lines are 80 characters or less " \
@@ -109,7 +121,7 @@ jobs:
           rm -f "$violations_file" "$changed_files"
           exit 1
         else
-          echo "✅ All changed lines are within the 80 character limit"
+          echo "All changed lines are within the 80 character limit"
           rm -f "$violations_file" "$changed_files"
           exit 0
         fi

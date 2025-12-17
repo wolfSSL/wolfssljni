@@ -32,7 +32,8 @@ import org.junit.runners.Suite;
     WolfCryptRSATest.class,
     WolfCryptECCTest.class,
     WolfSSLCertificateTest.class,
-    WolfSSLCertRequestTest.class
+    WolfSSLCertRequestTest.class,
+    WolfSSLCertManagerTest.class
 })
 
 

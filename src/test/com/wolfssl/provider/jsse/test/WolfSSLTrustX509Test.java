@@ -22,7 +22,9 @@ package com.wolfssl.provider.jsse.test;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLCertManager;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.test.WolfSSLCertManagerTest;
 import com.wolfssl.provider.jsse.WolfSSLTrustX509;
 
 import java.util.List;
@@ -35,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -529,7 +532,8 @@ public class WolfSSLTrustX509Test {
         stream.close();
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
-            (X509Certificate)ks.getCertificate("server-rsapss") }, "RSASSA-PSS");
+            (X509Certificate)ks.getCertificate("server-rsapss") },
+                "RSASSA-PSS");
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -678,12 +682,14 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tcheckServerTrusted() bad int");
 
-        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
         /* wrong/bad CA as intermediate, should not verify. Using int CA
          * from ECC chain but correct one is from RSA chain. */
         String rsaInt1CertWrong =
             "examples/certs/intermediate/ca-int2-ecc-cert.pem";
-        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        String rsaInt2Cert =
+            "examples/certs/intermediate/ca-int2-cert.pem";
 
         String eccServerCert =
             "examples/certs/intermediate/server-int-ecc-cert.pem";
@@ -691,7 +697,8 @@ public class WolfSSLTrustX509Test {
          * from RSA chain but correct one is from ECC chain. */
         String eccInt1CertWrong =
             "examples/certs/intermediate/ca-int-cert.pem";
-        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String eccInt2Cert =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
@@ -936,13 +943,16 @@ public class WolfSSLTrustX509Test {
         System.out.print("\tcheckServerTrusted() miss chain");
 
         /* RSA chain, missing intermediate CA 1 */
-        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
-        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt2Cert =
+            "examples/certs/intermediate/ca-int2-cert.pem";
 
         /* ECC chain, missing intermediate CA 1 */
         String eccServerCert =
             "examples/certs/intermediate/server-int-ecc-cert.pem";
-        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String eccInt2Cert =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
@@ -1041,14 +1051,20 @@ public class WolfSSLTrustX509Test {
         System.out.print("\tcheckServerTrusted() ooo chain");
 
         /* RSA chain, out of order intermediate CAs */
-        String rsaServerCert = "examples/certs/intermediate/server-int-cert.pem";
-        String rsaInt1Cert = "examples/certs/intermediate/ca-int-cert.pem";
-        String rsaInt2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String rsaInt1Cert =
+            "examples/certs/intermediate/ca-int-cert.pem";
+        String rsaInt2Cert =
+            "examples/certs/intermediate/ca-int2-cert.pem";
 
         /* ECC chain, out of order intermediate CAs */
-        String eccServerCert = "examples/certs/intermediate/server-int-ecc-cert.pem";
-        String eccInt1Cert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
-        String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String eccServerCert =
+            "examples/certs/intermediate/server-int-ecc-cert.pem";
+        String eccInt1Cert =
+            "examples/certs/intermediate/ca-int-ecc-cert.pem";
+        String eccInt2Cert =
+            "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
             rsaServerCert = "/sdcard/" + rsaServerCert;
@@ -1508,6 +1524,141 @@ public class WolfSSLTrustX509Test {
         pass("\t... passed");
     }
 
+    /**
+     * Test Android-specific checkServerTrusted method with OCSP and
+     * SCT parameters.
+     */
+    @Test
+    public void testCheckServerTrustedAndroid()
+        throws Exception {
+
+        WolfSSLTrustX509 wolfX509tm = null;
+        TrustManagerFactory tmf;
+        TrustManager[] tm;
+        KeyStore caJKS;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        List<X509Certificate> retChain = null;
+        byte[] dummyOcspData = new byte[] { 0x01, 0x02, 0x03 };
+        byte[] dummySctData = new byte[] { 0x04, 0x05, 0x06 };
+
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String intCACert1 =
+            "examples/certs/intermediate/ca-int2-cert.pem";
+        String intCACert2 =
+            "examples/certs/intermediate/ca-int-cert.pem";
+
+        System.out.print("\tcheckServerTrusted() Android");
+
+        try {
+            X509Certificate serverCert;
+            X509Certificate intCert1;
+            X509Certificate intCert2;
+
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(rsaServerCert))) {
+                serverCert = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(intCACert1))) {
+                intCert1 = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(intCACert2))) {
+                intCert2 = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            X509Certificate[] certArray = new X509Certificate[] {
+                serverCert, intCert1, intCert2 };
+
+            caJKS = KeyStore.getInstance("JKS");
+            try (FileInputStream stream = new FileInputStream(tf.caJKS)) {
+                caJKS.load(stream, "wolfSSL test".toCharArray());
+            }
+
+            tmf = TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(caJKS);
+            tm = tmf.getTrustManagers();
+
+            if (tm.length != 1) {
+                error("\t... failed");
+                fail("TrustManagerFactory did not return single TrustManager");
+            }
+
+            wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            /* Test with null OCSP and SCT data, should behave identically to
+             * the 3-parameter method. */
+            try {
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    null, null, "RSA", "localhost");
+            } catch (CertificateException e) {
+                error("\t... failed");
+                fail("checkServerTrusted failed: " + e.getMessage());
+            }
+
+            if (retChain == null) {
+                error("\t... failed");
+                fail("checkServerTrusted() did not return expected " +
+                     "List of certs");
+            }
+
+            /* cert chain returned should include peer, ints, and root */
+            if (retChain.size() != 4) {
+                error("\t... failed");
+                fail("checkServerTrusted() didn't return expected " +
+                     "number of certs, got: " + retChain.size());
+            }
+
+            /* Test with invalid OCSP data, should fail, SCT data is currently
+             * ignored (not supported in native wolfSSL, so dummy SCT is ok. */
+            try {
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    dummyOcspData, dummySctData, "RSA", "localhost");
+
+                error("\t... failed");
+                fail("checkServerTrusted with invalid OCSP data " +
+                     "should have thrown CertificateException");
+
+            } catch (CertificateException e) {
+                /* Expected */
+            }
+
+            /* Test with null OCSP data (a valid use case) */
+            try {
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    null, dummySctData, "RSA", "localhost");
+
+            } catch (CertificateException e) {
+                error("\t... failed");
+                fail("checkServerTrusted with null OCSP failed: " +
+                     e.getMessage());
+            }
+
+            if (retChain == null) {
+                error("\t... failed");
+                fail("checkServerTrusted() with null OCSP did not " +
+                     "return expected List of certs");
+            }
+
+            if (retChain.size() != 4) {
+                error("\t... failed");
+                fail("checkServerTrusted() with null OCSP didn't " +
+                     "return expected number of certs, got: " +
+                     retChain.size());
+            }
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("checkServerTrusted test failed with: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
     @Test
     public void testUsingRsaPssCert()
         throws Exception {
@@ -1569,58 +1720,58 @@ public class WolfSSLTrustX509Test {
     }
 
     @Test
-    public void testX509ExtendedTrustManagerInternal()
+    public void testX509ExtTrustMgrInternal()
         throws CertificateException, IOException, Exception {
 
         System.out.print("\tX509ExtendedTrustManager int");
 
         /* Basic SSLSocket success case, SNI matches server cert CN */
-        testX509ExtendedTrustManagerSSLSocketBasicSuccess();
+        testX509ExtTrustMgrSSLSocketBasicSuccess();
 
         /* Basic SSLSocket success case, SNI matches server cert CN,
          * do not call startHandshake(), should still succeed */
-        testX509ExtendedTrustManagerSSLSocketNoStartHandshakeSuccess();
-        testX509ExtendedTrustManagerSSLSocketNoClientStartHandshakeSuccess();
-        testX509ExtendedTrustManagerSSLSocketNoServerStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketNoStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketNoClientStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketNoServerStartHandshakeSuccess();
 
         /* Basic SSLSocket fail case, SNI does not match server cert CN */
-        testX509ExtendedTrustManagerSSLSocketBasicFail();
+        testX509ExtTrustMgrSSLSocketBasicFail();
 
         /* SSLSocket should fail if trying to use bad endoint alg */
-        testX509ExtendedTrustManagerSSLSocketEndpointAlgFail();
+        testX509ExtTrustMgrSSLSocketEndpointAlgFail();
 
         /* SSLSocket should succeed if server cert changes after resume */
-        testX509ExtendedTrustManagerSSLSocketCertChangeSuccess();
+        testX509ExtTrustMgrSSLSocketCertChangeSuccess();
 
         /* Basic SSLEngine success case, HTTPS hostname verification,
          * SNI matches server cert CN */
-        testX509ExtendedTrustManagerSSLEngineBasicSuccess();
+        testX509ExtTrustMgrSSLEngineBasicSuccess();
 
         /* Basic SSLEngine success case, LDAPS hostname verification,
          * SNI matches server cert CN */
-        testX509ExtendedTrustManagerSSLEngineBasicSuccessLDAPS();
+        testX509ExtTrustMgrSSLEngineBasicSuccessLDAPS();
 
         /* Basic SSLEngine fail case, HTTPS hostname verification,
          * SNI does not match server cert CN */
-        testX509ExtendedTrustManagerSSLEngineBasicFail();
+        testX509ExtTrustMgrSSLEngineBasicFail();
 
         /* Basic SSLEngine fail case, LDAPS hostname verification,
          * SNI does not match server cert CN */
-        testX509ExtendedTrustManagerSSLEngineBasicFailLDAPS();
+        testX509ExtTrustMgrSSLEngineBasicFailLDAPS();
 
         /* LDAPS hostname verification test, wildcard failures */
-        testX509ExtendedTrustManagerSSLEngineWildcardFailLDAPS();
+        testX509ExtTrustMgrSSLEngineWildcardFailLDAPS();
 
         /* LDAPS hostname verification test, wildcard success */
-        testX509ExtendedTrustManagerSSLEngineWildcardSuccessLDAPS();
+        testX509ExtTrustMgrSSLEngineWildcardSuccessLDAPS();
 
         /* SSLEngine should fail if trying to use bad endoint alg */
-        testX509ExtendedTrustManagerSSLEngineEndpointAlgFail();
+        testX509ExtTrustMgrSSLEngineEndpointAlgFail();
 
         pass("\t... passed");
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketBasicSuccess()
+    private void testX509ExtTrustMgrSSLSocketBasicSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1672,7 +1823,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketNoStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketNoStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1724,7 +1875,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketNoClientStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketNoClientStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1776,7 +1927,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketNoServerStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketNoServerStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1828,7 +1979,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketBasicFail()
+    private void testX509ExtTrustMgrSSLSocketBasicFail()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1872,7 +2023,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketEndpointAlgFail()
+    private void testX509ExtTrustMgrSSLSocketEndpointAlgFail()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -1918,7 +2069,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineBasicSuccess()
+    private void testX509ExtTrustMgrSSLEngineBasicSuccess()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -1954,7 +2105,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineBasicSuccessLDAPS()
+    private void testX509ExtTrustMgrSSLEngineBasicSuccessLDAPS()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -1987,7 +2138,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineBasicFail()
+    private void testX509ExtTrustMgrSSLEngineBasicFail()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2024,7 +2175,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineBasicFailLDAPS()
+    private void testX509ExtTrustMgrSSLEngineBasicFailLDAPS()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2054,7 +2205,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineWildcardFailLDAPS()
+    private void testX509ExtTrustMgrSSLEngineWildcardFailLDAPS()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2162,7 +2313,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineWildcardSuccessLDAPS()
+    private void testX509ExtTrustMgrSSLEngineWildcardSuccessLDAPS()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2213,7 +2364,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLEngineEndpointAlgFail()
+    private void testX509ExtTrustMgrSSLEngineEndpointAlgFail()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2313,7 +2464,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketCertChangeSuccess()
+    private void testX509ExtTrustMgrSSLSocketCertChangeSuccess()
         throws CertificateException, IOException, Exception {
 
         int serverPort = 0;
@@ -2467,24 +2618,24 @@ public class WolfSSLTrustX509Test {
     }
 
     @Test
-    public void testX509ExtendedTrustManagerExternal()
+    public void testX509ExtTrustMgrExternal()
         throws CertificateException, IOException, Exception {
 
         System.out.print("\tX509ExtendedTrustManager ext");
 
         /* Basic SSLSocket success case, SNI matches server cert CN */
-        testX509ExtendedTrustManagerSSLSocketBasicExtSuccess();
+        testX509ExtTrustMgrSSLSocketBasicExtSuccess();
 
         /* Basic SSLSocket fail case, custom X509ExtendedTrustManager that
          * verifies no certificates */
-        testX509ExtendedTrustManagerSSLSocketBasicExtFail();
+        testX509ExtTrustMgrSSLSocketBasicExtFail();
 
         /* Basic SSLSocket success case, SNI matches server cert CN,
          * do not call startHandshake(), should still succeed. Custom
          * X509ExtendedTrustManager used that verifies all certs. */
-        testX509ExtendedTrustManagerSSLSocketExtNoStartHandshakeSuccess();
-        testX509ExtendedTrustManagerSSLSocketExtNoClientStartHandshakeSuccess();
-        testX509ExtendedTrustManagerSSLSocketExtNoServerStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketExtNoStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketExtNoClientStartHandshakeSuccess();
+        testX509ExtTrustMgrSSLSocketExtNoServerStartHandshakeSuccess();
 
         pass("\t... passed");
     }
@@ -2600,6 +2751,283 @@ public class WolfSSLTrustX509Test {
         System.out.println("\t... passed");
     }
 
+    /**
+     * Test Android-specific checkServerTrusted method with OCSP data.
+     * OCSP validation requires the cert to be in the OCSP response.
+     * We test with both null OCSP data (should succeed) and invalid OCSP
+     * data (should either fail or log gracefully if OCSP not compiled in).
+     */
+    @Test
+    public void testCheckServerTrustedWithOCSPData()
+        throws CertificateException, IOException, Exception {
+
+        WolfSSLTrustX509 wolfX509tm = null;
+        TrustManagerFactory tmf;
+        TrustManager[] tm;
+        KeyStore caJKS;
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        List<X509Certificate> retChain = null;
+
+        System.out.print("\tcheckServerTrusted() OCSP data");
+
+        String rsaServerCert =
+            "examples/certs/intermediate/server-int-cert.pem";
+        String intCACert1 =
+            "examples/certs/intermediate/ca-int2-cert.pem";
+        String intCACert2 =
+            "examples/certs/intermediate/ca-int-cert.pem";
+
+        try {
+            X509Certificate serverCert;
+            X509Certificate intCert1;
+            X509Certificate intCert2;
+
+            /* Load test certificates */
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(rsaServerCert))) {
+                serverCert = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(intCACert1))) {
+                intCert1 = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(intCACert2))) {
+                intCert2 = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            X509Certificate[] certArray = new X509Certificate[] {
+                serverCert, intCert1, intCert2 };
+
+            /* Load cacerts.jks into KeyStore */
+            caJKS = KeyStore.getInstance("JKS");
+            try (FileInputStream stream =
+                    new FileInputStream("examples/provider/cacerts.jks")) {
+                caJKS.load(stream, "wolfSSL test".toCharArray());
+            }
+
+            /* Get X509TrustManager */
+            tmf = TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(caJKS);
+            tm = tmf.getTrustManagers();
+            wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            /* Test with null OCSP data - should succeed */
+            try {
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    null, null, "RSA", "localhost");
+                if (retChain == null || retChain.size() == 0) {
+                    error("\t... failed");
+                    fail("checkServerTrusted with null OCSP failed");
+                }
+            } catch (CertificateException e) {
+                error("\t... failed");
+                fail("checkServerTrusted with null OCSP failed: " +
+                     e.getMessage());
+            }
+
+            /* Test invalid OCSP data */
+            byte[] invalidOcspData = new byte[] { 0x01, 0x02, 0x03 };
+            try {
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    invalidOcspData, null, "RSA", "localhost");
+
+            } catch (CertificateException e) {
+                /* Expected if OCSP is compiled in and invalid data provided */
+                String msg = e.getMessage();
+                if (msg != null && !msg.contains("OCSP")) {
+                    /* Re-throw if it's not an OCSP-related error */
+                    throw e;
+                }
+            }
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("checkServerTrusted with OCSP test failed: " +
+                e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * This test uses valid OCSP response data from wolfSSL test suite
+     * to validate the Android-specific checkServerTrusted method with
+     * proper OCSP handling.
+     *
+     * The OCSP response is for a certificate signed by the wolfSSL OCSP
+     * root CA. We load both the regular cacerts.jks and add the wolfSSL
+     * OCSP root CA so that both the certificate chain verification and
+     * OCSP response verification can succeed.
+     */
+    @Test
+    public void testCheckServerTrustedWithValidOCSPData()
+        throws Exception {
+
+        System.out.print("\tcheckServerTrusted() valid OCSP");
+
+        try {
+            /* Load basic cacerts trust store */
+            KeyStore caJKS = KeyStore.getInstance("JKS");
+            try (FileInputStream stream =
+                    new FileInputStream("examples/provider/cacerts.jks")) {
+                caJKS.load(stream, "wolfSSL test".toCharArray());
+            }
+
+            /* Add the wolfSSL OCSP root CA to the KeyStore so we can
+             * verify the OCSP response signature. The OCSP response is
+             * signed by the wolfSSL OCSP Responder which chains to this
+             * root CA. */
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate ocspRootCa;
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(
+                        "examples/certs/ocsp-root-ca-cert.pem"))) {
+                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
+            }
+            caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
+
+            /* Set up TrustManager with OCSP support */
+            TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(caJKS);
+            TrustManager[] tm = tmf.getTrustManagers();
+            WolfSSLTrustX509 wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            /* Create certificate chain with intermediate1-ca-cert.pem, which
+             * matches the OCSP response (response is for serial 01, which is
+             * intermediate1-ca-cert.pem signed by wolfSSL OCSP root CA).
+             * Include the issuer (root CA) in the chain so issuerKeyHash
+             * can be properly computed for OCSP matching. */
+            X509Certificate intermediate1Cert;
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(
+                        "examples/certs/ocsp-intermediate1-ca-cert.pem"))) {
+                intermediate1Cert =
+                    (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            X509Certificate[] certArray =
+                new X509Certificate[] { intermediate1Cert, ocspRootCa };
+
+            /* Test checkServerTrusted method with valid OCSP data that
+             * matches the certificate being validated. */
+            List<X509Certificate> retChain = null;
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                WolfSSLCertManagerTest.validOcspResponse,
+                null, "RSA", "localhost");
+
+            /* Verify return value is valid */
+            if (retChain == null || retChain.size() == 0) {
+                error("\t... failed");
+                fail("checkServerTrusted with valid OCSP returned null or " +
+                     "empty chain");
+            }
+
+            /* Should return at least the certs we passed in */
+            if (retChain.size() < certArray.length) {
+                error("\t... failed");
+                fail("checkServerTrusted with valid OCSP returned fewer " +
+                     "certs than expected, got: " + retChain.size());
+            }
+
+        } catch (Exception e) {
+            error("\t... failed");
+            fail("checkServerTrusted with valid OCSP test failed: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
+    /**
+     * Test that Android specific checkServerTrusted(chain, ocspData, ...)
+     * fails when OCSP response doesn't match the certificate chain.
+     */
+    @Test
+    public void testCheckServerTrustedWithMismatchedOCSPData()
+        throws Exception {
+
+        KeyStore caJKS = null;
+        CertificateFactory cf = null;
+        X509Certificate ocspRootCa = null;
+        X509Certificate serverCert = null;
+        X509Certificate[] certArray = null;
+        TrustManagerFactory tmf = null;
+        TrustManager[] tm = null;
+        WolfSSLTrustX509 wolfX509tm = null;
+
+        System.out.print("\tmismatched OCSP response");
+
+        try {
+            /* Load basic cacerts trust store */
+            caJKS = KeyStore.getInstance("JKS");
+            try (FileInputStream stream =
+                    new FileInputStream("examples/provider/cacerts.jks")) {
+                caJKS.load(stream, "wolfSSL test".toCharArray());
+            }
+
+            /* Add wolfSSL OCSP root CA to the KeyStore so we can verify the
+             * OCSP response signature. */
+            cf = CertificateFactory.getInstance("X.509");
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(
+                        "examples/certs/ocsp-root-ca-cert.pem"))) {
+                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
+            }
+            caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
+
+            /* Set up TrustManager with OCSP support */
+            tmf = TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(caJKS);
+            tm = tmf.getTrustManagers();
+            wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            /* Create certificate chain with server-cert.pem, which does not
+             * match the OCSP response (response is for serial 01 which is
+             * intermediate1-ca-cert.pem, not server-cert.pem). */
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream("examples/certs/server-cert.pem"))) {
+                serverCert = (X509Certificate)cf.generateCertificate(bis);
+            }
+
+            certArray = new X509Certificate[] { serverCert };
+
+            /* Test checkServerTrusted method with valid OCSP data that does
+             * not match the certificate being validated. This should fail
+             * because the OCSP response is for a different certificate. */
+            try {
+                List<X509Certificate> retChain = null;
+                retChain = wolfX509tm.checkServerTrusted(certArray,
+                    WolfSSLCertManagerTest.validOcspResponse,
+                    null, "RSA", "localhost");
+
+                error("\t... failed");
+                fail("checkServerTrusted should have thrown " +
+                    "CertificateException for mismatched OCSP response");
+
+            } catch (CertificateException e) {
+                /* Expected */
+            }
+
+        } catch (Exception e) {
+            /* Check if OCSP is not compiled in */
+            if (e.getMessage() != null &&
+                e.getMessage().contains("not compiled")) {
+                System.out.println("\t... skipped (OCSP not compiled in)");
+                return;
+            }
+
+            error("\t... failed");
+            fail("checkServerTrusted with mismatched OCSP test failed: " +
+                 e.getMessage());
+        }
+
+        pass("\t... passed");
+    }
+
     /* TrustManager that trusts all certificates */
     TrustManager[] trustAllCerts = {
         new X509ExtendedTrustManager() {
@@ -2660,7 +3088,7 @@ public class WolfSSLTrustX509Test {
         }
     };
 
-    private void testX509ExtendedTrustManagerSSLSocketBasicExtSuccess()
+    private void testX509ExtTrustMgrSSLSocketBasicExtSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -2712,7 +3140,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketBasicExtFail()
+    private void testX509ExtTrustMgrSSLSocketBasicExtFail()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -2755,7 +3183,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketExtNoStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketExtNoStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -2808,7 +3236,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketExtNoClientStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketExtNoClientStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
@@ -2861,7 +3289,7 @@ public class WolfSSLTrustX509Test {
         }
     }
 
-    private void testX509ExtendedTrustManagerSSLSocketExtNoServerStartHandshakeSuccess()
+    private void testX509ExtTrustMgrSSLSocketExtNoServerStartHandshakeSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
