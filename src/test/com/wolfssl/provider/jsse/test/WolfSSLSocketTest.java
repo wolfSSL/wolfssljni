@@ -43,6 +43,7 @@ import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
@@ -966,6 +967,26 @@ public class WolfSSLSocketTest {
         cArgs = new TestArgs(null, null, false, false, true, null);
         cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
         alpnClientServerRunner(sArgs, cArgs, true);
+
+        /* Successful test:
+         * ALPN with GREASE bytes (RFC 8701) containing non-ASCII values.
+         * Tests that bytes > 127 are preserved correctly through useALPN()
+         * and getAlpnSelectedString(). */
+        byte[] greaseBytes = new byte[] {
+            (byte)0x0A, (byte)0x1A, (byte)0x2A, (byte)0x3A,
+            (byte)0x4A, (byte)0x5A, (byte)0x6A, (byte)0x7A,
+            (byte)0x8A, (byte)0x9A, (byte)0xAA, (byte)0xBA,
+            (byte)0xCA, (byte)0xDA, (byte)0xEA, (byte)0xFA
+        };
+        String greaseString = new String(greaseBytes,
+            StandardCharsets.ISO_8859_1);
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnList(new String[] {greaseString});
+        sArgs.setExpectedAlpn(greaseString);
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {greaseString});
+        cArgs.setExpectedAlpn(greaseString);
+        alpnClientServerRunner(sArgs, cArgs, false);
 
         System.out.println("\t... passed");
     }

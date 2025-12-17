@@ -5458,7 +5458,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
     jsize protocolsUtfLen = 0;
     (void)jcl;
 
-    if (jenv == NULL || ssl == 0 || protocols == NULL || options < 0) {
+    if (jenv == NULL || ssl == NULL || protocols == NULL || options < 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -5483,9 +5483,62 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
      * Third param is start index, fourth is character count (not bytes). */
     (*jenv)->GetStringUTFRegion(jenv, protocols, 0, protocolsCharLen,
         protoList);
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return SSL_FAILURE;
+    }
     protoList[protocolsUtfLen] = '\0';
 
     ret = wolfSSL_UseALPN(ssl, protoList, protocolsUtfLen, (int)options);
+
+    XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    (void)protocols;
+    (void)options;
+    ret = NOT_COMPILED_IN;
+#endif
+
+    return (jint)ret;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPNByteArray
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr, jbyteArray protocols, jint options)
+{
+    int ret = SSL_FAILURE;
+#ifdef HAVE_ALPN
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    char* protoList = NULL;
+    jsize protocolsLen = 0;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL || protocols == NULL || options < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    protocolsLen = (*jenv)->GetArrayLength(jenv, protocols);
+    if (protocolsLen == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Allocate size + 1 to guarantee null terminated */
+    protoList = (char*)XMALLOC(protocolsLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (protoList == NULL) {
+        return MEMORY_E;
+    }
+
+    /* Copy byte array directly */
+    (*jenv)->GetByteArrayRegion(jenv, protocols, 0, protocolsLen,
+        (jbyte*)protoList);
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return SSL_FAILURE;
+    }
+    protoList[protocolsLen] = '\0';
+
+    ret = wolfSSL_UseALPN(ssl, protoList, protocolsLen, (int)options);
 
     XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #else

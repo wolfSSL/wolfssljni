@@ -891,10 +891,9 @@ public class WolfSSLSessionTest {
      * Test useALPN() with non-ASCII GREASE byte values.
      *
      * GREASE (Generate Random Extensions And Sustain Extensibility) values
-     * include high bytes (greater than 127) that require multi-byte UTF-8
-     * encoding. This test verifies the JNI layer correctly handles the
-     * difference between Java String character count and UTF-8 byte length
-     * when calling GetStringUTFRegion().
+     * include high bytes (greater than 127) which would be corrupted by UTF-8
+     * encoding. This test verifies that ALPN protocol names are encoded using
+     * ISO-8859-1 to preserve raw byte values through the JNI layer.
      */
     @Test
     public void test_WolfSSLSession_useALPN_GREASE()
@@ -905,8 +904,8 @@ public class WolfSSLSessionTest {
         String greaseString;
         String[] alpnProtos;
 
-        /* GREASE bytes (RFC 8701), includes values > 127 which require
-         * 2-byte UTF-8 encoding in Java's modified UTF-8 */
+        /* GREASE bytes per RFC 8701. Values > 127 would be corrupted by UTF-8
+         * encoding, so ISO-8859-1 must be used to preserve raw byte values. */
         byte[] greaseBytes = new byte[] {
             (byte)0x0A, (byte)0x1A, (byte)0x2A, (byte)0x3A,
             (byte)0x4A, (byte)0x5A, (byte)0x6A, (byte)0x7A,
@@ -936,9 +935,7 @@ public class WolfSSLSessionTest {
             }
 
         } finally {
-            if (ssl != null) {
-                ssl.freeSSL();
-            }
+            ssl.freeSSL();
         }
 
         System.out.println("\t\t... passed");
