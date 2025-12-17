@@ -5454,29 +5454,38 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useALPN
 #ifdef HAVE_ALPN
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     char* protoList = NULL;
-    jsize protocolsLen = 0;
+    jsize protocolsCharLen = 0;
+    jsize protocolsUtfLen = 0;
     (void)jcl;
 
     if (jenv == NULL || ssl == 0 || protocols == NULL || options < 0) {
         return BAD_FUNC_ARG;
     }
 
-    protocolsLen = (*jenv)->GetStringUTFLength(jenv, protocols);
-    if (protocolsLen == 0) {
+    /* GetStringLength returns character count (Unicode code units),
+     * GetStringUTFLength returns byte count in modified UTF-8 encoding.
+     * For non-ASCII characters (> 127), UTF-8 uses multiple bytes per char.
+     * GetStringUTFRegion expects character count, not byte count. */
+    protocolsCharLen = (*jenv)->GetStringLength(jenv, protocols);
+    protocolsUtfLen = (*jenv)->GetStringUTFLength(jenv, protocols);
+    if (protocolsCharLen == 0 || protocolsUtfLen == 0) {
         return BAD_FUNC_ARG;
     }
 
-    /* Allocate size + 1 to guarantee we are null terminated */
-    protoList = (char*)XMALLOC(protocolsLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Allocate UTF-8 byte size + 1 to guarantee null terminated */
+    protoList = (char*)XMALLOC(protocolsUtfLen + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
     if (protoList == NULL) {
         return MEMORY_E;
     }
 
-    /* GetStringUTFRegion() does not need to be freed/released */
-    (*jenv)->GetStringUTFRegion(jenv, protocols, 0, protocolsLen, protoList);
-    protoList[protocolsLen] = '\0';
+    /* GetStringUTFRegion() does not need to be freed/released.
+     * Third param is start index, fourth is character count (not bytes). */
+    (*jenv)->GetStringUTFRegion(jenv, protocols, 0, protocolsCharLen,
+        protoList);
+    protoList[protocolsUtfLen] = '\0';
 
-    ret = wolfSSL_UseALPN(ssl, protoList, protocolsLen, (int)options);
+    ret = wolfSSL_UseALPN(ssl, protoList, protocolsUtfLen, (int)options);
 
     XFREE(protoList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #else

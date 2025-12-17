@@ -44,6 +44,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CountDownLatch;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.Security;
 
 import com.wolfssl.WolfSSL;
@@ -884,6 +885,63 @@ public class WolfSSLSessionTest {
         }
 
         System.out.println("\t\t\t... passed");
+    }
+
+    /**
+     * Test useALPN() with non-ASCII GREASE byte values.
+     *
+     * GREASE (Generate Random Extensions And Sustain Extensibility) values
+     * include high bytes (greater than 127) that require multi-byte UTF-8
+     * encoding. This test verifies the JNI layer correctly handles the
+     * difference between Java String character count and UTF-8 byte length
+     * when calling GetStringUTFRegion().
+     */
+    @Test
+    public void test_WolfSSLSession_useALPN_GREASE()
+        throws WolfSSLException, WolfSSLJNIException {
+
+        int ret;
+        WolfSSLSession ssl = null;
+        String greaseString;
+        String[] alpnProtos;
+
+        /* GREASE bytes (RFC 8701), includes values > 127 which require
+         * 2-byte UTF-8 encoding in Java's modified UTF-8 */
+        byte[] greaseBytes = new byte[] {
+            (byte)0x0A, (byte)0x1A, (byte)0x2A, (byte)0x3A,
+            (byte)0x4A, (byte)0x5A, (byte)0x6A, (byte)0x7A,
+            (byte)0x8A, (byte)0x9A, (byte)0xAA, (byte)0xBA,
+            (byte)0xCA, (byte)0xDA, (byte)0xEA, (byte)0xFA
+        };
+
+        System.out.print("\tuseALPN() GREASE");
+
+        /* Create String from bytes using ISO-8859-1 to preserve byte values */
+        greaseString = new String(greaseBytes, StandardCharsets.ISO_8859_1);
+        alpnProtos = new String[] { greaseString };
+
+        ssl = new WolfSSLSession(ctx);
+
+        try {
+            ret = ssl.useALPN(alpnProtos,
+                WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t\t... skipped");
+                return;
+
+            } else if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("Failed useALPN GREASE test, ret = " + ret);
+            }
+
+        } finally {
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+        }
+
+        System.out.println("\t\t... passed");
     }
 
     @Test
