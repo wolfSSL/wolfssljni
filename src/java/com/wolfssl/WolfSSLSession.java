@@ -694,6 +694,8 @@ public class WolfSSLSession {
     private native int sslSetAlpnProtos(long ssl, byte[] alpnProtos);
     private native byte[] sslGet0AlpnSelected(long ssl);
     private native int useALPN(long ssl, String protocols, int options);
+    private native int useALPNByteArray(long ssl, byte[] protocols,
+            int options);
     private native int setALPNSelectCb(long ssl);
     private native int setTls13SecretCb(long ssl);
     private native int setSessionTicketCb(long ssl);
@@ -5504,8 +5506,11 @@ public class WolfSSLSession {
      */
     public int useALPN(String[] protocols, int options) {
 
-        /* all protocols, comma delimited */
-        StringBuilder allProtocols = new StringBuilder();
+        int i;
+        int totalLen = 0;
+        byte[][] protoBytes = null;
+        byte[] allProtocols = null;
+        int offset = 0;
 
         confirmObjectIsActive();
 
@@ -5515,19 +5520,38 @@ public class WolfSSLSession {
                 () -> "entered useALPN(String[], int)");
         }
 
-        if (protocols == null) {
+        if (protocols == null || protocols.length == 0) {
             return WolfSSL.BAD_FUNC_ARG;
         }
 
-        for (int i = 0; i < protocols.length; i++) {
-            if (i != 0) {
-                allProtocols.append(",");
+        /* Convert each protocol String to bytes using ISO-8859-1 (Latin-1).
+         * This preserves byte values 0-255, which is required for ALPN
+         * protocol names that contain non-ASCII bytes (eg GREASE values). */
+        protoBytes = new byte[protocols.length][];
+        for (i = 0; i < protocols.length; i++) {
+            if (protocols[i] == null) {
+                return WolfSSL.BAD_FUNC_ARG;
             }
-            allProtocols.append(protocols[i]);
+            protoBytes[i] = protocols[i].getBytes(StandardCharsets.ISO_8859_1);
+            totalLen += protoBytes[i].length;
+            if (i > 0) {
+                totalLen += 1; /* comma separator */
+            }
+        }
+
+        /* Build comma-delimited byte array of all protocols */
+        allProtocols = new byte[totalLen];
+        for (i = 0; i < protoBytes.length; i++) {
+            if (i > 0) {
+                allProtocols[offset++] = (byte)',';
+            }
+            System.arraycopy(protoBytes[i], 0, allProtocols, offset,
+                protoBytes[i].length);
+            offset += protoBytes[i].length;
         }
 
         synchronized (sslLock) {
-            return useALPN(this.sslPtr, allProtocols.toString(), options);
+            return useALPNByteArray(this.sslPtr, allProtocols, options);
         }
     }
 
@@ -5574,7 +5598,11 @@ public class WolfSSLSession {
         alpnSelectedBytes = getAlpnSelected();
 
         if (alpnSelectedBytes != null) {
-            return new String(alpnSelectedBytes, StandardCharsets.UTF_8);
+            /* Use ISO-8859-1 (Latin-1) to preserve raw byte values 0-255.
+             * This is needed for ALPN protocol names containing non-ASCII
+             * bytes (eg GREASE values). UTF-8 would corrupt bytes > 127 that
+             * are not valid UTF-8 sequences. */
+            return new String(alpnSelectedBytes, StandardCharsets.ISO_8859_1);
         } else {
             return null;
         }
