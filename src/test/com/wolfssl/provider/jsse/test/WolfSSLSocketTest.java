@@ -3528,14 +3528,16 @@ public class WolfSSLSocketTest {
 
         System.out.print("\tTesting SNI Matchers");
 
-        /* SNI matcher functionality requires wolfSSL 5.7.2 or later.
+        /* SNI matcher functionality requires wolfSSL 5.7.6 or later.
          * Older versions have a limitation where wolfSSL_SNI_GetRequest()
          * only returns SNI data if native wolfSSL already matched it, but
          * wolfJSSE relies on retrieving the SNI to do matching at the Java
-         * level. This was fixed in wolfSSL 5.7.2 by adding an ignoreStatus
-         * parameter to TLSX_SNI_GetRequest(). */
+         * level. wolfSSL 5.7.2 added an ignoreStatus parameter to
+         * TLSX_SNI_GetRequest(), and wolfSSL 5.7.6 enabled
+         * WOLFSSL_ALWAYS_KEEP_SNI by default with --enable-jni (PR 8283),
+         * which is required for full SNI matcher rejection behavior. */
         long libVerHex = WolfSSL.getLibVersionHex();
-        if (libVerHex < 0x05007002L) {
+        if (libVerHex < 0x05007006L) {
             System.out.println("\t\t... skipped");
             return;
         }
