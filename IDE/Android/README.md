@@ -27,7 +27,7 @@ The project looks for the directory
 This can added in multiple ways:
 
 - OPTION A: Download the latest wolfSSL library release from www.wolfssl.com,
-unzip it, rename it to `wolfssl`, and place it in the direcotry
+unzip it, rename it to `wolfssl`, and place it in the directory
 `wolfssljni/IDE/Android/app/src/main/cpp/`.
 
 ```
