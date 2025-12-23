@@ -2907,12 +2907,8 @@ public class WolfSSLTrustX509Test {
              * verify the OCSP response signature. The OCSP response is
              * signed by the wolfSSL OCSP Responder which chains to this
              * root CA. */
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            X509Certificate ocspRootCa;
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(ocspRootCaPath))) {
-                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
-            }
+            X509Certificate ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
             caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
 
             /* Set up TrustManager with OCSP support */
@@ -2927,12 +2923,9 @@ public class WolfSSLTrustX509Test {
              * intermediate1-ca-cert.pem signed by wolfSSL OCSP root CA).
              * Include the issuer (root CA) in the chain so issuerKeyHash
              * can be properly computed for OCSP matching. */
-            X509Certificate intermediate1Cert;
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(intermediate1Path))) {
-                intermediate1Cert =
-                    (X509Certificate)cf.generateCertificate(bis);
-            }
+            X509Certificate intermediate1Cert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(
+                    intermediate1Path);
 
             X509Certificate[] certArray =
                 new X509Certificate[] { intermediate1Cert, ocspRootCa };
@@ -2976,7 +2969,6 @@ public class WolfSSLTrustX509Test {
         throws Exception {
 
         KeyStore caJKS = null;
-        CertificateFactory cf = null;
         X509Certificate ocspRootCa = null;
         X509Certificate serverCert = null;
         X509Certificate[] certArray = null;
@@ -3006,11 +2998,8 @@ public class WolfSSLTrustX509Test {
 
             /* Add wolfSSL OCSP root CA to the KeyStore so we can verify the
              * OCSP response signature. */
-            cf = CertificateFactory.getInstance("X.509");
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(ocspRootCaPath))) {
-                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
-            }
+            ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
             caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
 
             /* Set up TrustManager with OCSP support */
@@ -3022,10 +3011,8 @@ public class WolfSSLTrustX509Test {
             /* Create certificate chain with server-cert.pem, which does not
              * match the OCSP response (response is for serial 01 which is
              * intermediate1-ca-cert.pem, not server-cert.pem). */
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(serverCertPath))) {
-                serverCert = (X509Certificate)cf.generateCertificate(bis);
-            }
+            serverCert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(serverCertPath);
 
             certArray = new X509Certificate[] { serverCert };
 

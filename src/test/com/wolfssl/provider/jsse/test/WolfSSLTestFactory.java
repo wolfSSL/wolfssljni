@@ -1141,4 +1141,31 @@ class WolfSSLTestFactory {
 
         return false;
     }
+
+    /**
+     * Load and convert PEM file to X509Certificate object.
+     *
+     * @param pemPath Path to PEM file
+     * @return X509Certificate parsed from the PEM file
+     * @throws Exception on parsing error
+     */
+    public static X509Certificate loadX509CertificateFromPem(String pemPath)
+        throws Exception {
+
+        WolfSSLCertificate cert = null;
+        X509Certificate x509 = null;
+
+        try {
+            cert = new WolfSSLCertificate(pemPath, WolfSSL.SSL_FILETYPE_PEM);
+            x509 = cert.getX509Certificate();
+
+        } finally {
+            if (cert != null) {
+                cert.free();
+            }
+        }
+
+        return x509;
+    }
 }
+
