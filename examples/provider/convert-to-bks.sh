@@ -29,6 +29,9 @@ convert "client-rsa"
 rm -f client-ecc.bks &> /dev/null
 convert "client-ecc"
 
+rm -f client-rsapss.bks &> /dev/null
+convert "client-rsapss"
+
 rm -f server.bks &> /dev/null
 convert "server"
 
@@ -40,6 +43,9 @@ convert "server-rsa"
 
 rm -f server-ecc.bks &> /dev/null
 convert "server-ecc"
+
+rm -f server-rsapss.bks &> /dev/null
+convert "server-rsapss"
 
 rm -f cacerts.bks &> /dev/null
 convert "cacerts"

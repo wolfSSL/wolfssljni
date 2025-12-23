@@ -536,7 +536,7 @@ public class WolfSSLKeyX509Test {
 
         try {
             /* Create empty KeyStore */
-            KeyStore emptyStore = KeyStore.getInstance("JKS");
+            KeyStore emptyStore = KeyStore.getInstance(tf.keyStoreType);
             emptyStore.load(null, null);
 
             /* Create WolfSSLKeyX509 with empty KeyStore */
@@ -756,7 +756,7 @@ public class WolfSSLKeyX509Test {
                 "wolfjsse.X509KeyManager.disableCache", "true");
 
             /* Create KeyManager with caching disabled */
-            KeyStore ks = KeyStore.getInstance("JKS");
+            KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
             java.io.FileInputStream fis =
                 new java.io.FileInputStream(tf.allJKS);
             ks.load(fis, "wolfSSL test".toCharArray());
@@ -830,7 +830,7 @@ public class WolfSSLKeyX509Test {
                 "wolfjsse.X509KeyManager.disableCache", "false");
 
             /* Create KeyManager with caching enabled */
-            KeyStore ks = KeyStore.getInstance("JKS");
+            KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
             java.io.FileInputStream fis =
                 new java.io.FileInputStream(tf.allJKS);
             ks.load(fis, "wolfSSL test".toCharArray());
@@ -910,7 +910,7 @@ public class WolfSSLKeyX509Test {
 
             /* Create KeyManager with default behavior
              * (should be caching enabled) */
-            KeyStore ks = KeyStore.getInstance("JKS");
+            KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
             java.io.FileInputStream fis =
                 new java.io.FileInputStream(tf.allJKS);
             ks.load(fis, "wolfSSL test".toCharArray());
@@ -978,7 +978,7 @@ public class WolfSSLKeyX509Test {
                 Security.setProperty(
                     "wolfjsse.X509KeyManager.disableCache", trueValue);
 
-                KeyStore ks = KeyStore.getInstance("JKS");
+                KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
                 java.io.FileInputStream fis =
                     new java.io.FileInputStream(tf.allJKS);
                 ks.load(fis, "wolfSSL test".toCharArray());
@@ -1005,7 +1005,7 @@ public class WolfSSLKeyX509Test {
                 Security.setProperty(
                     "wolfjsse.X509KeyManager.disableCache", falseValue);
 
-                KeyStore ks = KeyStore.getInstance("JKS");
+                KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
                 java.io.FileInputStream fis =
                     new java.io.FileInputStream(tf.allJKS);
                 ks.load(fis, "wolfSSL test".toCharArray());
