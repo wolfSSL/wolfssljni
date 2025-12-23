@@ -2468,7 +2468,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 #endif
 
 #ifdef WOLFSSL_DTLS
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
         if(!(mask & SSL_OP_NO_TLSv1)) {
             (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
                     (*jenv)->NewStringUTF(jenv, "DTLSv1"));
