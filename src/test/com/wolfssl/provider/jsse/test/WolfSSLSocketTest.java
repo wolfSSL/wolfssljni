@@ -1997,9 +1997,11 @@ public class WolfSSLSocketTest {
             System.out.print("\tTLS 1.0 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1");
 
-            /* restore system property */
-            Security.setProperty(
-                "jdk.tls.disabledAlgorithms", originalProperty);
+            /* restore system property if it was originally set */
+            if (originalProperty != null) {
+                Security.setProperty(
+                    "jdk.tls.disabledAlgorithms", originalProperty);
+            }
         }
     }
 
@@ -2026,9 +2028,11 @@ public class WolfSSLSocketTest {
             System.out.print("\tTLS 1.1 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1.1");
 
-            /* restore system property */
-            Security.setProperty(
-                "jdk.tls.disabledAlgorithms", originalProperty);
+            /* restore system property if it was originally set */
+            if (originalProperty != null) {
+                Security.setProperty(
+                    "jdk.tls.disabledAlgorithms", originalProperty);
+            }
         }
     }
 
