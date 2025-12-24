@@ -1668,13 +1668,23 @@ public class WolfSSLTrustX509Test {
     @Test
     public void testUsingRsaPssCert()
         throws Exception {
+
+        System.out.print("\tTest using rsa_pss certs");
+
         /* skip if RSA_PSS or TLS 1.3 are not compiled in at native level */
         if ((WolfSSL.RsaPssEnabled() == false) ||
             (WolfSSL.TLSv13Enabled() == false)) {
+            System.out.println("\t... skipped");
             return;
         }
 
-        System.out.print("\tTest using rsa_pss certs");
+        /* Skip on Android: Android's BKS KeyStore implementation cannot
+         * extract RSA-PSS private keys. When calling store.getKey() for an
+         * RSA-PSS key, it returns null. */
+        if (WolfSSLTestFactory.isAndroid()) {
+            System.out.println("\t... skipped");
+            return;
+        }
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.3", provider,
             tf.createTrustManager("SunX509", tf.caClientJKS, provider),
