@@ -32,6 +32,7 @@ import java.util.ServiceLoader;
 import javax.net.ssl.SSLContext;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import org.junit.Assume;
 
 /**
  * Test suite for ServiceLoader functionality.
@@ -39,12 +40,22 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
  * Tests that WolfSSLProvider can be discovered via Java ServiceLoader
  * mechanism, which is required for Java Module System compatibility and
  * some security frameworks.
+ *
+ * Note: These tests are skipped on Android since ServiceLoader-based
+ * provider discovery relies on META-INF/services which is a JAR mechanism.
+ * Android apps register providers directly.
  */
 public class WolfSSLServiceLoaderTest {
 
     @BeforeClass
     public static void setUpClass() {
         System.out.println("JSSE WolfSSLProvider ServiceLoader Test");
+
+        /* Skip all tests on Android - ServiceLoader relies on
+         * META-INF/services which is a JAR/module system mechanism
+         * not available in Android builds */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
     }
 
     /**
