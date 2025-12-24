@@ -50,12 +50,6 @@ public class WolfSSLServiceLoaderTest {
     @BeforeClass
     public static void setUpClass() {
         System.out.println("JSSE WolfSSLProvider ServiceLoader Test");
-
-        /* Skip all tests on Android - ServiceLoader relies on
-         * META-INF/services which is a JAR/module system mechanism
-         * not available in Android builds */
-        Assume.assumeFalse("Skipping on Android",
-            WolfSSLTestFactory.isAndroid());
     }
 
     /**
@@ -65,6 +59,11 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testProviderDiscoverableViaServiceLoader() {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 
@@ -104,6 +103,12 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testServiceLoaderProviderIsFunctional() throws Exception {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
+
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 
@@ -147,6 +152,12 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testServiceLoaderProviderMatchesDirectInstance() {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
+
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 
