@@ -68,7 +68,10 @@ public class WolfSSLCertRequestTest {
         }
 
         cliKeyDer = WolfSSLTestCommon.getPath(cliKeyDer);
+        cliKeyPem = WolfSSLTestCommon.getPath(cliKeyPem);
         cliKeyPubDer = WolfSSLTestCommon.getPath(cliKeyPubDer);
+        cliEccKeyDer = WolfSSLTestCommon.getPath(cliEccKeyDer);
+        cliEccKeyPem = WolfSSLTestCommon.getPath(cliEccKeyPem);
     }
 
     /* Internal helper method, generate test SubjectName for cert generation */

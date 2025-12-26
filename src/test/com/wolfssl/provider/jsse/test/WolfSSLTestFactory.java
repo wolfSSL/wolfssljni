@@ -189,7 +189,7 @@ class WolfSSLTestFactory {
     }
 
     private boolean isAndroidFile() {
-        String sdc = "/sdcard/";
+        String sdc = "/data/local/tmp/";
         File f;
 
         if (isAndroid()) {
@@ -199,10 +199,12 @@ class WolfSSLTestFactory {
             clientRSA1024JKS = "examples/provider/client-rsa-1024.bks";
             clientRSAJKS     = "examples/provider/client-rsa.bks";
             clientECCJKS     = "examples/provider/client-ecc.bks";
+            clientRSAPSSJKS  = "examples/provider/client-rsapss.bks";
             serverJKS        = "examples/provider/server.bks";
             serverRSA1024JKS = "examples/provider/server-rsa-1024.bks";
             serverRSAJKS     = "examples/provider/server-rsa.bks";
             serverECCJKS     = "examples/provider/server-ecc.bks";
+            serverRSAPSSJKS  = "examples/provider/server-rsapss.bks";
             caJKS            = "examples/provider/cacerts.bks";
             caClientJKS      = "examples/provider/ca-client.bks";
             caServerJKS      = "examples/provider/ca-server.bks";
@@ -439,7 +441,8 @@ class WolfSSLTestFactory {
             if (provider != null) {
                 ctx = SSLContext.getInstance(protocol, provider);
                 if (tm == null) {
-                    localTm = createTrustManager("SunX509", clientJKS, provider);
+                    localTm = createTrustManager("SunX509", clientJKS,
+                        provider);
                 }
                 if (km == null) {
                     localKm = createKeyManager("SunX509", clientJKS, provider);
@@ -1014,7 +1017,7 @@ class WolfSSLTestFactory {
 
         /* Create new KeyStore, load in newly generated cert. Add PrivateKey
          * if requested. */
-        KeyStore store = KeyStore.getInstance("JKS");
+        KeyStore store = KeyStore.getInstance(keyStoreType);
         store.load(null, jksPass);
 
         if (addPrivateKey) {
@@ -1138,4 +1141,31 @@ class WolfSSLTestFactory {
 
         return false;
     }
+
+    /**
+     * Load and convert PEM file to X509Certificate object.
+     *
+     * @param pemPath Path to PEM file
+     * @return X509Certificate parsed from the PEM file
+     * @throws Exception on parsing error
+     */
+    public static X509Certificate loadX509CertificateFromPem(String pemPath)
+        throws Exception {
+
+        WolfSSLCertificate cert = null;
+        X509Certificate x509 = null;
+
+        try {
+            cert = new WolfSSLCertificate(pemPath, WolfSSL.SSL_FILETYPE_PEM);
+            x509 = cert.getX509Certificate();
+
+        } finally {
+            if (cert != null) {
+                cert.free();
+            }
+        }
+
+        return x509;
+    }
 }
+

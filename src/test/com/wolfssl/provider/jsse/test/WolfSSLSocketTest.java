@@ -1244,7 +1244,9 @@ public class WolfSSLSocketTest {
                     InputStream consumed = new ByteArrayInputStream(tmp);
 
                     /* create SSLSocket for server from Socket */
-                    SSLSocket ss = (SSLSocket)((WolfSSLSocketFactory)ctx.getSocketFactory())
+                    SSLSocket ss =
+                        (SSLSocket)(
+                            (WolfSSLSocketFactory)ctx.getSocketFactory())
                         .createSocket(server, consumed, true);
 
                     ss.startHandshake();
@@ -1995,9 +1997,11 @@ public class WolfSSLSocketTest {
             System.out.print("\tTLS 1.0 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1");
 
-            /* restore system property */
-            Security.setProperty(
-                "jdk.tls.disabledAlgorithms", originalProperty);
+            /* restore system property if it was originally set */
+            if (originalProperty != null) {
+                Security.setProperty(
+                    "jdk.tls.disabledAlgorithms", originalProperty);
+            }
         }
     }
 
@@ -2024,9 +2028,11 @@ public class WolfSSLSocketTest {
             System.out.print("\tTLS 1.1 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1.1");
 
-            /* restore system property */
-            Security.setProperty(
-                "jdk.tls.disabledAlgorithms", originalProperty);
+            /* restore system property if it was originally set */
+            if (originalProperty != null) {
+                Security.setProperty(
+                    "jdk.tls.disabledAlgorithms", originalProperty);
+            }
         }
     }
 
@@ -3445,7 +3451,8 @@ public class WolfSSLSocketTest {
                 .createServerSocket(0);
 
             /* Set up test arguments without explicit SNI configuration.
-            * With autoSNI=true, SNI should be automatically set based on hostname */
+             * With autoSNI=true, SNI should be automatically set based on
+             * hostname */
             TestArgs sArgs = new TestArgs(null,
                             null, true,
                             true,
@@ -3461,11 +3468,12 @@ public class WolfSSLSocketTest {
             CountDownLatch sDoneLatch = new CountDownLatch(1);
             CountDownLatch cDoneLatch = new CountDownLatch(1);
 
-            TestServer server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
+            TestServer server =
+                new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
 
-            TestClient client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
-                cDoneLatch);
+            TestClient client =
+                new TestClient(this.ctx, ss.getLocalPort(), cArgs, cDoneLatch);
             client.start();
 
             cDoneLatch.await();
@@ -3983,7 +3991,8 @@ public class WolfSSLSocketTest {
                 if (sock instanceof com.wolfssl.provider.jsse.WolfSSLSocket) {
                     try {
                         Field sslField =
-                            com.wolfssl.provider.jsse.WolfSSLSocket.class.getDeclaredField("ssl");
+                            com.wolfssl.provider.jsse
+                                .WolfSSLSocket.class.getDeclaredField("ssl");
                         sslField.setAccessible(true);
                         sslField.set(sock, null);
 
@@ -4088,6 +4097,15 @@ public class WolfSSLSocketTest {
         String intCaCert = "examples/certs/intermediate/ca-int-ecc-cert.pem";
         String int2CaCert =
             "examples/certs/intermediate/ca-int2-ecc-cert.pem";
+        String serverEccJKS = "examples/provider/server-ecc.jks";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            serverIntCert = "/data/local/tmp/" + serverIntCert;
+            serverIntKey = "/data/local/tmp/" + serverIntKey;
+            intCaCert = "/data/local/tmp/" + intCaCert;
+            int2CaCert = "/data/local/tmp/" + int2CaCert;
+            serverEccJKS = "/data/local/tmp/examples/provider/server-ecc.bks";
+        }
 
         X509TrustManager customTM = new X509TrustManager() {
             @Override
@@ -4161,7 +4179,7 @@ public class WolfSSLSocketTest {
         fis.close();
 
         /* Create KeyStore and add server cert with chain */
-        KeyStore serverKeyStore = KeyStore.getInstance("JKS");
+        KeyStore serverKeyStore = KeyStore.getInstance(tf.keyStoreType);
         serverKeyStore.load(null, null);
 
         /* Build certificate chain: server, int2 (immediate issuer), int */
@@ -4172,8 +4190,8 @@ public class WolfSSLSocketTest {
 
         /* Load existing ECC private key from server-ecc.jks, since Java
          * doesn't natively support SEC1 ECC format without Bouncy Castle */
-        KeyStore tmpKS = KeyStore.getInstance("JKS");
-        fis = new FileInputStream("examples/provider/server-ecc.jks");
+        KeyStore tmpKS = KeyStore.getInstance(tf.keyStoreType);
+        fis = new FileInputStream(serverEccJKS);
         tmpKS.load(fis, "wolfSSL test".toCharArray());
         fis.close();
 

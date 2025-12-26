@@ -32,6 +32,7 @@ import java.util.ServiceLoader;
 import javax.net.ssl.SSLContext;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import org.junit.Assume;
 
 /**
  * Test suite for ServiceLoader functionality.
@@ -39,6 +40,10 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
  * Tests that WolfSSLProvider can be discovered via Java ServiceLoader
  * mechanism, which is required for Java Module System compatibility and
  * some security frameworks.
+ *
+ * Note: These tests are skipped on Android since ServiceLoader-based
+ * provider discovery relies on META-INF/services which is a JAR mechanism.
+ * Android apps register providers directly.
  */
 public class WolfSSLServiceLoaderTest {
 
@@ -54,6 +59,11 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testProviderDiscoverableViaServiceLoader() {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 
@@ -93,6 +103,12 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testServiceLoaderProviderIsFunctional() throws Exception {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
+
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 
@@ -136,6 +152,12 @@ public class WolfSSLServiceLoaderTest {
      */
     @Test
     public void testServiceLoaderProviderMatchesDirectInstance() {
+
+        /* Skip on Android - ServiceLoader relies on META-INF/services
+         * which is a JAR/module system mechanism not available on Android */
+        Assume.assumeFalse("Skipping on Android",
+            WolfSSLTestFactory.isAndroid());
+
         ServiceLoader<Provider> serviceLoader =
             ServiceLoader.load(Provider.class);
 

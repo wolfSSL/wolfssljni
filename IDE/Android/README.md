@@ -27,7 +27,7 @@ The project looks for the directory
 This can added in multiple ways:
 
 - OPTION A: Download the latest wolfSSL library release from www.wolfssl.com,
-unzip it, rename it to `wolfssl`, and place it in the direcotry
+unzip it, rename it to `wolfssl`, and place it in the directory
 `wolfssljni/IDE/Android/app/src/main/cpp/`.
 
 ```
@@ -104,15 +104,10 @@ after the starting Android Studio and compiling the project, but must be done
 before running the app or test cases.
 
 ```
-adb shell
-cd sdcard
-mkdir examples
-mkdir examples/provider
-mkdir examples/certs
-exit
-adb push ./examples/provider/*.bks /sdcard/examples/provider/
-adb push ./examples/certs/ /sdcard/examples/
-adb push ./examples/certs/intermediate/* /sdcard/examples/certs/intermediate/
+adb shell mkdir -p /data/local/tmp/examples/provider
+adb shell mkdir -p /data/local/tmp/examples/certs/intermediate
+adb push ./examples/provider/*.bks /data/local/tmp/examples/provider/
+adb push ./examples/certs/ /data/local/tmp/examples/
 ```
 
 ## 5. Import and Build the Example Project with Android Studio
@@ -122,15 +117,11 @@ in wolfssljni/IDE/. Or, from inside Android Studio, open the `Android` project
 located in the wolfssljni/IDE directory.
 
 2) Build the project and run MainActivity from app -> java/com/example.wolfssl.
-This will ask for permissions to access the certificates in the /sdcard/
-directory and then print out the server certificate information on success.
+This will print out the server certificate information on success.
 
-3) OPTIONAL: The androidTests can be run after permissions have been given.
+3) OPTIONAL: The androidTests can be run to verify functionality.
 app->java->com.wolfssl->provider.jsse.test->WolfSSLJSSETestSuite and
-app->java->com.wolfssl->test->WolfSSLTestSuite. In order to get the correct
-permissions, you may need to install and run the app first, before running
-the tests. Otherwise you will see EACCESS errors when trying to open
-example certificate and .bks files.
+app->java->com.wolfssl->test->WolfSSLTestSuite.
 
 ## Support
 

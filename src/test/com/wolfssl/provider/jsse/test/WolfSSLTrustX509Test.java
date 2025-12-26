@@ -571,13 +571,13 @@ public class WolfSSLTrustX509Test {
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1Cert = "/data/local/tmp/" + rsaInt1Cert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1Cert = "/sdcard/" + eccInt1Cert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1Cert = "/data/local/tmp/" + eccInt1Cert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -701,13 +701,13 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1CertWrong = "/sdcard/" + rsaInt1CertWrong;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1CertWrong = "/data/local/tmp/" + rsaInt1CertWrong;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1CertWrong = "/sdcard/" + eccInt1CertWrong;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1CertWrong = "/data/local/tmp/" + eccInt1CertWrong;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -829,13 +829,13 @@ public class WolfSSLTrustX509Test {
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1Cert = "/data/local/tmp/" + rsaInt1Cert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1Cert = "/sdcard/" + eccInt1Cert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1Cert = "/data/local/tmp/" + eccInt1Cert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -955,11 +955,11 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -1067,13 +1067,13 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1Cert = "/data/local/tmp/" + rsaInt1Cert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1Cert = "/sdcard/" + eccInt1Cert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1Cert = "/data/local/tmp/" + eccInt1Cert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -1194,13 +1194,13 @@ public class WolfSSLTrustX509Test {
         String eccInt2Cert = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1Cert = "/data/local/tmp/" + rsaInt1Cert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1Cert = "/sdcard/" + eccInt1Cert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1Cert = "/data/local/tmp/" + eccInt1Cert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -1354,15 +1354,15 @@ public class WolfSSLTrustX509Test {
         String eccRootCert = "examples/certs/ca-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            rsaServerCert = "/sdcard/" + rsaServerCert;
-            rsaInt1Cert = "/sdcard/" + rsaInt1Cert;
-            rsaInt2Cert = "/sdcard/" + rsaInt2Cert;
-            rsaRootCert = "/sdcard/" + rsaRootCert;
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            rsaInt1Cert = "/data/local/tmp/" + rsaInt1Cert;
+            rsaInt2Cert = "/data/local/tmp/" + rsaInt2Cert;
+            rsaRootCert = "/data/local/tmp/" + rsaRootCert;
 
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt1Cert = "/sdcard/" + eccInt1Cert;
-            eccInt2Cert = "/sdcard/" + eccInt2Cert;
-            eccRootCert = "/sdcard/" + eccRootCert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt1Cert = "/data/local/tmp/" + eccInt1Cert;
+            eccInt2Cert = "/data/local/tmp/" + eccInt2Cert;
+            eccRootCert = "/data/local/tmp/" + eccRootCert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -1548,6 +1548,12 @@ public class WolfSSLTrustX509Test {
         String intCACert2 =
             "examples/certs/intermediate/ca-int-cert.pem";
 
+        if (WolfSSLTestFactory.isAndroid()) {
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            intCACert1 = "/data/local/tmp/" + intCACert1;
+            intCACert2 = "/data/local/tmp/" + intCACert2;
+        }
+
         System.out.print("\tcheckServerTrusted() Android");
 
         try {
@@ -1573,7 +1579,7 @@ public class WolfSSLTrustX509Test {
             X509Certificate[] certArray = new X509Certificate[] {
                 serverCert, intCert1, intCert2 };
 
-            caJKS = KeyStore.getInstance("JKS");
+            caJKS = KeyStore.getInstance(tf.keyStoreType);
             try (FileInputStream stream = new FileInputStream(tf.caJKS)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
@@ -1662,13 +1668,23 @@ public class WolfSSLTrustX509Test {
     @Test
     public void testUsingRsaPssCert()
         throws Exception {
+
+        System.out.print("\tTest using rsa_pss certs");
+
         /* skip if RSA_PSS or TLS 1.3 are not compiled in at native level */
         if ((WolfSSL.RsaPssEnabled() == false) ||
             (WolfSSL.TLSv13Enabled() == false)) {
+            System.out.println("\t... skipped");
             return;
         }
 
-        System.out.print("\tTest using rsa_pss certs");
+        /* Skip on Android: Android's BKS KeyStore implementation cannot
+         * extract RSA-PSS private keys. When calling store.getKey() for an
+         * RSA-PSS key, it returns null. */
+        if (WolfSSLTestFactory.isAndroid()) {
+            System.out.println("\t... skipped");
+            return;
+        }
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.3", provider,
             tf.createTrustManager("SunX509", tf.caClientJKS, provider),
@@ -2423,7 +2439,7 @@ public class WolfSSLTrustX509Test {
             String javaVersion = System.getProperty("java.version");
 
             FileInputStream stream = new FileInputStream(jks);
-            KeyStore store = KeyStore.getInstance("JKS");
+            KeyStore store = KeyStore.getInstance(tf.keyStoreType);
             store.load(stream, pwd.toCharArray());
             stream.close();
 
@@ -2662,9 +2678,9 @@ public class WolfSSLTrustX509Test {
         X509Certificate[] certArray = new X509Certificate[3];
 
         if (WolfSSLTestFactory.isAndroid()) {
-            eccServerCert = "/sdcard/" + eccServerCert;
-            eccInt2CaCert = "/sdcard/" + eccInt2CaCert;
-            eccIntCaCert = "/sdcard/" + eccIntCaCert;
+            eccServerCert = "/data/local/tmp/" + eccServerCert;
+            eccInt2CaCert = "/data/local/tmp/" + eccInt2CaCert;
+            eccIntCaCert = "/data/local/tmp/" + eccIntCaCert;
         }
 
         /* Load certificates in REVERSE order (CA first, server last)
@@ -2776,6 +2792,14 @@ public class WolfSSLTrustX509Test {
             "examples/certs/intermediate/ca-int2-cert.pem";
         String intCACert2 =
             "examples/certs/intermediate/ca-int-cert.pem";
+        String caJKSPath = "examples/provider/cacerts.jks";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            rsaServerCert = "/data/local/tmp/" + rsaServerCert;
+            intCACert1 = "/data/local/tmp/" + intCACert1;
+            intCACert2 = "/data/local/tmp/" + intCACert2;
+            caJKSPath = "/data/local/tmp/examples/provider/cacerts.bks";
+        }
 
         try {
             X509Certificate serverCert;
@@ -2802,9 +2826,9 @@ public class WolfSSLTrustX509Test {
                 serverCert, intCert1, intCert2 };
 
             /* Load cacerts.jks into KeyStore */
-            caJKS = KeyStore.getInstance("JKS");
+            caJKS = KeyStore.getInstance(tf.keyStoreType);
             try (FileInputStream stream =
-                    new FileInputStream("examples/provider/cacerts.jks")) {
+                    new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
@@ -2868,11 +2892,24 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tcheckServerTrusted() valid OCSP");
 
+        String caJKSPath =
+            "examples/provider/cacerts.jks";
+        String ocspRootCaPath =
+            "examples/certs/ocsp-root-ca-cert.pem";
+        String intermediate1Path =
+            "examples/certs/ocsp-intermediate1-ca-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            caJKSPath = "/data/local/tmp/examples/provider/cacerts.bks";
+            ocspRootCaPath = "/data/local/tmp/" + ocspRootCaPath;
+            intermediate1Path = "/data/local/tmp/" + intermediate1Path;
+        }
+
         try {
             /* Load basic cacerts trust store */
-            KeyStore caJKS = KeyStore.getInstance("JKS");
+            KeyStore caJKS = KeyStore.getInstance(tf.keyStoreType);
             try (FileInputStream stream =
-                    new FileInputStream("examples/provider/cacerts.jks")) {
+                    new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
@@ -2880,13 +2917,8 @@ public class WolfSSLTrustX509Test {
              * verify the OCSP response signature. The OCSP response is
              * signed by the wolfSSL OCSP Responder which chains to this
              * root CA. */
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            X509Certificate ocspRootCa;
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(
-                        "examples/certs/ocsp-root-ca-cert.pem"))) {
-                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
-            }
+            X509Certificate ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
             caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
 
             /* Set up TrustManager with OCSP support */
@@ -2901,13 +2933,9 @@ public class WolfSSLTrustX509Test {
              * intermediate1-ca-cert.pem signed by wolfSSL OCSP root CA).
              * Include the issuer (root CA) in the chain so issuerKeyHash
              * can be properly computed for OCSP matching. */
-            X509Certificate intermediate1Cert;
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(
-                        "examples/certs/ocsp-intermediate1-ca-cert.pem"))) {
-                intermediate1Cert =
-                    (X509Certificate)cf.generateCertificate(bis);
-            }
+            X509Certificate intermediate1Cert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(
+                    intermediate1Path);
 
             X509Certificate[] certArray =
                 new X509Certificate[] { intermediate1Cert, ocspRootCa };
@@ -2951,7 +2979,6 @@ public class WolfSSLTrustX509Test {
         throws Exception {
 
         KeyStore caJKS = null;
-        CertificateFactory cf = null;
         X509Certificate ocspRootCa = null;
         X509Certificate serverCert = null;
         X509Certificate[] certArray = null;
@@ -2961,22 +2988,28 @@ public class WolfSSLTrustX509Test {
 
         System.out.print("\tmismatched OCSP response");
 
+        String caJKSPath = "examples/provider/cacerts.jks";
+        String ocspRootCaPath = "examples/certs/ocsp-root-ca-cert.pem";
+        String serverCertPath = "examples/certs/server-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            caJKSPath = "/data/local/tmp/examples/provider/cacerts.bks";
+            ocspRootCaPath = "/data/local/tmp/" + ocspRootCaPath;
+            serverCertPath = "/data/local/tmp/" + serverCertPath;
+        }
+
         try {
             /* Load basic cacerts trust store */
-            caJKS = KeyStore.getInstance("JKS");
+            caJKS = KeyStore.getInstance(tf.keyStoreType);
             try (FileInputStream stream =
-                    new FileInputStream("examples/provider/cacerts.jks")) {
+                    new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
             /* Add wolfSSL OCSP root CA to the KeyStore so we can verify the
              * OCSP response signature. */
-            cf = CertificateFactory.getInstance("X.509");
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream(
-                        "examples/certs/ocsp-root-ca-cert.pem"))) {
-                ocspRootCa = (X509Certificate)cf.generateCertificate(bis);
-            }
+            ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
             caJKS.setCertificateEntry("ocsp-root-ca", ocspRootCa);
 
             /* Set up TrustManager with OCSP support */
@@ -2988,10 +3021,8 @@ public class WolfSSLTrustX509Test {
             /* Create certificate chain with server-cert.pem, which does not
              * match the OCSP response (response is for serial 01 which is
              * intermediate1-ca-cert.pem, not server-cert.pem). */
-            try (BufferedInputStream bis = new BufferedInputStream(
-                    new FileInputStream("examples/certs/server-cert.pem"))) {
-                serverCert = (X509Certificate)cf.generateCertificate(bis);
-            }
+            serverCert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(serverCertPath);
 
             certArray = new X509Certificate[] { serverCert };
 
@@ -3614,9 +3645,9 @@ public class WolfSSLTrustX509Test {
         String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            int1Cert = "/sdcard/" + int1Cert;
-            int2Cert = "/sdcard/" + int2Cert;
+            serverCert = "/data/local/tmp/" + serverCert;
+            int1Cert = "/data/local/tmp/" + int1Cert;
+            int2Cert = "/data/local/tmp/" + int2Cert;
         }
 
         /* Create TrustManager with caJKS which contains ca-cert.pem */
@@ -3695,10 +3726,10 @@ public class WolfSSLTrustX509Test {
         String wrongCA = "examples/certs/intermediate/ca-int-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            int1Cert = "/sdcard/" + int1Cert;
-            int2Cert = "/sdcard/" + int2Cert;
-            wrongCA = "/sdcard/" + wrongCA;
+            serverCert = "/data/local/tmp/" + serverCert;
+            int1Cert = "/data/local/tmp/" + int1Cert;
+            int2Cert = "/data/local/tmp/" + int2Cert;
+            wrongCA = "/data/local/tmp/" + wrongCA;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -3779,8 +3810,8 @@ public class WolfSSLTrustX509Test {
         String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            int1Cert = "/sdcard/" + int1Cert;
+            serverCert = "/data/local/tmp/" + serverCert;
+            int1Cert = "/data/local/tmp/" + int1Cert;
         }
 
         /* Create TrustManager with RSA CA certs */
@@ -3848,9 +3879,9 @@ public class WolfSSLTrustX509Test {
         String wrongCA2 = "examples/certs/intermediate/ca-int2-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            wrongCA1 = "/sdcard/" + wrongCA1;
-            wrongCA2 = "/sdcard/" + wrongCA2;
+            serverCert = "/data/local/tmp/" + serverCert;
+            wrongCA1 = "/data/local/tmp/" + wrongCA1;
+            wrongCA2 = "/data/local/tmp/" + wrongCA2;
         }
 
         /* Create TrustManager with ECC CAs only */
@@ -3922,9 +3953,9 @@ public class WolfSSLTrustX509Test {
         String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            int1Cert = "/sdcard/" + int1Cert;
-            int2Cert = "/sdcard/" + int2Cert;
+            serverCert = "/data/local/tmp/" + serverCert;
+            int1Cert = "/data/local/tmp/" + int1Cert;
+            int2Cert = "/data/local/tmp/" + int2Cert;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
@@ -3997,10 +4028,10 @@ public class WolfSSLTrustX509Test {
         String wrongCA = "examples/certs/intermediate/ca-int-ecc-cert.pem";
 
         if (WolfSSLTestFactory.isAndroid()) {
-            serverCert = "/sdcard/" + serverCert;
-            int1Cert = "/sdcard/" + int1Cert;
-            int2Cert = "/sdcard/" + int2Cert;
-            wrongCA = "/sdcard/" + wrongCA;
+            serverCert = "/data/local/tmp/" + serverCert;
+            int1Cert = "/data/local/tmp/" + int1Cert;
+            int2Cert = "/data/local/tmp/" + int2Cert;
+            wrongCA = "/data/local/tmp/" + wrongCA;
         }
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);

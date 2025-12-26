@@ -83,6 +83,12 @@ public class WolfSSLEngineMemoryLeakTest {
     @Test
     public void testEngineMemoryLeakWithAbandonedEngines() throws Exception {
 
+        /* Skip on Android due to performance and timeout issues */
+        if (WolfSSLTestFactory.isAndroid()) {
+            System.out.println("\tmem leak test\t\t\t... skipped (Android)");
+            return;
+        }
+
         /* Number of engines to create. Use a smaller number for unit tests
          * to keep test time reasonable (few seconds). */
         final int numEngines = 500;
