@@ -99,8 +99,11 @@ jobs:
             adb push ./examples/provider/*.bks /data/local/tmp/examples/provider/
             adb push ./examples/certs/ /data/local/tmp/examples/
             adb logcat -c
-            cd IDE/Android && ./gradlew connectedDebugAndroidTest --info || { adb logcat -d > /tmp/logcat.txt; echo "=== LOGCAT (errors) ==="; grep -i "exception\|error\|fatal" /tmp/logcat.txt || true; exit 1; }
-            adb logcat -d > /tmp/logcat.txt
+            cd IDE/Android && ./gradlew connectedDebugAndroidTest --no-daemon --no-watch-fs || { adb logcat -d > /tmp/logcat.txt 2>&1; echo "=== LOGCAT (errors) ==="; grep -i "exception\|error\|fatal" /tmp/logcat.txt || true; exit 1; }
+            adb logcat -d > /tmp/logcat.txt 2>&1 || true
+            pgrep -f '[q]emu-system' | xargs -r kill -9 2>/dev/null || true
+            pgrep -f '[c]rashpad' | xargs -r kill -9 2>/dev/null || true
+            sleep 2
 
       # Upload test reports even on failure
       - name: Upload Test Reports
