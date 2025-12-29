@@ -2971,8 +2971,8 @@ public class WolfSSLTrustX509Test {
     }
 
     /**
-     * Test that Android specific checkServerTrusted(chain, ocspData, ...)
-     * fails when OCSP response doesn't match the certificate chain.
+     * Test checkServerTrusted(chain, ocspData, ...) fails when OCSP response
+     * doesn't match the certificate chain.
      */
     @Test
     public void testCheckServerTrustedWithMismatchedOCSPData()
@@ -3057,6 +3057,108 @@ public class WolfSSLTrustX509Test {
         }
 
         pass("\t... passed");
+    }
+
+    /**
+     * Test that Android-specific checkServerTrusted(chain, ocspData, ...)
+     * correctly loads intermediate CA certificates from the certificate
+     * chain for OCSP response verification.
+     *
+     * Test setup:
+     *   - Trust store contains only the wolfSSL OCSP root CA
+     *   - Certificate chain passed to checkServerTrusted includes
+     *     [intermediate1-ca-cert, root-ca-cert]
+     *   - OCSP response is for intermediate1-ca-cert
+     *   - OCSP response is signed by responder chaining to root CA
+     */
+    @Test
+    public void testCheckServerTrustedOCSPWithChainCAs()
+        throws Exception {
+
+        System.out.print("\tOCSP with chain CAs");
+
+        String ocspRootCaPath =
+            "examples/certs/ocsp-root-ca-cert.pem";
+        String intermediate1Path =
+            "examples/certs/ocsp-intermediate1-ca-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            ocspRootCaPath = "/data/local/tmp/" + ocspRootCaPath;
+            intermediate1Path = "/data/local/tmp/" + intermediate1Path;
+        }
+
+        try {
+            /* Create a KeyStore with only the OCSP root CA.
+             * This simulates a trust store that contains root CAs but
+             * not intermediate CAs. */
+            KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+            ks.load(null, null);
+
+            X509Certificate ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
+            ks.setCertificateEntry("ocsp-root-ca", ocspRootCa);
+
+            /* Set up TrustManager with minimal trust store */
+            TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(ks);
+            TrustManager[] tm = tmf.getTrustManagers();
+            WolfSSLTrustX509 wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            /* Load intermediate1-ca-cert which matches the OCSP response */
+            X509Certificate intermediate1Cert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(
+                    intermediate1Path);
+
+            /* Create certificate chain with intermediate and root.
+             * The key point is that the root CA is in both the trust
+             * store and the chain. This validates that loading CAs from
+             * the chain works properly for OCSP verification. */
+            X509Certificate[] certArray =
+                new X509Certificate[] { intermediate1Cert, ocspRootCa };
+
+            /* Test checkServerTrusted with OCSP data.
+             * This should succeed because:
+             * 1. Chain verification succeeds (root is trusted)
+             * 2. OCSP verification succeeds because we load
+             *    chain CAs (including root) into the cert manager */
+            List<X509Certificate> retChain = null;
+            retChain = wolfX509tm.checkServerTrusted(certArray,
+                WolfSSLCertManagerTest.validOcspResponse,
+                null, "RSA", "localhost");
+
+            /* Verify return value is valid */
+            if (retChain == null || retChain.size() == 0) {
+                error("\t\t... failed");
+                fail("checkServerTrusted with OCSP and chain CAs " +
+                     "returned null or empty chain");
+            }
+
+            /* Should return at least the certs we passed in */
+            if (retChain.size() < certArray.length) {
+                error("\t\t... failed");
+                fail("checkServerTrusted with OCSP and chain CAs " +
+                     "returned fewer certs than expected");
+            }
+
+        } catch (CertificateException e) {
+            /* Check if OCSP is not compiled in */
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("not compiled")) {
+                System.out.println("\t... skipped (OCSP not compiled in)");
+                return;
+            }
+            error("\t\t... failed");
+            fail("checkServerTrusted with OCSP and chain CAs failed: " +
+                 e.getMessage());
+
+        } catch (Exception e) {
+            error("\t\t... failed");
+            fail("checkServerTrusted with OCSP and chain CAs test " +
+                 "failed: " + e.getMessage());
+        }
+
+        pass("\t\t... passed");
     }
 
     /* TrustManager that trusts all certificates */
