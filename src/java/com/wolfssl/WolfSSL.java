@@ -346,6 +346,9 @@ public class WolfSSL {
     /** Cache header match error */
     public static final int CACHE_MATCH_ERROR    = -280;
 
+    /** Maximum SSL record size (16KB) as defined by the protocol. */
+    public static final int MAX_RECORD_SIZE = 16384;
+
     /* ------------------ TLS extension specific  ------------------------ */
     /** SNI Host name type, for UseSNI() */
     public static final int WOLFSSL_SNI_HOST_NAME = 0;

@@ -1280,7 +1280,8 @@ public class WolfSSLSession {
                 /* Calculate size for current chunk, MAX_RECORD_SIZE enum
                  * (2^14) defined by RFC 8446 */
                 int writeSize = Math.min(remaining,
-                                Math.min(directBuffer.capacity(), 16384));
+                                Math.min(directBuffer.capacity(),
+                                         WolfSSL.MAX_RECORD_SIZE));
 
                 /* Copy data from user array to direct buffer */
                 directBuffer.clear();
@@ -1315,7 +1316,7 @@ public class WolfSSLSession {
             /* Fall back to original implementation on exception (write not
              * done yet at this point in JNI call above) */
             while (remaining > 0) {
-                int writeSize = Math.min(remaining, 16384);
+                int writeSize = Math.min(remaining, WolfSSL.MAX_RECORD_SIZE);
 
                 /* Call original implementation with explicit chunk size */
                 ret = write(localPtr, data, offset + totalWritten,
