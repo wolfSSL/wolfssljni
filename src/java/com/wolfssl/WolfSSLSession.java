@@ -1277,8 +1277,11 @@ public class WolfSSLSession {
              * The DirectByteBuffer size might be smaller than the data length,
              * so we need to loop to handle all the data */
             while (remaining > 0) {
-                /* Calculate size for current chunk */
-                int writeSize = Math.min(remaining, directBuffer.capacity());
+                /* Calculate size for current chunk, MAX_RECORD_SIZE enum
+                 * (2^14) defined by RFC 8446 */
+                int writeSize = Math.min(remaining,
+                                Math.min(directBuffer.capacity(),
+                                         WolfSSL.MAX_RECORD_SIZE));
 
                 /* Copy data from user array to direct buffer */
                 directBuffer.clear();
@@ -1306,9 +1309,29 @@ public class WolfSSLSession {
                 WolfSSLDebug.ERROR, localPtr,
                 () -> "write() falling back to use byte[]");
 
+            /* Reset to starting values */
+            totalWritten = 0;
+            remaining = length;
+
             /* Fall back to original implementation on exception (write not
              * done yet at this point in JNI call above) */
-            totalWritten = write(localPtr, data, offset, length, timeout);
+            while (remaining > 0) {
+                int writeSize = Math.min(remaining, WolfSSL.MAX_RECORD_SIZE);
+
+                /* Call original implementation with explicit chunk size */
+                ret = write(localPtr, data, offset + totalWritten,
+                            writeSize, timeout);
+
+                if (ret <= 0) {
+                    /* Error occurred, break out of loop to report failure */
+                    err = getError(ret);
+                    break;
+                }
+
+                /* Update tracking variables */
+                totalWritten += ret;
+                remaining -= ret;
+            }
 
         } finally {
             /* Return buffer to pool */
