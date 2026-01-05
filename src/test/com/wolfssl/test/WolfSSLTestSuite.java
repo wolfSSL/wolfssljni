@@ -21,8 +21,12 @@
 
 package com.wolfssl.test;
 
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
+
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLException;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
@@ -38,8 +42,25 @@ import org.junit.runners.Suite;
 
 
 public class WolfSSLTestSuite {
-    /* this class remains empty,
-     * only used as a holder for the above
-     * annotations */
+
+    /* Static WolfSSL reference to keep library initialized for the duration
+     * of the entire test suite. Without this, a WolfSSL object created by
+     * an individual test class could be garbage collected after that test
+     * class finishes, triggering wolfSSL_Cleanup() in the finalizer and
+     * freeing session cache locks (and other items) while subsequent test
+     * classes are still running. This caused crashes on Windows when the
+     * garbage collector ran between test classes.
+     *
+     * We intentionally do not call cleanup() in @AfterClass because on
+     * Android all tests run in a single process and multiple test suites
+     * may be active. Cleanup will happen via the finalizer when the
+     * process exits. */
+    private static WolfSSL sslLib = null;
+
+    @BeforeClass
+    public static void initializeLibrary() throws WolfSSLException {
+        WolfSSL.loadLibrary();
+        sslLib = new WolfSSL();
+    }
 }
 

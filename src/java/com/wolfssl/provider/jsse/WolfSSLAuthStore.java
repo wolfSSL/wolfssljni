@@ -796,8 +796,10 @@ public class WolfSSLAuthStore {
     protected synchronized void finalize() throws Throwable {
         /* Clear LinkedHashMap and set to null to allow
          * for garbage collection */
-        store.clear();
-        store = null;
+        if (store != null) {
+            store.clear();
+            store = null;
+        }
         super.finalize();
     }
 }

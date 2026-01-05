@@ -6358,7 +6358,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
     (void)jenv;
     (void)jcl;
     (void)sessionPtr;
-    return (jint)WolfSSL.SSL_FAILURE;
+    return (jint)WOLFSSL_FAILURE;
 #endif
 }
 

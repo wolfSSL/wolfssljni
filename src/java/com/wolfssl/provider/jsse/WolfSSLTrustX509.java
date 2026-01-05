@@ -1076,13 +1076,34 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                         "ret = " + ret);
                 }
 
-                /* Get DER-encoded leaf certificate from chain */
-                leafCertDer = chain[0].getEncoded();
+                /* Load intermediate CA certificates from verified chain.
+                 * OCSP responses can be signed by an intermediate CA,
+                 * which is in the chain but would not be in the trust
+                 * store. certList order: [leaf, intermediate(s), root].
+                 * Load indices 1 through size-1 (intermediates and root).
+                 * Note: certList is guaranteed non-null/non-empty here since
+                 * checkServerTrusted() above throws on invalid chains. */
+                for (int i = 1; i < certList.size(); i++) {
+                    X509Certificate caCert = certList.get(i);
+                    byte[] caCertDer = caCert.getEncoded();
+                    ret = cm.CertManagerLoadCABuffer(caCertDer,
+                        caCertDer.length, WolfSSL.SSL_FILETYPE_ASN1);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        final String subj =
+                            caCert.getSubjectX500Principal().getName();
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "Failed to load chain CA for OCSP " +
+                            "(subject: " + subj + "), continuing");
+                    }
+                }
 
-                /* Get issuer certificate if available in chain. Issuer
+                /* Get DER-encoded leaf certificate from verified chain */
+                leafCertDer = certList.get(0).getEncoded();
+
+                /* Get issuer certificate from verified chain. Issuer
                  * needed to compute issuer key hash for OCSP matching. */
-                if (chain.length > 1) {
-                    issuerCertDer = chain[1].getEncoded();
+                if (certList.size() > 1) {
+                    issuerCertDer = certList.get(1).getEncoded();
                 }
 
                 /* Check OCSP response against the specific certificate */

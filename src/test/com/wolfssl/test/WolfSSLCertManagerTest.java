@@ -536,7 +536,7 @@ public class WolfSSLCertManagerTest {
         WolfSSLCertManager cm = null;
         WolfSSLCertificate cert = null;
 
-        System.out.print("\tOCSP response for cert validation");
+        System.out.print("\tOCSP response cert validation");
 
         try {
             cm = new WolfSSLCertManager();

@@ -52,6 +52,7 @@ public class WolfSSLTest {
 
         test_WolfSSL_new(lib);
         test_WolfSSL_protocol();
+        test_WolfSSL_getProtocolsMask();
         test_WolfSSL_Method_Allocators(lib);
         test_WolfSSL_getLibVersionHex();
         test_WolfSSL_getErrno();
@@ -82,6 +83,58 @@ public class WolfSSLTest {
             System.out.println("\t\t... failed");
             fail("failed to get protocols");
         }
+        System.out.println("\t\t... passed");
+    }
+
+    public void test_WolfSSL_getProtocolsMask() {
+        System.out.print("\tgetProtocolsMask()");
+
+        /* Get all protocols (no mask) */
+        String[] allProtocols = WolfSSL.getProtocolsMask(0);
+        if (allProtocols == null) {
+            System.out.println("\t\t... failed");
+            fail("getProtocolsMask(0) returned null");
+        }
+        List<String> allProtoList = Arrays.asList(allProtocols);
+
+        /* Test with TLSv1.3 masked off, verify TLSv1.3 not in result */
+        String[] noTls13 = WolfSSL.getProtocolsMask(WolfSSL.SSL_OP_NO_TLSv1_3);
+        if (noTls13 == null) {
+            System.out.println("\t\t... failed");
+            fail("getProtocolsMask(SSL_OP_NO_TLSv1_3) returned null");
+        }
+        List<String> noTls13List = Arrays.asList(noTls13);
+        if (noTls13List.contains("TLSv1.3")) {
+            System.out.println("\t\t... failed");
+            fail("TLSv1.3 should not be in result when masked");
+        }
+
+        /* Test with TLSv1.2 masked off, verify TLSv1.2 not in result */
+        String[] noTls12 = WolfSSL.getProtocolsMask(WolfSSL.SSL_OP_NO_TLSv1_2);
+        if (noTls12 == null) {
+            System.out.println("\t\t... failed");
+            fail("getProtocolsMask(SSL_OP_NO_TLSv1_2) returned null");
+        }
+        List<String> noTls12List = Arrays.asList(noTls12);
+        if (noTls12List.contains("TLSv1.2")) {
+            System.out.println("\t\t... failed");
+            fail("TLSv1.2 should not be in result when masked");
+        }
+
+        /* Test with multiple versions masked off */
+        long multiMask = WolfSSL.SSL_OP_NO_TLSv1_2 | WolfSSL.SSL_OP_NO_TLSv1_3;
+        String[] noTls12And13 = WolfSSL.getProtocolsMask(multiMask);
+        if (noTls12And13 == null) {
+            System.out.println("\t\t... failed");
+            fail("getProtocolsMask with multiple masks returned null");
+        }
+        List<String> noTls12And13List = Arrays.asList(noTls12And13);
+        if (noTls12And13List.contains("TLSv1.2") ||
+            noTls12And13List.contains("TLSv1.3")) {
+            System.out.println("\t\t... failed");
+            fail("TLSv1.2 and TLSv1.3 should not be in result when masked");
+        }
+
         System.out.println("\t\t... passed");
     }
 

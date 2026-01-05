@@ -1,3 +1,78 @@
+### wolfSSL JNI Release 1.16.0 (12/31/2025)
+
+Release 1.16.0 has bug fixes and new features including:
+
+**JSSE System/Security Property Support:**
+* Add `wolfjsse.autoSNI` Security property support to control auto setting SNI (PR 249)
+* Add partial support for `jdk.tls.client.SignatureSchemes` and `jdk.tls.server.SignatureSchemes` (PR 299)
+
+**JSSE Changes:**
+* Automatically set SNI for HttpsURLConnection connections (PR 249)
+* Add support for DTLS 1.3 (`DTLSv1.3`) in `SSLContext` / `SSLEngine` (PR 254)
+* Fix SNI storing/restoring at wolfJSSE level on session resumption (PR 255)
+* Improve `SSLEngine` send/received performance 20-30% (PR 257)
+* Implement SNI matcher logic for server-side `WolfSSLSocket` use (PR 259)
+* Cache system and security properties on `WolfSSLEngineHelper` creation vs each handshake (PR 273)
+* Reduce synchronization scope in `WolfSSLAuthStore` for lower contention (PR 274)
+* Cache KeyStore entries in `X509ExtendedKeyManager` to reduce contention for heavy concurrent use (PR 272)
+* Fix potential use-after-free issues with `WolfSSLSocket` (PR 275)
+* Fix NullPointerException on double `close()` in `WolfSSLSocket` (PR 277)
+* Implement `toString()` inside `WolfSSLPrincipal` (PR 281)
+* Fix certificate chain order returned from `WolfSSLX509StoreCtx.getCerts()` to match JSSE expectations (PR 282, 289)
+* Protect native sessions from being freed while I/O operations are in progress (PR 278)
+* Add support for honoring client cipher suite preference ordering (PR 287)
+* Fix potential memory leak in `SSLEngine` during JNI callback cleanup (PR 289)
+* Implement `X509Certificate.getExtendedKeyUsage()` in `WolfSSLX509Certificate` (PR 289)
+* Fix cert chain validation to handle cross-signed certs and chain paths (PR 292, 294)
+* Add Java ServiceLoader support for wolfJSSE provider for Java Module System (JPMS) compatibility (PR 296)
+* Implement `X509Certificate` `getSubjectX500Principal()` and `getIssuerX500Principal()` (PR 298)
+* Fall back to `java.home` property use when `JAVA_HOME` env var not set (PR 302)
+* Add `hashCode()` implementation to `SSLSession` (PR 303)
+* Allow `SSLSessionContext` access before `SSLContext` init (PR 304)
+* Add Android non-standard `checkServerTrusted()` in `X509TrustManager` (PR 288)
+* Fix ALPN to support non-ASCII protocol names (PR 305)
+
+**JNI Changes:**
+* Rename wolfCrypt JNI helper classes to avoid namespace conflicts with wolfcrypt-jni (PR 252)
+* Wrap Atomic Record VerifyDecrypt callback (PR 252)
+* Ensure peer ALPN protocol list is null terminated (PR 258)
+* Enhance error handling and return code checks in `WolfSSLSession.read()` (PR 260)
+* Improve ByteBuffer handling in `WolfSSLSession.read()` (PR 262)
+* Dynamically get algorithm and key ASN NID enum values from wolfSSL (PR 263)
+* Add pool of ByteBuffers to `WolfSSLSession`, improves performance and avoids unaligned memory access (PR 268)
+* Add `getSessionTicket()` and `setSessionTicket()` to `WolfSSLSession` (PR 270)
+* Correct call to `CallObjectMethod()` in `WolfSSLSession` ByteBuffer read (PR 286)
+* Wrap `wolfSSL_i2d_SSL_SESSION()` and `wolfSSL_d2i_SSL_SESSION()` allowing for session persistence (PR 290)
+* Add DTLS Connection ID (CID) support, wrapping native wolfSSL APIs (PR 297)
+
+**Debugging Changes:**
+* Switch to use Java logging (`java.util.logging`) framework for debug logs (PR 261)
+* Switch logging callback for wolfSSL debug messages to use stderr (PR 269)
+* Switch debug log timestamp to use Java `Instant.ofEpochMilli()`, remove dependency on `java.sql.Timestamp` (PR 301)
+
+**Example Changes:**
+* Add DTLS 1.3 example client and server applications (PR 264)
+
+**Testing Changes:**
+* Add GitHub Actions PRB test with `ubuntu-24.04-arm` runner for testing `--enable-armasm` builds (PR 267)
+* Add GitHub Actions PRB test for AddressSanitizer (`-fsanitize=address`) builds (PR 276)
+* Add GitHub Actions PRB tests for coding style (line length, comment style) (PR 285)
+* Add GitHub Actions PRB test for Clang scan-build static analysis (PR 285)
+* Add GitHub Actions PRB test for Visual Studio builds on Windows (PR 295)
+* Add GitHub Actions PRB test to build against last 5 stable wolfSSL releases (PR 306)
+* Add GitHub Actions PRB test to run unit tests on Android emulator (PR 307)
+* Use local server threads in some `WolfSSLSession` tests to avoid network access (PR 300)
+
+**Misc Changes:**
+* Clean up IDE warnings in Cursor and VSCode (PR 266)
+* Add `CLAUDE.md` for consumption by Claude Code (PR 265)
+* Add `-fPIC` to CFLAGS in `java.sh` for Aarch64 hosts (PR 267)
+* Modify `java.sh` to allow passing install directory (`./java.sh <install_dir>`) (PR 285)
+
+The wolfSSL JNI Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni. For build
+instructions and more detailed comments, please check the manual.
+
 ### wolfSSL JNI Release 1.15.0 (01/24/2025)
 
 Release 1.15.0 has bug fixes and new features including:

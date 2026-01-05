@@ -2410,7 +2410,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.3 string");
+            throwWolfSSLJNIException(jenv, "Error setting TLSv1.3 string");
             return NULL;
         }
     }
@@ -2423,7 +2423,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.2 string");
+            throwWolfSSLJNIException(jenv, "Error setting TLSv1.2 string");
             return NULL;
         }
     }
@@ -2436,7 +2436,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1.1 string");
+            throwWolfSSLJNIException(jenv, "Error setting TLSv1.1 string");
             return NULL;
         }
     }
@@ -2447,7 +2447,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting TLSv1 string");
+            throwWolfSSLJNIException(jenv, "Error setting TLSv1 string");
             return NULL;
         }
     }
@@ -2461,21 +2461,21 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, jcl, "Error setting SSLv3 string");
+            throwWolfSSLJNIException(jenv, "Error setting SSLv3 string");
             return NULL;
         }
     }
 #endif
 
 #ifdef WOLFSSL_DTLS
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLSV10)
         if(!(mask & SSL_OP_NO_TLSv1)) {
             (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
                     (*jenv)->NewStringUTF(jenv, "DTLSv1"));
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1 string");
+                throwWolfSSLJNIException(jenv, "Error setting DTLSv1 string");
                 return NULL;
             }
         }
@@ -2487,7 +2487,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.2 string");
+                throwWolfSSLJNIException(jenv, "Error setting DTLSv1.2 string");
                 return NULL;
             }
         }
@@ -2499,7 +2499,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->ThrowNew(jenv, jcl, "Error setting DTLSv1.3 string");
+                throwWolfSSLJNIException(jenv, "Error setting DTLSv1.3 string");
                 return NULL;
             }
         }
