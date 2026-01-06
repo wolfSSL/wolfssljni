@@ -841,7 +841,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     @Override
     public int getApplicationBufferSize() {
         /* max plaintext bytes allowed by spec, MAX_RECORD_SIZE enum (2^14) */
-        return 16384;
+        return WolfSSL.MAX_RECORD_SIZE;
     }
 
     /**
