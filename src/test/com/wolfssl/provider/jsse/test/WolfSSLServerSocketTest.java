@@ -1,6 +1,6 @@
 /* WolfSSLServerSocketTest.java
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -115,8 +115,7 @@ public class WolfSSLServerSocketTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new Exception(e);
         }
 
         try {

@@ -1,6 +1,6 @@
 /* X509CertRequest.java
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -327,7 +327,7 @@ public class X509CertRequest {
             WolfSSL sslLib = new WolfSSL();
 
             /* Enable debugging if desired */
-            //sslLib.debuggingON();
+            /* sslLib.debuggingON(); */
 
             System.out.println(
                 "wolfSSL JNI Certificate Signing Request Generation Example");

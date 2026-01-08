@@ -1,6 +1,6 @@
 /* X509v3CertificateGeneration.java
  *
- * Copyright (C) 2006-2025 wolfSSL Inc.
+ * Copyright (C) 2006-2026 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -656,7 +656,7 @@ public class X509v3CertificateGeneration {
             WolfSSL sslLib = new WolfSSL();
 
             /* Enable debugging if desired */
-            //sslLib.debuggingON();
+            /* sslLib.debuggingON(); */
 
             System.out.println(
                 "wolfSSL JNI X509v3 Certificate Generation Example");
