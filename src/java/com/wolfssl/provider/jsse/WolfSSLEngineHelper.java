@@ -1349,6 +1349,11 @@ public class WolfSSLEngineHelper {
             else {
                 this.session.setSessionContext(authStore.getServerContext());
                 this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+                /* Track client auth state for getPeerCertificates() */
+                boolean clientAuthRequested =
+                    this.params.getNeedClientAuth() ||
+                    this.params.getWantClientAuth();
+                this.session.setClientAuthRequested(clientAuthRequested);
             }
 
             if (this.sessionCreation == false && !this.session.isFromTable) {

@@ -54,6 +54,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
@@ -2493,6 +2494,55 @@ public class WolfSSLEngineTest {
         buffer.flip();
         bb.put(buffer);
         return bb;
+    }
+
+    /**
+     * Verify getPeerCertificateChain() throws SSLPeerUnverifiedException
+     * when no client auth requested, matching SunJSSE/Netty expectations.
+     */
+    @Test
+    public void testGetPeerCertificateChainNoClientAuth() throws Exception {
+
+        System.out.print("\tgetPeerCertChain no client auth");
+
+        String protocol = null;
+        for (String p : enabledProtocols) {
+            if (!p.equals("TLS") && !p.contains("DTLS")) {
+                protocol = p;
+                break;
+            }
+        }
+
+        if (protocol == null) {
+            pass("\t... skipped");
+            return;
+        }
+
+        SSLContext ctx = tf.createSSLContext(protocol, engineProvider);
+
+        SSLEngine server = ctx.createSSLEngine();
+        SSLEngine client = ctx.createSSLEngine("localhost", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        server.setWantClientAuth(false);
+        client.setUseClientMode(true);
+
+        tf.testConnection(server, client, null, null, "No client auth test");
+
+        SSLSession serverSession = server.getSession();
+
+        try {
+            javax.security.cert.X509Certificate[] certs =
+                serverSession.getPeerCertificateChain();
+            error("\t... failed");
+            fail("Expected SSLPeerUnverifiedException, got " +
+                 (certs == null ? "null" : "certs"));
+        } catch (SSLPeerUnverifiedException e) {
+            /* Expected */
+        }
+
+        pass("\t... passed");
     }
 }
 

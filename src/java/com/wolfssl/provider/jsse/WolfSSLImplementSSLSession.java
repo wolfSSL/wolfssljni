@@ -73,6 +73,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     byte[] pseudoSessionID = null; /* used with TLS 1.3*/
     private int side = 0;
 
+    /* Track if client auth was requested, for getPeerCertificates() behavior */
+    private volatile boolean clientAuthRequested = false;
+
     /* Cache peer certificates after received. Applications assume that
      * SSLSocket.getSession().getPeerCertificates() will return the peer
      * certificate even on a resumed connection where the cert has not been
@@ -260,6 +263,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             this.pseudoSessionID = orig.pseudoSessionID.clone();
         }
         this.side = orig.side;
+        this.clientAuthRequested = orig.clientAuthRequested;
         if (orig.peerCerts != null) {
             this.peerCerts = orig.peerCerts.clone();
         }
@@ -519,6 +523,15 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 "SSLSocket/Engine closed");
         }
 
+        /* Throw if server side with no client auth requested */
+        if (this.side == WolfSSL.WOLFSSL_SERVER_END &&
+            !this.clientAuthRequested) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Server side, no client auth, throwing exception");
+            throw new SSLPeerUnverifiedException(
+                "peer not authenticated (no client auth requested)");
+        }
+
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
@@ -605,8 +618,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     }
 
     @Override
-    public synchronized javax.security.cert.X509Certificate[] getPeerCertificateChain()
-        throws SSLPeerUnverifiedException {
+    public synchronized javax.security.cert.X509Certificate[]
+        getPeerCertificateChain() throws SSLPeerUnverifiedException {
 
         long peerX509 = 0;
         WolfSSLX509X x509;
@@ -615,10 +628,17 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             throw new SSLPeerUnverifiedException("handshake not done");
         }
 
+        /* Throw if server side with no client auth requested */
+        if (this.side == WolfSSL.WOLFSSL_SERVER_END &&
+            !this.clientAuthRequested) {
+            throw new SSLPeerUnverifiedException(
+                "peer not authenticated (no client auth requested)");
+        }
+
         try {
             peerX509 = this.ssl.getPeerCertificate();
             if (peerX509 == 0) {
-                return null;
+                throw new SSLPeerUnverifiedException("No peer certificate");
             }
 
             /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
@@ -657,10 +677,17 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             throw new SSLPeerUnverifiedException("handshake not done");
         }
 
+        /* Throw if server side with no client auth requested */
+        if (this.side == WolfSSL.WOLFSSL_SERVER_END &&
+            !this.clientAuthRequested) {
+            throw new SSLPeerUnverifiedException(
+                "peer not authenticated (no client auth requested)");
+        }
+
         try {
             peerX509 = this.ssl.getPeerCertificate();
             if (peerX509 == 0) {
-                return null;
+                throw new SSLPeerUnverifiedException("No peer certificate");
             }
 
             /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
@@ -1037,6 +1064,16 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      */
     protected int getSide() {
         return this.side;
+    }
+
+    /**
+     * Set whether client auth was requested.
+     * Used for getPeerCertificates() behavior.
+     *
+     * @param requested true if client auth was requested, false otherwise
+     */
+    protected void setClientAuthRequested(boolean requested) {
+        this.clientAuthRequested = requested;
     }
 
     /**
