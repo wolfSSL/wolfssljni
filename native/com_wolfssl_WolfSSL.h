@@ -185,6 +185,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_THREAD_CREATE_E -264L
 #undef com_wolfssl_WolfSSL_CACHE_MATCH_ERROR
 #define com_wolfssl_WolfSSL_CACHE_MATCH_ERROR -280L
+#undef com_wolfssl_WolfSSL_MAX_RECORD_SIZE
+#define com_wolfssl_WolfSSL_MAX_RECORD_SIZE 16384L
 #undef com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME
 #define com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME 0L
 #undef com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_OK
