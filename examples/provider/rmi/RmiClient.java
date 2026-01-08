@@ -219,7 +219,7 @@ public class RmiClient
                  * These system properties could be set in RmiClient.sh
                  * before starting the example.
                  */
-                //Thread.sleep(2000);
+                /* Thread.sleep(2000); */
 
             } catch (Exception e) {
                 failures.incrementAndGet(0);

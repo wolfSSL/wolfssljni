@@ -327,7 +327,7 @@ public class X509CertRequest {
             WolfSSL sslLib = new WolfSSL();
 
             /* Enable debugging if desired */
-            //sslLib.debuggingON();
+            /* sslLib.debuggingON(); */
 
             System.out.println(
                 "wolfSSL JNI Certificate Signing Request Generation Example");

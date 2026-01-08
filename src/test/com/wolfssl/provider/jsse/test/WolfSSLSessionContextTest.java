@@ -55,7 +55,7 @@ public class WolfSSLSessionContextTest {
 
     @BeforeClass
     public static void testProviderInstallationAtRuntime()
-        throws NoSuchProviderException {
+        throws NoSuchProviderException, WolfSSLException {
 
         System.out.println("WolfSSLSessionContext Class");
 
@@ -65,12 +65,7 @@ public class WolfSSLSessionContextTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
-        try {
-            tf = new WolfSSLTestFactory();
-        } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+        tf = new WolfSSLTestFactory();
     }
 
     @Test
@@ -139,7 +134,6 @@ public class WolfSSLSessionContextTest {
         try {
             tf.CloseConnection(server, client, false);
         } catch (SSLException e1) {
-            // TODO Auto-generated catch block
             e1.printStackTrace();
             error("\t\t... failed");
             fail("session close failed");
@@ -167,13 +161,15 @@ public class WolfSSLSessionContextTest {
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
-        client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
+        client =
+            this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
 
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
         client.setUseClientMode(true);
 
-        ses = server.getSession(); /* get a copy of session before connection */
+        /* get a copy of session before connection */
+        ses = server.getSession();
         if (ses == null) {
             error("\t... failed");
             fail("failed get session from created engine");
@@ -187,7 +183,8 @@ public class WolfSSLSessionContextTest {
             fail("failed to begin handshake");
         }
 
-        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
+        ret = tf.testConnection(server, client, null, null,
+            "Test in/out bound");
         if (ret != 0) {
             error("\t... failed");
             fail("failed to create engine");
@@ -209,7 +206,6 @@ public class WolfSSLSessionContextTest {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         ses = server.getSession();
@@ -217,23 +213,15 @@ public class WolfSSLSessionContextTest {
         sesCtx.setSessionTimeout(1);
 
         /* client timeout should still be default */
-        if (client.getSession().getSessionContext().getSessionTimeout() != 86400) {
+        if (client.getSession().getSessionContext()
+                .getSessionTimeout() != 86400) {
             error("\t... failed");
             fail("client session timout should still be default value");
         }
 
-        /* reading the API description I think this should be invalid but it is
-         * not with SunJSSE
-         * @TODO */
-//        if (ses.isValid() != false) {
-//            error("\t... failed");
-//            fail("session valid when it should not be");
-//        }
-
         try {
             tf.CloseConnection(server, client, false);
         } catch (SSLException e1) {
-            // TODO Auto-generated catch block
             e1.printStackTrace();
             error("\t... failed");
             fail("session close failed");
@@ -244,7 +232,8 @@ public class WolfSSLSessionContextTest {
 
     private void testSetCacheSize(SSLSession ses) {
         System.out.print("\tTesting SettingCache");
-        /* these are wolfJSSE default values, make sure wolfJSSE is the provider */
+        /* these are wolfJSSE default values,
+         * make sure wolfJSSE is the provider */
         if (ctx.getProvider() == Security.getProvider("wolfJSSE")) {
             SSLSessionContext sesCtx = ses.getSessionContext();
 
@@ -391,7 +380,6 @@ public class WolfSSLSessionContextTest {
             try {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
-                // TODO Auto-generated catch block
                 e1.printStackTrace();
                 error("\t... failed");
                 fail("session close failed");
@@ -541,7 +529,6 @@ public class WolfSSLSessionContextTest {
             try {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
-                // TODO Auto-generated catch block
                 e1.printStackTrace();
                 error("\t\t... failed");
                 fail("session close failed");

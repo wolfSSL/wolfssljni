@@ -115,8 +115,7 @@ public class WolfSSLServerSocketTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new Exception(e);
         }
 
         try {

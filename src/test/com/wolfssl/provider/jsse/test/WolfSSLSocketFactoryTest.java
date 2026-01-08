@@ -96,8 +96,7 @@ public class WolfSSLSocketFactoryTest {
         try {
             tf = new WolfSSLTestFactory();
         } catch (WolfSSLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new Exception(e);
         }
 
         /* populate enabledProtocols */

@@ -656,7 +656,7 @@ public class X509v3CertificateGeneration {
             WolfSSL sslLib = new WolfSSL();
 
             /* Enable debugging if desired */
-            //sslLib.debuggingON();
+            /* sslLib.debuggingON(); */
 
             System.out.println(
                 "wolfSSL JNI X509v3 Certificate Generation Example");
