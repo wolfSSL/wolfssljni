@@ -231,6 +231,14 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1a
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_subject_alt_names_full
+ * Signature: (J)[[Ljava/lang/Object;
+ */
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1alt_1names_1full
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_load_certificate_buffer
  * Signature: ([BI)J
  */

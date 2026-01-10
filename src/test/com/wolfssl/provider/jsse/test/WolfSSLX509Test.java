@@ -671,14 +671,23 @@ public class WolfSSLX509Test {
 
             if (found.size() != expected.size()) {
                 error("\r... failed");
-                fail("altName list size differs from expected size");
+                fail("altName list size differs from expected size, " +
+                     "found: " + found.size() + ", expected: " +
+                     expected.size());
             }
 
-            for (int i = 0; i < found.size(); i++) {
-                if (!found.get(i).equals(expected.get(i))) {
+            /* RFC 5280 does not specify an order for SANs, so compare
+             * contents without depending on order */
+            for (String expectedName : expected) {
+                if (!found.contains(expectedName)) {
                     error("\r... failed");
-                    fail("altName entry does not match expected: found: " +
-                         found.get(i) + ", expected: " + expected.get(i));
+                    fail("expected altName not found: " + expectedName);
+                }
+            }
+            for (String foundName : found) {
+                if (!expected.contains(foundName)) {
+                    error("\r... failed");
+                    fail("unexpected altName found: " + foundName);
                 }
             }
 

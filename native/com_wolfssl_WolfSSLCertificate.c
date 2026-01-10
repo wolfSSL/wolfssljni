@@ -1937,3 +1937,428 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1next_1a
 #endif
 }
 
+/* Returns a 2D array (Object[][]) of Subject Alternative Names with type info.
+ *
+ * Each inner array contains:
+ *   - For most types: [Integer type, String value]
+ *   - For otherName (type 0): [Integer 0, String oid, byte[] value]
+ *   - For iPAddress (type 7): [Integer 7, byte[] value]
+ *
+ * GeneralName types (from RFC 5280):
+ *   0 = otherName
+ *   1 = rfc822Name (email)
+ *   2 = dNSName
+ *   3 = x400Address (not supported)
+ *   4 = directoryName
+ *   5 = ediPartyName (not supported)
+ *   6 = uniformResourceIdentifier
+ *   7 = iPAddress
+ *   8 = registeredID
+ */
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1alt_1names_1full
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_GENERAL_NAMES* names = NULL;
+    WOLFSSL_GENERAL_NAME* entry = NULL;
+    jobjectArray outerArray = NULL;
+    jclass objectClass = NULL;
+    jclass objectArrayClass = NULL;
+    jclass integerClass = NULL;
+    jmethodID integerInit = NULL;
+    int numNames = 0;
+    int i = 0;
+    int idx = 0;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    /* Get SAN extension */
+    names = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL);
+    if (names == NULL) {
+        return NULL;
+    }
+
+    /* Get number of SANs */
+    numNames = wolfSSL_sk_GENERAL_NAME_num(names);
+    if (numNames <= 0) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    /* Find java.lang.Object class for inner array elements */
+    objectClass = (*jenv)->FindClass(jenv, "java/lang/Object");
+    if (objectClass == NULL || (*jenv)->ExceptionCheck(jenv)) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    /* Find Object[] class for outer array (to create Object[][]) */
+    objectArrayClass = (*jenv)->FindClass(jenv, "[Ljava/lang/Object;");
+    if (objectArrayClass == NULL || (*jenv)->ExceptionCheck(jenv)) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    /* Find Integer class and constructor */
+    integerClass = (*jenv)->FindClass(jenv, "java/lang/Integer");
+    if (integerClass == NULL || (*jenv)->ExceptionCheck(jenv)) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    integerInit = (*jenv)->GetMethodID(jenv, integerClass, "<init>", "(I)V");
+    if (integerInit == NULL || (*jenv)->ExceptionCheck(jenv)) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    /* Create outer array (Object[][]) to hold all SAN entries */
+    outerArray = (*jenv)->NewObjectArray(jenv, numNames, objectArrayClass,
+        NULL);
+    if (outerArray == NULL || (*jenv)->ExceptionCheck(jenv)) {
+        wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+        return NULL;
+    }
+
+    for (i = 0; i < numNames; i++) {
+        jobjectArray innerArray = NULL;
+        jobject typeObj = NULL;
+        jstring valueStr = NULL;
+        jbyteArray valueBytes = NULL;
+        const char* strValue = NULL;
+        int innerSize = 2;  /* default: [type, value] */
+        int type = 0;
+
+        /* Check for pending exceptions before each iteration */
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            break;
+        }
+
+        entry = wolfSSL_sk_GENERAL_NAME_value(names, i);
+        if (entry == NULL) {
+            continue;
+        }
+        type = entry->type;
+
+        switch (type) {
+            case GEN_OTHERNAME: /* 0 - otherName */
+            {
+                /* For otherName: [type, oid_string, value_bytes] */
+                int oidLen = 0;
+                int derSz = 0;
+                unsigned char* derBuf = NULL;
+                WOLFSSL_ASN1_OBJECT* oidObj = NULL;
+                WOLFSSL_ASN1_TYPE* valueType = NULL;
+                char oidBuf[MAX_OID_STRING_SZ];
+
+                innerSize = 3;
+                innerArray = (*jenv)->NewObjectArray(jenv, innerSize,
+                    objectClass, NULL);
+                if ((innerArray == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    continue;
+                }
+
+                /* Set type (Integer 0) */
+                typeObj = (*jenv)->NewObject(jenv, integerClass,
+                    integerInit, type);
+
+                if ((typeObj == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, innerArray);
+                    continue;
+                }
+                (*jenv)->SetObjectArrayElement(jenv, innerArray, 0, typeObj);
+                (*jenv)->DeleteLocalRef(jenv, typeObj);
+
+                /* Get and set OID string */
+                if ((entry->d.otherName != NULL) &&
+                    (entry->d.otherName->type_id != NULL)) {
+
+                    oidObj = entry->d.otherName->type_id;
+                    oidLen = wolfSSL_OBJ_obj2txt(oidBuf, sizeof(oidBuf),
+                        oidObj, 1);
+
+                    if ((oidLen > 0) && (oidLen < (int)sizeof(oidBuf))) {
+                        oidBuf[oidLen] = '\0'; /* Ensure null termination */
+                        valueStr = (*jenv)->NewStringUTF(jenv, oidBuf);
+                        if ((valueStr != NULL) &&
+                            !(*jenv)->ExceptionCheck(jenv)) {
+                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
+                                1, valueStr);
+                            (*jenv)->DeleteLocalRef(jenv, valueStr);
+                        }
+                    }
+                }
+
+                /* Get and set value bytes (ASN.1 encoded) */
+                if ((entry->d.otherName != NULL) &&
+                    (entry->d.otherName->value != NULL)) {
+
+                    valueType = entry->d.otherName->value;
+
+                    /* Get the DER encoding of the value */
+                    derSz = wolfSSL_i2d_ASN1_TYPE(valueType, NULL);
+                    if (derSz > 0) {
+                        derBuf = (unsigned char*)XMALLOC(derSz, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+
+                        if (derBuf != NULL) {
+                            unsigned char* derPtr = derBuf;
+                            derSz = wolfSSL_i2d_ASN1_TYPE(valueType, &derPtr);
+
+                            if (derSz > 0) {
+                                valueBytes = (*jenv)->NewByteArray(jenv, derSz);
+                                if ((valueBytes != NULL) &&
+                                    !(*jenv)->ExceptionCheck(jenv)) {
+                                    (*jenv)->SetByteArrayRegion(jenv,
+                                        valueBytes, 0, derSz, (jbyte*)derBuf);
+                                    (*jenv)->SetObjectArrayElement(jenv,
+                                        innerArray, 2, valueBytes);
+                                    (*jenv)->DeleteLocalRef(jenv, valueBytes);
+                                }
+                            }
+                            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                            derBuf = NULL;
+                        }
+                    }
+                }
+                break;
+            }
+
+            case GEN_EMAIL: /* 1 - rfc822Name */
+            case GEN_DNS:   /* 2 - dNSName */
+            case GEN_URI:   /* 6 - uniformResourceIdentifier */
+            {
+                /* For string types: [type, value_string] */
+                int strLen = 0;
+                WOLFSSL_ASN1_STRING* asn1Str = NULL;
+
+                innerArray = (*jenv)->NewObjectArray(jenv, innerSize,
+                    objectClass, NULL);
+                if ((innerArray == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    continue;
+                }
+
+                /* Set type */
+                typeObj = (*jenv)->NewObject(jenv, integerClass,
+                    integerInit, type);
+                if ((typeObj == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, innerArray);
+                    continue;
+                }
+                (*jenv)->SetObjectArrayElement(jenv, innerArray, 0, typeObj);
+                (*jenv)->DeleteLocalRef(jenv, typeObj);
+
+                /* Get string value based on type */
+                if (type == GEN_EMAIL) {
+                    asn1Str = entry->d.rfc822Name;
+                }
+                else if (type == GEN_DNS) {
+                    asn1Str = entry->d.dNSName;
+                }
+                else if (type == GEN_URI) {
+                    asn1Str = entry->d.uniformResourceIdentifier;
+                }
+
+                if (asn1Str != NULL) {
+                    strValue = (const char*)wolfSSL_ASN1_STRING_data(asn1Str);
+                    strLen = wolfSSL_ASN1_STRING_length(asn1Str);
+                    if ((strValue != NULL) && (strLen >= 0)) {
+                        valueStr = (*jenv)->NewStringUTF(jenv, strValue);
+                        if ((valueStr != NULL) &&
+                            !(*jenv)->ExceptionCheck(jenv)) {
+                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
+                                1, valueStr);
+                            (*jenv)->DeleteLocalRef(jenv, valueStr);
+                        }
+                    }
+                }
+                break;
+            }
+
+            case GEN_DIRNAME: /* 4 - directoryName */
+            {
+                /* For directoryName: [type, x500_name_string] */
+                char* nameStr = NULL;
+
+                innerArray = (*jenv)->NewObjectArray(jenv, innerSize,
+                    objectClass, NULL);
+                if ((innerArray == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    continue;
+                }
+
+                /* Set type */
+                typeObj = (*jenv)->NewObject(jenv, integerClass,
+                    integerInit, type);
+                if ((typeObj == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, innerArray);
+                    continue;
+                }
+                (*jenv)->SetObjectArrayElement(jenv, innerArray, 0, typeObj);
+                (*jenv)->DeleteLocalRef(jenv, typeObj);
+
+                /* Get directory name as string */
+                if (entry->d.directoryName != NULL) {
+
+                    nameStr = wolfSSL_X509_NAME_oneline(
+                        entry->d.directoryName, NULL, 0);
+
+                    if (nameStr != NULL) {
+                        valueStr = (*jenv)->NewStringUTF(jenv, nameStr);
+                        if (valueStr != NULL &&
+                            !(*jenv)->ExceptionCheck(jenv)) {
+                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
+                                1, valueStr);
+                            (*jenv)->DeleteLocalRef(jenv, valueStr);
+                        }
+                        XFREE(nameStr, NULL, DYNAMIC_TYPE_OPENSSL);
+                        nameStr = NULL;
+                    }
+                }
+                break;
+            }
+
+            case GEN_IPADD: /* 7 - iPAddress */
+            {
+                /* For iPAddress: [type, ip_bytes] */
+                int ipLen = 0;
+                WOLFSSL_ASN1_STRING* ipStr = NULL;
+                const unsigned char* ipData = NULL;
+
+                innerArray = (*jenv)->NewObjectArray(jenv, innerSize,
+                    objectClass, NULL);
+                if ((innerArray == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    continue;
+                }
+
+                /* Set type */
+                typeObj = (*jenv)->NewObject(jenv, integerClass,
+                    integerInit, type);
+                if ((typeObj == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, innerArray);
+                    continue;
+                }
+                (*jenv)->SetObjectArrayElement(jenv, innerArray, 0, typeObj);
+                (*jenv)->DeleteLocalRef(jenv, typeObj);
+
+                /* Get IP address bytes */
+                ipStr = entry->d.iPAddress;
+                if (ipStr != NULL) {
+
+                    ipData = wolfSSL_ASN1_STRING_data(ipStr);
+                    ipLen = wolfSSL_ASN1_STRING_length(ipStr);
+
+                    if ((ipData != NULL) && (ipLen > 0)) {
+                        valueBytes = (*jenv)->NewByteArray(jenv, ipLen);
+                        if ((valueBytes != NULL) &&
+                            !(*jenv)->ExceptionCheck(jenv)) {
+                            (*jenv)->SetByteArrayRegion(jenv, valueBytes,
+                                0, ipLen, (jbyte*)ipData);
+                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
+                                1, valueBytes);
+                            (*jenv)->DeleteLocalRef(jenv, valueBytes);
+                        }
+                    }
+                }
+                break;
+            }
+
+            case GEN_RID: /* 8 - registeredID */
+            {
+                /* For registeredID: [type, oid_string] */
+                int oidLen = 0;
+                char oidBuf[MAX_OID_STRING_SZ];
+
+                innerArray = (*jenv)->NewObjectArray(jenv, innerSize,
+                    objectClass, NULL);
+                if ((innerArray == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    continue;
+                }
+
+                /* Set type */
+                typeObj = (*jenv)->NewObject(jenv, integerClass,
+                    integerInit, type);
+                if ((typeObj == NULL) || (*jenv)->ExceptionCheck(jenv)) {
+                    (*jenv)->DeleteLocalRef(jenv, innerArray);
+                    continue;
+                }
+                (*jenv)->SetObjectArrayElement(jenv, innerArray, 0, typeObj);
+                (*jenv)->DeleteLocalRef(jenv, typeObj);
+
+                /* Get OID string */
+                if (entry->d.registeredID != NULL) {
+
+                    oidLen = wolfSSL_OBJ_obj2txt(oidBuf, sizeof(oidBuf),
+                        entry->d.registeredID, 1);
+
+                    if ((oidLen > 0) && (oidLen < (int)sizeof(oidBuf))) {
+                        oidBuf[oidLen] = '\0'; /* Ensure null termination */
+                        valueStr = (*jenv)->NewStringUTF(jenv, oidBuf);
+                        if ((valueStr != NULL) &&
+                            !(*jenv)->ExceptionCheck(jenv)) {
+                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
+                                1, valueStr);
+                            (*jenv)->DeleteLocalRef(jenv, valueStr);
+                        }
+                    }
+                }
+                break;
+            }
+
+            default:
+                /* Unsupported type, skip */
+                continue;
+        }
+
+        if (innerArray != NULL) {
+            (*jenv)->SetObjectArrayElement(jenv, outerArray, idx, innerArray);
+            (*jenv)->DeleteLocalRef(jenv, innerArray);
+            idx++;
+        }
+    }
+
+    wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
+
+    /* Check for pending exception from loop processing */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->DeleteLocalRef(jenv, outerArray);
+        return NULL;
+    }
+
+    /* If we didn't get any valid entries, return NULL */
+    if (idx == 0) {
+        (*jenv)->DeleteLocalRef(jenv, outerArray);
+        return NULL;
+    }
+
+    /* If we got fewer entries than expected, create a trimmed array */
+    if (idx < numNames) {
+        jobjectArray trimmedArray = (*jenv)->NewObjectArray(jenv, idx,
+            objectClass, NULL);
+        if (trimmedArray != NULL && !(*jenv)->ExceptionCheck(jenv)) {
+            for (i = 0; i < idx; i++) {
+                jobject elem = (*jenv)->GetObjectArrayElement(jenv,
+                    outerArray, i);
+                (*jenv)->SetObjectArrayElement(jenv, trimmedArray, i, elem);
+                (*jenv)->DeleteLocalRef(jenv, elem);
+            }
+            (*jenv)->DeleteLocalRef(jenv, outerArray);
+            return trimmedArray;
+        }
+        /* If trimming failed, fall through to return outerArray */
+    }
+
+    return outerArray;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif /* !WOLFCRYPT_ONLY && !NO_CERTS && OPENSSL_EXTRA */
+}
+

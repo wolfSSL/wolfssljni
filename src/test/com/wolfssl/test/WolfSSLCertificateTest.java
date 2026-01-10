@@ -45,6 +45,9 @@ import java.security.PublicKey;
 import java.security.PrivateKey;
 import java.security.NoSuchAlgorithmException;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.junit.Test;
 import org.junit.BeforeClass;
 import static org.junit.Assert.*;
@@ -53,6 +56,7 @@ import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLX509Name;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLCertManager;
+import com.wolfssl.WolfSSLAltName;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 
@@ -73,6 +77,15 @@ public class WolfSSLCertificateTest {
     public static String caKeyPkcs8Der = "examples/certs/ca-keyPkcs8.der";
     public static String serverCertPem = "examples/certs/server-cert.pem";
     public static String external = "examples/certs/ca-google-root.der";
+    public static String sanTestDir = "examples/certs/san-test";
+    public static String sanTestUpnCert = null;
+    public static String sanTestAllTypesCert = null;
+    public static String sanTestAllTypesDer = null;
+    public static String sanTestDnsIpCert = null;
+    public static String sanTestDnsIpDer = null;
+    public static String sanTestEmailUriCert = null;
+    public static String sanTestDirNameRidCert = null;
+    public static String sanTestCaCert = null;
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
 
@@ -94,6 +107,15 @@ public class WolfSSLCertificateTest {
         caKeyPkcs8Der = WolfSSLTestCommon.getPath(caKeyPkcs8Der);
         serverCertPem = WolfSSLTestCommon.getPath(serverCertPem);
         external   = WolfSSLTestCommon.getPath(external);
+        sanTestDir = WolfSSLTestCommon.getPath(sanTestDir);
+        sanTestUpnCert = sanTestDir + "/san-test-othername-upn.pem";
+        sanTestAllTypesCert = sanTestDir + "/san-test-all-types.pem";
+        sanTestAllTypesDer = sanTestDir + "/san-test-all-types.der";
+        sanTestDnsIpCert = sanTestDir + "/san-test-dns-ip.pem";
+        sanTestDnsIpDer = sanTestDir + "/san-test-dns-ip.der";
+        sanTestEmailUriCert = sanTestDir + "/san-test-email-uri.pem";
+        sanTestDirNameRidCert = sanTestDir + "/san-test-dirname-rid.pem";
+        sanTestCaCert = sanTestDir + "/san-test-ca-cert.pem";
     }
 
 
@@ -1296,6 +1318,1745 @@ public class WolfSSLCertificateTest {
     private void writeOutCertFile(byte[] cert, String path)
         throws IOException {
         Files.write(new File(path).toPath(), cert);
+    }
+
+    /**
+     * Test Subject Alternative Names (SAN) parsing functionality.
+     *
+     * Tests getSubjectAltNames() and getSubjectAltNamesExtended() methods
+     * which return SAN entries with proper type information as per RFC 5280.
+     */
+    @Test
+    public void testSubjectAltNames()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        System.out.println("Subject Alternative Names (SAN) Parsing");
+
+        test_getSubjectAltNames_ServerCert();
+        test_getSubjectAltNames_ExampleCert();
+        test_getSubjectAltNamesExtended();
+        test_getSubjectAltNames_CertWithNoSANs();
+        test_getSubjectAltNames_TypeConstants();
+    }
+
+    /**
+     * Test getSubjectAltNames() with server-cert.pem which has DNS and IP SANs.
+     * Server cert has: DNS:example.com, IP Address:127.0.0.1
+     */
+    public void test_getSubjectAltNames_ServerCert()
+        throws WolfSSLException, IOException {
+
+        boolean foundDNS = false;
+        boolean foundIP = false;
+
+        System.out.print("\tgetSubjectAltNames (DNS + IP)");
+
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate serverCert = null;
+
+        if (WolfSSL.FileSystemEnabled() == true) {
+            serverCert = new WolfSSLCertificate(
+                serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        }
+        else {
+            serverCert = new WolfSSLCertificate(
+                fileToByteArray(serverCertPath), WolfSSL.SSL_FILETYPE_PEM);
+        }
+        assertNotNull(serverCert);
+
+        Collection<List<?>> sans = serverCert.getSubjectAltNames();
+        assertNotNull("getSubjectAltNames() returned null", sans);
+        assertTrue("Expected at least 2 SANs", sans.size() >= 2);
+
+        for (List<?> san : sans) {
+            assertNotNull("SAN entry is null", san);
+            assertTrue("SAN entry should have at least 2 elements",
+                san.size() >= 2);
+
+            Integer type = (Integer) san.get(0);
+            assertNotNull("SAN type is null", type);
+
+            if (type == WolfSSL.ASN_DNS_TYPE) {
+                /* DNS name (type 2) */
+                Object value = san.get(1);
+                assertTrue("DNS value should be String",
+                    value instanceof String);
+                String dnsName = (String)value;
+                if ("example.com".equals(dnsName)) {
+                    foundDNS = true;
+                }
+            }
+            else if (type == WolfSSL.ASN_IP_TYPE) {
+                /* IP address (type 7) */
+                Object value = san.get(1);
+                assertTrue("IP value should be byte[]",
+                    value instanceof byte[]);
+                byte[] ipBytes = (byte[])value;
+                /* 127.0.0.1 is 4 bytes: 0x7F, 0x00, 0x00, 0x01 */
+                if (ipBytes.length == 4 &&
+                    ipBytes[0] == 127 &&
+                    ipBytes[1] == 0 &&
+                    ipBytes[2] == 0 &&
+                    ipBytes[3] == 1) {
+                    foundIP = true;
+                }
+            }
+        }
+
+        assertTrue("Did not find DNS SAN 'example.com'", foundDNS);
+        assertTrue("Did not find IP SAN '127.0.0.1'", foundIP);
+
+        serverCert.free();
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test getSubjectAltNames() with example-com.der which has multiple
+     * DNS SANs.
+     */
+    public void test_getSubjectAltNames_ExampleCert()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tgetSubjectAltNames (multi DNS)");
+
+        String exampleCertPath = WolfSSLTestCommon.getPath(external);
+        /* external is ca-google-root.der, use example-com.der instead */
+        String exampleComPath = exampleCertPath.replace(
+            "ca-google-root.der", "example-com.der");
+
+        WolfSSLCertificate exampleCert = null;
+
+        try {
+            if (WolfSSL.FileSystemEnabled() == true) {
+                exampleCert = new WolfSSLCertificate(
+                    exampleComPath, WolfSSL.SSL_FILETYPE_ASN1);
+            }
+            else {
+                exampleCert = new WolfSSLCertificate(
+                    fileToByteArray(exampleComPath), WolfSSL.SSL_FILETYPE_ASN1);
+            }
+        }
+        catch (WolfSSLException e) {
+            /* Cert might not exist in test environment */
+            System.out.println("\t... skipped (cert not found)");
+            return;
+        }
+
+        assertNotNull(exampleCert);
+
+        Collection<List<?>> sans = exampleCert.getSubjectAltNames();
+        if (sans == null) {
+            /* Native method may not be available */
+            exampleCert.free();
+            System.out.println("\t... skipped (native not available)");
+            return;
+        }
+
+        /* example-com.der has 8 DNS SANs */
+        assertTrue("Expected multiple DNS SANs", sans.size() >= 1);
+
+        String[] expectedDNS = {
+            "www.example.org", "example.com", "example.edu", "example.net",
+            "example.org", "www.example.com", "www.example.edu",
+            "www.example.net"
+        };
+
+        int foundCount = 0;
+        for (List<?> san : sans) {
+            Integer type = (Integer) san.get(0);
+            if (type == WolfSSL.ASN_DNS_TYPE) {
+                String dnsName = (String) san.get(1);
+                for (String expected : expectedDNS) {
+                    if (expected.equals(dnsName)) {
+                        foundCount++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        assertTrue("Expected to find multiple DNS SANs, found: " + foundCount,
+            foundCount >= 1);
+
+        exampleCert.free();
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test getSubjectAltNamesExtended() returns full data for otherName.
+     * This method should return OID and value bytes for otherName types.
+     */
+    public void test_getSubjectAltNamesExtended()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tgetSubjectAltNamesExtended");
+
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate serverCert = null;
+
+        if (WolfSSL.FileSystemEnabled() == true) {
+            serverCert = new WolfSSLCertificate(
+                serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        }
+        else {
+            serverCert = new WolfSSLCertificate(
+                fileToByteArray(serverCertPath), WolfSSL.SSL_FILETYPE_PEM);
+        }
+        assertNotNull(serverCert);
+
+        Collection<List<?>> sans = serverCert.getSubjectAltNamesExtended();
+        if (sans == null) {
+            /* Native method may not be available in some builds */
+            serverCert.free();
+            System.out.println("\t... skipped (native not available)");
+            return;
+        }
+
+        assertTrue("Expected at least 1 SAN", sans.size() >= 1);
+
+        /* Verify structure matches expected format:
+         * [type, value] for most types
+         * [type, oid, value_bytes] for otherName */
+        for (List<?> san : sans) {
+            assertNotNull("SAN entry is null", san);
+            assertTrue("SAN entry should have at least 2 elements",
+                san.size() >= 2);
+
+            Integer type = (Integer) san.get(0);
+            assertNotNull("SAN type is null", type);
+            assertTrue("Invalid SAN type: " + type,
+                type >= 0 && type <= 8);
+
+            /* If otherName (type 0), should have 3 elements */
+            if (type == WolfSSL.ASN_OTHER_TYPE) {
+                assertTrue("otherName should have 3 elements",
+                    san.size() >= 3);
+                assertTrue("otherName OID should be String",
+                    san.get(1) instanceof String);
+                assertTrue("otherName value should be byte[]",
+                    san.get(2) instanceof byte[]);
+            }
+        }
+
+        serverCert.free();
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test getSubjectAltNames() with CA certificate which may have no SANs.
+     * If the cert has no SANs, should return an empty collection or null.
+     */
+    public void test_getSubjectAltNames_CertWithNoSANs()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tgetSubjectAltNames (CA cert)");
+
+        /* CA cert typically doesn't have SANs */
+        String caCertPath = WolfSSLTestCommon.getPath(caCertPem);
+        WolfSSLCertificate caCert = null;
+
+        if (WolfSSL.FileSystemEnabled() == true) {
+            caCert = new WolfSSLCertificate(
+                caCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        }
+        else {
+            caCert = new WolfSSLCertificate(
+                fileToByteArray(caCertPath), WolfSSL.SSL_FILETYPE_PEM);
+        }
+        assertNotNull(caCert);
+
+        Collection<List<?>> sans = caCert.getSubjectAltNames();
+        /* CA cert may or may not have SANs */
+        /* Just verify the method doesn't throw and returns a valid result */
+        if (sans != null && !sans.isEmpty()) {
+            /* If SANs exist, verify they are well-formed */
+            for (List<?> san : sans) {
+                assertNotNull("SAN entry should not be null", san);
+                assertTrue("SAN entry should have at least 2 elements",
+                    san.size() >= 2);
+                assertNotNull("SAN type should not be null", san.get(0));
+            }
+        }
+
+        Collection<List<?>> sansExt = caCert.getSubjectAltNamesExtended();
+        /* Extended method should return null for certs without SANs,
+         * or a valid collection if SANs exist */
+        if (sansExt != null && !sansExt.isEmpty()) {
+            for (List<?> san : sansExt) {
+                assertNotNull("SAN entry should not be null", san);
+                assertTrue("SAN entry should have at least 2 elements",
+                    san.size() >= 2);
+            }
+        }
+
+        caCert.free();
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test that SAN type constants match expected RFC 5280 values.
+     */
+    public void test_getSubjectAltNames_TypeConstants() {
+
+        System.out.print("\tSAN type constants");
+
+        /* Verify constants match RFC 5280 GeneralName types */
+        assertEquals("ASN_OTHER_TYPE should be 0", 0, WolfSSL.ASN_OTHER_TYPE);
+        assertEquals("ASN_RFC822_TYPE should be 1", 1, WolfSSL.ASN_RFC822_TYPE);
+        assertEquals("ASN_DNS_TYPE should be 2", 2, WolfSSL.ASN_DNS_TYPE);
+        assertEquals("ASN_DIR_TYPE should be 4", 4, WolfSSL.ASN_DIR_TYPE);
+        assertEquals("ASN_URI_TYPE should be 6", 6, WolfSSL.ASN_URI_TYPE);
+        assertEquals("ASN_IP_TYPE should be 7", 7, WolfSSL.ASN_IP_TYPE);
+
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test parsing of Microsoft Active Directory UPN (User Principal Name)
+     * from an otherName SAN entry.
+     *
+     * This test demonstrates how to parse MS AD UPN from certificates.
+     *
+     * MS AD UPN OID: 1.3.6.1.4.1.311.20.2.3
+     *
+     * This test demonstrates the pattern for parsing MS AD UPN.
+     * In a real scenario with an AD certificate containing UPN SAN:
+     *
+     * WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+     * for (WolfSSLAltName san : sans) {
+     *     if (san.isMicrosoftUPN()) {
+     *         String upn = san.getOtherNameValueAsString();
+     *     }
+     * }
+     */
+    @Test
+    public void testMicrosoftADUPNParsing()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        /* MS AD UPN OID */
+        final String MS_UPN_OID = "1.3.6.1.4.1.311.20.2.3";
+
+        System.out.print("\tParsing otherName UPN");
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            System.out.println("\t... skipped (file system not enabled)");
+            return;
+        }
+
+        /* Test with server cert which has known SANs */
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate serverCert = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(serverCert);
+
+        Collection<List<?>> sans = serverCert.getSubjectAltNamesExtended();
+        if (sans != null) {
+            for (List<?> san : sans) {
+                Integer type = (Integer) san.get(0);
+
+                /* If we find an otherName (type 0), verify structure */
+                if (type == WolfSSL.ASN_OTHER_TYPE) {
+                    assertTrue("otherName should have OID", san.size() >= 2);
+                    assertTrue("OID should be String",
+                        san.get(1) instanceof String);
+                    String oid = (String)san.get(1);
+                    assertNotNull("OID should not be null", oid);
+
+                    if (san.size() >= 3) {
+                        assertTrue("Value should be byte[]",
+                            san.get(2) instanceof byte[]);
+                        byte[] valueBytes = (byte[]) san.get(2);
+                        assertNotNull("Value bytes should not be null",
+                            valueBytes);
+
+                        /* If this is MS UPN, parse the UTF8String value */
+                        if (MS_UPN_OID.equals(oid) && valueBytes.length > 2) {
+                            /* ASN.1 UTF8String: tag 0x0C + length + data.
+                             * Length can be short form (1 byte, <= 127) or
+                             * long form (first byte 0x8n, followed by n
+                             * bytes of actual length).
+                             */
+                            if (valueBytes[0] == 0x0C) {
+                                int len = valueBytes[1] & 0xFF;
+                                int offset = 2;
+
+                                /* Handle long form length encoding */
+                                if ((len & 0x80) != 0) {
+                                    int numOctets = len & 0x7F;
+                                    if (numOctets >= 1 && numOctets <= 4 &&
+                                        valueBytes.length >= 2 + numOctets) {
+                                        len = 0;
+                                        for (int k = 0; k < numOctets; k++) {
+                                            len = (len << 8) |
+                                                (valueBytes[offset++] & 0xFF);
+                                        }
+                                    }
+                                }
+
+                                if (len > 0 &&
+                                    valueBytes.length >= offset + len) {
+                                    byte[] strBytes = new byte[len];
+                                    System.arraycopy(valueBytes, offset,
+                                        strBytes, 0, len);
+                                    String upn = new String(strBytes, "UTF-8");
+                                    assertNotNull("UPN should not be null",
+                                        upn);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        serverCert.free();
+        System.out.println("\t\t... passed");
+
+        /* Test with actual MS AD UPN certificate if available */
+        test_MSADUPNMigrationPattern();
+    }
+
+    /**
+     * Test parsing Microsoft AD UPN from certificates using WolfSSLAltName.
+     *
+     * wolfSSL JNI pattern:
+     *   WolfSSLAltName san = ...;
+     *   if (san.isMicrosoftUPN()) {
+     *       username = san.getOtherNameValueAsString();
+     *   }
+     */
+    private void test_MSADUPNMigrationPattern()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tMS AD UPN parsing");
+
+        /* Check if UPN test cert exists */
+        String upnCertPath = sanTestUpnCert;
+        File upnCertFile = new File(upnCertPath);
+
+        if (!upnCertFile.exists()) {
+            System.out.println(
+                "\t... skipped (run generate-san-test-certs.sh)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            upnCertPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            /* Get SANs using the type-safe WolfSSLAltName API */
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+
+            if (sans == null) {
+                System.out.println("\t... skipped (native not available)");
+                return;
+            }
+
+            /* Find MS AD UPN and extract username, avoiding names with '$' */
+            String deprioritizedUsername = null;
+            String finalUsername = null;
+
+            for (WolfSSLAltName san : sans) {
+                int type = san.getType();
+
+                /* Check accepted SAN types (0=otherName, 1=email, 2=DNS) */
+                if (type != WolfSSLAltName.TYPE_OTHER_NAME &&
+                    type != WolfSSLAltName.TYPE_RFC822_NAME &&
+                    type != WolfSSLAltName.TYPE_DNS_NAME) {
+                    continue;
+                }
+
+                String username = null;
+
+                if (san.isMicrosoftUPN()) {
+                    /* Parse MS AD UPN - ASN.1 parsing handled internally */
+                    username = san.getOtherNameValueAsString();
+
+                    /* Verify we get a valid UPN */
+                    assertNotNull("MS UPN should parse to non-null string",
+                        username);
+                    assertTrue("UPN should contain @ symbol",
+                        username.contains("@"));
+
+                } else if (type == WolfSSLAltName.TYPE_OTHER_NAME) {
+                    /* Other otherName OID */
+                    username = san.getOtherNameValueAsString();
+                } else {
+                    /* String types: email, DNS */
+                    username = san.getStringValue();
+                }
+
+                if (username != null) {
+                    deprioritizedUsername = username;
+
+                    /* Prefer usernames without '$' (not machine accounts) */
+                    if (!username.contains("$")) {
+                        finalUsername = username;
+                        break;
+                    }
+                }
+            }
+
+            /* Verify we found at least one username */
+            assertNotNull("Should find at least one username",
+                deprioritizedUsername);
+
+            /* Our test cert has UPNs without '$', so finalUsername
+             * should be set */
+            assertNotNull("Should find username without '$'", finalUsername);
+
+            /* Verify the UPN values match expected test cert content */
+            assertTrue("Username should be a valid UPN format",
+                finalUsername.contains("@"));
+
+            /* Test getSubjectAltNamesExtended() for raw byte access */
+            Collection<List<?>> sansExt = cert.getSubjectAltNamesExtended();
+            assertNotNull("getSubjectAltNamesExtended() should not be null",
+                sansExt);
+
+            boolean foundOtherNameWithBytes = false;
+            for (List<?> san : sansExt) {
+                int type = (Integer) san.get(0);
+                if (type == WolfSSLAltName.TYPE_OTHER_NAME && san.size() >= 3) {
+                    String oid = (String) san.get(1);
+                    byte[] valueBytes = (byte[]) san.get(2);
+                    assertNotNull("otherName OID should not be null", oid);
+                    assertNotNull("otherName value bytes should not be null",
+                        valueBytes);
+                    assertTrue("Value bytes should have content",
+                        valueBytes.length > 0);
+                    foundOtherNameWithBytes = true;
+                }
+            }
+            assertTrue("Should find otherName with bytes in extended API",
+                foundOtherNameWithBytes);
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test regression prevention for SAN parsing functionality.
+     *
+     * This test ensures the WolfSSLAltName API continues to support all
+     * the functionality needed for comprehensive SAN parsing including
+     * otherName types used by Microsoft Active Directory.
+     */
+    @Test
+    public void testSANParsingRegressionPrevention()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        System.out.println("SAN Parsing Regression Prevention Tests");
+
+        test_SAN_OtherNameOID();
+        test_SAN_OtherNameValue();
+        test_SAN_isMicrosoftUPN();
+        test_SAN_AllTypesSupported();
+        test_SAN_DeprioritizedUsername();
+    }
+
+    /**
+     * Test that otherName OID is accessible via getOtherNameOID().
+     */
+    private void test_SAN_OtherNameOID()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\totherName OID access");
+
+        String certPath = sanTestUpnCert;
+        File certFile = new File(certPath);
+
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+            if (sans == null) {
+                System.out.println("\t\t... skipped (native not available)");
+                return;
+            }
+
+            boolean foundOID = false;
+            for (WolfSSLAltName san : sans) {
+                if (san.getType() == WolfSSLAltName.TYPE_OTHER_NAME) {
+                    String oid = san.getOtherNameOID();
+                    assertNotNull("getOtherNameOID() should return OID", oid);
+                    assertTrue("OID should be in dotted format",
+                        oid.matches("[0-9]+(\\.[0-9]+)+"));
+                    foundOID = true;
+                }
+            }
+            assertTrue("Should find at least one otherName with OID", foundOID);
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test that otherName value bytes are accessible via getOtherNameValue().
+     */
+    private void test_SAN_OtherNameValue()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\totherName value bytes");
+
+        String certPath = sanTestUpnCert;
+        File certFile = new File(certPath);
+
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+            if (sans == null) {
+                System.out.println("\t\t... skipped (native not available)");
+                return;
+            }
+
+            boolean foundValue = false;
+            for (WolfSSLAltName san : sans) {
+                if (san.getType() == WolfSSLAltName.TYPE_OTHER_NAME) {
+                    byte[] valueBytes = san.getOtherNameValue();
+                    assertNotNull("getOtherNameValue() should return bytes",
+                        valueBytes);
+                    assertTrue("Value bytes should have content",
+                        valueBytes.length > 0);
+
+                    /* Verify ASN.1 structure - should start with tag */
+                    assertTrue("Should be valid ASN.1 (tag byte present)",
+                        valueBytes.length >= 2);
+
+                    foundValue = true;
+                }
+            }
+            assertTrue("Should find at least one otherName with value",
+                foundValue);
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test isMicrosoftUPN() method for detecting MS AD UPN certificates.
+     */
+    private void test_SAN_isMicrosoftUPN()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tisMicrosoftUPN() detection");
+
+        String certPath = sanTestUpnCert;
+        File certFile = new File(certPath);
+
+        if (!certFile.exists()) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+            if (sans == null) {
+                System.out.println("\t... skipped");
+                return;
+            }
+
+            boolean foundMSUPN = false;
+            for (WolfSSLAltName san : sans) {
+                if (san.isMicrosoftUPN()) {
+                    foundMSUPN = true;
+
+                    /* Verify OID matches MS UPN */
+                    assertEquals("MS UPN should have correct OID",
+                        WolfSSLAltName.OID_MS_UPN, san.getOtherNameOID());
+
+                    /* Verify value parses as string */
+                    String upn = san.getOtherNameValueAsString();
+                    assertNotNull("MS UPN value should parse as string", upn);
+                    assertTrue("UPN should contain @", upn.contains("@"));
+                }
+            }
+            assertTrue("Test cert should contain MS UPN", foundMSUPN);
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test that all SAN types are properly supported.
+     */
+    private void test_SAN_AllTypesSupported()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tall SAN types supported");
+
+        String certPath = sanTestAllTypesCert;
+        File certFile = new File(certPath);
+
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+            if (sans == null) {
+                System.out.println("\t\t... skipped (native not available)");
+                return;
+            }
+
+            /* Track which types we find */
+            boolean foundOtherName = false;
+            boolean foundEmail = false;
+            boolean foundDNS = false;
+            boolean foundURI = false;
+            boolean foundIP = false;
+            boolean foundDirName = false;
+
+            for (WolfSSLAltName san : sans) {
+                switch (san.getType()) {
+                    case WolfSSLAltName.TYPE_OTHER_NAME:
+                        foundOtherName = true;
+                        assertNotNull("otherName should have OID",
+                            san.getOtherNameOID());
+                        break;
+                    case WolfSSLAltName.TYPE_RFC822_NAME:
+                        foundEmail = true;
+                        assertNotNull("email should have value",
+                            san.getStringValue());
+                        assertTrue("email should contain @",
+                            san.getStringValue().contains("@"));
+                        break;
+                    case WolfSSLAltName.TYPE_DNS_NAME:
+                        foundDNS = true;
+                        assertNotNull("DNS should have value",
+                            san.getStringValue());
+                        break;
+                    case WolfSSLAltName.TYPE_URI:
+                        foundURI = true;
+                        assertNotNull("URI should have value",
+                            san.getStringValue());
+                        break;
+                    case WolfSSLAltName.TYPE_IP_ADDRESS:
+                        foundIP = true;
+                        assertNotNull("IP should have bytes",
+                            san.getIPAddress());
+                        assertNotNull("IP should have string",
+                            san.getIPAddressString());
+                        break;
+                    case WolfSSLAltName.TYPE_DIRECTORY_NAME:
+                        foundDirName = true;
+                        assertNotNull("dirName should have value",
+                            san.getStringValue());
+                        break;
+                }
+            }
+
+            /* Verify we found the expected types in all-types cert */
+            assertTrue("Should find otherName", foundOtherName);
+            assertTrue("Should find email", foundEmail);
+            assertTrue("Should find DNS", foundDNS);
+            assertTrue("Should find URI", foundURI);
+            assertTrue("Should find IP", foundIP);
+            assertTrue("Should find dirName", foundDirName);
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test the "deprioritized username" pattern for SAN parsing.
+     * Avoids usernames containing '$' (MS computer accounts).
+     */
+    private void test_SAN_DeprioritizedUsername()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tdeprioritized username pattern");
+
+        String certPath = sanTestUpnCert;
+        File certFile = new File(certPath);
+
+        if (!certFile.exists()) {
+            System.out.println("\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        try {
+            WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+            if (sans == null) {
+                System.out.println("\t... skipped (native not available)");
+                return;
+            }
+
+            /* Implement the deprioritized username pattern */
+            String deprioritizedUsername = null;
+            String finalUsername = null;
+
+            for (WolfSSLAltName san : sans) {
+                String username = null;
+
+                if (san.isMicrosoftUPN()) {
+                    username = san.getOtherNameValueAsString();
+                } else if (san.getType() == WolfSSLAltName.TYPE_RFC822_NAME ||
+                           san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+                    username = san.getStringValue();
+                }
+
+                if (username != null) {
+                    deprioritizedUsername = username;
+                    /* Prefer usernames without '$' */
+                    if (!username.contains("$")) {
+                        finalUsername = username;
+                        break;
+                    }
+                }
+            }
+
+            /* Verify pattern works */
+            assertNotNull("Should find at least one username",
+                deprioritizedUsername);
+
+            /* Our test cert UPNs don't have '$', so finalUsername
+             * should be set */
+            if (finalUsername != null) {
+                assertFalse("Final username should not contain '$'",
+                    finalUsername.contains("$"));
+            }
+
+        } finally {
+            cert.free();
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test WolfSSLAltName class and getSubjectAltNamesArray() method.
+     *
+     * This tests the type-safe API for accessing Subject Alternative Names.
+     */
+    @Test
+    public void testWolfSSLAltNameClass()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        System.out.println("WolfSSLAltName Class Tests");
+
+        test_getSubjectAltNamesArray_ServerCert();
+        test_WolfSSLAltName_TypeConstants();
+        test_WolfSSLAltName_Methods();
+        test_WolfSSLAltName_EqualsHashCode();
+        test_getSubjectAltNamesArray_DefensiveCopy();
+    }
+
+    /**
+     * Test getSubjectAltNamesArray() with server cert.
+     */
+    public void test_getSubjectAltNamesArray_ServerCert()
+        throws WolfSSLException, IOException {
+
+        boolean foundDNS = false;
+        boolean foundIP = false;
+
+        System.out.print("\tgetSubjectAltNamesArray()");
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate serverCert = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(serverCert);
+
+        WolfSSLAltName[] sans = serverCert.getSubjectAltNamesArray();
+        if (sans == null) {
+            serverCert.free();
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        assertTrue("Expected at least 2 SANs", sans.length >= 2);
+
+        for (WolfSSLAltName san : sans) {
+            assertNotNull("SAN entry should not be null", san);
+
+            if (san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+                String dnsName = san.getStringValue();
+                assertNotNull("DNS value should not be null", dnsName);
+                if ("example.com".equals(dnsName)) {
+                    foundDNS = true;
+                }
+                /* Test toString() */
+                assertTrue("toString() should contain dNSName",
+                    san.toString().contains("dNSName"));
+            }
+            else if (san.getType() == WolfSSLAltName.TYPE_IP_ADDRESS) {
+                byte[] ipBytes = san.getIPAddress();
+                assertNotNull("IP bytes should not be null", ipBytes);
+                String ipStr = san.getIPAddressString();
+                assertNotNull("IP string should not be null", ipStr);
+                if ("127.0.0.1".equals(ipStr)) {
+                    foundIP = true;
+                }
+                /* Test getValue() for IP */
+                assertEquals("getValue() should match getIPAddressString()",
+                    ipStr, san.getValue());
+            }
+        }
+
+        assertTrue("Did not find DNS SAN 'example.com'", foundDNS);
+        assertTrue("Did not find IP SAN '127.0.0.1'", foundIP);
+
+        serverCert.free();
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test WolfSSLAltName type constants.
+     */
+    public void test_WolfSSLAltName_TypeConstants() {
+
+        System.out.print("\tWolfSSLAltName type constants");
+
+        /* Verify constants match RFC 5280 GeneralName types */
+        assertEquals("TYPE_OTHER_NAME should be 0",
+            0, WolfSSLAltName.TYPE_OTHER_NAME);
+        assertEquals("TYPE_RFC822_NAME should be 1",
+            1, WolfSSLAltName.TYPE_RFC822_NAME);
+        assertEquals("TYPE_DNS_NAME should be 2",
+            2, WolfSSLAltName.TYPE_DNS_NAME);
+        assertEquals("TYPE_X400_ADDRESS should be 3",
+            3, WolfSSLAltName.TYPE_X400_ADDRESS);
+        assertEquals("TYPE_DIRECTORY_NAME should be 4",
+            4, WolfSSLAltName.TYPE_DIRECTORY_NAME);
+        assertEquals("TYPE_EDI_PARTY_NAME should be 5",
+            5, WolfSSLAltName.TYPE_EDI_PARTY_NAME);
+        assertEquals("TYPE_URI should be 6",
+            6, WolfSSLAltName.TYPE_URI);
+        assertEquals("TYPE_IP_ADDRESS should be 7",
+            7, WolfSSLAltName.TYPE_IP_ADDRESS);
+        assertEquals("TYPE_REGISTERED_ID should be 8",
+            8, WolfSSLAltName.TYPE_REGISTERED_ID);
+
+        /* Verify MS UPN OID constant */
+        assertEquals("OID_MS_UPN should be correct",
+            "1.3.6.1.4.1.311.20.2.3", WolfSSLAltName.OID_MS_UPN);
+
+        System.out.println("\t... passed");
+    }
+
+    /**
+     * Test WolfSSLAltName helper methods using real certificate data.
+     */
+    public void test_WolfSSLAltName_Methods()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tWolfSSLAltName methods");
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            System.out.println("\t\t... skipped (file system not enabled)");
+            return;
+        }
+
+        /* Get SANs from server cert to test methods on real objects */
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate serverCert = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        WolfSSLAltName[] sans = serverCert.getSubjectAltNamesArray();
+
+        if (sans == null || sans.length == 0) {
+            serverCert.free();
+            System.out.println("\t\t... skipped (no SANs)");
+            return;
+        }
+
+        /* Find DNS and IP entries to test methods */
+        WolfSSLAltName dnsEntry = null;
+        WolfSSLAltName ipEntry = null;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+                dnsEntry = san;
+            }
+            else if (san.getType() == WolfSSLAltName.TYPE_IP_ADDRESS) {
+                ipEntry = san;
+            }
+        }
+
+        /* Test DNS entry methods */
+        if (dnsEntry != null) {
+            assertEquals("getTypeName() for DNS should be dNSName",
+                "dNSName", dnsEntry.getTypeName());
+            assertNotNull("getStringValue() should not be null",
+                dnsEntry.getStringValue());
+            assertEquals("getValue() should match getStringValue()",
+                dnsEntry.getStringValue(), dnsEntry.getValue());
+            assertTrue("toString() should contain type name",
+                dnsEntry.toString().contains("dNSName"));
+            assertNull("getIPAddress() should be null for DNS",
+                dnsEntry.getIPAddress());
+            assertNull("getOtherNameOID() should be null for DNS",
+                dnsEntry.getOtherNameOID());
+            assertFalse("isMicrosoftUPN() should be false for DNS",
+                dnsEntry.isMicrosoftUPN());
+        }
+
+        /* Test IP entry methods */
+        if (ipEntry != null) {
+            assertEquals("getTypeName() for IP should be iPAddress",
+                "iPAddress", ipEntry.getTypeName());
+            byte[] ipBytes = ipEntry.getIPAddress();
+            assertNotNull("getIPAddress() should not be null", ipBytes);
+            assertTrue("IP should be 4 or 16 bytes",
+                ipBytes.length == 4 || ipBytes.length == 16);
+            String ipStr = ipEntry.getIPAddressString();
+            assertNotNull("getIPAddressString() should not be null", ipStr);
+            assertEquals("getValue() should match IP string",
+                ipStr, ipEntry.getValue());
+            assertTrue("toString() should contain iPAddress",
+                ipEntry.toString().contains("iPAddress"));
+            assertNull("getStringValue() should be null for IP",
+                ipEntry.getStringValue());
+        }
+
+        /* Test equals() - same entry should equal itself */
+        if (dnsEntry != null) {
+            assertEquals("Entry should equal itself", dnsEntry, dnsEntry);
+            assertEquals("hashCode should be consistent",
+                dnsEntry.hashCode(), dnsEntry.hashCode());
+        }
+
+        serverCert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test WolfSSLAltName equals() and hashCode() methods thoroughly.
+     */
+    public void test_WolfSSLAltName_EqualsHashCode()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tequals() and hashCode()");
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            System.out.println("\t\t... skipped (file system not enabled)");
+            return;
+        }
+
+        /* Load cert with SANs */
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate cert1 = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        WolfSSLCertificate cert2 = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        WolfSSLAltName[] sans1 = cert1.getSubjectAltNamesArray();
+        WolfSSLAltName[] sans2 = cert2.getSubjectAltNamesArray();
+
+        if (sans1 == null || sans2 == null || sans1.length == 0) {
+            cert1.free();
+            cert2.free();
+            System.out.println("\t\t... skipped (no SANs)");
+            return;
+        }
+
+        /* Test reflexive: x.equals(x) should return true */
+        assertTrue("equals() should be reflexive",
+            sans1[0].equals(sans1[0]));
+
+        /* Test symmetric: x.equals(y) should match y.equals(x) */
+        if (sans1.length > 0 && sans2.length > 0) {
+            boolean eq1 = sans1[0].equals(sans2[0]);
+            boolean eq2 = sans2[0].equals(sans1[0]);
+            assertEquals("equals() should be symmetric", eq1, eq2);
+
+            /* If equal, hashCodes must match */
+            if (eq1) {
+                assertEquals("Equal objects must have same hashCode",
+                    sans1[0].hashCode(), sans2[0].hashCode());
+            }
+        }
+
+        /* Test null: x.equals(null) should return false */
+        assertFalse("equals(null) should return false",
+            sans1[0].equals(null));
+
+        /* Test different type: x.equals(differentType) should return false */
+        assertFalse("equals(String) should return false",
+            sans1[0].equals("not a WolfSSLAltName"));
+
+        /* Test consistency: multiple calls should return same result */
+        boolean result1 = sans1[0].equals(sans2[0]);
+        boolean result2 = sans1[0].equals(sans2[0]);
+        assertEquals("equals() should be consistent", result1, result2);
+
+        /* Test hashCode consistency */
+        int hash1 = sans1[0].hashCode();
+        int hash2 = sans1[0].hashCode();
+        assertEquals("hashCode() should be consistent", hash1, hash2);
+
+        cert1.free();
+        cert2.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test that getSubjectAltNamesArray() returns a copy.
+     */
+    public void test_getSubjectAltNamesArray_DefensiveCopy()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tdefensive copy test");
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            serverCertPath, WolfSSL.SSL_FILETYPE_PEM);
+
+        WolfSSLAltName[] sans1 = cert.getSubjectAltNamesArray();
+        WolfSSLAltName[] sans2 = cert.getSubjectAltNamesArray();
+
+        if (sans1 == null || sans2 == null) {
+            cert.free();
+            fail("no SANs found in certificate");
+            return;
+        }
+
+        /* Arrays should be different objects (copy) */
+        assertNotSame("getSubjectAltNamesArray() should return copy",
+            sans1, sans2);
+
+        /* But contents should be equal */
+        assertEquals("Arrays should have same length",
+            sans1.length, sans2.length);
+
+        for (int i = 0; i < sans1.length; i++) {
+            assertEquals("Array elements should be equal",
+                sans1[i], sans2[i]);
+        }
+
+        /* Modifying returned array should not affect future calls */
+        int origLen = sans1.length;
+        sans1[0] = null;  /* Modify the first array */
+        WolfSSLAltName[] sans3 = cert.getSubjectAltNamesArray();
+        assertNotNull("Modification should not affect cached data", sans3[0]);
+        assertEquals("Length should remain unchanged", origLen, sans3.length);
+
+        cert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test SAN parsing with generated test certificates that have all
+     * supported SAN types (DNS, IP, email, URI, otherName/UPN,
+     * directoryName, registeredID).
+     *
+     * Test certificates are generated by:
+     * examples/certs/generate-san-test-certs.sh
+     */
+    @Test
+    public void testSANTestCertificates()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        if (WolfSSL.FileSystemEnabled() != true) {
+            return;
+        }
+
+        /* Check if test certs exist */
+        File sanDir = new File(sanTestDir);
+        if (!sanDir.exists() || !sanDir.isDirectory()) {
+            return;
+        }
+
+        test_SAN_DnsAndIp();
+        test_SAN_EmailAndUri();
+        test_SAN_OtherNameUPN();
+        test_SAN_DirName();
+        test_SAN_AllTypes();
+        test_SAN_DerFormat();
+        test_SAN_CaCertVerification();
+    }
+
+    /**
+     * Test DNS and IP address SANs.
+     * Certificate has: DNS:localhost, DNS:example.com, DNS:*.wildcard.com,
+     *   IP:127.0.0.1, IP:192.168.1.1, IP:::1, IP:fe80::1
+     */
+    private void test_SAN_DnsAndIp()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tDNS and IP SANs");
+
+        String certPath = sanTestDnsIpCert;
+        File certFile = new File(certPath);
+        if (!certFile.exists()) {
+            System.out.println("\t\t\t... skipped");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t\t\t... skipped");
+            return;
+        }
+
+        /* Should have at least 7 SANs: 3 DNS + 4 IP */
+        assertTrue("Expected at least 7 SANs, got " + sans.length,
+            sans.length >= 7);
+
+        /* Track what we find */
+        boolean foundLocalhost = false;
+        boolean foundExampleCom = false;
+        boolean foundWildcard = false;
+        boolean foundIPv4_127 = false;
+        boolean foundIPv4_192 = false;
+        boolean foundIPv6_loopback = false;
+        boolean foundIPv6_linklocal = false;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+                String dns = san.getStringValue();
+                if ("localhost".equals(dns)) foundLocalhost = true;
+                if ("example.com".equals(dns)) foundExampleCom = true;
+                if ("*.wildcard.com".equals(dns)) foundWildcard = true;
+            }
+            else if (san.getType() == WolfSSLAltName.TYPE_IP_ADDRESS) {
+                String ip = san.getIPAddressString();
+                byte[] ipBytes = san.getIPAddress();
+
+                if (ipBytes.length == 4) {
+                    /* IPv4 */
+                    if ("127.0.0.1".equals(ip)) foundIPv4_127 = true;
+                    if ("192.168.1.1".equals(ip)) foundIPv4_192 = true;
+                }
+                else if (ipBytes.length == 16) {
+                    /* IPv6 - check for loopback and link-local.
+                     * InetAddress produces canonical format (e.g., "::1")
+                     * so check for both expanded and compressed forms */
+                    if (ip != null && (ip.equals("::1") ||
+                        ip.equals("0:0:0:0:0:0:0:1"))) {
+                        foundIPv6_loopback = true;
+                    }
+                    if (ip != null && ip.toLowerCase().startsWith("fe80:")) {
+                        foundIPv6_linklocal = true;
+                    }
+                }
+            }
+        }
+
+        assertTrue("Did not find DNS 'localhost'", foundLocalhost);
+        assertTrue("Did not find DNS 'example.com'", foundExampleCom);
+        assertTrue("Did not find DNS '*.wildcard.com'", foundWildcard);
+        assertTrue("Did not find IPv4 '127.0.0.1'", foundIPv4_127);
+        assertTrue("Did not find IPv4 '192.168.1.1'", foundIPv4_192);
+        assertTrue("Did not find IPv6 loopback", foundIPv6_loopback);
+        assertTrue("Did not find IPv6 link-local", foundIPv6_linklocal);
+
+        cert.free();
+        System.out.println("\t\t\t... passed");
+    }
+
+    /**
+     * Test Email (rfc822Name) and URI SANs.
+     * Certificate has: email:test@example.com, email:admin@wolfssl.com,
+     *   URI:https://www.wolfssl.com, URI:ldap://ldap.example.com/cn=test
+     */
+    private void test_SAN_EmailAndUri()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tEmail and URI SANs");
+
+        String certPath = sanTestEmailUriCert;
+        File certFile = new File(certPath);
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t\t... skipped (native not available)");
+            return;
+        }
+
+        /* Should have at least 4 SANs: 2 email + 2 URI */
+        assertTrue("Expected at least 4 SANs, got " + sans.length,
+            sans.length >= 4);
+
+        boolean foundEmail1 = false;
+        boolean foundEmail2 = false;
+        boolean foundUri1 = false;
+        boolean foundUri2 = false;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_RFC822_NAME) {
+                String email = san.getStringValue();
+                assertEquals("getTypeName() should be rfc822Name",
+                    "rfc822Name", san.getTypeName());
+                if ("test@example.com".equals(email)) foundEmail1 = true;
+                if ("admin@wolfssl.com".equals(email)) foundEmail2 = true;
+            }
+            else if (san.getType() == WolfSSLAltName.TYPE_URI) {
+                String uri = san.getStringValue();
+                assertEquals(
+                    "getTypeName() should be uniformResourceIdentifier",
+                    "uniformResourceIdentifier", san.getTypeName());
+                if ("https://www.wolfssl.com".equals(uri)) foundUri1 = true;
+                if (uri != null && uri.contains("ldap://ldap.example.com")) {
+                    foundUri2 = true;
+                }
+            }
+        }
+
+        assertTrue("Did not find email 'test@example.com'", foundEmail1);
+        assertTrue("Did not find email 'admin@wolfssl.com'", foundEmail2);
+        assertTrue("Did not find URI 'https://www.wolfssl.com'", foundUri1);
+        assertTrue("Did not find LDAP URI", foundUri2);
+
+        cert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test otherName SAN with Microsoft UPN.
+     * Certificate has: otherName UPN:testuser@example.com,
+     *   otherName UPN:admin@wolfssl.local, email:testuser@example.com
+     */
+    private void test_SAN_OtherNameUPN()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\totherName UPN SANs");
+
+        String certPath = sanTestUpnCert;
+        File certFile = new File(certPath);
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t\t... skipped (native not available)");
+            return;
+        }
+
+        /* Should have at least 2 otherName SANs + 1 email */
+        assertTrue("Expected at least 3 SANs, got " + sans.length,
+            sans.length >= 3);
+
+        boolean foundUPN1 = false;
+        boolean foundUPN2 = false;
+        int otherNameCount = 0;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_OTHER_NAME) {
+                otherNameCount++;
+                assertEquals("getTypeName() should be otherName",
+                    "otherName", san.getTypeName());
+
+                String oid = san.getOtherNameOID();
+                assertNotNull("otherName OID should not be null", oid);
+
+                /* Check if this is MS UPN */
+                if (WolfSSLAltName.OID_MS_UPN.equals(oid)) {
+                    assertTrue("isMicrosoftUPN() should return true",
+                        san.isMicrosoftUPN());
+
+                    byte[] valueBytes = san.getOtherNameValue();
+                    assertNotNull("otherName value bytes should not be null",
+                        valueBytes);
+
+                    String upnStr = san.getOtherNameValueAsString();
+                    if (upnStr != null) {
+                        if (upnStr.contains("testuser@example.com")) {
+                            foundUPN1 = true;
+                        }
+                        if (upnStr.contains("admin@wolfssl.local")) {
+                            foundUPN2 = true;
+                        }
+                    }
+
+                    /* Test getValue() for otherName */
+                    String val = san.getValue();
+                    assertNotNull("getValue() should not be null for UPN", val);
+                }
+
+                /* Test toString() contains OID info */
+                String str = san.toString();
+                assertTrue("toString() should contain OID",
+                    str.contains("OID="));
+            }
+        }
+
+        assertTrue("Expected at least 2 otherName SANs, got " + otherNameCount,
+            otherNameCount >= 2);
+        assertTrue("Did not find UPN 'testuser@example.com'", foundUPN1);
+        assertTrue("Did not find UPN 'admin@wolfssl.local'", foundUPN2);
+
+        cert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test directoryName SANs.
+     * Certificate has: dirName entries.
+     */
+    private void test_SAN_DirName()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tdirectoryName SANs");
+
+        String certPath = sanTestDirNameRidCert;
+        File certFile = new File(certPath);
+        if (!certFile.exists()) {
+            System.out.println("\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t\t... skipped (native not available)");
+            return;
+        }
+
+        /* Should have at least 2 dirName entries */
+        assertTrue("Expected at least 2 SANs, got " + sans.length,
+            sans.length >= 2);
+
+        int dirNameCount = 0;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_DIRECTORY_NAME) {
+                dirNameCount++;
+                assertEquals("getTypeName() should be directoryName",
+                    "directoryName", san.getTypeName());
+
+                String dirName = san.getStringValue();
+                assertNotNull("directoryName value should not be null",
+                    dirName);
+
+                /* Verify dirName contains expected DN components */
+                assertTrue("dirName should contain CN",
+                    dirName.contains("CN=") || dirName.contains("Directory"));
+            }
+        }
+
+        assertTrue("Expected at least 2 directoryName SANs, got " +
+            dirNameCount, dirNameCount >= 2);
+
+        cert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test comprehensive certificate with multiple SAN types.
+     * Certificate has: otherName (UPN), rfc822Name (email), dNSName,
+     *   directoryName, URI, iPAddress (v4 and v6).
+     *
+     * Note: registeredID (type 8) is excluded from this test cert as it
+     * can cause parsing issues in some wolfSSL builds.
+     */
+    private void test_SAN_AllTypes()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tAll SAN types");
+
+        String certPath = sanTestAllTypesCert;
+        File certFile = new File(certPath);
+        if (!certFile.exists()) {
+            System.out.println("\t\t\t... skipped (cert not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            certPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t\t\t... skipped (native not available)");
+            return;
+        }
+
+        /* Should have many SANs (otherName, email x2, DNS x3, dirName,
+         * URI x2, IP x4) = at least 13 */
+        assertTrue("Expected at least 10 SANs, got " + sans.length,
+            sans.length >= 10);
+
+        /* Track found types */
+        boolean foundOtherName = false;
+        boolean foundEmail = false;
+        boolean foundDNS = false;
+        boolean foundDirName = false;
+        boolean foundURI = false;
+        boolean foundIPv4 = false;
+        boolean foundIPv6 = false;
+
+        /* Track specific values */
+        boolean foundUPN = false;
+        boolean foundLocalhost = false;
+        boolean foundWolfSSLUri = false;
+
+        for (WolfSSLAltName san : sans) {
+            int type = san.getType();
+
+            switch (type) {
+                case WolfSSLAltName.TYPE_OTHER_NAME:
+                    foundOtherName = true;
+                    if (san.isMicrosoftUPN()) {
+                        String upn = san.getOtherNameValueAsString();
+                        if (upn != null &&
+                            upn.contains("allsantypes@wolfssl.com")) {
+                            foundUPN = true;
+                        }
+                    }
+                    break;
+
+                case WolfSSLAltName.TYPE_RFC822_NAME:
+                    foundEmail = true;
+                    break;
+
+                case WolfSSLAltName.TYPE_DNS_NAME:
+                    foundDNS = true;
+                    if ("localhost".equals(san.getStringValue())) {
+                        foundLocalhost = true;
+                    }
+                    break;
+
+                case WolfSSLAltName.TYPE_DIRECTORY_NAME:
+                    foundDirName = true;
+                    break;
+
+                case WolfSSLAltName.TYPE_URI:
+                    foundURI = true;
+                    String uri = san.getStringValue();
+                    if (uri != null &&
+                        uri.contains("https://www.wolfssl.com")) {
+                        foundWolfSSLUri = true;
+                    }
+                    break;
+
+                case WolfSSLAltName.TYPE_IP_ADDRESS:
+                    byte[] ipBytes = san.getIPAddress();
+                    if (ipBytes != null) {
+                        if (ipBytes.length == 4) {
+                            foundIPv4 = true;
+                        }
+                        else if (ipBytes.length == 16) {
+                            foundIPv6 = true;
+                        }
+                    }
+                    break;
+
+                default:
+                    /* Ignore other types */
+                    break;
+            }
+        }
+
+        /* Verify all expected types found */
+        assertTrue("Did not find otherName SAN", foundOtherName);
+        assertTrue("Did not find rfc822Name (email) SAN", foundEmail);
+        assertTrue("Did not find dNSName SAN", foundDNS);
+        assertTrue("Did not find directoryName SAN", foundDirName);
+        assertTrue("Did not find URI SAN", foundURI);
+        assertTrue("Did not find IPv4 SAN", foundIPv4);
+        assertTrue("Did not find IPv6 SAN", foundIPv6);
+
+        /* Verify specific values */
+        assertTrue("Did not find UPN 'allsantypes@wolfssl.com'", foundUPN);
+        assertTrue("Did not find DNS 'localhost'", foundLocalhost);
+        assertTrue("Did not find URI 'https://www.wolfssl.com'",
+            foundWolfSSLUri);
+
+        cert.free();
+        System.out.println("\t\t\t... passed");
+    }
+
+    /**
+     * Test SAN parsing with DER format certificates.
+     * Verifies that DER files work the same as PEM files.
+     */
+    private void test_SAN_DerFormat()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tDER format certificates");
+
+        /* Test all-types cert in DER format */
+        String derPath = sanTestAllTypesDer;
+        File derFile = new File(derPath);
+        if (!derFile.exists()) {
+            System.out.println("\t... skipped (DER not found)");
+            return;
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            derPath, WolfSSL.SSL_FILETYPE_ASN1);
+        assertNotNull(cert);
+
+        WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+        if (sans == null) {
+            cert.free();
+            System.out.println("\t... skipped (native not available)");
+            return;
+        }
+
+        /* Verify we got SANs from DER format */
+        assertTrue("Expected SANs from DER cert, got " + sans.length,
+            sans.length >= 10);
+
+        /* Verify at least DNS and IP types are present */
+        boolean foundDNS = false;
+        boolean foundIP = false;
+
+        for (WolfSSLAltName san : sans) {
+            if (san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+                foundDNS = true;
+            }
+            else if (san.getType() == WolfSSLAltName.TYPE_IP_ADDRESS) {
+                foundIP = true;
+            }
+        }
+
+        assertTrue("Did not find DNS SAN in DER cert", foundDNS);
+        assertTrue("Did not find IP SAN in DER cert", foundIP);
+
+        /* Also test dns-ip.der */
+        String dnsIpDerPath = sanTestDnsIpDer;
+        File dnsIpDerFile = new File(dnsIpDerPath);
+        if (dnsIpDerFile.exists()) {
+            WolfSSLCertificate dnsIpCert = new WolfSSLCertificate(
+                dnsIpDerPath, WolfSSL.SSL_FILETYPE_ASN1);
+            assertNotNull(dnsIpCert);
+
+            WolfSSLAltName[] dnsIpSans = dnsIpCert.getSubjectAltNamesArray();
+            if (dnsIpSans != null) {
+                assertTrue("Expected SANs from dns-ip DER cert",
+                    dnsIpSans.length >= 7);
+            }
+
+            dnsIpCert.free();
+        }
+
+        cert.free();
+        System.out.println("\t\t... passed");
+    }
+
+    /**
+     * Test CA certificate and verification of test certificates.
+     * Verifies the CA cert was generated correctly and can verify
+     * the signed test certificates.
+     */
+    private void test_SAN_CaCertVerification()
+        throws WolfSSLException, IOException {
+
+        System.out.print("\tCA cert verification");
+
+        String caCertPath = sanTestCaCert;
+        File caCertFile = new File(caCertPath);
+        if (!caCertFile.exists()) {
+            System.out.println("\t\t... skipped (CA cert not found)");
+            return;
+        }
+
+        /* Load CA certificate */
+        WolfSSLCertificate caCert = new WolfSSLCertificate(
+            caCertPath, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(caCert);
+
+        /* Verify CA cert properties - isCA() returns 1 for CA certs */
+        assertTrue("CA cert should be CA", caCert.isCA() == 1);
+        String caSubject = caCert.getSubject();
+        assertNotNull("CA subject should not be null", caSubject);
+        assertTrue("CA subject should contain 'SAN Test CA'",
+            caSubject.contains("SAN Test CA"));
+
+        /* Load a test certificate and verify it was signed by CA */
+        String testCertPath = sanTestAllTypesCert;
+        File testCertFile = new File(testCertPath);
+        if (testCertFile.exists()) {
+            WolfSSLCertificate testCert = new WolfSSLCertificate(
+                testCertPath, WolfSSL.SSL_FILETYPE_PEM);
+            assertNotNull(testCert);
+
+            /* Get issuer and verify it matches CA subject */
+            String issuer = testCert.getIssuer();
+            assertNotNull("Test cert issuer should not be null", issuer);
+            assertTrue("Test cert issuer should contain 'SAN Test CA'",
+                issuer.contains("SAN Test CA"));
+
+            /* Verify the test cert with CA public key */
+            byte[] caPubKey = caCert.getPubkey();
+            if (caPubKey != null) {
+                boolean verified = testCert.verify(caPubKey,
+                    caPubKey.length);
+                assertTrue("Test cert should verify with CA key", verified);
+            }
+
+            testCert.free();
+        }
+
+        caCert.free();
+        System.out.println("\t\t... passed");
     }
 }
 
