@@ -112,5 +112,18 @@ rm intermediate/ca-int-ecc-cert.pem.bak
 rm intermediate/server-int-cert.pem.bak
 rm intermediate/server-int-ecc-cert.pem.bak
 
-printf "Finished successfully\n"
+# Generate SAN test certificates for WolfSSLAltName testing
+printf "\nGenerating SAN test certificates...\n"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/generate-san-test-certs.sh" ]; then
+    "$SCRIPT_DIR/generate-san-test-certs.sh"
+    if [ $? -ne 0 ]; then
+        printf "Failed to generate SAN test certificates\n"
+        exit 1
+    fi
+else
+    printf "Warning: generate-san-test-certs.sh not found, skipping SAN certs\n"
+fi
+
+printf "\nFinished successfully\n"
 
