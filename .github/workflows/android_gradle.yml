@@ -21,7 +21,10 @@ jobs:
       - name: Clone native wolfSSL
         uses: actions/checkout@v4
         with:
-          repository: 'wolfssl/wolfssl'
+          # Point to PR branch until merge
+          # TODO: Switch back to wolfssl/wolfssl after merge
+          repository: 'padelsbach/wolfssl'
+          ref: crl-generation
           path: IDE/Android/app/src/main/cpp/wolfssl
 
       # Copy options.h.in to blank options.h
