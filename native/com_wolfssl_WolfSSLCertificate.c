@@ -2010,7 +2010,6 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1su
         wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
         return NULL;
     }
-
     integerInit = (*jenv)->GetMethodID(jenv, integerClass, "<init>", "(I)V");
     if (integerInit == NULL || (*jenv)->ExceptionCheck(jenv)) {
         wolfSSL_sk_GENERAL_NAME_pop_free(names, wolfSSL_GENERAL_NAME_free);
