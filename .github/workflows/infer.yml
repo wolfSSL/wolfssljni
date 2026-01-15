@@ -75,8 +75,10 @@ jobs:
       - name: Build native wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
-          repository: wolfSSL/wolfssl
-          ref: master
+          # Point to PR branch until merge
+          # TODO: Switch back to wolfssl/wolfssl after merge
+          ref: crl-generation
+          repository: padelsbach/wolfssl
           path: wolfssl
           configure: ${{ inputs.wolfssl_configure }}
           check: false
