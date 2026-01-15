@@ -39,6 +39,7 @@ import com.wolfssl.WolfSSLException;
     WolfSSLCertRequestTest.class,
     WolfSSLCertManagerTest.class,
     WolfSSLNameConstraintsTest.class
+    WolfSSLCRLTest.class
 })
 
 
