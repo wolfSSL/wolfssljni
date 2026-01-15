@@ -37,6 +37,7 @@ LOCAL_SRC_FILES := \
     native/com_wolfssl_WolfCryptRSA.c \
     native/com_wolfssl_WolfSSL.c \
     native/com_wolfssl_WolfSSLCertificate.c \
+    native/com_wolfssl_WolfSSLCRL.c \
     native/com_wolfssl_WolfSSLCertManager.c \
     native/com_wolfssl_WolfSSLContext.c \
     native/com_wolfssl_WolfSSLSession.c \
