@@ -3,7 +3,7 @@
 Release 1.16.0 has bug fixes and new features including:
 
 **JSSE System/Security Property Support:**
-* Add `wolfjsse.autoSNI` Security property support to control auto setting SNI (PR 249)
+* Add `wolfjsse.autoSNI` System property support to control auto setting SNI (PR 249)
 * Add partial support for `jdk.tls.client.SignatureSchemes` and `jdk.tls.server.SignatureSchemes` (PR 299)
 
 **JSSE Changes:**
