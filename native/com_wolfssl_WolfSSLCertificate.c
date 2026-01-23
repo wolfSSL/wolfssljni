@@ -2352,12 +2352,37 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1su
     }
 
     return outerArray;
-
 #else
     (void)jenv;
     (void)jcl;
     (void)x509Ptr;
     return NULL;
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS && OPENSSL_EXTRA */
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ext_1d2i_1name_1constraints
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+    /* Name Constraints API was added after wolfSSL 5.8.4 in PR 9705. Version
+     * check must be greater than 5.8.4 or patch from PR 9705 must be applied
+     * and WOLFSSL_PR9705_PATCH_APPLIED defined when compiling this wrapper. */
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9705_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return 0;
+    }
+
+    return (jlong)(uintptr_t)wolfSSL_X509_get_ext_d2i(x509,
+        NID_name_constraints, NULL, NULL);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return 0;
+#endif
 }
 

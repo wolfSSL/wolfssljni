@@ -1090,6 +1090,24 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_encryptThenMacEnabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_NameConstraintsEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+    /* Name Constraints API was added after wolfSSL 5.8.4 in PR 9705. Version
+     * check must be greater than 5.8.4 or patch from PR 9705 must be applied
+     * and WOLFSSL_PR9705_PATCH_APPLIED defined when compiling this wrapper. */
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9705_PATCH_APPLIED))
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_SSLv3_1ServerMethod
   (JNIEnv* jenv, jclass jcl)
 {

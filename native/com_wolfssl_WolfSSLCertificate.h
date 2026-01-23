@@ -263,6 +263,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1check_1host
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_get_ext_d2i_name_constraints
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ext_1d2i_1name_1constraints
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_new
  * Signature: ()J
  */
