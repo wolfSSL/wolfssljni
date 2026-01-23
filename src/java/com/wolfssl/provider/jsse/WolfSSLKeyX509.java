@@ -375,7 +375,18 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager {
         for (i = 0; i < type.length; i++) {
             String[] all = getAliases(type[i], issuers);
             if (all != null) {
-                return all[0];
+                /* Find first alias that has a private key, skip cert-only
+                 * entries (trustedCertEntry) which have no private key */
+                for (String alias : all) {
+                    PrivateKey key = getPrivateKey(alias);
+                    if (key != null) {
+                        final String selectedAlias = alias;
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "chooseClientAlias() returning alias " +
+                            "with private key: " + selectedAlias);
+                        return alias;
+                    }
+                }
             }
         }
         return null;
@@ -398,7 +409,18 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager {
         for (i = 0; i < type.length; i++) {
             String[] all = getAliases(type[i], issuers);
             if (all != null) {
-                return all[0];
+                /* Find first alias that has a private key, skip cert-only
+                 * entries (trustedCertEntry) which have no private key */
+                for (String alias : all) {
+                    PrivateKey key = getPrivateKey(alias);
+                    if (key != null) {
+                        final String selectedAlias = alias;
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "chooseEngineClientAlias() returning " +
+                            "alias with private key: " + selectedAlias);
+                        return alias;
+                    }
+                }
             }
         }
         return null;

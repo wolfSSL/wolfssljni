@@ -761,9 +761,78 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered engineInit(ManagerFactoryParameters arg0)");
 
-        throw new UnsupportedOperationException(
-            "TrustManagerFactory.init(ManagerFactoryParameters) " +
-            "not supported yet");
+        /* Handle CertPathTrustManagerParameters (used by Tomcat, etc) */
+        if (arg0 instanceof javax.net.ssl.CertPathTrustManagerParameters) {
+            javax.net.ssl.CertPathTrustManagerParameters certPathParams =
+                (javax.net.ssl.CertPathTrustManagerParameters) arg0;
+            java.security.cert.CertPathParameters certPathParameters =
+                certPathParams.getParameters();
+
+            if (certPathParameters instanceof
+                    java.security.cert.PKIXParameters) {
+                java.security.cert.PKIXParameters pkixParams =
+                    (java.security.cert.PKIXParameters) certPathParameters;
+                java.util.Set<java.security.cert.TrustAnchor> anchors =
+                    pkixParams.getTrustAnchors();
+
+                try {
+                    java.security.KeyStore ks =
+                        java.security.KeyStore.getInstance(
+                            java.security.KeyStore.getDefaultType());
+                    ks.load(null, null);
+                    int count = 0;
+                    for (java.security.cert.TrustAnchor anchor : anchors) {
+                        java.security.cert.X509Certificate cert =
+                            anchor.getTrustedCert();
+                        if (cert != null) {
+                            ks.setCertificateEntry(
+                                "trustanchor-" + count, cert);
+                            count++;
+                        }
+                    }
+                    final int finalCount = count;
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Initialized TrustManager from " +
+                            "CertPathTrustManagerParameters with " +
+                            finalCount + " anchors");
+                    engineInit(ks);
+                    return;
+                } catch (Exception e) {
+                    throw new InvalidAlgorithmParameterException(
+                        "Failed to create KeyStore from TrustAnchors: " +
+                        e.getMessage(), e);
+                }
+            }
+        }
+
+        /* Handle KeyStoreBuilderParameters */
+        if (arg0 instanceof javax.net.ssl.KeyStoreBuilderParameters) {
+            javax.net.ssl.KeyStoreBuilderParameters ksParams =
+                (javax.net.ssl.KeyStoreBuilderParameters) arg0;
+            java.util.List<java.security.KeyStore.Builder> builders =
+                ksParams.getParameters();
+
+            if (builders != null && !builders.isEmpty()) {
+                try {
+                    /* Use the first KeyStore builder */
+                    java.security.KeyStore ks =
+                        builders.get(0).getKeyStore();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Initialized TrustManager from " +
+                            "KeyStoreBuilderParameters");
+                    engineInit(ks);
+                    return;
+                } catch (Exception e) {
+                    throw new InvalidAlgorithmParameterException(
+                        "Failed to get KeyStore from Builder: " +
+                        e.getMessage(), e);
+                }
+            }
+        }
+
+        throw new InvalidAlgorithmParameterException(
+            "Unsupported ManagerFactoryParameters type: " +
+            (arg0 != null ? arg0.getClass().getName() : "null"));
     }
 
     @Override
