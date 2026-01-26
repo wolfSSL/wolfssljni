@@ -3436,12 +3436,12 @@ public class WolfSSLSocketTest {
     public void testAutoSNIProperty() throws Exception {
         System.out.print("\tTesting autoSNI property");
 
-        /* Save original Security property value */
-        String originalProp = Security.getProperty("wolfjsse.autoSNI");
+        /* Save original System property value */
+        String originalProp = System.getProperty("wolfjsse.autoSNI");
 
         try {
             /* Test with autoSNI enabled */
-            Security.setProperty("wolfjsse.autoSNI", "true");
+            System.setProperty("wolfjsse.autoSNI", "true");
 
             /* Create new CTX */
             this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -3490,7 +3490,7 @@ public class WolfSSLSocketTest {
             }
 
             /* Test with autoSNI disabled */
-            Security.setProperty("wolfjsse.autoSNI", "false");
+            System.setProperty("wolfjsse.autoSNI", "false");
 
             ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
@@ -3524,9 +3524,9 @@ public class WolfSSLSocketTest {
         } finally {
             /* Restore original property value */
             if (originalProp != null) {
-                Security.setProperty("wolfjsse.autoSNI", originalProp);
+                System.setProperty("wolfjsse.autoSNI", originalProp);
             } else {
-                Security.setProperty("wolfjsse.autoSNI", "true");
+                System.setProperty("wolfjsse.autoSNI", "true");
             }
         }
     }
