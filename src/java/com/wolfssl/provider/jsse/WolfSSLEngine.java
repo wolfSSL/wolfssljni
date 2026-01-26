@@ -580,8 +580,10 @@ public class WolfSSLEngine extends SSLEngine {
             }
 
         } catch (SocketTimeoutException | SocketException e) {
-            throw new SSLHandshakeException(
+            SSLHandshakeException hsException = new SSLHandshakeException(
                 "Socket error during SSL/TLS handshake: " + e.getMessage());
+            hsException.initCause(e);
+            throw hsException;
         }
 
         return ret;

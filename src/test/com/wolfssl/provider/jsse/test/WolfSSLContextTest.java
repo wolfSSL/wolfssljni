@@ -56,6 +56,8 @@ import java.security.NoSuchAlgorithmException;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
+import java.lang.reflect.Method;
+
 public class WolfSSLContextTest {
 
     private static WolfSSLTestFactory tf;
@@ -964,6 +966,37 @@ public class WolfSSLContextTest {
         }
 
         System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testSanitizeProtocolsNullInput() {
+
+        System.out.print("\tTesting sanitizeProtocols(null)");
+
+        try {
+            Class<?> utilClass = Class.forName(
+                "com.wolfssl.provider.jsse.WolfSSLUtil");
+            Method sanitizeMethod = utilClass.getDeclaredMethod(
+                "sanitizeProtocols",
+                String[].class,
+                WolfSSL.TLS_VERSION.class);
+            sanitizeMethod.setAccessible(true);
+
+            String[] result = (String[]) sanitizeMethod.invoke(
+                null, (String[]) null, WolfSSL.TLS_VERSION.TLSv1_2);
+
+            if (result != null) {
+                System.out.println("\t... failed");
+                fail("sanitizeProtocols(null) should return null");
+                return;
+            }
+
+            System.out.println("\t\t... passed");
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            fail("Exception during sanitizeProtocols test: " + e.getMessage());
+        }
     }
 }
 

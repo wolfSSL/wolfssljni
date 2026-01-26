@@ -34,9 +34,17 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.cert.CertificateException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
+import javax.net.ssl.CertPathTrustManagerParameters;
+import javax.net.ssl.KeyStoreBuilderParameters;
 import javax.net.ssl.ManagerFactoryParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactorySpi;
+import java.security.cert.CertPathParameters;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
+import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.Set;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
@@ -761,29 +769,25 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered engineInit(ManagerFactoryParameters arg0)");
 
-        /* Handle CertPathTrustManagerParameters (used by Tomcat, etc) */
-        if (arg0 instanceof javax.net.ssl.CertPathTrustManagerParameters) {
-            javax.net.ssl.CertPathTrustManagerParameters certPathParams =
-                (javax.net.ssl.CertPathTrustManagerParameters) arg0;
-            java.security.cert.CertPathParameters certPathParameters =
+        /* Handle CertPathTrustManagerParameters */
+        if (arg0 instanceof CertPathTrustManagerParameters) {
+            CertPathTrustManagerParameters certPathParams =
+                (CertPathTrustManagerParameters) arg0;
+            CertPathParameters certPathParameters =
                 certPathParams.getParameters();
 
-            if (certPathParameters instanceof
-                    java.security.cert.PKIXParameters) {
-                java.security.cert.PKIXParameters pkixParams =
-                    (java.security.cert.PKIXParameters) certPathParameters;
-                java.util.Set<java.security.cert.TrustAnchor> anchors =
-                    pkixParams.getTrustAnchors();
+            if (certPathParameters instanceof PKIXParameters) {
+                PKIXParameters pkixParams =
+                    (PKIXParameters) certPathParameters;
+                Set<TrustAnchor> anchors = pkixParams.getTrustAnchors();
 
                 try {
-                    java.security.KeyStore ks =
-                        java.security.KeyStore.getInstance(
-                            java.security.KeyStore.getDefaultType());
+                    KeyStore ks =
+                        KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);
                     int count = 0;
-                    for (java.security.cert.TrustAnchor anchor : anchors) {
-                        java.security.cert.X509Certificate cert =
-                            anchor.getTrustedCert();
+                    for (TrustAnchor anchor : anchors) {
+                        X509Certificate cert = anchor.getTrustedCert();
                         if (cert != null) {
                             ks.setCertificateEntry(
                                 "trustanchor-" + count, cert);
@@ -806,17 +810,15 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
         }
 
         /* Handle KeyStoreBuilderParameters */
-        if (arg0 instanceof javax.net.ssl.KeyStoreBuilderParameters) {
-            javax.net.ssl.KeyStoreBuilderParameters ksParams =
-                (javax.net.ssl.KeyStoreBuilderParameters) arg0;
-            java.util.List<java.security.KeyStore.Builder> builders =
-                ksParams.getParameters();
+        if (arg0 instanceof KeyStoreBuilderParameters) {
+            KeyStoreBuilderParameters ksParams =
+                (KeyStoreBuilderParameters) arg0;
+            List<KeyStore.Builder> builders = ksParams.getParameters();
 
             if (builders != null && !builders.isEmpty()) {
                 try {
                     /* Use the first KeyStore builder */
-                    java.security.KeyStore ks =
-                        builders.get(0).getKeyStore();
+                    KeyStore ks = builders.get(0).getKeyStore();
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "Initialized TrustManager from " +
                             "KeyStoreBuilderParameters");

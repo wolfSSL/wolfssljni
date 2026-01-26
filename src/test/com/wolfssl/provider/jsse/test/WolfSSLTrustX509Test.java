@@ -49,7 +49,13 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
+import java.security.InvalidAlgorithmParameterException;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 import java.net.Socket;
 import java.net.InetSocketAddress;
 import javax.net.ssl.TrustManager;
@@ -67,6 +73,8 @@ import javax.net.ssl.SNIServerName;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
+import javax.net.ssl.CertPathTrustManagerParameters;
+import javax.net.ssl.KeyStoreBuilderParameters;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -3340,6 +3348,95 @@ public class WolfSSLTrustX509Test {
             String traceString = sw.toString();
             throw new Exception(traceString);
         }
+    }
+
+    /* Test TrustManagerFactory.init(CertPathTrustManagerParameters) */
+    @Test
+    public void testInitWithCertPathTrustManagerParameters()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException,
+               InvalidAlgorithmParameterException {
+
+        System.out.print("\tTesting init(CertPathTrustManagerParameters)");
+
+        /* Load CA certs and create TrustAnchors manually */
+        KeyStore caStore = KeyStore.getInstance(
+            WolfSSLTestFactory.isAndroid() ? "BKS" : "JKS");
+        InputStream stream = new FileInputStream(tf.caJKS);
+        caStore.load(stream, WolfSSLTestFactory.jksPass);
+        stream.close();
+
+        Set<TrustAnchor> anchors = new HashSet<TrustAnchor>();
+        Enumeration<String> aliases = caStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            Certificate cert = caStore.getCertificate(alias);
+            if (cert instanceof X509Certificate) {
+                anchors.add(new TrustAnchor((X509Certificate) cert, null));
+            }
+        }
+
+        if (anchors.isEmpty()) {
+            pass("\t... skipped (no certs)");
+            return;
+        }
+
+        PKIXParameters pkixParams = new PKIXParameters(anchors);
+        CertPathTrustManagerParameters certPathParams =
+            new CertPathTrustManagerParameters(pkixParams);
+
+        TrustManagerFactory tmf =
+            TrustManagerFactory.getInstance("SunX509", provider);
+        tmf.init(certPathParams);
+
+        TrustManager[] tms = tmf.getTrustManagers();
+        if (tms == null || tms.length == 0) {
+            fail("TrustManagers null/empty after CertPathParams init");
+        }
+
+        X509TrustManager x509tm = (X509TrustManager) tms[0];
+        if (x509tm.getAcceptedIssuers() == null ||
+            x509tm.getAcceptedIssuers().length == 0) {
+            fail("No accepted issuers after CertPathParams init");
+        }
+
+        pass("\t... passed");
+    }
+
+    /* Test TrustManagerFactory.init(KeyStoreBuilderParameters) */
+    @Test
+    public void testInitWithKeyStoreBuilderParameters()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyStoreException, IOException, CertificateException,
+               InvalidAlgorithmParameterException {
+
+        System.out.print("\tTesting init(KeyStoreBuilderParameters)");
+
+        KeyStore.Builder ksBuilder = KeyStore.Builder.newInstance(
+            WolfSSLTestFactory.isAndroid() ? "BKS" : "JKS",
+            null,
+            new File(tf.caJKS),
+            new KeyStore.PasswordProtection(WolfSSLTestFactory.jksPass));
+
+        KeyStoreBuilderParameters ksParams =
+            new KeyStoreBuilderParameters(ksBuilder);
+
+        TrustManagerFactory tmf =
+            TrustManagerFactory.getInstance("SunX509", provider);
+        tmf.init(ksParams);
+
+        TrustManager[] tms = tmf.getTrustManagers();
+        if (tms == null || tms.length == 0) {
+            fail("TrustManagers null/empty after KeyStoreBuilder init");
+        }
+
+        X509TrustManager x509tm = (X509TrustManager) tms[0];
+        if (x509tm.getAcceptedIssuers() == null ||
+            x509tm.getAcceptedIssuers().length == 0) {
+            fail("No accepted issuers after KeyStoreBuilder init");
+        }
+
+        pass("\t... passed");
     }
 
     private void pass(String msg) {
