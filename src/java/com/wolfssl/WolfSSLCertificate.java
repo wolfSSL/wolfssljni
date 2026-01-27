@@ -71,6 +71,8 @@ public class WolfSSLCertificate implements Serializable {
 
     /** Cache alt names once retrieved once */
     private ArrayList<List<?>> altNames = null;
+    /** Cache alt names array once retrieved once */
+    private WolfSSLAltName[] altNamesArray = null;
 
     /* Public key types used for certificate generation, mirrored from
      * native enum in wolfssl/openssl/evp.h */
@@ -104,6 +106,7 @@ public class WolfSSLCertificate implements Serializable {
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
+    static native Object[][] X509_get_subject_alt_names_full(long x509);
     static native long X509_load_certificate_buffer(byte[] buf, int format);
     static native long X509_load_certificate_file(String path, int format);
     static native int X509_check_host(long x509, String chk, long flags,
@@ -1733,10 +1736,26 @@ public class WolfSSLCertificate implements Serializable {
      *
      * Each collection item is a List containing two objects:
      *     [0] = Integer representing type of name, 0-8 (ex: 2 == dNSName)
-     *     [1] = String representing altname entry.
+     *     [1] = Object representing altname entry value:
+     *           - For types 1, 2, 6, 8: String value
+     *           - For type 4 (directoryName): String (X.500 name)
+     *           - For type 7 (iPAddress): byte[] containing IP address bytes
+     *           - For type 0 (otherName): String containing the OID
      *
-     * Note: this currently returns all altNames as dNSName types, with the
-     * second list element being a String.
+     * GeneralName types (from RFC 5280):
+     *   0 = otherName
+     *   1 = rfc822Name (email)
+     *   2 = dNSName
+     *   3 = x400Address (not supported)
+     *   4 = directoryName
+     *   5 = ediPartyName (not supported)
+     *   6 = uniformResourceIdentifier (URI)
+     *   7 = iPAddress
+     *   8 = registeredID
+     *
+     * For otherName entries (type 0) that need the full value data, use
+     * getSubjectAltNamesExtended() which returns the OID and ASN.1
+     * encoded value bytes.
      *
      * @return immutable Collection of subject alternative names, or null
      *
@@ -1759,15 +1778,44 @@ public class WolfSSLCertificate implements Serializable {
 
             ArrayList<List<?>> names = new ArrayList<List<?>>();
 
-            String nextAltName = X509_get_next_altname(this.x509Ptr);
-            while (nextAltName != null) {
-                Object[] entry = new Object[2];
-                entry[0] = 2; // Only return dNSName type for now
-                entry[1] = nextAltName;
-                List<?> entryList = Arrays.asList(entry);
+            WolfSSLAltName[] sans = getAltNamesArrayInternal();
+            if (sans != null) {
+                for (WolfSSLAltName san : sans) {
+                    Object[] entry = new Object[2];
+                    entry[0] = san.getType();
 
-                names.add(Collections.unmodifiableList(entryList));
-                nextAltName = X509_get_next_altname(this.x509Ptr);
+                    switch (san.getType()) {
+                        case WolfSSLAltName.TYPE_OTHER_NAME:
+                            /* For otherName, use OID as value */
+                            entry[1] = san.getOtherNameOID();
+                            break;
+                        case WolfSSLAltName.TYPE_IP_ADDRESS:
+                            /* For iPAddress, use byte array */
+                            entry[1] = san.getIPAddress();
+                            break;
+                        default:
+                            /* For string types, use string value */
+                            entry[1] = san.getStringValue();
+                            break;
+                    }
+
+                    List<?> entryList = Arrays.asList(entry);
+                    names.add(Collections.unmodifiableList(entryList));
+                }
+            }
+            else {
+                /* Fall back to legacy method prior to WolfSSLAltName support,
+                 * only supports dNSName types with second entry
+                 * being a String. */
+                String nextAltName = X509_get_next_altname(this.x509Ptr);
+                while (nextAltName != null) {
+                    Object[] entry = new Object[2];
+                    entry[0] = Integer.valueOf(WolfSSLAltName.TYPE_DNS_NAME);
+                    entry[1] = nextAltName;
+                    List<?> entryList = Arrays.asList(entry);
+                    names.add(Collections.unmodifiableList(entryList));
+                    nextAltName = X509_get_next_altname(this.x509Ptr);
+                }
             }
 
             /* cache altNames collection for later use */
@@ -1775,6 +1823,255 @@ public class WolfSSLCertificate implements Serializable {
 
             return Collections.unmodifiableCollection(this.altNames);
         }
+    }
+
+    /**
+     * Returns Subject Alternative Names with extended information for
+     * otherName types.
+     *
+     * This method is similar to getSubjectAltNames() but provides additional
+     * data for otherName (type 0) entries, which is needed for parsing
+     * Microsoft Active Directory User Principal Names (UPNs) and other
+     * otherName values.
+     *
+     * Each collection item is a List containing:
+     *   - For most types (1,2,4,6,8): [Integer type, String value]
+     *   - For iPAddress (type 7): [Integer 7, byte[] ipAddressBytes]
+     *   - For otherName (type 0): [Integer 0, String oid, byte[] valueBytes]
+     *     where valueBytes is the ASN.1 DER encoded value
+     *
+     * GeneralName types (from RFC 5280):
+     *   0 = otherName - includes OID and ASN.1 encoded value
+     *   1 = rfc822Name (email)
+     *   2 = dNSName
+     *   3 = x400Address (not supported)
+     *   4 = directoryName
+     *   5 = ediPartyName (not supported)
+     *   6 = uniformResourceIdentifier (URI)
+     *   7 = iPAddress
+     *   8 = registeredID
+     *
+     * Microsoft AD UPN OID: 1.3.6.1.4.1.311.20.2.3
+     *
+     * Example usage for parsing MS AD UPN:
+     * <pre>
+     * Collection&lt;List&lt;?&gt;&gt; sans = cert.getSubjectAltNamesExtended();
+     * for (List&lt;?&gt; san : sans) {
+     *     int type = (Integer) san.get(0);
+     *     if (type == 0) { &#47;* otherName *&#47;
+     *         String oid = (String) san.get(1);
+     *         if ("1.3.6.1.4.1.311.20.2.3".equals(oid)) {
+     *             byte[] valueBytes = (byte[]) san.get(2);
+     *             &#47;* Parse ASN.1 DER encoded UTF8String to get UPN *&#47;
+     *         }
+     *     }
+     * }
+     * </pre>
+     *
+     * @return immutable Collection of subject alternative names with extended
+     *         data, or null if no SANs present or native method not available
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     */
+    public Collection<List<?>> getSubjectAltNamesExtended()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getSubjectAltNamesExtended()");
+
+            WolfSSLAltName[] sans = getAltNamesArrayInternal();
+            if (sans == null) {
+                return null;
+            }
+
+            ArrayList<List<?>> names = new ArrayList<List<?>>();
+
+            for (WolfSSLAltName san : sans) {
+                Object[] entry;
+
+                /* Convert WolfSSLAltName to extended format */
+                switch (san.getType()) {
+                    case WolfSSLAltName.TYPE_OTHER_NAME:
+                        /* otherName: [type, oid, valueBytes] */
+                        entry = new Object[3];
+                        entry[0] = san.getType();
+                        entry[1] = san.getOtherNameOID();
+                        entry[2] = san.getOtherNameValue();
+                        break;
+                    case WolfSSLAltName.TYPE_IP_ADDRESS:
+                        /* iPAddress: [type, ipBytes] */
+                        entry = new Object[2];
+                        entry[0] = san.getType();
+                        entry[1] = san.getIPAddress();
+                        break;
+                    default:
+                        /* String types: [type, stringValue] */
+                        entry = new Object[2];
+                        entry[0] = san.getType();
+                        entry[1] = san.getStringValue();
+                        break;
+                }
+
+                List<?> entryList = Arrays.asList(entry);
+                names.add(Collections.unmodifiableList(entryList));
+            }
+
+            if (names.isEmpty()) {
+                return null;
+            }
+
+            return Collections.unmodifiableCollection(names);
+        }
+    }
+
+    /**
+     * Returns Subject Alternative Names as an array of WolfSSLAltName objects.
+     *
+     * This is the preferred method for accessing SAN data as it provides
+     * type-safe access to all SAN types including otherName entries used by
+     * Microsoft Active Directory for User Principal Names (UPNs).
+     *
+     * Example usage for parsing Microsoft AD UPN:
+     * <pre>
+     * WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
+     * if (sans != null) {
+     *     for (WolfSSLAltName san : sans) {
+     *         if (san.isMicrosoftUPN()) {
+     *             String upn = san.getOtherNameValueAsString();
+     *             System.out.println("UPN: " + upn);
+     *         } else if (san.getType() == WolfSSLAltName.TYPE_DNS_NAME) {
+     *             System.out.println("DNS: " + san.getStringValue());
+     *         } else if (san.getType() == WolfSSLAltName.TYPE_IP_ADDRESS) {
+     *             System.out.println("IP: " + san.getIPAddressString());
+     *         }
+     *     }
+     * }
+     * </pre>
+     *
+     * @return array of WolfSSLAltName objects, or null if no SANs present
+     *         or native method not available
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @see WolfSSLAltName
+     */
+    public WolfSSLAltName[] getSubjectAltNamesArray()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getSubjectAltNamesArray()");
+
+            WolfSSLAltName[] cached = getAltNamesArrayInternal();
+            if (cached == null) {
+                return null;
+            }
+
+            /* Return copy to prevent caller from modifying cache */
+            WolfSSLAltName[] copy = new WolfSSLAltName[cached.length];
+            System.arraycopy(cached, 0, copy, 0, cached.length);
+
+            return copy;
+        }
+    }
+
+    /**
+     * Internal method to get or populate the cached altNamesArray.
+     * Caller must hold x509Lock before calling this method.
+     *
+     * @return cached WolfSSLAltName array, or null if no SANs
+     */
+    private WolfSSLAltName[] getAltNamesArrayInternal() {
+
+        int count = 0;
+
+        /* Return cached array if already populated */
+        if (this.altNamesArray != null) {
+            return this.altNamesArray;
+        }
+
+        Object[][] fullNames = X509_get_subject_alt_names_full(this.x509Ptr);
+        if (fullNames == null || fullNames.length == 0) {
+            return null;
+        }
+
+        WolfSSLAltName[] result = new WolfSSLAltName[fullNames.length];
+
+        for (Object[] sanEntry : fullNames) {
+            if ((sanEntry == null) || (sanEntry.length < 2) ||
+                (sanEntry[0] == null) || (sanEntry[1] == null)) {
+                continue;
+            }
+
+            try {
+                int type = (Integer)sanEntry[0];
+                WolfSSLAltName altName = null;
+
+                switch (type) {
+
+                    case WolfSSLAltName.TYPE_OTHER_NAME:
+                        /* otherName: [type, oid, valueBytes] */
+                        if (sanEntry.length >= 3) {
+                            String oid = (String) sanEntry[1];
+                            byte[] value = (byte[]) sanEntry[2];
+                            altName = new WolfSSLAltName(oid, value);
+                        }
+                        break;
+
+                    case WolfSSLAltName.TYPE_IP_ADDRESS:
+                        /* iPAddress: [type, ipBytes] */
+                        byte[] ipBytes = (byte[]) sanEntry[1];
+                        altName = new WolfSSLAltName(type, ipBytes);
+                        break;
+
+                    case WolfSSLAltName.TYPE_RFC822_NAME:
+                    case WolfSSLAltName.TYPE_DNS_NAME:
+                    case WolfSSLAltName.TYPE_DIRECTORY_NAME:
+                    case WolfSSLAltName.TYPE_URI:
+                    case WolfSSLAltName.TYPE_REGISTERED_ID:
+                        /* String types: [type, stringValue] */
+                        String strValue = (String) sanEntry[1];
+                        altName = new WolfSSLAltName(type, strValue);
+                        break;
+
+                    default:
+                        /* Unsupported type, skip */
+                        continue;
+                }
+
+                if (altName != null) {
+                    result[count++] = altName;
+                }
+            }
+            catch (ClassCastException e) {
+                /* Skip malformed entries */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                    WolfSSLDebug.ERROR, this.x509Ptr,
+                    () -> "Invalid SAN entry format: " + e.getMessage());
+                continue;
+            }
+        }
+
+        if (count == 0) {
+            return null;
+        }
+
+        /* Trim array if needed and cache result */
+        if (count < result.length) {
+            this.altNamesArray = new WolfSSLAltName[count];
+            System.arraycopy(result, 0, this.altNamesArray, 0, count);
+        }
+        else {
+            this.altNamesArray = result;
+        }
+
+        return this.altNamesArray;
     }
 
     /**
@@ -1876,8 +2173,9 @@ public class WolfSSLCertificate implements Serializable {
                 return;
             }
 
-            /* set this.altNames to null so GC can free */
+            /* set altNames caches to null so GC can free */
             this.altNames = null;
+            this.altNamesArray = null;
 
             synchronized (x509Lock) {
                 /* only free native resources if we own pointer */

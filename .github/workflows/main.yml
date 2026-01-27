@@ -197,7 +197,7 @@ jobs:
       matrix:
         os: [ 'ubuntu-latest' ]
         jdk_version: [ '21' ]
-        wolfssl_configure: [ '--enable-jni' ]
+        wolfssl_configure: [ '--enable-jni --enable-debug' ]
     name: AddressSanitizer (${{ matrix.os }} Zulu JDK ${{ matrix.jdk_version }})
     uses: ./.github/workflows/address-sanitizer.yml
     with:
