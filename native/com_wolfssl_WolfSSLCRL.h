@@ -25,6 +25,15 @@ extern "C" {
 #define com_wolfssl_WolfSSLCRL_EVP_PKEY_RSA 16L
 #undef com_wolfssl_WolfSSLCRL_EVP_PKEY_EC
 #define com_wolfssl_WolfSSLCRL_EVP_PKEY_EC 18L
+
+#if ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9631_PATCH_APPLIED)) && \
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
+#define WOLFSSL_JNI_CRL_GEN_ENABLED
+#endif
+
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
 /*
  * Class:     com_wolfssl_WolfSSLCRL
  * Method:    X509_CRL_new
@@ -152,6 +161,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1der
  */
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1pem
   (JNIEnv *, jclass, jlong);
+#endif /* WOLFSSL_JNI_CRL_GEN_ENABLED */
 
 #ifdef __cplusplus
 }
