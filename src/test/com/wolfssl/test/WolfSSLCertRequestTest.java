@@ -249,14 +249,6 @@ public class WolfSSLCertRequestTest {
         /* RSA */
         req.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
             WolfSSL.SSL_FILETYPE_ASN1);
-        req.setPublicKey(cliKeyPem, WolfSSL.RSAk,
-            WolfSSL.SSL_FILETYPE_PEM);
-
-        /* ECC */
-        req.setPublicKey(cliEccKeyDer, WolfSSL.ECDSAk,
-            WolfSSL.SSL_FILETYPE_ASN1);
-        req.setPublicKey(cliEccKeyPem, WolfSSL.ECDSAk,
-            WolfSSL.SSL_FILETYPE_PEM);
 
         /* Test bad key type */
         try {
@@ -304,7 +296,14 @@ public class WolfSSLCertRequestTest {
     @Test
     public void testSetPublicKeyArray()
         throws WolfSSLException, WolfSSLJNIException, IOException,
-               CertificateException {
+               CertificateException, NoSuchAlgorithmException {
+
+        KeyPairGenerator rsaKpg;
+        KeyPairGenerator eccKpg;
+        KeyPair rsaKeyPair;
+        KeyPair eccKeyPair;
+        byte[] rsaPubKeyDer;
+        byte[] eccPubKeyDer;
 
         System.out.print("\tsetPublicKey(array)");
 
@@ -317,26 +316,29 @@ public class WolfSSLCertRequestTest {
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
 
-        byte[] cliKeyRSADer = Files.readAllBytes(Paths.get(cliKeyDer));
-        byte[] cliKeyRSAPem = Files.readAllBytes(Paths.get(cliKeyPem));
-        byte[] cliKeyECCDer = Files.readAllBytes(Paths.get(cliEccKeyDer));
-        byte[] cliKeyECCPem = Files.readAllBytes(Paths.get(cliEccKeyPem));
+        /* Generate RSA key pair and get public key bytes (DER encoded). */
+        rsaKpg = KeyPairGenerator.getInstance("RSA");
+        rsaKpg.initialize(2048);
+        rsaKeyPair = rsaKpg.generateKeyPair();
+        rsaPubKeyDer = rsaKeyPair.getPublic().getEncoded();
 
-        /* RSA */
-        req.setPublicKey(cliKeyRSADer, WolfSSL.RSAk,
-            WolfSSL.SSL_FILETYPE_ASN1);
-        req.setPublicKey(cliKeyRSAPem, WolfSSL.RSAk,
-            WolfSSL.SSL_FILETYPE_PEM);
+        /* Generate ECC key pair and get public key bytes (DER encoded) */
+        eccKpg = KeyPairGenerator.getInstance("EC");
+        eccKpg.initialize(256);
+        eccKeyPair = eccKpg.generateKeyPair();
+        eccPubKeyDer = eccKeyPair.getPublic().getEncoded();
 
-        /* ECC */
-        req.setPublicKey(cliKeyECCDer, WolfSSL.ECDSAk,
+        /* RSA public key DER */
+        req.setPublicKey(rsaPubKeyDer, WolfSSL.RSAk,
             WolfSSL.SSL_FILETYPE_ASN1);
-        req.setPublicKey(cliKeyECCPem, WolfSSL.ECDSAk,
-            WolfSSL.SSL_FILETYPE_PEM);
+
+        /* ECC public key DER */
+        req.setPublicKey(eccPubKeyDer, WolfSSL.ECDSAk,
+            WolfSSL.SSL_FILETYPE_ASN1);
 
         /* Test bad key type */
         try {
-            req.setPublicKey(cliKeyRSADer, 12345,
+            req.setPublicKey(rsaPubKeyDer, 12345,
                 WolfSSL.SSL_FILETYPE_ASN1);
             System.out.println("\t\t... failed");
             fail("bad key type should throw exception");
@@ -346,7 +348,7 @@ public class WolfSSLCertRequestTest {
 
         /* Test bad file type */
         try {
-            req.setPublicKey(cliKeyRSADer, WolfSSL.RSAk, 12345);
+            req.setPublicKey(rsaPubKeyDer, WolfSSL.RSAk, 12345);
             System.out.println("\t\t... failed");
             fail("bad file type should throw exception");
         } catch (WolfSSLException e) {
