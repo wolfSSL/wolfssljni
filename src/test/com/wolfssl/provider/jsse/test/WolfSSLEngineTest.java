@@ -280,22 +280,35 @@ public class WolfSSLEngineTest {
             fail("no certs available from server SSLEngine.getSession()");
         }
         else {
-            certType = ((X509Certificate)certs[0]).getSigAlgName();
-            if (certType.contains("RSA")) {
-                /* use a ECDHE-RSA suite if available */
+            /* For (D)TLS 1.3, pick the first available cipher. */
+            if (protocol.equals("TLSv1.3") || protocol.equals("DTLSv1.3")) {
                 for (String x : ciphers) {
-                    if (x.contains("ECDHE_RSA")) {
+                    if (x.startsWith("TLS_AES_") ||
+                        x.startsWith("TLS_CHACHA20_")) {
                         cipher = x;
                         break;
                     }
                 }
             }
-            if (certType.contains("ECDSA")) {
-                /* use a ECDHE-RSA suite if available */
-                for (String x : ciphers) {
-                    if (x.contains("ECDHE_ECDSA")) {
-                        cipher = x;
-                        break;
+            else {
+                /* TLS 1.2 and below: select cipher based on cert type */
+                certType = ((X509Certificate)certs[0]).getSigAlgName();
+                if (certType.contains("RSA")) {
+                    /* use a ECDHE-RSA suite if available */
+                    for (String x : ciphers) {
+                        if (x.contains("ECDHE_RSA")) {
+                            cipher = x;
+                            break;
+                        }
+                    }
+                }
+                if (certType.contains("ECDSA")) {
+                    /* use a ECDHE-ECDSA suite if available */
+                    for (String x : ciphers) {
+                        if (x.contains("ECDHE_ECDSA")) {
+                            cipher = x;
+                            break;
+                        }
                     }
                 }
             }
