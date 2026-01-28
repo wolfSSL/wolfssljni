@@ -105,8 +105,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tsetVersion()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -139,8 +139,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tsetIssuerName()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -176,8 +176,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tsetLastUpdate()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -217,8 +217,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tsetNextUpdate()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -260,8 +260,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\taddRevoked()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -315,8 +315,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\taddRevokedCert(byte[])");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t... skipped");
             return;
         }
@@ -370,8 +370,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\taddRevokedCert(WolfSSLCertificate)");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t... skipped");
             return;
         }
@@ -418,8 +418,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tsign(PrivateKey)");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t... skipped");
             return;
         }
@@ -478,8 +478,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\twriteToFile()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -566,8 +566,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgetDer()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -614,8 +614,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgetPem()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -666,8 +666,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgetVersion()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
@@ -701,8 +701,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgen CRL using files");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t... skipped");
             return;
         }
@@ -775,8 +775,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgen CRL using certificates");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t... skipped");
             return;
         }
@@ -837,8 +837,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tgen CRL with ECC key");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t... skipped");
             return;
         }
@@ -902,8 +902,8 @@ public class WolfSSLCRLTest {
 
         System.out.print("\tfree()");
 
-        if (WolfSSL.isEnabledCRL() == 0) {
-            /* CRL not enabled in wolfSSL */
+        if (!WolfSSL.CrlGenerationEnabled()) {
+            /* CRL generation not enabled in wolfSSL */
             System.out.println("\t\t\t... skipped");
             return;
         }
