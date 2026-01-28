@@ -37,10 +37,17 @@
 #include "com_wolfssl_globals.h"
 #include "com_wolfssl_WolfSSLCRL.h"
 
+#if ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9631_PATCH_APPLIED)) && \
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
+#define WOLFSSL_JNI_CRL_GEN_ENABLED
+#endif
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1new
   (JNIEnv* jenv, jclass jcl)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = NULL;
     (void)jcl;
 
@@ -64,7 +71,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1new
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1free
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     (void)jcl;
 
@@ -83,7 +90,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1free
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1version
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jint version)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     (void)jcl;
 
@@ -104,7 +111,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1version
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1issuer_1name
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jlong x509NamePtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_X509_NAME* name = (WOLFSSL_X509_NAME*)(uintptr_t)x509NamePtr;
     (void)jcl;
@@ -126,7 +133,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1issuer_1name
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jbyteArray time)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* timeBuf = NULL;
     int timeSz = 0;
@@ -182,7 +189,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jbyteArray time)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* timeBuf = NULL;
     int timeSz = 0;
@@ -239,7 +246,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jbyteArray serial,
    jbyteArray revDate, jint dateFmt)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* serialBuf = NULL;
     byte* dateBuf = NULL;
@@ -292,7 +299,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jbyteArray certDer,
    jbyteArray revDate, jint dateFmt)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* certBuf = NULL;
     byte* dateBuf = NULL;
@@ -345,7 +352,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1sign
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jint keyType, jbyteArray keyBytes,
    jint format, jstring digestAlg)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* keyBuf = NULL;
     int keySz = 0;
@@ -474,7 +481,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1sign
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_write_1X509_1CRL
   (JNIEnv* jenv, jclass jcl, jlong crlPtr, jstring path, jint format)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     const char* cPath = NULL;
     int ret = WOLFSSL_FAILURE;
@@ -507,7 +514,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_write_1X509_1CRL
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1version
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     (void)jcl;
 
@@ -527,8 +534,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1version
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1lastUpdate
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED) && !defined(NO_ASN_TIME)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_ASN1_TIME* date = NULL;
     char timeStr[CTC_DATE_SIZE];
@@ -556,8 +562,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1lastUpdate
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1nextUpdate
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED) && !defined(NO_ASN_TIME)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_ASN1_TIME* date = NULL;
     char timeStr[CTC_DATE_SIZE];
@@ -585,7 +590,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1nextUpdate
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1print
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_BIO* bio;
     int sz = 0;
     char* mem = NULL;
@@ -636,7 +641,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1print
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1der
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     unsigned char* der = NULL;
     jbyteArray derArr = NULL;
@@ -695,7 +700,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1der
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1pem
   (JNIEnv* jenv, jclass jcl, jlong crlPtr)
 {
-#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     unsigned char* der = NULL;
     unsigned char* pem = NULL;

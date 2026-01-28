@@ -795,6 +795,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_FileSystemEnabled
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    CrlGenerationEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_CrlGenerationEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    certReqEnabled
  * Signature: ()Z
  */
