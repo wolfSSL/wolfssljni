@@ -1736,6 +1736,75 @@ static int addEkuOid(JNIEnv* jenv, jobjectArray ret, int idx,
     return idx;
 }
 
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9728_PATCH_APPLIED))
+
+static jobjectArray stackStringToArray(JNIEnv* jenv, jclass jcl,
+    WOLF_STACK_OF(WOLFSSL_STRING)* sk)
+{
+    jobjectArray ret = NULL;
+    jclass stringClass = NULL;
+    int count;
+    int i;
+
+    if (jenv == NULL || sk == NULL) {
+        return NULL;
+    }
+
+    count = wolfSSL_sk_WOLFSSL_STRING_num(sk);
+    if (count <= 0) {
+        wolfSSL_X509_email_free(sk);
+        return NULL;
+    }
+
+    stringClass = (*jenv)->FindClass(jenv, "java/lang/String");
+    if (stringClass == NULL) {
+        wolfSSL_X509_email_free(sk);
+        return NULL;
+    }
+
+    ret = (*jenv)->NewObjectArray(jenv, count, stringClass, NULL);
+    if (ret == NULL) {
+        (*jenv)->DeleteLocalRef(jenv, stringClass);
+        wolfSSL_X509_email_free(sk);
+        return NULL;
+    }
+
+    for (i = 0; i < count; i++) {
+        const char* str = wolfSSL_sk_WOLFSSL_STRING_value(sk, i);
+        jstring jstr = (*jenv)->NewStringUTF(jenv, (str != NULL) ? str : "");
+        if (jstr == NULL) {
+            (*jenv)->DeleteLocalRef(jenv, ret);
+            (*jenv)->DeleteLocalRef(jenv, stringClass);
+            wolfSSL_X509_email_free(sk);
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to create String in native AIA getter");
+            return NULL;
+        }
+
+        (*jenv)->SetObjectArrayElement(jenv, ret, i, jstr);
+        (*jenv)->DeleteLocalRef(jenv, jstr);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ret);
+            (*jenv)->DeleteLocalRef(jenv, stringClass);
+            wolfSSL_X509_email_free(sk);
+            (*jenv)->ThrowNew(jenv, jcl,
+                "Failed to set String[] element in native AIA getter");
+            return NULL;
+        }
+    }
+
+    (*jenv)->DeleteLocalRef(jenv, stringClass);
+    wolfSSL_X509_email_free(sk);
+    return ret;
+}
+#endif
+
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extended_1key_1usage
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
@@ -1798,6 +1867,87 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
     (*jenv)->DeleteLocalRef(jenv, stringClass);
 
     return ret;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ocsp
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+    /* AIA API extensions were added after wolfSSL 5.8.4 in PR 9728. Version
+     * check must be greater than 5.8.4 or patch from PR 9728 must be applied
+     * and WOLFSSL_PR9728_PATCH_APPLIED defined when compiling this wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9728_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLF_STACK_OF(WOLFSSL_STRING)* sk = NULL;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    sk = wolfSSL_X509_get1_ocsp(x509);
+    return stackStringToArray(jenv, jcl, sk);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif
+}
+
+JNIEXPORT jint JNICALL
+Java_com_wolfssl_WolfSSLCertificate_X509_1get_1aia_1overflow
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9728_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return 0;
+    }
+
+    return (jint)wolfSSL_X509_get_aia_overflow(x509);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ca_1issuers
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
+    defined(WOLFSSL_ASN_CA_ISSUER) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9728_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLF_STACK_OF(WOLFSSL_STRING)* sk = NULL;
+
+    if (jenv == NULL || x509 == NULL) {
+        return NULL;
+    }
+
+    sk = wolfSSL_X509_get1_ca_issuers(x509);
+    return stackStringToArray(jenv, jcl, sk);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return NULL;
+#endif
 }
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extension
@@ -2385,4 +2535,3 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ext_1d2i_
     return 0;
 #endif
 }
-

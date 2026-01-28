@@ -103,6 +103,9 @@ public class WolfSSLCertificate implements Serializable {
     static native int X509_verify(long x509, byte[] pubKey, int pubKeySz);
     static native boolean[] X509_get_key_usage(long x509);
     static native String[] X509_get_extended_key_usage(long x509);
+    static native String[] X509_get1_ocsp(long x509);
+    static native int X509_get_aia_overflow(long x509);
+    static native String[] X509_get1_ca_issuers(long x509);
     static native byte[] X509_get_extension(long x509, String oid);
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
@@ -1632,6 +1635,69 @@ public class WolfSSLCertificate implements Serializable {
     }
 
     /**
+     * Get OCSP responder URIs from the certificate Authority Information
+     * Access (AIA) extension.
+     *
+     * @return Array of OCSP responder URIs, or null if not present.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed
+     */
+    public String[] getOcspUris() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getOcspUris()");
+
+            return X509_get1_ocsp(this.x509Ptr);
+        }
+    }
+
+    /**
+     * Check if AIA parsing overflowed the internal URI list.
+     *
+     * @return 1 if AIA parsing overflowed, 0 if not, or
+     *         WolfSSL.NOT_COMPILED_IN if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed
+     */
+    public int getAiaOverflow() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getAiaOverflow()");
+
+            return X509_get_aia_overflow(this.x509Ptr);
+        }
+    }
+
+    /**
+     * Get CA Issuer URIs from the certificate Authority Information Access
+     * (AIA) extension.
+     *
+     * @return Array of CA Issuer URIs, or null if not present.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed
+     */
+    public String[] getCaIssuerUris() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getCaIssuerUris()");
+
+            return X509_get1_ca_issuers(this.x509Ptr);
+        }
+    }
+
+    /**
      * Get DER encoded extension value from a specified OID
      *
      * @param oid OID value of extension to retreive value for
@@ -2246,4 +2312,3 @@ public class WolfSSLCertificate implements Serializable {
         super.finalize();
     }
 }
-
