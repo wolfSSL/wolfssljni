@@ -111,6 +111,7 @@ public class WolfSSLCertificate implements Serializable {
     static native long X509_load_certificate_file(String path, int format);
     static native int X509_check_host(long x509, String chk, long flags,
         long peerName);
+    static native long X509_get_ext_d2i_name_constraints(long x509);
 
     /* native functions used for X509v3 certificate generation */
     static native long X509_new();
@@ -2072,6 +2073,43 @@ public class WolfSSLCertificate implements Serializable {
         }
 
         return this.altNamesArray;
+    }
+
+    /**
+     * Get the Name Constraints extension from this certificate.
+     *
+     * Returns the Name Constraints extension if present, which specifies
+     * permitted and excluded name subtrees for certificates issued by
+     * this CA. See RFC 5280 Section 4.2.1.10.
+     *
+     * Caller should call {@link WolfSSLNameConstraints#free()} when done,
+     * although free() will also be called upon garbage collection of the
+     * WolfSSLNameConstraints object.
+     *
+     * @return WolfSSLNameConstraints object, or null if extension not present
+     *         or native wolfSSL was compiled with IGNORE_NAME_CONSTRAINTS.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     */
+    public WolfSSLNameConstraints getNameConstraints()
+        throws IllegalStateException {
+
+        long ncPtr = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering getNameConstraints()");
+
+            ncPtr = X509_get_ext_d2i_name_constraints(this.x509Ptr);
+        }
+
+        if (ncPtr == 0) {
+            return null;
+        }
+        return new WolfSSLNameConstraints(ncPtr);
     }
 
     /**

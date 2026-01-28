@@ -1021,6 +1021,15 @@ public class WolfSSL {
      */
     public static native boolean encryptThenMacEnabled();
 
+    /**
+     * Tests if native wolfSSL has been compiled with X.509 Name Constraints
+     * extension support (OPENSSL_EXTRA and not IGNORE_NAME_CONSTRAINTS).
+     *
+     * @return true if enabled, otherwise false if Name Constraints support
+     *         has not been compiled in.
+     */
+    public static native boolean NameConstraintsEnabled();
+
     /* ---------------- native SSL/TLS version functions ---------------- */
 
     /**

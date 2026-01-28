@@ -50,12 +50,14 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSLException.java \
     src/java/com/wolfssl/WolfSSLFIPSErrorCallback.java \
     src/java/com/wolfssl/WolfSSLGenCookieCallback.java \
+    src/java/com/wolfssl/WolfSSLGeneralName.java \
     src/java/com/wolfssl/WolfSSLIORecvCallback.java \
     src/java/com/wolfssl/WolfSSLIOSendCallback.java \
     src/java/com/wolfssl/WolfSSLJNIException.java \
     src/java/com/wolfssl/WolfSSLLoggingCallback.java \
     src/java/com/wolfssl/WolfSSLMacEncryptCallback.java \
     src/java/com/wolfssl/WolfSSLMissingCRLCallback.java \
+    src/java/com/wolfssl/WolfSSLNameConstraints.java \
     src/java/com/wolfssl/WolfSSLNativeLoggingCallback.java \
     src/java/com/wolfssl/WolfSSLPskClientCallback.java \
     src/java/com/wolfssl/WolfSSLPskServerCallback.java \

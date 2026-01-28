@@ -58,6 +58,11 @@ certList=(
     "intermediate/ca-int-ecc-cert.pem"
     "intermediate/server-int-cert.pem"
     "intermediate/server-int-ecc-cert.pem"
+    "test/cert-ext-nc.pem"
+    "test/cert-ext-ncip.pem"
+    "test/cert-ext-ncdns.pem"
+    "test/cert-ext-nc-combined.pem"
+    "test/cert-ext-ncmulti.pem"
 )
 
 for i in ${!certList[@]};
@@ -104,7 +109,7 @@ sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/ca-int-ecc-cert.pe
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-cert.pem
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' intermediate/server-int-ecc-cert.pem
 
-# Remvoe sed .bak files
+# Remove sed .bak files
 rm intermediate/ca-int2-cert.pem.bak
 rm intermediate/ca-int2-ecc-cert.pem.bak
 rm intermediate/ca-int-cert.pem.bak

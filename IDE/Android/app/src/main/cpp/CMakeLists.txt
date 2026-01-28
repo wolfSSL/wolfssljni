@@ -347,6 +347,7 @@ add_library(wolfssljni SHARED
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLSession.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLX509Name.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLX509StoreCtx.c
+        ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLNameConstraints.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfCryptECC.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfCryptEccKey.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfCryptRSA.c

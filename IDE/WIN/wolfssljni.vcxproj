@@ -46,6 +46,7 @@
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLSession.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLX509Name.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLX509StoreCtx.c" />
+    <ClCompile Include="..\..\native\com_wolfssl_WolfSSLNameConstraints.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\native\com_wolfssl_globals.h" />
@@ -60,6 +61,7 @@
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLSession.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLX509Name.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLX509StoreCtx.h" />
+    <ClInclude Include="..\..\native\com_wolfssl_WolfSSLNameConstraints.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSL_TLS_VERSION.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
