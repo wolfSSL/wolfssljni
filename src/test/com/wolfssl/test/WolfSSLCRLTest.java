@@ -455,6 +455,9 @@ public class WolfSSLCRLTest {
         /* Sign CRL */
         int ret = crl.sign(privKey, "SHA256");
         assertTrue("sign should succeed", ret >= 0);
+        byte[] sig = crl.getSignature();
+        assertNotNull("signature should be available after sign", sig);
+        assertTrue("signature length should be > 0", sig.length > 0);
 
         /* Test null private key */
         try {
