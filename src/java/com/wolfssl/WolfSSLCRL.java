@@ -88,6 +88,7 @@ public class WolfSSLCRL implements Serializable {
     static native String X509_CRL_get_nextUpdate(long crl);
     static native byte[] X509_CRL_get_der(long crl);
     static native byte[] X509_CRL_get_pem(long crl);
+    static native byte[] X509_CRL_get_signature(long crl);
 
     private static final class Asn1TimeData {
         private final byte[] paddedData;
@@ -631,6 +632,25 @@ public class WolfSSLCRL implements Serializable {
         }
 
         return null;
+    }
+
+    /**
+     * Get CRL signature bytes.
+     *
+     * @return signature byte array or null if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCRL has been freed.
+     */
+    public byte[] getSignature() {
+        confirmObjectIsActive();
+
+        synchronized (crlLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.crlPtr,
+                () -> "entered getSignature()");
+
+            return X509_CRL_get_signature(this.crlPtr);
+        }
     }
 
     @Override
