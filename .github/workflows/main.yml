@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '17', '21' ]
+        jdk_version: [ '17', '21', '24', '25' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Oracle JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '8', '11', '17', '21' ]
+        jdk_version: [ '8', '11', '17', '21', '24', '25' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
@@ -42,7 +42,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '8', '11', '17', '21' ]
+        jdk_version: [ '8', '11', '17', '21', '24', '25' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Corretto JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-24.04-arm' ]
-        jdk_version: [ '8', '11', '17', '21' ]
+        jdk_version: [ '8', '11', '17', '21', '24', '25' ]
         wolfssl_configure: [ '--enable-jni --enable-armasm' ]
     name: ${{ matrix.os }} (Corretto JDK Aarch64 armasm ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
@@ -74,7 +74,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '11', '17', '21' ]
+        jdk_version: [ '11', '17', '21', '24', '25' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Temurin JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
@@ -89,7 +89,7 @@ jobs:
     strategy:
       matrix:
         os: [ 'ubuntu-latest', 'macos-latest' ]
-        jdk_version: [ '11.0.19', '17.0.7', '21.0.0' ]
+        jdk_version: [ '11.0.19', '17.0.7', '21.0.0', '25.0.0' ]
         wolfssl_configure: [ '--enable-jni' ]
     name: ${{ matrix.os }} (Microsoft JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
     uses: ./.github/workflows/linux-common.yml
