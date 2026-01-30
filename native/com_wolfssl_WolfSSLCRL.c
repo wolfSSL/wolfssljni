@@ -248,11 +248,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
 {
 #if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    WOLFSSL_X509_REVOKED revoked;
+    WOLFSSL_ASN1_INTEGER* serialInt = NULL;
     byte* serialBuf = NULL;
-    byte* dateBuf = NULL;
     int serialSz = 0;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
+    (void)revDate;
+    (void)dateFmt;
 
     if (jenv == NULL || crl == NULL || serial == NULL) {
         return WOLFSSL_FAILURE;
@@ -264,24 +267,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
         ret = WOLFSSL_FAILURE;
     }
     else {
-        if (revDate != NULL) {
-            dateBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, revDate, NULL);
-            if (dateBuf == NULL) {
-                ret = WOLFSSL_FAILURE;
-            }
+        serialInt = wolfSSL_ASN1_INTEGER_new();
+        if (serialInt == NULL) {
+            ret = MEMORY_E;
         }
-        if (ret != WOLFSSL_FAILURE) {
-            ret = wolfSSL_X509_CRL_add_revoked(crl, serialBuf, serialSz,
-                dateBuf, (unsigned char)dateFmt);
-        }
-        if (dateBuf != NULL) {
-            (*jenv)->ReleaseByteArrayElements(jenv, revDate, (jbyte*)dateBuf,
-                JNI_ABORT);
+        else {
+            serialInt->data = (unsigned char*)serialBuf;
+            serialInt->dataMax = (unsigned int)serialSz;
+            serialInt->length = serialSz;
+            serialInt->isDynamic = 0;
+            serialInt->type = 0;
+            revoked.serialNumber = serialInt;
+            ret = wolfSSL_X509_CRL_add_revoked(crl, &revoked);
         }
     }
 
     (*jenv)->ReleaseByteArrayElements(jenv, serial, (jbyte*)serialBuf,
         JNI_ABORT);
+    wolfSSL_ASN1_INTEGER_free(serialInt);
 
     return ret;
 #else
@@ -302,10 +305,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
 #if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     byte* certBuf = NULL;
-    byte* dateBuf = NULL;
     int certSz = 0;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
+    (void)revDate;
+    (void)dateFmt;
 
     if (jenv == NULL || crl == NULL || certDer == NULL) {
         return WOLFSSL_FAILURE;
@@ -317,20 +321,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
         ret = WOLFSSL_FAILURE;
     }
     else {
-        if (revDate != NULL) {
-            dateBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, revDate, NULL);
-            if (dateBuf == NULL) {
-                ret = WOLFSSL_FAILURE;
-            }
-        }
-        if (ret != WOLFSSL_FAILURE) {
-            ret = wolfSSL_X509_CRL_add_revoked_cert(crl, certBuf, certSz,
-                dateBuf, (unsigned char)dateFmt);
-        }
-        if (dateBuf != NULL) {
-            (*jenv)->ReleaseByteArrayElements(jenv, revDate, (jbyte*)dateBuf,
-                JNI_ABORT);
-        }
+        ret = wolfSSL_X509_CRL_add_revoked_cert(crl, certBuf, certSz);
     }
 
     (*jenv)->ReleaseByteArrayElements(jenv, certDer, (jbyte*)certBuf,
@@ -416,6 +407,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1sign
                 }
                 else {
                     XMEMSET(derBuf, 0, derSz);
+                    ret = WOLFSSL_SUCCESS;
                 }
             }
             /* convert PEM to DER */
@@ -423,6 +415,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1sign
                 ret = wc_KeyPemToDer(keyBuf, keySz, derBuf, derSz, NULL);
                 if (ret <= 0 || ret != derSz) {
                     ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    ret = WOLFSSL_SUCCESS;
                 }
             }
         }
@@ -771,6 +766,76 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1pem
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return pemArr;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)crlPtr;
+    return NULL;
+#endif
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature
+  (JNIEnv* jenv, jclass jcl, jlong crlPtr)
+{
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
+    WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    int sigSz = 0;
+    unsigned char* sigBuf = NULL;
+    jbyteArray sigArr = NULL;
+    jclass excClass = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || crl == NULL) {
+        return NULL;
+    }
+
+    if (wolfSSL_X509_CRL_get_signature(crl, NULL, &sigSz) != WOLFSSL_SUCCESS ||
+        sigSz <= 0) {
+        return NULL;
+    }
+
+    sigArr = (*jenv)->NewByteArray(jenv, sigSz);
+    if (sigArr == NULL) {
+        (*jenv)->ThrowNew(jenv, jcl,
+            "Failed to create byte array in native X509_CRL_get_signature");
+        return NULL;
+    }
+
+    sigBuf = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sigBuf == NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        return NULL;
+    }
+
+    if (wolfSSL_X509_CRL_get_signature(crl, sigBuf, &sigSz)
+        != WOLFSSL_SUCCESS) {
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, sigArr, 0, sigSz,
+        (const jbyte*)sigBuf);
+    XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to set byte region in native X509_CRL_get_signature");
+        return NULL;
+    }
+
+    return sigArr;
 #else
     (void)jenv;
     (void)jcl;
