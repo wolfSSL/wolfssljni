@@ -113,6 +113,12 @@ public class WolfSSLDebug {
      */
     private static WolfSSLNativeLoggingCallback nativeLogCb = null;
 
+    /**
+     * Default private constructor, utility class with static methods.
+     */
+    private WolfSSLDebug() {
+    }
+
     static {
         configureLoggers();
     }
