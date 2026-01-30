@@ -161,10 +161,16 @@ public class WolfSSLContext extends SSLContextSpi {
             () -> "created new native WOLFSSL_CTX");
 
         if(ctxAttr.list != null && ctxAttr.list.length > 0) {
+            /* User overrode cipher suite list via WolfSSLCustomUser */
             ciphersIana = ctxAttr.list;
-        } else {
-            ciphersIana = WolfSSL.getCiphersIana();
         }
+        /* Otherwise keep version-specific ciphers from
+         * getCiphersAvailableIana() above. Do not fall back to
+         * getCiphersIana() which returns ALL cipher suites regardless of
+         * protocol version. Mixing TLS 1.3 and pre-TLS 1.3 cipher suites
+         * causes issues with wolfSSL cipher list parsing when using
+         * version-specific methods (TLSv1_2_Method, etc.) which have
+         * downgrade disabled. */
 
         /* Set minimum allowed RSA/DH/ECC key sizes */
         enforceKeySizeLimitations();
