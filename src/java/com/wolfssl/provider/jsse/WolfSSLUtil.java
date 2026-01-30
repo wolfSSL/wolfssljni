@@ -75,6 +75,11 @@ public class WolfSSLUtil {
     protected static String[] sanitizeProtocols(String[] protocols,
         WolfSSL.TLS_VERSION currentVersion) {
 
+        /* Return null if protocols is null, let caller handle */
+        if (protocols == null) {
+            return null;
+        }
+
         ArrayList<String> filtered = new ArrayList<String>();
 
         String disabledAlgos =

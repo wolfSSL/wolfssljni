@@ -1111,6 +1111,33 @@ public class WolfSSLKeyX509Test {
         pass("\t... passed");
     }
 
+    /* Test that chooseAlias methods return aliases with private keys */
+    @Test
+    public void testChooseAliasSkipsCertOnlyEntries()
+        throws NoSuchAlgorithmException, KeyStoreException,
+               KeyManagementException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        System.out.print("\tTesting chooseAlias skips cert-only");
+
+        KeyManager[] km = tf.createKeyManager("SunX509", tf.allJKS, provider);
+        X509ExtendedKeyManager x509km = (X509ExtendedKeyManager) km[0];
+        String alias;
+
+        alias = x509km.chooseClientAlias(new String[] { "RSA" }, null, null);
+        if (alias != null && x509km.getPrivateKey(alias) == null) {
+            fail("chooseClientAlias returned alias without private key");
+        }
+
+        alias = x509km.chooseEngineClientAlias(
+            new String[] { "RSA" }, null, null);
+        if (alias != null && x509km.getPrivateKey(alias) == null) {
+            fail("chooseEngineClientAlias returned alias without private key");
+        }
+
+        pass("\t... passed");
+    }
+
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
     }
@@ -1118,4 +1145,4 @@ public class WolfSSLKeyX509Test {
     private void error(String msg) {
         WolfSSLTestFactory.fail(msg);
     }
- }
+}

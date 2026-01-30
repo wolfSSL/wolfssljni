@@ -580,7 +580,10 @@ public class WolfSSLEngine extends SSLEngine {
             }
 
         } catch (SocketTimeoutException | SocketException e) {
-            throw new SSLException(e);
+            SSLHandshakeException hsException = new SSLHandshakeException(
+                "Socket error during SSL/TLS handshake: " + e.getMessage());
+            hsException.initCause(e);
+            throw hsException;
         }
 
         return ret;
@@ -1058,6 +1061,12 @@ public class WolfSSLEngine extends SSLEngine {
                     }
                     break;
                 default:
+                    /* Throw SSLHandshakeException if handshake not finished */
+                    if (!this.handshakeFinished) {
+                        throw new SSLHandshakeException(
+                            "SSL/TLS handshake error in read: " + ret +
+                            " , err = " + err);
+                    }
                     throw new SSLException(
                         "wolfSSL_read() error: " + ret + " , err = " + err);
             }
@@ -1392,6 +1401,14 @@ public class WolfSSLEngine extends SSLEngine {
                                  * close outbound since we won't be receiving
                                  * any more data */
                                 this.outBoundOpen = false;
+                            }
+                            /* Throw SSLHandshakeException if handshake not
+                             * finished, otherwise throw SSLException for
+                             * post-handshake errors */
+                            if (!this.handshakeFinished) {
+                                throw new SSLHandshakeException(
+                                    "SSL/TLS handshake error, ret:err = " +
+                                    ret + " : " + err);
                             }
                             throw new SSLException(
                                 "wolfSSL error, ret:err = " + ret + " : " +
