@@ -39,8 +39,10 @@ jobs:
       - name: Build native wolfSSL with AddressSanitizer
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
-          repository: wolfSSL/wolfssl
-          ref: master
+          # Point to PR branch until merge
+          # TODO: Switch back to wolfssl/wolfssl after merge
+          repository: padelsbach/wolfssl
+          ref: crl-generation
           path: wolfssl
           configure: ${{ inputs.wolfssl_configure }} CFLAGS="-fsanitize=address -fno-omit-frame-pointer" LDFLAGS="-fsanitize=address"
           check: false
