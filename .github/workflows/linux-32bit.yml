@@ -1,0 +1,92 @@
+name: Linux 32-bit Build and Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ 'master' ]
+
+jobs:
+  # Linux 32-bit build using Zulu x86 JDK
+  # Tests JNI pointer handling and 32-bit specific code paths
+  linux-32bit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jdk_version: [ '17' ]
+        wolfssl_configure: [ '--enable-jni --disable-asm', '--enable-jni --enable-all --disable-asm' ]
+    name: Linux x86 32-bit (Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install 32-bit library support for running x86 binaries on x64 runner
+      - name: Install 32-bit library support
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-multilib \
+            g++-multilib \
+            libc6:i386 \
+            libstdc++6:i386 \
+            zlib1g:i386
+
+      - name: Setup Java (Zulu 32-bit)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ matrix.jdk_version }}
+          architecture: x86
+
+      - name: Verify Java installation
+        run: |
+          java -version
+          file $(which java)
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+
+      - name: Clone and build wolfSSL (32-bit)
+        run: |
+          git clone --depth 1 https://github.com/wolfSSL/wolfssl.git /tmp/wolfssl
+          cd /tmp/wolfssl
+          ./autogen.sh
+          ./configure ${{ matrix.wolfssl_configure }} \
+            --prefix=$GITHUB_WORKSPACE/wolfssl-install \
+            CFLAGS="-m32" LDFLAGS="-m32"
+          make
+          make install
+
+      - name: Set environment variables
+        run: |
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/wolfssl-install/lib" >> $GITHUB_ENV
+
+      - name: Build JNI library (32-bit)
+        run: |
+          CFLAGS="-m32" LDFLAGS="-m32" ./java.sh $GITHUB_WORKSPACE/wolfssl-install
+
+      - name: Build JAR (ant)
+        run: ant
+
+      - name: Run Java tests (ant test)
+        run: ant test
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          cat build/reports/*.txt 2>/dev/null || true
+
