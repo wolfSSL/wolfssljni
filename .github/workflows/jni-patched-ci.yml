@@ -1,0 +1,137 @@
+name: Patched JNI CI
+
+# This workflow attempts to build and test the wolfSSL JNI library with all
+# available wolfSSL PR patches applied, eg WOLFSSL_PR*_PATCH_APPLIED defines.
+# It currently only supports a single PR patch at a time, using the highest PR 
+# number found in the defines.
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ 'master' ]
+
+jobs:
+  resolve_wolfssl_ref:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.resolve.outputs.should_run }}
+      wolfssl_repo: ${{ steps.resolve.outputs.wolfssl_repo }}
+      wolfssl_ref: ${{ steps.resolve.outputs.wolfssl_ref }}
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve wolfSSL ref from patch defines
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          # Find WOLFSSL_PR*_PATCH_APPLIED defines in wolfssl source.
+          defines="$(./scripts/find-wolfssl-pr-patch-defines.sh)"
+          if [ -z "$defines" ]; then
+            echo "::warning::No WOLFSSL_PR*_PATCH_APPLIED defines found; skipping patched CI."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Found patch defines:"
+          printf "%s\n" "$defines"
+
+          # Find the highest PR number from the defines.
+          pr_number="$(printf "%s\n" "$defines" | sed -E 's/^WOLFSSL_PR([0-9]+)_PATCH_APPLIED$/\1/' | sort -n | tail -1)"
+          if [ -z "$pr_number" ]; then
+            echo "::warning::Failed to derive PR number from patch defines; skipping patched CI."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Highest PR number from defines: $pr_number"
+
+          # Check PR status via GitHub API.
+          pr_json="$(curl -fsSL "https://api.github.com/repos/wolfSSL/wolfssl/pulls/$pr_number" || true)"
+          if [ -z "$pr_json" ]; then
+            echo "::warning::Unable to fetch PR #$pr_number from GitHub API; skipping patched CI."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Fetched PR #$pr_number info from GitHub API."
+
+          state="$(printf "%s" "$pr_json" | jq -r '.state // empty')"
+          merged_at="$(printf "%s" "$pr_json" | jq -r '.merged_at // empty')"
+          head_repo="$(printf "%s" "$pr_json" | jq -r '.head.repo.full_name // empty')"
+          head_ref="$(printf "%s" "$pr_json" | jq -r '.head.ref // empty')"
+
+          if [ -n "$merged_at" ]; then
+            echo "PR #$pr_number is merged; using wolfSSL master branch."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "wolfssl_repo=wolfSSL/wolfssl" >> "$GITHUB_OUTPUT"
+            echo "wolfssl_ref=master" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$state" = "open" ] && [ -n "$head_repo" ] && [ -n "$head_ref" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "wolfssl_repo=$head_repo" >> "$GITHUB_OUTPUT"
+            echo "wolfssl_ref=$head_ref" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+            echo "PR #$pr_number is open; using branch $head_ref from repo $head_repo."
+            exit 0
+          fi
+
+          echo "::warning::PR #$pr_number is not merged or has no accessible branch; skipping patched CI."
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
+
+  patched_jni_build:
+    needs: resolve_wolfssl_ref
+    if: needs.resolve_wolfssl_ref.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: curl -fsSL -o "$GITHUB_WORKSPACE/junit/junit-4.13.2.jar" https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: curl -fsSL -o "$GITHUB_WORKSPACE/junit/hamcrest-all-1.3.jar" https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+
+      - name: Build native wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: ${{ needs.resolve_wolfssl_ref.outputs.wolfssl_repo }}
+          ref: ${{ needs.resolve_wolfssl_ref.outputs.wolfssl_ref }}
+          path: wolfssl
+          configure: --enable-jni
+          check: false
+          install: true
+
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Set JUNIT_HOME
+        run: |
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
+
+      - name: Set LD_LIBRARY_PATH
+        run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+
+      - name: Build and test JNI library with all patches
+        run: |
+          make all-patched PREFIX=$GITHUB_WORKSPACE/build-dir
+          make check
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          cat build/reports/*.txt

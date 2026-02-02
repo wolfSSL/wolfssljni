@@ -29,31 +29,34 @@
 #
 # java.sh /usr/local wolfssljsse
 
+# Fail on any errors
+set -euo pipefail
+
 OS=`uname`
 ARCH=`uname -m`
 
-if [ -z "$1" ]; then
+if [ -z "${1-}" ]; then
     # default install location is /usr/local
     WOLFSSL_INSTALL_DIR="/usr/local"
 else
     # use custom wolfSSL install location
     # should match directory set at wolfSSL ./configure --prefix=<DIR>
-    WOLFSSL_INSTALL_DIR=$1
+    WOLFSSL_INSTALL_DIR="$1"
 fi
 
-if [ -z "$2" ]; then
+if [ -z "${2-}" ]; then
     # default wolfSSL library name is libwolfssl
     WOLFSSL_LIBNAME="wolfssl"
 else
     # use custom wolfSSL library name
     # should match wolfsslSUFFIX as set using ./configure --with-libsuffix
-    WOLFSSL_LIBNAME=$2
+    WOLFSSL_LIBNAME="$2"
 fi
 
 echo "Compiling Native JNI library:"
 echo "    WOLFSSL_INSTALL_DIR = $WOLFSSL_INSTALL_DIR"
 
-if [ -z "$JAVA_HOME" ]; then
+if [ -z "${JAVA_HOME:-}" ]; then
     # if JAVA_HOME not set, detect based on platform/OS
     echo "    JAVA_HOME empty, trying to detect"
 else
@@ -62,11 +65,14 @@ else
     javaHome="$JAVA_HOME"
 fi
 
+fpic=""
+CFLAGS="${CFLAGS:-}"
+
 # set up Java include and library paths for OS X and Linux
 # NOTE: you may need to modify these if your platform uses different locations
 if [ "$OS" == "Darwin" ] ; then
     echo "    Detected Darwin/OSX host OS"
-    if [ -z $javaHome ]; then
+    if [ -z "${javaHome:-}" ]; then
         # this is broken since Big Sur, set JAVA_HOME environment var instead
         # OSX JAVA_HOME is typically similar to:
         #    /Library/Java/JavaVirtualMachines/jdk1.8.0_261.jdk/Contents/Home
@@ -77,7 +83,7 @@ if [ "$OS" == "Darwin" ] ; then
     jniLibName="libwolfssljni.dylib"
 elif [ "$OS" == "Linux" ] ; then
     echo "    Detected Linux host OS"
-    if [ -z $javaHome ]; then
+    if [ -z "${javaHome:-}" ]; then
         javaHome=`echo $(dirname $(dirname $(readlink -f $(which java))))`
     fi
     if [ ! -d "$javaHome/include" ]
@@ -89,8 +95,6 @@ elif [ "$OS" == "Linux" ] ; then
     jniLibName="libwolfssljni.so"
     if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "aarch64" ]; then
         fpic="-fPIC"
-    else
-        fpic=""
     fi
 else
     echo 'Unknown host OS!'
