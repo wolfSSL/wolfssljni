@@ -1,0 +1,70 @@
+name: UndefinedBehaviorSanitizer Build and Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ 'master' ]
+
+jobs:
+  # Run UBSan build and test on Linux only for undefined behavior detection
+  ubsan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jdk_version: [ '21' ]
+        wolfssl_configure: [ '--enable-jni --enable-debug' ]
+    name: UBSan (ubuntu-latest Zulu JDK ${{ matrix.jdk_version }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+
+      - name: Build native wolfSSL with UndefinedBehaviorSanitizer
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: wolfSSL/wolfssl
+          ref: master
+          path: wolfssl
+          configure: ${{ matrix.wolfssl_configure }} CFLAGS="-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" LDFLAGS="-fsanitize=undefined"
+          check: false
+          install: true
+
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ matrix.jdk_version }}
+
+      - name: Set environment variables
+        run: |
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+          echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1" >> "$GITHUB_ENV"
+
+      - name: Build JNI library with UndefinedBehaviorSanitizer
+        run: CFLAGS="-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g" LDFLAGS="-fsanitize=undefined" ./java.sh $GITHUB_WORKSPACE/build-dir
+
+      - name: Build JAR (ant)
+        run: ant
+
+      - name: Run Java tests with UndefinedBehaviorSanitizer (ant test)
+        run: ant test
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          cat build/reports/*.txt
