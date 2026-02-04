@@ -2029,6 +2029,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     byte cipherSuite0;
     byte cipherSuite;
 #endif
+    long noOpts = 0;
     const char* cipherName = NULL;
     const char* ianaName = NULL;
     WOLFSSL_METHOD* method = NULL;
@@ -2067,11 +2068,16 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
 #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_client_method();
+            noOpts = SSL_OP_NO_TLSv1_3;
             break;
 #endif
 #ifdef WOLFSSL_TLS13
         case 4:
             method = wolfTLSv1_3_client_method();
+            noOpts = SSL_OP_NO_SSLv3 |
+                     SSL_OP_NO_TLSv1 |
+                     SSL_OP_NO_TLSv1_1 |
+                     SSL_OP_NO_TLSv1_2;
             break;
 #endif
         case 5:
@@ -2110,6 +2116,11 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     if (ssl == NULL) {
         wolfSSL_CTX_free(ctx);
         return NULL;
+    }
+
+    /* Filter cipher suites to only target protocol version */
+    if (noOpts != 0) {
+        wolfSSL_set_options(ssl, noOpts);
     }
 
     supportedCiphers = wolfSSL_get_ciphers_compat(ssl);
