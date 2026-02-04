@@ -18,6 +18,7 @@
 
     <!-- set properties for this build -->
     <property name="src.dir" value="src/java/"/>
+    <property name="src.java9.dir" value="src/java9/"/>
     <property name="native.dir" value="native"/>
     <property name="lib.dir" value="lib/"/>
     <property name="build.dir" value="build"/>
@@ -37,6 +38,18 @@
 
     <!-- check for SNIHostName class to determine if JDK version >= 1.8 -->
     <available property="have-SNIHostName" classname="javax.net.ssl.SNIHostName" />
+
+    <!-- Detect Java 9+ for module-info.java compilation -->
+    <condition property="isJava9Plus">
+        <not>
+            <or>
+                <equals arg1="${ant.java.version}" arg2="1.5"/>
+                <equals arg1="${ant.java.version}" arg2="1.6"/>
+                <equals arg1="${ant.java.version}" arg2="1.7"/>
+                <equals arg1="${ant.java.version}" arg2="1.8"/>
+            </or>
+        </not>
+    </condition>
 
     <!-- Detect if running on Windows host -->
     <condition property="isWindows">
@@ -98,7 +111,7 @@
         </delete>
     </target>
 
-    <target name="build" depends="init, compile-nativeheaderdir, compile-javah, jar, jar-jsse, javah, javadoc"/>
+    <target name="build" depends="init, compile-nativeheaderdir, compile-javah, compile-module-info, jar, jar-jsse, javah, javadoc"/>
     <target name="build-jacoco" depends="init, compile-nativeheaderdir, compile-javah, jar, jar-jsse, javah, javadoc, examples, test-jacoco, coverage-report"/>
 
     <target name="compile-nativeheaderdir" if="have-nativeheaderdir">
@@ -146,6 +159,22 @@
         <copy todir="${build.dir}" failonerror="false">
             <fileset dir="src/resources" includes="**/*" />
         </copy>
+    </target>
+
+    <!-- Compile module-info.java for Java 9+ module support.
+         Only runs when building with Java 9 or later. When building with
+         Java 8 or earlier, this target is skipped and the resulting JAR
+         will be a standard (non-modular) JAR file. -->
+    <target name="compile-module-info" if="isJava9Plus"
+            description="Compile module-info.java for Java 9+ (skipped on Java 8)">
+        <javac srcdir="${src.java9.dir}"
+               destdir="${build.dir}"
+               release="9"
+               modulepath="${build.dir}"
+               includeantruntime="false">
+            <include name="module-info.java"/>
+        </javac>
+        <echo message="Compiled module-info.java for Java 9+ module support"/>
     </target>
 
     <target name="javah" unless="have-nativeheaderdir">
