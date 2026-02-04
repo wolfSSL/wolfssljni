@@ -1,0 +1,262 @@
+name: Java 9+ Module Support
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  # Test Java 9+ module support (JPMS)
+  # Verifies that module-info.java is properly compiled and the resulting
+  # JAR can be used with jlink to create custom Java runtimes.
+  # See GitHub issue #85 for background.
+  module-test:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest' ]
+        jdk_version: [ '11', '17', '21' ]
+    runs-on: ${{ matrix.os }}
+    name: Module Test (JDK ${{ matrix.jdk_version }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+
+      - name: Build native wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: wolfSSL/wolfssl
+          ref: master
+          path: wolfssl
+          configure: --enable-jni
+          check: false
+          install: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ matrix.jdk_version }}
+
+      - name: Set JUNIT_HOME
+        run: |
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
+
+      - name: Set LD_LIBRARY_PATH
+        run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+
+      - name: Build JNI library
+        run: ./java.sh $GITHUB_WORKSPACE/build-dir
+
+      - name: Build JAR with module support (ant)
+        run: ant
+
+      - name: Verify module-info.class exists in JAR
+        run: |
+          echo "Checking for module-info.class in wolfssl-jsse.jar..."
+          if jar tf lib/wolfssl-jsse.jar | grep -q "module-info.class"; then
+            echo "SUCCESS: module-info.class found in JAR"
+          else
+            echo "FAILURE: module-info.class not found in JAR"
+            echo "JAR contents:"
+            jar tf lib/wolfssl-jsse.jar | head -20
+            exit 1
+          fi
+
+      - name: Verify module descriptor with jar --describe-module
+        run: |
+          echo "Describing module in wolfssl-jsse.jar..."
+          jar --describe-module --file=lib/wolfssl-jsse.jar
+          echo ""
+          echo "Verifying module name is 'com.wolfssl'..."
+          MODULE_NAME=$(jar --describe-module --file=lib/wolfssl-jsse.jar 2>&1 | head -1 | cut -d' ' -f1)
+          if [ "$MODULE_NAME" = "com.wolfssl" ]; then
+            echo "SUCCESS: Module name is correct: $MODULE_NAME"
+          else
+            echo "FAILURE: Expected module name 'com.wolfssl', got '$MODULE_NAME'"
+            exit 1
+          fi
+
+      - name: Verify module exports correct packages
+        run: |
+          echo "Verifying module exports..."
+          EXPORTS=$(jar --describe-module --file=lib/wolfssl-jsse.jar 2>&1)
+          echo "$EXPORTS"
+          echo ""
+          if echo "$EXPORTS" | grep -q "exports com.wolfssl"; then
+            echo "SUCCESS: exports com.wolfssl"
+          else
+            echo "FAILURE: missing 'exports com.wolfssl'"
+            exit 1
+          fi
+          if echo "$EXPORTS" | grep -q "exports com.wolfssl.provider.jsse"; then
+            echo "SUCCESS: exports com.wolfssl.provider.jsse"
+          else
+            echo "FAILURE: missing 'exports com.wolfssl.provider.jsse'"
+            exit 1
+          fi
+
+      - name: Test jlink can create runtime with module
+        run: |
+          echo "Testing jlink integration..."
+          jlink \
+            --module-path lib/wolfssl-jsse.jar \
+            --add-modules com.wolfssl \
+            --output test-jlink-runtime \
+            --no-header-files \
+            --no-man-pages
+          echo ""
+          echo "SUCCESS: jlink created custom runtime"
+          echo "Runtime modules:"
+          ./test-jlink-runtime/bin/java --list-modules
+          echo ""
+          echo "Verifying com.wolfssl module is present..."
+          if ./test-jlink-runtime/bin/java --list-modules | grep -q "com.wolfssl"; then
+            echo "SUCCESS: com.wolfssl module found in custom runtime"
+          else
+            echo "FAILURE: com.wolfssl module not found in custom runtime"
+            exit 1
+          fi
+
+      - name: Clean up jlink test runtime
+        run: rm -rf test-jlink-runtime
+
+      - name: Run standard tests to verify module doesn't break functionality
+        run: ant test
+
+      - name: Clean ant build for Maven test
+        run: ant clean
+
+      - name: Maven build and verify module-info in JAR
+        run: |
+          echo "Building with Maven..."
+          mvn package -DskipTests -q
+          echo ""
+          MAVEN_JAR=$(ls target/wolfssl-jsse-*.jar)
+          echo "Maven JAR: $MAVEN_JAR"
+          echo ""
+          echo "Checking for module-info.class in Maven-built JAR..."
+          if jar tf "$MAVEN_JAR" | grep -q "module-info.class"; then
+            echo "SUCCESS: module-info.class found in Maven JAR"
+          else
+            echo "FAILURE: module-info.class not found in Maven JAR"
+            jar tf "$MAVEN_JAR" | head -20
+            exit 1
+          fi
+          echo ""
+          echo "Verifying Maven JAR module descriptor..."
+          jar --describe-module --file="$MAVEN_JAR"
+
+      - name: Clean Maven build
+        run: mvn clean -q
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          cat build/reports/*.txt 2>/dev/null || echo "No test reports found"
+
+  # Verify Java 8 builds do NOT include module-info.class
+  # This ensures the conditional compilation works correctly for Java 8 users
+  java8-no-module-test:
+    runs-on: ubuntu-latest
+    name: Java 8 No Module Test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: wget --directory-prefix=$GITHUB_WORKSPACE/junit https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+
+      - name: Build native wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: wolfSSL/wolfssl
+          ref: master
+          path: wolfssl
+          configure: --enable-jni
+          check: false
+          install: true
+
+      - name: Setup Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+
+      - name: Set JUNIT_HOME
+        run: |
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
+
+      - name: Set LD_LIBRARY_PATH
+        run: |
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib" >> "$GITHUB_ENV"
+
+      - name: Build JNI library
+        run: ./java.sh $GITHUB_WORKSPACE/build-dir
+
+      - name: Build JAR without module support (ant on Java 8)
+        run: ant
+
+      - name: Verify module-info.class is NOT in JAR (Java 8 build)
+        run: |
+          echo "Checking that module-info.class is NOT in wolfssl-jsse.jar (Java 8 build)..."
+          if jar tf lib/wolfssl-jsse.jar | grep -q "module-info.class"; then
+            echo "FAILURE: module-info.class should NOT be in JAR when built with Java 8"
+            exit 1
+          else
+            echo "SUCCESS: module-info.class correctly excluded from Java 8 build"
+          fi
+
+      - name: Run tests to verify Java 8 build works correctly
+        run: ant test
+
+      - name: Maven build and verify NO module-info in JAR (Java 8)
+        run: |
+          echo "Building with Maven on Java 8..."
+          mvn package -DskipTests -q
+          echo ""
+          MAVEN_JAR=$(ls target/wolfssl-jsse-*.jar)
+          echo "Maven JAR: $MAVEN_JAR"
+          echo ""
+          echo "Checking that module-info.class is NOT in Maven-built JAR..."
+          if jar tf "$MAVEN_JAR" | grep -q "module-info.class"; then
+            echo "FAILURE: module-info.class should NOT be in Maven JAR on Java 8"
+            exit 1
+          else
+            echo "SUCCESS: module-info.class correctly excluded from Maven Java 8 build"
+          fi
+          mvn clean -q
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        run: |
+          cat build/reports/*.txt 2>/dev/null || echo "No test reports found"
+
