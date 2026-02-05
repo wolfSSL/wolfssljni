@@ -619,6 +619,34 @@ legacy behavior where SNI is automatically configured from hostname/peer informa
 even without explicit SSLParameters configuration. Default value is "false", where
 SNI is only set when explicitly configured through SSLParameters.
 
+**wolfssl.skipLibraryLoad (boolean)** - When set to "true", `WolfSSL.loadLibrary()`
+will skip the default `System.loadLibrary()` calls for native wolfSSL and
+wolfSSL JNI libraries. This is useful when applications need to load the native
+libraries themselves using custom logic, for example when bundling the native
+library inside a JAR file and extracting it at runtime. The property must be set
+before `WolfSSL.loadLibrary()` is called, either directly or via
+`WolfSSLProvider()` constructor. Applications can check if library loading was
+skipped by calling `WolfSSL.isLibraryLoadSkipped()`.
+
+Setting via command line:
+
+```
+java -Dwolfssl.skipLibraryLoad=true ...
+```
+
+Setting programmatically before library load:
+
+```java
+System.setProperty("wolfssl.skipLibraryLoad", "true");
+
+/* Load native libraries with custom logic here */
+System.load("/path/to/libwolfssl.so");
+System.load("/path/to/libwolfssljni.so");
+
+/* Then use WolfSSL as normal */
+WolfSSL.loadLibrary();
+```
+
 If there are other System properties you would like to use with wolfJSSE,
 please contact support@wolfssl.com.
 
