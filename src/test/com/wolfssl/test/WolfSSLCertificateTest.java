@@ -86,6 +86,10 @@ public class WolfSSLCertificateTest {
     public static String sanTestEmailUriCert = null;
     public static String sanTestDirNameRidCert = null;
     public static String sanTestCaCert = null;
+    public static String aiaMultiCertPem =
+        "examples/certs/aia/multi-aia-cert.pem";
+    public static String aiaOverflowCertPem =
+        "examples/certs/aia/overflow-aia-cert.pem";
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
 
@@ -116,6 +120,8 @@ public class WolfSSLCertificateTest {
         sanTestEmailUriCert = sanTestDir + "/san-test-email-uri.pem";
         sanTestDirNameRidCert = sanTestDir + "/san-test-dirname-rid.pem";
         sanTestCaCert = sanTestDir + "/san-test-ca-cert.pem";
+        aiaMultiCertPem = WolfSSLTestCommon.getPath(aiaMultiCertPem);
+        aiaOverflowCertPem = WolfSSLTestCommon.getPath(aiaOverflowCertPem);
     }
 
 
@@ -164,6 +170,8 @@ public class WolfSSLCertificateTest {
             test_getKeyUsage();
             test_getExtendedKeyUsage();
         }
+        test_getAiaMulti();
+        test_getAiaOverflow();
         test_getExtensionSet();
         test_toString();
         test_free();
@@ -675,6 +683,141 @@ public class WolfSSLCertificateTest {
         }
 
         System.out.println("\t... passed");
+    }
+
+    public void test_getAiaMulti() {
+        String[] ocsp;
+        String[] ca;
+        String ocsp1 = "http://127.0.0.1:22221";
+        String ocsp2 = "http://127.0.0.1:22222";
+        String ca1 = "http://www.wolfssl.com/ca.pem";
+        String ca2 = "https://www.wolfssl.com/ca2.pem";
+        WolfSSLCertificate tmp = null;
+
+        System.out.print("\t\tgetOcspUris/getCaIssuerUris");
+
+        try {
+            if (WolfSSL.FileSystemEnabled() == true) {
+                tmp = new WolfSSLCertificate(aiaMultiCertPem,
+                    WolfSSL.SSL_FILETYPE_PEM);
+            } else {
+                tmp = new WolfSSLCertificate(
+                    fileToByteArray(aiaMultiCertPem),
+                    WolfSSL.SSL_FILETYPE_PEM);
+            }
+
+            int overflow = tmp.getAiaOverflow();
+            if (overflow == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... skipped (AIA not compiled in)");
+                tmp.free();
+                return;
+            }
+
+            ocsp = tmp.getOcspUris();
+            if (ocsp == null || ocsp.length != 2) {
+                System.out.println("\t... failed");
+                fail("Expected 2 OCSP URIs, got " +
+                     ((ocsp == null) ? "null" : ocsp.length));
+            }
+            assertTrue(arrayContains(ocsp, ocsp1));
+            assertTrue(arrayContains(ocsp, ocsp2));
+
+            ca = tmp.getCaIssuerUris();
+            if (ca == null || ca.length != 2) {
+                System.out.println("\t... failed");
+                fail("Expected 2 CA Issuer URIs, got " +
+                     ((ca == null) ? "null" : ca.length));
+            }
+            assertTrue(arrayContains(ca, ca1));
+            assertTrue(arrayContains(ca, ca2));
+
+            if (overflow != 0) {
+                System.out.println("\t... failed");
+                fail("Expected no AIA overflow, got " + overflow);
+            }
+
+            tmp.free();
+        } catch (Exception ex) {
+            if (tmp != null) {
+                tmp.free();
+            }
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+            System.out.println("\t... failed");
+            fail("Error loading AIA multi certificate");
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    public void test_getAiaOverflow() {
+        String[] ocsp;
+        WolfSSLCertificate tmp = null;
+
+        System.out.print("\t\tgetOcspUris overflow");
+
+        try {
+            if (WolfSSL.FileSystemEnabled() == true) {
+                tmp = new WolfSSLCertificate(aiaOverflowCertPem,
+                    WolfSSL.SSL_FILETYPE_PEM);
+            } else {
+                tmp = new WolfSSLCertificate(
+                    fileToByteArray(aiaOverflowCertPem),
+                    WolfSSL.SSL_FILETYPE_PEM);
+            }
+
+            int overflow = tmp.getAiaOverflow();
+            if (overflow == WolfSSL.NOT_COMPILED_IN) {
+                System.out.println("\t... skipped (AIA not compiled in)");
+                tmp.free();
+                return;
+            }
+
+            ocsp = tmp.getOcspUris();
+            if (ocsp == null || ocsp.length != 8) {
+                System.out.println("\t... failed");
+                fail("Expected 8 OCSP URIs (overflow), got " +
+                     ((ocsp == null) ? "null" : ocsp.length));
+            }
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22220"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22221"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22222"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22223"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22224"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22225"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22226"));
+            assertTrue(arrayContains(ocsp, "http://127.0.0.1:22227"));
+            assertFalse(arrayContains(ocsp, "http://127.0.0.1:22228"));
+
+            if (overflow != 1) {
+                System.out.println("\t... failed");
+                fail("Expected AIA overflow to be set, got " + overflow);
+            }
+
+            tmp.free();
+        } catch (Exception ex) {
+            if (tmp != null) {
+                tmp.free();
+            }
+            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
+                                Level.SEVERE, null, ex);
+            System.out.println("\t... failed");
+            fail("Error loading AIA overflow certificate");
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    private boolean arrayContains(String[] list, String value) {
+        if (list == null || value == null) {
+            return false;
+        }
+        for (String s : list) {
+            if (value.equals(s)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void test_getExtensionSet() {
@@ -3059,4 +3202,3 @@ public class WolfSSLCertificateTest {
         System.out.println("\t\t... passed");
     }
 }
-
