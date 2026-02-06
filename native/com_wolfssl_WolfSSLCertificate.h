@@ -210,8 +210,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
  * Method:    X509_get1_ocsp
  * Signature: (J)[Ljava/lang/String;
  */
-JNIEXPORT jobjectArray JNICALL
-Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ocsp
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ocsp
   (JNIEnv *, jclass, jlong);
 
 /*
@@ -219,8 +218,7 @@ Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ocsp
  * Method:    X509_get_aia_overflow
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL
-Java_com_wolfssl_WolfSSLCertificate_X509_1get_1aia_1overflow
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1aia_1overflow
   (JNIEnv *, jclass, jlong);
 
 /*
@@ -228,8 +226,7 @@ Java_com_wolfssl_WolfSSLCertificate_X509_1get_1aia_1overflow
  * Method:    X509_get1_ca_issuers
  * Signature: (J)[Ljava/lang/String;
  */
-JNIEXPORT jobjectArray JNICALL
-Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ca_1issuers
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get1_1ca_1issuers
   (JNIEnv *, jclass, jlong);
 
 /*

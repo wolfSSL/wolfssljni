@@ -775,7 +775,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signatu
 {
 #if defined(WOLFSSL_JNI_CRL_GEN_ENABLED)
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
-    const WOLFSSL_ASN1_BIT_STRING* sig = NULL;
+    int sigSz = 0;
+    unsigned char* sigBuf = NULL;
     jbyteArray sigArr = NULL;
     jclass excClass = NULL;
     (void)jcl;
@@ -784,15 +785,28 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signatu
         return NULL;
     }
 
-    wolfSSL_X509_CRL_get_signature(crl, &sig, NULL);
-    if (sig == NULL || sig->data == NULL || sig->length <= 0) {
+    if (wolfSSL_X509_CRL_get_signature(crl, NULL, &sigSz) != WOLFSSL_SUCCESS ||
+        sigSz <= 0) {
         return NULL;
     }
 
-    sigArr = (*jenv)->NewByteArray(jenv, sig->length);
+    sigArr = (*jenv)->NewByteArray(jenv, sigSz);
     if (sigArr == NULL) {
         (*jenv)->ThrowNew(jenv, jcl,
             "Failed to create byte array in native X509_CRL_get_signature");
+        return NULL;
+    }
+
+    sigBuf = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sigBuf == NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        return NULL;
+    }
+
+    if (wolfSSL_X509_CRL_get_signature(crl, sigBuf, &sigSz) 
+        != WOLFSSL_SUCCESS) {
+        (*jenv)->DeleteLocalRef(jenv, sigArr);
+        XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
@@ -801,11 +815,13 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signatu
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
         (*jenv)->DeleteLocalRef(jenv, sigArr);
+        XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
-    (*jenv)->SetByteArrayRegion(jenv, sigArr, 0, sig->length,
-        (const jbyte*)sig->data);
+    (*jenv)->SetByteArrayRegion(jenv, sigArr, 0, sigSz,
+        (const jbyte*)sigBuf);
+    XFREE(sigBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);

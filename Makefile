@@ -23,7 +23,11 @@ all: build
 build: java.sh build.xml
 	@cflags=""; \
 	if [ "$(ENABLE_PATCHES)" = "1" ]; then \
-		defines="$$(./scripts/find-wolfssl-pr-patch-defines.sh)"; \
+		if [ -n "$(PATCH_DEFINES)" ]; then \
+			defines="$(PATCH_DEFINES)"; \
+		else \
+			defines="$$(./scripts/find-wolfssl-pr-patch-defines.sh)"; \
+		fi; \
 		if [ -z "$$defines" ]; then \
 			echo "warning: no WOLFSSL_PR*_PATCH_APPLIED defines found; building without patches"; \
 		else \
