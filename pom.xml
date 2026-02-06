@@ -69,4 +69,42 @@
             </plugin>
 		</plugins>
 	</build>
+
+    <!-- Profile for Java 9+ module support.
+         Automatically activates when building with JDK 9 or later.
+         Compiles module-info.java and includes it in the JAR. -->
+    <profiles>
+        <profile>
+            <id>java9-module</id>
+            <activation>
+                <jdk>[9,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.11.0</version>
+                        <executions>
+                            <!-- Compile module-info.java with Java 9 release -->
+                            <execution>
+                                <id>compile-module-info</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>compile</goal>
+                                </goals>
+                                <configuration>
+                                    <release>9</release>
+                                    <compileSourceRoots>
+                                        <compileSourceRoot>${project.basedir}/src/java9</compileSourceRoot>
+                                    </compileSourceRoots>
+                                    <multiReleaseOutput>false</multiReleaseOutput>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -231,6 +231,85 @@ an application can include this as a dependency in the application's
 </project>
 ```
 
+## Java 9+ Module Support (JPMS)
+
+wolfSSL JNI/JSSE supports the Java Platform Module System (JPMS) introduced in
+Java 9. This allows the library to be used with `jlink` to create custom Java
+runtimes.
+
+### How It Works
+
+The build system uses conditional compilation to include module support only
+when building with Java 9 or later:
+
+| JDK Used to Build | Resulting JAR |
+| --- | --- |
+| Java 8 | Standard JAR (classpath only) |
+| Java 9+ | Modular JAR (works with both classpath and module path) |
+
+When building with Java 9+, a `module-info.class` is included in the JAR that:
+- Declares the module as `com.wolfssl`
+- Exports `com.wolfssl` and `com.wolfssl.provider.jsse` packages
+- Registers `WolfSSLProvider` as a `java.security.Provider` service
+
+### Building a Modular JAR
+
+To build a modular JAR, simply use Java 9 or later when building. Both Ant and
+Maven builds support automatic module-info compilation.
+
+**Using Ant:**
+
+```
+$ export JAVA_HOME=/path/to/jdk11   # or any JDK 9+
+$ ./java.sh
+$ ant
+```
+
+**Using Maven:**
+
+```
+$ export JAVA_HOME=/path/to/jdk11   # or any JDK 9+
+$ ./java.sh
+$ mvn package
+```
+
+Maven uses a profile (`java9-module`) that automatically activates on Java 9+
+to compile and include `module-info.class` in the JAR.
+
+You can verify module support with:
+
+```
+$ jar --describe-module --file=lib/wolfssl-jsse.jar
+com.wolfssl jar:file:///path/to/lib/wolfssl-jsse.jar/!module-info.class
+exports com.wolfssl
+exports com.wolfssl.provider.jsse
+requires java.logging
+provides java.security.Provider with com.wolfssl.provider.jsse.WolfSSLProvider
+```
+
+### Using with jlink
+
+Once built with Java 9+, the JAR can be used with `jlink` to create custom
+Java runtimes:
+
+```
+$ jlink \
+    --module-path lib/wolfssl-jsse.jar \
+    --add-modules com.wolfssl \
+    --output custom-runtime \
+    --no-header-files \
+    --no-man-pages
+```
+
+This creates a minimal Java runtime with wolfJSSE included, which can be
+deployed independently.
+
+### Java 8 Compatibility
+
+Java 8 users can still build and use wolfSSL JNI/JSSE normally. When building
+with Java 8, the `module-info.java` is automatically excluded from compilation,
+and the resulting JAR works as a standard classpath JAR.
+
 ## Examples
 
 Examples of using wolfssljni can be found in the `./examples` subdirectory.
