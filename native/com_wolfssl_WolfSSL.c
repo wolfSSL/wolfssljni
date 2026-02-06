@@ -545,6 +545,58 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1dnQualifier
     return NID_dnQualifier;
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1subject_1key_1identifier
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_subject_key_identifier;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1authority_1key_1identifier
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_authority_key_identifier;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1crl_1distribution_1points
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_crl_distribution_points;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1netscape_1cert_1type
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    return NID_netscape_cert_type;
+#else
+    return 0;
+#endif
+}
+
 /* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumNULL
   (JNIEnv* jenv, jclass jcl)
@@ -1022,6 +1074,22 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_FileSystemEnabled
     return JNI_FALSE;
 #else
     return JNI_TRUE;
+#endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_CrlGenerationEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9631_PATCH_APPLIED)) && \
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
 #endif
 }
 
