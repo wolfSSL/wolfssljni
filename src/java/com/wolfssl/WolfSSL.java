@@ -471,9 +471,6 @@ public class WolfSSL {
     /** Domain name qualifier NID */
     public static int NID_dnQualifier;
 
-    /* is this object active, or has it been cleaned up? */
-    private boolean active = false;
-
     /* -------------- Named Groups (from enum in ssl.h) ----------------- */
     /** Invalid named group */
     public static final int WOLFSSL_NAMED_GROUP_INVALID = 0;
@@ -566,6 +563,14 @@ public class WolfSSL {
     /** WolfSSLCertificate.checkHost() match only wildcards in left-most
      * position, used for LDAPS hostname verification. */
     public static int WOLFSSL_LEFT_MOST_WILDCARD_ONLY = 0x40;
+
+    /* ------------------------ Internal state -------------------------- */
+
+    /* is this object active, or has it been cleaned up? */
+    private boolean active = false;
+
+    /* Track if library loading was skipped via system property */
+    private static volatile boolean libraryLoadSkipped = false;
 
     /* ---------------------------- locks ------------------------------- */
 
@@ -720,20 +725,44 @@ public class WolfSSL {
     /* ------------------------- Java methods --------------------------- */
 
     /**
-     * Loads JNI library; must be called prior to any other calls in this class.
+     * Loads JNI library; must be called prior to any other calls in this
+     * class.
      *
-     * The native library is expected to be be called "wolfssljni", and must be
-     * on the system library search path.
+     * The native library is expected to be called "wolfssljni", and
+     * must be on the system library search path.
      *
-     * "wolfssljni" links against the wolfSSL native C library ("wolfssl"),
-     * and for Windows compatibility "wolfssl" needs to be explicitly
-     * loaded first here.
+     * "wolfssljni" links against the wolfSSL native C library
+     * ("wolfssl"), and for Windows compatibility "wolfssl" needs to be
+     * explicitly loaded first here.
+     *
+     * If the system property "wolfssl.skipLibraryLoad" is set to
+     * "true", this method will skip loading the native library. This
+     * allows applications to load the native library themselves using
+     * custom logic (for example extracting from a JAR at runtime).
+     * The property must be set before this method is called (either
+     * directly or via WolfSSLProvider constructor).
+     *
+     * Applications can check if library loading was skipped by calling
+     * WolfSSL.isLibraryLoadSkipped().
      *
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibrary() throws UnsatisfiedLinkError {
 
         int fipsLoaded = 0;
+
+        String skipLoad =
+            System.getProperty("wolfssl.skipLibraryLoad");
+        if (skipLoad != null && skipLoad.equalsIgnoreCase("true")) {
+            /* User will load native libraries manually */
+            libraryLoadSkipped = true;
+
+            WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, () -> "skipping native library load, " +
+                "wolfssl.skipLibraryLoad system property set to true");
+
+            return;
+        }
 
         WolfSSLDebug.log(WolfSSL.class, WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, () -> "loading native library: wolfssl");
@@ -769,6 +798,10 @@ public class WolfSSL {
      * The native library needs to be located on the system library search
      * path.
      *
+     * Note: this method does not check the
+     * "wolfssl.skipLibraryLoad" system property. That property is only
+     * respected by the no-argument {@link #loadLibrary()} method.
+     *
      * @param  libName name of native JNI library
      * @throws UnsatisfiedLinkError if the library is not found.
      */
@@ -781,19 +814,24 @@ public class WolfSSL {
     }
 
     /**
-     * Loads dynamic JNI library from a specific path; must be called prior to
-     * any other calls in this package.
+     * Loads dynamic JNI library from a specific path; must be called
+     * prior to any other calls in this package.
      *
-     * This function gives the application more control over the exact native
-     * library being loaded, as both WolfSSL.loadLibrary() and
-     * WolfSSL.loadLibrary(String libName) search for a library on the system
-     * library search path. This function allows the appliation to specify
-     * a specific absolute path to the native library file to load, thus
-     * guaranteeing the exact library loaded and helping to prevent against
-     * malicious attackers from attempting to override the library being
-     * loaded.
+     * This function gives the application more control over the exact
+     * native library being loaded, as both WolfSSL.loadLibrary() and
+     * WolfSSL.loadLibrary(String libName) search for a library on the
+     * system library search path. This function allows the appliation
+     * to specify a specific absolute path to the native library file
+     * to load, thus guaranteeing the exact library loaded and helping
+     * to prevent against malicious attackers from attempting to
+     * override the library being loaded.
      *
-     * @param  libPath complete path name to the native dynamic JNI library
+     * Note: this method does not check the
+     * "wolfssl.skipLibraryLoad" system property. That property is only
+     * respected by the no-argument {@link #loadLibrary()} method.
+     *
+     * @param  libPath complete path name to the native dynamic JNI
+     *         library
      * @throws UnsatisfiedLinkError if the library is not found.
      */
     public static void loadLibraryAbsolute(String libPath)
@@ -803,6 +841,19 @@ public class WolfSSL {
             WolfSSLDebug.INFO, () -> "loading native lib by path: " + libPath);
 
         System.load(libPath);
+    }
+
+    /**
+     * Check if native library loading was skipped.
+     *
+     * Library loading is skipped when the System property
+     * "wolfssl.skipLibraryLoad" is set to "true" and loadLibrary() has
+     * been called.
+     *
+     * @return true if library loading was skipped, false otherwise
+     */
+    public static boolean isLibraryLoadSkipped() {
+        return libraryLoadSkipped;
     }
 
     /* ----------------- generic static helper functions ---------------- */

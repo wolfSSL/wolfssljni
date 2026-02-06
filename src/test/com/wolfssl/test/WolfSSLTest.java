@@ -57,6 +57,9 @@ public class WolfSSLTest {
         test_WolfSSL_getLibVersionHex();
         test_WolfSSL_getErrno();
         testGetCiphersAvailableIana();
+        test_isLibraryLoadSkippedReturnsFalseByDefault();
+        test_SystemPropertyNotSetByDefault();
+        test_SettingPropertyAfterLoadHasNoEffect();
     }
 
     public void test_WolfSSL_new(WolfSSL lib) {
@@ -231,6 +234,59 @@ public class WolfSSLTest {
         int errno = WolfSSL.getErrno();
 
         System.out.println("\t\t\t... passed");
+    }
+
+    public void test_isLibraryLoadSkippedReturnsFalseByDefault() {
+
+        System.out.print(
+            "\tisLibraryLoadSkipped() default");
+
+        /* Library was loaded normally in @BeforeClass, so
+         * isLibraryLoadSkipped() should return false */
+        assertFalse(
+            "isLibraryLoadSkipped() should be false when " +
+            "library was loaded normally",
+            WolfSSL.isLibraryLoadSkipped());
+
+        System.out.println("\t... passed");
+    }
+
+    public void test_SystemPropertyNotSetByDefault() {
+
+        System.out.print(
+            "\twolfssl.skipLibraryLoad not set");
+
+        /* Verify property is not set by default in test env */
+        String val =
+            System.getProperty("wolfssl.skipLibraryLoad");
+        assertNull(
+            "wolfssl.skipLibraryLoad should not be set " +
+            "by default", val);
+
+        System.out.println("\t... passed");
+    }
+
+    public void test_SettingPropertyAfterLoadHasNoEffect() {
+
+        System.out.print(
+            "\tskipLibraryLoad after load");
+
+        /* Setting the property after library has already been
+         * loaded should not change isLibraryLoadSkipped() */
+        try {
+            System.setProperty(
+                "wolfssl.skipLibraryLoad", "true");
+
+            assertFalse(
+                "isLibraryLoadSkipped() should still be " +
+                "false after setting property post-load",
+                WolfSSL.isLibraryLoadSkipped());
+
+        } finally {
+            System.clearProperty("wolfssl.skipLibraryLoad");
+        }
+
+        System.out.println("\t... passed");
     }
 }
 
