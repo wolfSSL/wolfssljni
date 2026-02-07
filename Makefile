@@ -21,7 +21,22 @@ endif
 all: build
 
 build: java.sh build.xml
-	./java.sh $(INSTALL_DIR)
+	@cflags=""; \
+	if [ "$(ENABLE_PATCHES)" = "1" ]; then \
+		if [ -n "$(PATCH_DEFINES)" ]; then \
+			defines="$(PATCH_DEFINES)"; \
+		else \
+			defines="$$(./scripts/find-wolfssl-pr-patch-defines.sh)"; \
+		fi; \
+		if [ -z "$$defines" ]; then \
+			echo "warning: no WOLFSSL_PR*_PATCH_APPLIED defines found; building without patches"; \
+		else \
+			for define in $$defines; do \
+				cflags="$$cflags -D$$define"; \
+			done; \
+		fi; \
+	fi; \
+	CFLAGS="$$cflags" ./java.sh $(INSTALL_DIR); \
 	ant
 
 check: build
@@ -30,21 +45,6 @@ check: build
 clean:
 	ant clean cleanjni
 
-# Enable all WOLFSSL_PR*_PATCH_APPLIED defines when building JNI.
-# Requires latest/recent wolfssl source with patches applied. This is not
-# detected automatically.
-all-patched:
-	@defines="$$(./scripts/find-wolfssl-pr-patch-defines.sh)"; \
-	if [ -z "$$defines" ]; then \
-		echo "warning: no WOLFSSL_PR*_PATCH_APPLIED defines found; skipping all-patched"; \
-		exit 0; \
-	fi; \
-	cflags=""; \
-	for define in $$defines; do \
-		cflags="$$cflags -D$$define"; \
-	done; \
-	CFLAGS="$$cflags" ./java.sh $(INSTALL_DIR); \
-	ant
 
 install:
 	$(INSTALL) -d $(INSTALL_DIR)/$(LIBDIR)
