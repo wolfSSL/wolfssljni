@@ -182,6 +182,7 @@
             <class name="com.wolfssl.WolfSSL"/>
             <class name="com.wolfssl.WolfSSLCertManager"/>
             <class name="com.wolfssl.WolfSSLCertificate"/>
+            <class name="com.wolfssl.WolfSSLCRL"/>
             <class name="com.wolfssl.WolfSSLContext"/>
             <class name="com.wolfssl.WolfSSLSession"/>
             <class name="com.wolfssl.WolfSSLX509StoreCtx"/>
