@@ -269,6 +269,7 @@ if ("${WOLFSSL_PKG_TYPE}" MATCHES "normal")
         aux_source_directory(${wolfssl_DIR}/wolfcrypt/src CRYPTO_SOURCES)
         list(REMOVE_ITEM CRYPTO_SOURCES ${wolfssl_DIR}/wolfcrypt/src/evp.c)
         list(REMOVE_ITEM CRYPTO_SOURCES ${wolfssl_DIR}/wolfcrypt/src/misc.c)
+        list(REMOVE_ITEM CRYPTO_SOURCES ${wolfssl_DIR}/wolfcrypt/src/evp_pk.c)
 
 elseif("${WOLFSSL_PKG_TYPE}" MATCHES "fipsready")
         # FIPS Ready needs to explicitly order files for in-core integrity check to work properly.
