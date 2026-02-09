@@ -65,6 +65,12 @@ else
     javaHome="$JAVA_HOME"
 fi
 
+if [ -z "${CFLAGS:-}" ]; then
+    echo "    CFLAGS = <none>"
+else
+    echo "    CFLAGS = $CFLAGS"
+fi
+
 fpic=""
 CFLAGS="${CFLAGS:-}"
 
