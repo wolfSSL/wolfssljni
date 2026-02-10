@@ -2046,8 +2046,6 @@ public class WolfSSLSocket extends SSLSocket {
         try {
             if (beforeObjectInit == false) {
 
-                checkAndInitSSLSocket();
-
                 /* Check if underlying Socket is still open before closing,
                  * in case application calls SSLSocket.close() multiple times */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
