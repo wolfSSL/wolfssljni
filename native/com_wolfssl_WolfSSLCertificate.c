@@ -570,6 +570,265 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1key_1id
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jbyteArray skid)
+{
+    /* Subject/Authority Key ID support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    byte* skidBuf = NULL;
+    int skidSz = 0;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || skid == NULL) {
+        return ret;
+    }
+
+    skidBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, skid, NULL);
+    skidSz = (*jenv)->GetArrayLength(jenv, skid);
+
+    if (skidBuf != NULL && skidSz > 0) {
+        ret = wolfSSL_X509_set_subject_key_id(x509, skidBuf, skidSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, skid, (jbyte*)skidBuf, JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)skid;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1key_1id_1ex
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
+{
+    /* Subject/Authority Key ID support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_SHA) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return ret;
+    }
+
+    ret = wolfSSL_X509_set_subject_key_id_ex(x509);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1authority_1key_1id
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jbyteArray akid)
+{
+    /* Subject/Authority Key ID support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    byte* akidBuf = NULL;
+    int akidSz = 0;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || akid == NULL) {
+        return ret;
+    }
+
+    akidBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, akid, NULL);
+    akidSz = (*jenv)->GetArrayLength(jenv, akid);
+
+    if (akidBuf != NULL && akidSz > 0) {
+        ret = wolfSSL_X509_set_authority_key_id(x509, akidBuf, akidSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, akid, (jbyte*)akidBuf, JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)akid;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1authority_1key_1id_1ex
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jlong issuerPtr)
+{
+    /* Subject/Authority Key ID support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_SHA) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    WOLFSSL_X509* issuer = (WOLFSSL_X509*)(uintptr_t)issuerPtr;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || issuer == NULL) {
+        return ret;
+    }
+
+    ret = wolfSSL_X509_set_authority_key_id_ex(x509, issuer);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)issuerPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1set_1dist_1points
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jbyteArray der)
+{
+    /* CRL Distribution Points support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    byte* derBuf = NULL;
+    int derSz = 0;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || der == NULL) {
+        return ret;
+    }
+
+    derBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, der, NULL);
+    derSz = (*jenv)->GetArrayLength(jenv, der);
+
+    if (derBuf != NULL && derSz > 0) {
+        ret = wolfSSL_X509_CRL_set_dist_points(x509, derBuf, derSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, der, (jbyte*)derBuf, JNI_ABORT);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)der;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1add_1dist_1point
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jstring uri, jboolean critical)
+{
+    /* CRL Distribution Points support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_EXT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    const char* uriStr = NULL;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL || uri == NULL) {
+        return ret;
+    }
+
+    uriStr = (*jenv)->GetStringUTFChars(jenv, uri, 0);
+    if (uriStr != NULL) {
+        ret = wolfSSL_X509_CRL_add_dist_point(x509, uriStr,
+                (critical == JNI_TRUE) ? 1 : 0);
+    }
+
+    (*jenv)->ReleaseStringUTFChars(jenv, uri, uriStr);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)uri;
+    (void)critical;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1ns_1cert_1type
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint nsCertType)
+{
+    /* Netscape Certificate Type support added after wolfSSL 5.8.4 in PR 9713.
+     * Version check must be greater than 5.8.4 or patch from PR 9713 must be
+     * applied and WOLFSSL_PR9713_PATCH_APPLIED defined when compiling this
+     * wrapper. */
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    !defined(IGNORE_NETSCAPE_CERT_TYPE) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9713_PATCH_APPLIED))
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    int ret = WOLFSSL_FAILURE;
+    (void)jcl;
+
+    if (jenv == NULL || x509 == NULL) {
+        return ret;
+    }
+
+    ret = wolfSSL_X509_set_ns_cert_type(x509, (int)nsCertType);
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509Ptr;
+    (void)nsCertType;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1sign
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint keyType, jbyteArray fileBytes, jint fileFormat, jstring digestAlg)
 {

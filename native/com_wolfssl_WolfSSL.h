@@ -221,6 +221,20 @@ extern "C" {
 #define com_wolfssl_WolfSSL_ASN_URI_TYPE 6L
 #undef com_wolfssl_WolfSSL_ASN_IP_TYPE
 #define com_wolfssl_WolfSSL_ASN_IP_TYPE 7L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_CLIENT
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_CLIENT 128L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_SERVER
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_SERVER 64L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_EMAIL
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_EMAIL 32L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_OBJECT_SIGNING
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_OBJECT_SIGNING 16L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_CA
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_SSL_CA 4L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_EMAIL_CA
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_EMAIL_CA 2L
+#undef com_wolfssl_WolfSSL_NS_CERT_TYPE_OBJECT_CA
+#define com_wolfssl_WolfSSL_NS_CERT_TYPE_OBJECT_CA 1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID
 #define com_wolfssl_WolfSSL_WOLFSSL_NAMED_GROUP_INVALID 0L
 #undef com_wolfssl_WolfSSL_WOLFSSL_ECC_SECT163K1
@@ -407,6 +421,38 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1ext_1key_1usage
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1dnQualifier
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_subject_key_identifier
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1subject_1key_1identifier
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_authority_key_identifier
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1authority_1key_1identifier
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_crl_distribution_points
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1crl_1distribution_1points
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    getNID_netscape_cert_type
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1netscape_1cert_1type
   (JNIEnv *, jclass);
 
 /*

@@ -470,6 +470,30 @@ public class WolfSSL {
     public static int NID_ext_key_usage;
     /** Domain name qualifier NID */
     public static int NID_dnQualifier;
+    /** Subject Key Identifier NID */
+    public static int NID_subject_key_identifier;
+    /** Authority Key Identifier NID */
+    public static int NID_authority_key_identifier;
+    /** CRL Distribution Points NID */
+    public static int NID_crl_distribution_points;
+    /** Netscape Certificate Type NID */
+    public static int NID_netscape_cert_type;
+
+    /* Netscape Certificate Type bit flags */
+    /** Netscape Cert Type: SSL Client */
+    public static final int NS_CERT_TYPE_SSL_CLIENT     = 0x80;
+    /** Netscape Cert Type: SSL Server */
+    public static final int NS_CERT_TYPE_SSL_SERVER     = 0x40;
+    /** Netscape Cert Type: S/MIME */
+    public static final int NS_CERT_TYPE_EMAIL          = 0x20;
+    /** Netscape Cert Type: Object Signing */
+    public static final int NS_CERT_TYPE_OBJECT_SIGNING = 0x10;
+    /** Netscape Cert Type: SSL CA */
+    public static final int NS_CERT_TYPE_SSL_CA         = 0x04;
+    /** Netscape Cert Type: S/MIME CA */
+    public static final int NS_CERT_TYPE_EMAIL_CA       = 0x02;
+    /** Netscape Cert Type: Object Signing CA */
+    public static final int NS_CERT_TYPE_OBJECT_CA      = 0x01;
 
     /* -------------- Named Groups (from enum in ssl.h) ----------------- */
     /** Invalid named group */
@@ -610,6 +634,10 @@ public class WolfSSL {
         NID_basic_constraints = getNID_basic_constraints();
         NID_ext_key_usage = getNID_ext_key_usage();
         NID_dnQualifier = getNID_dnQualifier();
+        NID_subject_key_identifier = getNID_subject_key_identifier();
+        NID_authority_key_identifier = getNID_authority_key_identifier();
+        NID_crl_distribution_points = getNID_crl_distribution_points();
+        NID_netscape_cert_type = getNID_netscape_cert_type();
 
         /* initialize cipher enum values */
         wolfssl_aes         = getBulkCipherAlgorithmEnumAES();
@@ -679,6 +707,10 @@ public class WolfSSL {
     static native int getNID_basic_constraints();
     static native int getNID_ext_key_usage();
     static native int getNID_dnQualifier();
+    static native int getNID_subject_key_identifier();
+    static native int getNID_authority_key_identifier();
+    static native int getNID_crl_distribution_points();
+    static native int getNID_netscape_cert_type();
 
     static native int getBulkCipherAlgorithmEnumNULL();
     static native int getBulkCipherAlgorithmEnumRC4();

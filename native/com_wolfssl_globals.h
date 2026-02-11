@@ -60,4 +60,10 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
 void throwWolfSSLJNIException(JNIEnv* jenv, const char* msg);
 void throwWolfSSLException(JNIEnv* jenv, const char* msg);
 
+/* Compatibility wrappers for storing/retrieving WolfSSLSession jobject
+ * references per WOLFSSL session. They use native wolfSSL JNI APIs when
+ * available, and an internal fallback map otherwise. */
+int wolfSSL_jni_set_jobject(WOLFSSL* ssl, void* objPtr);
+void* wolfSSL_jni_get_jobject(WOLFSSL* ssl);
+
 #endif
