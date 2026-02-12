@@ -17,6 +17,8 @@
 #
 # Returns 0 if all lists match, 1 if any mismatch is found.
 
+set -euo pipefail
+
 # cd to repo root (parent of scripts/)
 cd "$(dirname "$0")/.." || exit 1
 
@@ -62,10 +64,10 @@ compare_lists() {
 DISK_JAVA=$(find src/java -name '*.java' -not -path '*/test/*' | sort)
 
 # Native .c files – basenames only (each manifest uses different path prefixes)
-DISK_C=$(find native -maxdepth 1 -name '*.c' -printf '%f\n' | sort)
+DISK_C=$(find native -maxdepth 1 -name '*.c' -exec basename {} \; | sort)
 
 # Native .h files – basenames only
-DISK_H=$(find native -maxdepth 1 -name '*.h' -printf '%f\n' | sort)
+DISK_H=$(find native -maxdepth 1 -name '*.h' -exec basename {} \; | sort)
 
 # ======================== Java source checks ========================
 
