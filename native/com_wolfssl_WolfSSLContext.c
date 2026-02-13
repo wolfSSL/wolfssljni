@@ -2811,7 +2811,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccSignCb
     }
 
 #if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
-    if(ctx) {
+    if (ctx) {
         /* set ECC sign callback */
         wolfSSL_CTX_SetEccSignCb((WOLFSSL_CTX*)(uintptr_t)ctx, NativeEccSignCb);
 
@@ -2821,7 +2821,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccSignCb
                 "EccSignCb");
     }
 #else
-     (*jenv)->ThrowNew(jenv, excClass,
+    (void)ctx;
+    (*jenv)->ThrowNew(jenv, excClass,
              "wolfSSL not compiled with PK Callback support "
              "(HAVE_PK_CALLBACKS)");
 #endif
@@ -3114,7 +3115,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccVerifyCb
     }
 
 #if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
-    if(ctx) {
+    if (ctx) {
         /* set ECC verify callback */
         wolfSSL_CTX_SetEccVerifyCb((WOLFSSL_CTX*)(uintptr_t)ctx,
                                    NativeEccVerifyCb);
@@ -3125,6 +3126,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setEccVerifyCb
                 "EccVerifyCb");
     }
 #else
+    (void)ctx;
     (*jenv)->ThrowNew(jenv, excClass,
             "wolfSSL not compiled with PK Callback support "
             "(HAVE_PK_CALLBACKS)");
@@ -5923,6 +5925,7 @@ void JNICALL Java_com_wolfssl_WolfSSLContext_flushSessions
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr, jint tm)
 {
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    (void)jenv;
     (void)jcl;
 
     wolfSSL_CTX_flush_sessions(ctx, (int)tm);

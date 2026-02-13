@@ -370,6 +370,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1set_1pubke
     unsigned char* rsaPubBuf = NULL;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
+    (void)keyType;
 
     if (jenv == NULL || x509 == NULL) {
         return WOLFSSL_FAILURE;
