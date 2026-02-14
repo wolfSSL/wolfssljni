@@ -38,3 +38,6 @@ infer-out/
 target/
 
 **/.claude/settings.local.json
+
+# Native dependency files
+native/*.d
