@@ -78,6 +78,7 @@ public class WolfSSLCertificateTest {
     public static String serverCertPem = "examples/certs/server-cert.pem";
     public static String external = "examples/certs/ca-google-root.der";
     public static String sanTestDir = "examples/certs/san-test";
+    public static String crlDpCertPem = "examples/certs/test/crl-dp-cert.pem";
     public static String sanTestUpnCert = null;
     public static String sanTestAllTypesCert = null;
     public static String sanTestAllTypesDer = null;
@@ -92,6 +93,34 @@ public class WolfSSLCertificateTest {
         "examples/certs/aia/overflow-aia-cert.pem";
     public static String bogusFile = "/dev/null";
     private WolfSSLCertificate cert;
+
+    private interface ThrowingRunnable {
+        void run() throws WolfSSLException, WolfSSLJNIException, IOException;
+    }
+
+    private boolean isNotCompiledIn(WolfSSLException e) {
+        String msg = e.getMessage();
+        if (msg == null) {
+            return false;
+        }
+        return msg.contains(Integer.toString(WolfSSL.NOT_COMPILED_IN)) ||
+               msg.contains("NOT_COMPILED_IN");
+    }
+
+    private void runOrAllowNotCompiled(ThrowingRunnable r, String label)
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        try {
+            r.run();
+        } catch (WolfSSLException e) {
+            if (isNotCompiledIn(e)) {
+                System.out.println("\t\t" + label +
+                    " ... NOT_COMPILED_IN (skipping)");
+                return;
+            }
+            throw e;
+        }
+    }
 
     @BeforeClass
     public static void setCertPaths() throws WolfSSLException {
@@ -112,6 +141,7 @@ public class WolfSSLCertificateTest {
         serverCertPem = WolfSSLTestCommon.getPath(serverCertPem);
         external   = WolfSSLTestCommon.getPath(external);
         sanTestDir = WolfSSLTestCommon.getPath(sanTestDir);
+        crlDpCertPem = WolfSSLTestCommon.getPath(crlDpCertPem);
         sanTestUpnCert = sanTestDir + "/san-test-othername-upn.pem";
         sanTestAllTypesCert = sanTestDir + "/san-test-all-types.pem";
         sanTestAllTypesDer = sanTestDir + "/san-test-all-types.der";
@@ -868,6 +898,90 @@ public class WolfSSLCertificateTest {
             testCertGen_CASigned_UsingBuffers();
             testCertGen_CASigned_UsingJavaClasses();
         }
+    }
+
+    @Test
+    public void testWolfSSLCertificateExtensionSetters()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        System.out.println("WolfSSLCertificate extension setters");
+
+        if (WolfSSL.FileSystemEnabled() == false) {
+            System.out.println("\tfilesystem disabled, skipping");
+            return;
+        }
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+
+        WolfSSLCertificate issuer =
+            new WolfSSLCertificate(caCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(issuer);
+
+        /* Minimal required fields for extensions that depend on */
+        /* pubkey/issuer */
+        Instant now = Instant.now();
+        x509.setNotBefore(Date.from(now));
+        x509.setNotAfter(Date.from(now.plus(Duration.ofDays(365))));
+        x509.setSerialNumber(BigInteger.valueOf(67890));
+        x509.setSubjectName(subjectName);
+        x509.setIssuerName(issuer);
+        x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Arbitrary 20-byte test vectors for SKID/AKID content. */
+        final byte[] skid = new byte[] {
+            0x01, 0x02, 0x03, 0x04, 0x05,
+            0x06, 0x07, 0x08, 0x09, 0x0A,
+            0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+            0x10, 0x11, 0x12, 0x13, 0x14
+        };
+        final byte[] akid = new byte[] {
+            0x10, 0x11, 0x12, 0x13, 0x14,
+            0x15, 0x16, 0x17, 0x18, 0x19,
+            0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+            0x1F, 0x20, 0x21, 0x22, 0x23
+        };
+
+        runOrAllowNotCompiled(
+            () -> x509.setSubjectKeyId(skid),
+            "setSubjectKeyId");
+        runOrAllowNotCompiled(
+            () -> x509.setSubjectKeyIdEx(),
+            "setSubjectKeyIdEx");
+        runOrAllowNotCompiled(
+            () -> x509.setAuthorityKeyId(akid),
+            "setAuthorityKeyId");
+        runOrAllowNotCompiled(
+            () -> x509.setAuthorityKeyIdEx(issuer),
+            "setAuthorityKeyIdEx");
+
+        runOrAllowNotCompiled(
+            () -> x509.addCrlDistPoint("http://crl.example.com/ca.crl", false),
+            "addCrlDistPoint");
+
+        byte[] crlDpDer = issuer.getExtension("2.5.29.31");
+        if (crlDpDer != null && crlDpDer.length > 0) {
+            runOrAllowNotCompiled(
+                () -> x509.setCrlDistPoints(crlDpDer),
+                "setCrlDistPoints");
+        } else {
+            System.out.println("\t\tsetCrlDistPoints ... no DER available");
+        }
+
+        runOrAllowNotCompiled(
+            () -> x509.setNsCertType(0x80),
+            "setNsCertType");
+
+        subjectName.free();
+        issuer.free();
+        x509.free();
+
+        System.out.println("\t\t... passed");
     }
 
     /* Quick sanity check on certificate bytes. Loads cert into new

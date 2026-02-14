@@ -98,6 +98,37 @@ if [ $? -ne 0 ]; then
 fi
 printf "Generated ca-keyPkcs8.der\n"
 
+# Generate CRL Distribution Points test cert
+printf "Generating test/crl-dp-cert.pem\n"
+mkdir -p test
+TMP_DIR="$(mktemp -d)"
+cat > "${TMP_DIR}/openssl.cnf" <<EOF
+[ req ]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[ dn ]
+CN = Test CRL DP
+O = wolfSSL Test
+C = US
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature
+crlDistributionPoints = URI:http://crl.example.com/test.crl
+EOF
+
+openssl req -new -newkey rsa:2048 -nodes -x509 -days 365 \
+  -keyout "${TMP_DIR}/crl-dp-key.pem" -out test/crl-dp-cert.pem \
+  -config "${TMP_DIR}/openssl.cnf" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    printf "Failed to generate test/crl-dp-cert.pem\n"
+    rm -rf "${TMP_DIR}"
+    exit 1
+fi
+rm -rf "${TMP_DIR}"
+
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-cert.pem
@@ -131,4 +162,3 @@ else
 fi
 
 printf "\nFinished successfully\n"
-

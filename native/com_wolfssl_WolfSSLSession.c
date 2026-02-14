@@ -403,7 +403,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
 #endif /* !USE_WINDOWS_API */
 
         /* cache associated WolfSSLSession jobject in native WOLFSSL */
-        ret = wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, g_cachedSSLObj);
+        ret = wolfSSL_jni_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, 
+            g_cachedSSLObj);
         if (ret != SSL_SUCCESS) {
             printf("error storing jobject in wolfSSL native session\n");
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
@@ -430,7 +431,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            wolfSSL_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, NULL);
+            wolfSSL_jni_set_jobject((WOLFSSL*)(uintptr_t)sslPtr, NULL);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
@@ -1751,7 +1752,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     }
 
     /* delete global WolfSSLSession object reference */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (g_cachedSSLObj != NULL) {
         (*jenv)->DeleteGlobalRef(jenv, (jobject)(*g_cachedSSLObj));
         XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1759,7 +1760,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     }
 
     /* reset internal pointer to NULL to prevent accidental usage */
-    if (wolfSSL_set_jobject(ssl, NULL) != SSL_SUCCESS) {
+    if (wolfSSL_jni_set_jobject(ssl, NULL) != SSL_SUCCESS) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -5630,7 +5631,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     }
 
     /* get stored WolfSSLSession object */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
@@ -6023,7 +6024,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
     }
 
     /* Get stored WolfSSLSession object */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
@@ -6152,7 +6153,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     }
 
     /* Get stored WolfSSLSession object */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
@@ -6466,7 +6467,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* get stored WolfSSLSession jobject */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
@@ -6642,7 +6643,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     /* get stored WolfSSLSession jobject */
-    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject(ssl);
+    g_cachedSSLObj = (jobject*) wolfSSL_jni_get_jobject(ssl);
     if (!g_cachedSSLObj) {
         throwWolfSSLJNIException(jenv,
                 "Can't get native WolfSSLSession object reference in "

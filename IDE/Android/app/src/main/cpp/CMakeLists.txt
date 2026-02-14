@@ -350,6 +350,7 @@ add_library(wolfssljni SHARED
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLCertManager.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLCertRequest.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLCertificate.c
+        ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLCRL.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLContext.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLSession.c
         ${wolfssljni_DIR}/native/com_wolfssl_WolfSSLX509Name.c

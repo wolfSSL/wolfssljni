@@ -131,6 +131,15 @@ public class WolfSSLCertificate implements Serializable {
     static native int X509_set_notBefore(long x509Ptr, long timeSecs);
     static native int X509_set_notAfter(long x509Ptr, long timeSecs);
     static native int X509_set_serialNumber(long x509Ptr, byte[] serialBytes);
+    static native int X509_set_subject_key_id(long x509Ptr, byte[] skid);
+    static native int X509_set_subject_key_id_ex(long x509Ptr);
+    static native int X509_set_authority_key_id(long x509Ptr, byte[] akid);
+    static native int X509_set_authority_key_id_ex(long x509Ptr,
+        long issuerPtr);
+    static native int X509_CRL_set_dist_points(long x509Ptr, byte[] der);
+    static native int X509_CRL_add_dist_point(long x509Ptr, String uri,
+        boolean critical);
+    static native int X509_set_ns_cert_type(long x509Ptr, int nsCertType);
     static native int X509_sign(long x509Ptr, int evpKeyType, byte[] keyBytes,
         int format, String digestAlg);
 
@@ -739,6 +748,247 @@ public class WolfSSLCertificate implements Serializable {
     }
 
     /**
+     * Sets the Subject Key Identifier extension for this WolfSSLCertificate,
+     * used when generating X509v3 certificates.
+     *
+     * @param skid Byte array containing Subject Key Identifier.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setSubjectKeyId(byte[] skid)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (skid == null || skid.length == 0) {
+            throw new WolfSSLException("Subject Key Identifier is null/empty");
+        }
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setSubjectKeyId(byte[])");
+
+            ret = X509_set_subject_key_id(this.x509Ptr, skid);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting subject key id into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the Subject Key Identifier extension for this WolfSSLCertificate
+     * using the public key currently set in the certificate.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     */
+    public void setSubjectKeyIdEx()
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setSubjectKeyIdEx()");
+
+            ret = X509_set_subject_key_id_ex(this.x509Ptr);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting subject key id (ex) into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the Authority Key Identifier extension for this WolfSSLCertificate,
+     * used when generating X509v3 certificates.
+     *
+     * @param akid Byte array containing Authority Key Identifier.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setAuthorityKeyId(byte[] akid)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (akid == null || akid.length == 0) {
+            throw new WolfSSLException(
+                "Authority Key Identifier is null/empty");
+        }
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setAuthorityKeyId(byte[])");
+
+            ret = X509_set_authority_key_id(this.x509Ptr, akid);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting authority key id into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the Authority Key Identifier extension for this WolfSSLCertificate
+     * using the issuer certificate.
+     *
+     * @param issuer Issuer certificate used to derive the Authority Key ID.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setAuthorityKeyIdEx(WolfSSLCertificate issuer)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+        long issuerX509Ptr;
+
+        confirmObjectIsActive();
+
+        if (issuer == null) {
+            throw new WolfSSLException("Issuer certificate is null");
+        }
+
+        issuerX509Ptr = issuer.getX509Ptr();
+
+        synchronized (x509Lock) {
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setAuthorityKeyIdEx(issuerPtr=" +
+                    issuerX509Ptr + ")");
+
+            ret = X509_set_authority_key_id_ex(this.x509Ptr,
+                    issuerX509Ptr);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting authority key id (ex) into native " +
+                "WOLFSSL_X509 (ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the CRL Distribution Points extension from DER data.
+     *
+     * @param der DER-encoded CRL Distribution Points extension.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void setCrlDistPoints(byte[] der)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (der == null || der.length == 0) {
+            throw new WolfSSLException("CRL dist points DER is null/empty");
+        }
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setCrlDistPoints(byte[])");
+
+            ret = X509_CRL_set_dist_points(this.x509Ptr, der);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting CRL dist points into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Adds a CRL Distribution Point URI.
+     *
+     * @param uri URI string of the distribution point.
+     * @param critical Whether to mark the extension critical.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void addCrlDistPoint(String uri, boolean critical)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        if (uri == null || uri.isEmpty()) {
+            throw new WolfSSLException("CRL dist point URI is null/empty");
+        }
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering addCrlDistPoint(" + uri + ", critical: " +
+                critical + ")");
+
+            ret = X509_CRL_add_dist_point(this.x509Ptr, uri, critical);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error adding CRL dist point into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
+     * Sets the Netscape Certificate Type extension.
+     *
+     * @param nsCertType Netscape cert type bitmask.
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if native JNI error occurs.
+     */
+    public void setNsCertType(int nsCertType)
+        throws IllegalStateException, WolfSSLException {
+
+        int ret = 0;
+
+        confirmObjectIsActive();
+
+        synchronized (x509Lock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.x509Ptr,
+                () -> "entering setNsCertType(" + nsCertType + ")");
+
+            ret = X509_set_ns_cert_type(this.x509Ptr, nsCertType);
+        }
+
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            throw new WolfSSLException(
+                "Error setting ns cert type into native WOLFSSL_X509 " +
+                "(ret: " + ret + ")");
+        }
+    }
+
+    /**
      * Sets the notBefore date for this WolfSSLCertificate, used when
      * generating X509v3 certificates.
      *
@@ -971,6 +1221,28 @@ public class WolfSSLCertificate implements Serializable {
                 "Error setting extension into native WOLFSSL_X509 " +
                 "(ret: " + ret + ")");
         }
+    }
+
+    /**
+     * Add IP address Subject Alternative Name.
+     *
+     * Convenience method for adding an IP address to the Subject Alternative
+     * Name extension.
+     *
+     * @param ipAddress IP address string (e.g., "192.168.1.1" or "::1")
+     *
+     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws WolfSSLException if invalid arguments or native JNI error occurs.
+     */
+    public void addAltNameIP(String ipAddress)
+        throws IllegalStateException, WolfSSLException {
+
+        if (ipAddress == null || ipAddress.isEmpty()) {
+            throw new WolfSSLException(
+                "IP address must not be null or empty");
+        }
+
+        addAltName(ipAddress, WolfSSL.ASN_IP_TYPE);
     }
 
     /**

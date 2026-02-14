@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #ifdef WOLFSSL_USER_SETTINGS
     #include <wolfssl/wolfcrypt/settings.h>
 #else
@@ -74,6 +75,135 @@ jmethodID g_verifyCallbackMethodId = NULL;
 static jobject g_fipsCbIfaceObj;
 #endif
 
+typedef struct WolfSSLJniObjMap {
+    WOLFSSL* ssl;
+    void* obj;
+    struct WolfSSLJniObjMap* next;
+} WolfSSLJniObjMap;
+
+static WolfSSLJniObjMap* g_jniObjMap = NULL;
+static wolfSSL_Mutex g_jniObjMapLock;
+static int g_jniObjMapLockInit = 0;
+
+static void wolfSSL_jni_objmap_cleanup(void)
+{
+    WolfSSLJniObjMap* cur;
+    WolfSSLJniObjMap* next;
+
+    if (!g_jniObjMapLockInit) {
+        g_jniObjMap = NULL;
+        return;
+    }
+
+    if (wc_LockMutex(&g_jniObjMapLock) == 0) {
+        cur = g_jniObjMap;
+        g_jniObjMap = NULL;
+        wc_UnLockMutex(&g_jniObjMapLock);
+    }
+    else {
+        cur = g_jniObjMap;
+        g_jniObjMap = NULL;
+    }
+
+    while (cur != NULL) {
+        next = cur->next;
+        free(cur);
+        cur = next;
+    }
+
+    wc_FreeMutex(&g_jniObjMapLock);
+    g_jniObjMapLockInit = 0;
+}
+
+int wolfSSL_jni_set_jobject(WOLFSSL* ssl, void* objPtr)
+{
+#ifdef WOLFSSL_JNI
+    return wolfSSL_set_jobject(ssl, objPtr);
+#else
+    WolfSSLJniObjMap* cur;
+    WolfSSLJniObjMap* prev = NULL;
+    WolfSSLJniObjMap* node;
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (!g_jniObjMapLockInit) {
+        return SSL_FAILURE;
+    }
+    if (wc_LockMutex(&g_jniObjMapLock) != 0) {
+        return SSL_FAILURE;
+    }
+
+    cur = g_jniObjMap;
+    while (cur != NULL && cur->ssl != ssl) {
+        prev = cur;
+        cur = cur->next;
+    }
+
+    if (objPtr == NULL) {
+        if (cur != NULL) {
+            if (prev != NULL) {
+                prev->next = cur->next;
+            }
+            else {
+                g_jniObjMap = cur->next;
+            }
+            free(cur);
+        }
+        wc_UnLockMutex(&g_jniObjMapLock);
+        return SSL_SUCCESS;
+    }
+
+    if (cur != NULL) {
+        cur->obj = objPtr;
+        wc_UnLockMutex(&g_jniObjMapLock);
+        return SSL_SUCCESS;
+    }
+
+    node = (WolfSSLJniObjMap*)malloc(sizeof(WolfSSLJniObjMap));
+    if (node == NULL) {
+        wc_UnLockMutex(&g_jniObjMapLock);
+        return MEMORY_E;
+    }
+    node->ssl = ssl;
+    node->obj = objPtr;
+    node->next = g_jniObjMap;
+    g_jniObjMap = node;
+
+    wc_UnLockMutex(&g_jniObjMapLock);
+    return SSL_SUCCESS;
+#endif
+}
+
+void* wolfSSL_jni_get_jobject(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_JNI
+    return wolfSSL_get_jobject(ssl);
+#else
+    WolfSSLJniObjMap* cur;
+    void* obj = NULL;
+
+    if (ssl == NULL || !g_jniObjMapLockInit) {
+        return NULL;
+    }
+    if (wc_LockMutex(&g_jniObjMapLock) != 0) {
+        return NULL;
+    }
+
+    cur = g_jniObjMap;
+    while (cur != NULL) {
+        if (cur->ssl == ssl) {
+            obj = cur->obj;
+            break;
+        }
+        cur = cur->next;
+    }
+
+    wc_UnLockMutex(&g_jniObjMapLock);
+    return obj;
+#endif
+}
+
 /* custom native fn prototypes */
 void NativeLoggingCallback(const int logLevel, const char *const logMessage);
 
@@ -89,6 +219,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 
     /* store JavaVM */
     g_vm = vm;
+    if (wc_InitMutex(&g_jniObjMapLock) != 0) {
+        return JNI_ERR;
+    }
+    g_jniObjMapLockInit = 1;
 
     /* get JNIEnv from JavaVM */
     if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
@@ -235,6 +369,7 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
     g_bufferArrayMethodId = NULL;
     g_bufferSetPositionMethodId = NULL;
     g_verifyCallbackMethodId = NULL;
+    wolfSSL_jni_objmap_cleanup();
 }
 
 /**
@@ -543,6 +678,58 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1dnQualifier
     (void)jcl;
 
     return NID_dnQualifier;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1subject_1key_1identifier
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_subject_key_identifier;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1authority_1key_1identifier
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_authority_key_identifier;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1crl_1distribution_1points
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_CERT_EXT
+    return NID_crl_distribution_points;
+#else
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getNID_1netscape_1cert_1type
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    return NID_netscape_cert_type;
+#else
+    return 0;
+#endif
 }
 
 /* functions to return BulkCipherAlgorithm enum values from ./wolfssl/ssl.h  */
@@ -1022,6 +1209,22 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_FileSystemEnabled
     return JNI_FALSE;
 #else
     return JNI_TRUE;
+#endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_CrlGenerationEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#if ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9631_PATCH_APPLIED)) && \
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
 #endif
 }
 
