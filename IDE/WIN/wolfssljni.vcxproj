@@ -42,6 +42,7 @@
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCertificate.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCertManager.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCertRequest.c" />
+    <ClCompile Include="..\..\native\com_wolfssl_WolfSSLCRL.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLContext.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLSession.c" />
     <ClCompile Include="..\..\native\com_wolfssl_WolfSSLX509Name.c" />
@@ -57,6 +58,7 @@
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCertificate.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCertManager.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCertRequest.h" />
+    <ClInclude Include="..\..\native\com_wolfssl_WolfSSLCRL.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLContext.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLSession.h" />
     <ClInclude Include="..\..\native\com_wolfssl_WolfSSLX509Name.h" />

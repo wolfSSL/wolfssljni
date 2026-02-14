@@ -1030,6 +1030,14 @@ public class WolfSSL {
     public static native boolean FileSystemEnabled();
 
     /**
+     * Tests if CRL generation support has been compiled into the native
+     * wolfSSL library.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean CrlGenerationEnabled();
+
+    /**
      * Tests if Certificate Signing Request (CSR) support has been compiled
      * into the native wolfSSL library.
      *
@@ -1922,4 +1930,3 @@ public class WolfSSL {
     }
 
 } /* end WolfSSL */
-

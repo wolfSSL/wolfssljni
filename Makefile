@@ -17,11 +17,11 @@ ifeq ($(LIBDIR),)
     LIBDIR=lib
 endif
 
-
 all: build
 
+.PHONY: build
 build: java.sh build.xml
-	@cflags=""; \
+		@cflags=""; \
 	if [ "$(ENABLE_PATCHES)" = "1" ]; then \
 		if [ -n "$(PATCH_DEFINES)" ]; then \
 			defines="$(PATCH_DEFINES)"; \
