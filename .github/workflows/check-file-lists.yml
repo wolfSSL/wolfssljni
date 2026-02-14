@@ -1,0 +1,17 @@
+name: Check File Lists
+
+on:
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  check-file-lists:
+    runs-on: ubuntu-latest
+    name: Check build file lists in sync
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check file lists
+      run: ./scripts/check-file-lists.sh
