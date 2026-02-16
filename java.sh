@@ -125,10 +125,25 @@ gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfCryptEccKey.c -o ./native/co
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLCertManager.c -o ./native/com_wolfssl_WolfSSLCertManager.o $javaIncludes
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLCertRequest.c -o ./native/com_wolfssl_WolfSSLCertRequest.o $javaIncludes
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLCertificate.c -o ./native/com_wolfssl_WolfSSLCertificate.o $javaIncludes
+gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLCRL.c -o ./native/com_wolfssl_WolfSSLCRL.o $javaIncludes
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLX509Name.c -o ./native/com_wolfssl_WolfSSLX509Name.o $javaIncludes
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLX509StoreCtx.c -o ./native/com_wolfssl_WolfSSLX509StoreCtx.o $javaIncludes
 gcc -Wall -c $fpic $CFLAGS ./native/com_wolfssl_WolfSSLNameConstraints.c -o ./native/com_wolfssl_WolfSSLNameConstraints.o $javaIncludes
-gcc -Wall $javaLibs $CFLAGS -o ./lib/$jniLibName ./native/com_wolfssl_WolfSSL.o ./native/com_wolfssl_WolfSSLSession.o ./native/com_wolfssl_WolfSSLContext.o ./native/com_wolfssl_WolfCryptRSA.o ./native/com_wolfssl_WolfCryptECC.o ./native/com_wolfssl_WolfCryptEccKey.o ./native/com_wolfssl_WolfSSLCertManager.o ./native/com_wolfssl_WolfSSLCertRequest.o ./native/com_wolfssl_WolfSSLCertificate.o ./native/com_wolfssl_WolfSSLX509Name.o ./native/com_wolfssl_WolfSSLX509StoreCtx.o ./native/com_wolfssl_WolfSSLNameConstraints.o -L$WOLFSSL_INSTALL_DIR/lib -L$WOLFSSL_INSTALL_DIR/lib64 -l$WOLFSSL_LIBNAME
+gcc -Wall $javaLibs $CFLAGS -o ./lib/$jniLibName \
+    ./native/com_wolfssl_WolfSSL.o \
+    ./native/com_wolfssl_WolfSSLSession.o \
+    ./native/com_wolfssl_WolfSSLContext.o \
+    ./native/com_wolfssl_WolfCryptRSA.o \
+    ./native/com_wolfssl_WolfCryptECC.o \
+    ./native/com_wolfssl_WolfCryptEccKey.o \
+    ./native/com_wolfssl_WolfSSLCertManager.o \
+    ./native/com_wolfssl_WolfSSLCertRequest.o \
+    ./native/com_wolfssl_WolfSSLCertificate.o \
+    ./native/com_wolfssl_WolfSSLCRL.o \
+    ./native/com_wolfssl_WolfSSLX509Name.o \
+    ./native/com_wolfssl_WolfSSLX509StoreCtx.o \
+    ./native/com_wolfssl_WolfSSLNameConstraints.o \
+    -L$WOLFSSL_INSTALL_DIR/lib -L$WOLFSSL_INSTALL_DIR/lib64 -l$WOLFSSL_LIBNAME
 if [ $? != 0 ]; then
     echo "Error creating native JNI library"
     exit 1
