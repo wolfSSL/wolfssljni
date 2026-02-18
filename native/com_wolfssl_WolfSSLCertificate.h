@@ -383,6 +383,62 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_subject_key_id
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1key_1id
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_subject_key_id_ex
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1key_1id_1ex
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_authority_key_id
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1authority_1key_1id
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_authority_key_id_ex
+ * Signature: (JJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1authority_1key_1id_1ex
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_CRL_set_dist_points
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1set_1dist_1points
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_CRL_add_dist_point
+ * Signature: (JLjava/lang/String;Z)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1add_1dist_1point
+  (JNIEnv *, jclass, jlong, jstring, jboolean);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
+ * Method:    X509_set_ns_cert_type
+ * Signature: (JI)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1ns_1cert_1type
+  (JNIEnv *, jclass, jlong, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_sign
  * Signature: (JI[BILjava/lang/String;)I
  */
