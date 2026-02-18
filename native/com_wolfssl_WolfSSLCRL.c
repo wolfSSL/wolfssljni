@@ -156,7 +156,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
     }
     else {
         /* Extract length from bytes 32-35 (assuming native byte order) */
-        timeLen = *((int*)(timeBuf + CTC_DATE_SIZE));
+        XMEMCPY(&timeLen, timeBuf + CTC_DATE_SIZE, sizeof(timeLen));
         if (timeLen <= 0 || timeLen > CTC_DATE_SIZE) {
             ret = 0;
         }
@@ -212,7 +212,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
     }
     else {
         /* Extract length from bytes 32-35 (assuming native byte order) */
-        timeLen = *((int*)(timeBuf + CTC_DATE_SIZE));
+        XMEMCPY(&timeLen, timeBuf + CTC_DATE_SIZE, sizeof(timeLen));
         if (timeLen <= 0 || timeLen > CTC_DATE_SIZE) {
             ret = 0;
         }
@@ -254,6 +254,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
     int serialSz = 0;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
+
+    /* Note: date is not currently used until WOLFSSL_X509_REVOKED adds it. */
     (void)revDate;
     (void)dateFmt;
 
@@ -284,7 +286,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
 
     (*jenv)->ReleaseByteArrayElements(jenv, serial, (jbyte*)serialBuf,
         JNI_ABORT);
-    wolfSSL_ASN1_INTEGER_free(serialInt);
+    if (serialInt != NULL) {
+        wolfSSL_ASN1_INTEGER_free(serialInt);
+    }
 
     return ret;
 #else
