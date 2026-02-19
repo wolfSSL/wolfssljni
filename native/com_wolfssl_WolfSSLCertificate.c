@@ -185,6 +185,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1pubkey_1na
 
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
+    (void)keyType;
 
     if (jenv == NULL || x509 == NULL) {
         return WOLFSSL_FAILURE;
@@ -1590,6 +1591,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1n
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     WOLFSSL_X509_NAME* name = NULL;
 
+    (void)jcl;
+
     if (jenv == NULL || x509 == NULL) {
         return 0;
     }
@@ -2120,8 +2123,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
         EKU_EMAILPROTECT_OID);
     idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_TIMESTAMP,
         EKU_TIMESTAMP_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN,
-        EKU_OCSP_SIGN_OID);
+    (void)addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN, EKU_OCSP_SIGN_OID);
 
     (*jenv)->DeleteLocalRef(jenv, stringClass);
 
