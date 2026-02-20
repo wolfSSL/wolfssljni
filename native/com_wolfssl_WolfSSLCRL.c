@@ -847,3 +847,230 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signatu
     return NULL;
 #endif
 }
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1load_1buffer
+  (JNIEnv* jenv, jclass jcl, jbyteArray buf, jint format)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_CRL* crl = NULL;
+    byte* bufPtr = NULL;
+    int bufSz = 0;
+    (void)jcl;
+
+    if (jenv == NULL || buf == NULL) {
+        return 0;
+    }
+
+    bufPtr = (byte*)(*jenv)->GetByteArrayElements(jenv, buf, NULL);
+    bufSz = (*jenv)->GetArrayLength(jenv, buf);
+
+    if (bufPtr == NULL || bufSz <= 0) {
+        if (bufPtr != NULL) {
+            (*jenv)->ReleaseByteArrayElements(
+                jenv, buf, (jbyte*)bufPtr, JNI_ABORT);
+        }
+        return 0;
+    }
+
+    if ((int)format == WOLFSSL_FILETYPE_PEM) {
+        /* PEM format: use BIO to decode */
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new_mem_buf(bufPtr, bufSz);
+        if (bio != NULL) {
+            crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
+            wolfSSL_BIO_free(bio);
+        }
+    }
+    else {
+        /* DER format: decode directly */
+        crl = wolfSSL_d2i_X509_CRL(NULL, (const unsigned char*)bufPtr, bufSz);
+    }
+
+    (*jenv)->ReleaseByteArrayElements(jenv, buf, (jbyte*)bufPtr, JNI_ABORT);
+
+    return (jlong)(uintptr_t)crl;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)buf;
+    (void)format;
+    return 0;
+#endif
+}
+
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1load_1file
+  (JNIEnv* jenv, jclass jcl, jstring path, jint format)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_X509_CRL* crl = NULL;
+    const char* cPath = NULL;
+    XFILE fp = XBADFILE;
+    (void)jcl;
+
+    if (jenv == NULL || path == NULL) {
+        return 0;
+    }
+
+    cPath = (*jenv)->GetStringUTFChars(jenv, path, NULL);
+    if (cPath == NULL) {
+        return 0;
+    }
+
+    fp = XFOPEN(cPath, "rb");
+    if (fp == XBADFILE) {
+        (*jenv)->ReleaseStringUTFChars(jenv, path, cPath);
+        return 0;
+    }
+
+    if ((int)format == WOLFSSL_FILETYPE_PEM) {
+        crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL);
+    }
+    else {
+        crl = wolfSSL_d2i_X509_CRL_fp(fp, NULL);
+    }
+
+    XFCLOSE(fp);
+    (*jenv)->ReleaseStringUTFChars(jenv, path, cPath);
+
+    return (jlong)(uintptr_t)crl;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)path;
+    (void)format;
+    return 0;
+#endif
+}
+
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1issuer_1name_1string
+  (JNIEnv* jenv, jclass jcl, jlong crlPtr)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    WOLFSSL_X509_NAME* name = NULL;
+    char* nameStr = NULL;
+    jstring ret = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || crl == NULL) {
+        return NULL;
+    }
+
+    name = wolfSSL_X509_CRL_get_issuer_name(crl);
+    if (name != NULL) {
+        nameStr = wolfSSL_X509_NAME_oneline(name, NULL, 0);
+        if (nameStr == NULL) {
+            return NULL;
+        }
+        ret = (*jenv)->NewStringUTF(jenv, nameStr);
+        XFREE(nameStr, NULL, DYNAMIC_TYPE_OPENSSL);
+        return ret;
+    }
+    return NULL;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)crlPtr;
+    return NULL;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature_1type
+  (JNIEnv* jenv, jclass jcl, jlong crlPtr)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    (void)jcl;
+
+    if (jenv == NULL || crl == NULL) {
+        return 0;
+    }
+
+    return (jint)wolfSSL_X509_CRL_get_signature_type(crl);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)crlPtr;
+    return 0;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature_1nid
+  (JNIEnv* jenv, jclass jcl, jlong crlPtr)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    (void)jcl;
+
+    if (jenv == NULL || crl == NULL) {
+        return 0;
+    }
+
+    return (jint)wolfSSL_X509_CRL_get_signature_nid(crl);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)crlPtr;
+    return 0;
+#endif
+}
+
+/* TODO: wolfSSL_X509_CRL_verify() is currently a stub in wolfSSL
+ * (src/x509.c, guarded by NO_WOLFSSL_STUB) and always returns 0.
+ * This JNI wrapper is provided for API completeness and will work
+ * correctly once the native implementation is completed. */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1verify
+  (JNIEnv* jenv, jclass jcl, jlong crlPtr, jbyteArray pubKey)
+{
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    unsigned char* buf = NULL;
+#if LIBWOLFSSL_VERSION_HEX >= 0x04004000
+    const unsigned char* ptr = NULL;
+#else
+    unsigned char* ptr = NULL;
+#endif
+    int pubKeySz;
+    int ret;
+    (void)jcl;
+
+    if (jenv == NULL || crl == NULL || pubKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pubKeySz = (*jenv)->GetArrayLength(jenv, pubKey);
+    if (pubKeySz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    buf = (unsigned char*)(*jenv)->GetByteArrayElements(
+        jenv, pubKey, NULL);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+    ptr = buf;
+
+    /* Note thatwolfSSL_d2i_PUBKEY advances ptr */
+    pkey = wolfSSL_d2i_PUBKEY(NULL, &ptr, pubKeySz);
+
+    (*jenv)->ReleaseByteArrayElements(
+        jenv, pubKey, (jbyte*)buf, JNI_ABORT);
+
+    if (pkey == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_X509_CRL_verify(crl, pkey);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)crlPtr;
+    (void)pubKey;
+    return 0;
+#endif
+}

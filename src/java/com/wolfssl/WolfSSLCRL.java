@@ -89,6 +89,12 @@ public class WolfSSLCRL implements Serializable {
     static native byte[] X509_CRL_get_der(long crl);
     static native byte[] X509_CRL_get_pem(long crl);
     static native byte[] X509_CRL_get_signature(long crl);
+    static native long X509_CRL_load_buffer(byte[] buf, int format);
+    static native long X509_CRL_load_file(String path, int format);
+    static native String X509_CRL_get_issuer_name_string(long crl);
+    static native int X509_CRL_get_signature_type(long crl);
+    static native int X509_CRL_get_signature_nid(long crl);
+    static native int X509_CRL_verify(long crl, byte[] pubKey);
 
     private static final class Asn1TimeData {
         private final byte[] paddedData;
@@ -173,23 +179,120 @@ public class WolfSSLCRL implements Serializable {
      *
      * @param der ASN.1/DER encoded CRL
      *
-     * @throws WolfSSLException if CRL loading is not implemented.
+     * @throws WolfSSLException if input is null, input array length
+     *         is 0, or native API call fails.
      */
     public WolfSSLCRL(byte[] der) throws WolfSSLException {
-        throw new WolfSSLException("CRL loading from DER not implemented yet");
+
+        if (der == null || der.length == 0) {
+            throw new WolfSSLException(
+                "Input array must not be null or zero length");
+        }
+
+        crlPtr = X509_CRL_load_buffer(der,
+            WolfSSL.SSL_FILETYPE_ASN1);
+        if (crlPtr == 0) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCRL from DER");
+        }
+
+        this.weOwnCrlPtr = true;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, crlPtr,
+            () -> "creating new WolfSSLCRL(byte[])");
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
+    }
+
+    /**
+     * Create WolfSSLCRL from byte array in specified format.
+     *
+     * @param in CRL byte array in format specified
+     * @param format format of CRL, either
+     *        WolfSSL.SSL_FILETYPE_ASN1 or WolfSSL.SSL_FILETYPE_PEM
+     *
+     * @throws WolfSSLException if in array is null, input array
+     *         length is 0, format does not match valid options, or
+     *         native API call fails.
+     */
+    public WolfSSLCRL(byte[] in, int format) throws WolfSSLException {
+
+        if (in == null || in.length == 0) {
+            throw new WolfSSLException(
+                "Input array must not be null or zero length");
+        }
+
+        if ((format != WolfSSL.SSL_FILETYPE_ASN1) &&
+            (format != WolfSSL.SSL_FILETYPE_PEM)) {
+            throw new WolfSSLException(
+                "Input format must be " +
+                "WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        crlPtr = X509_CRL_load_buffer(in, format);
+        if (crlPtr == 0) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCRL");
+        }
+
+        this.weOwnCrlPtr = true;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, crlPtr,
+            () -> "creating new WolfSSLCRL(byte[], " +
+            "format: " + format + ")");
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
      * Create WolfSSLCRL from file in specified format.
      *
      * @param filePath path to CRL file
-     * @param format format of CRL, either WolfSSL.SSL_FILETYPE_ASN1 or
-     *               WolfSSL.SSL_FILETYPE_PEM
+     * @param format format of CRL, either
+     *        WolfSSL.SSL_FILETYPE_ASN1 or WolfSSL.SSL_FILETYPE_PEM
      *
-     * @throws WolfSSLException if CRL loading is not implemented.
+     * @throws WolfSSLException if filePath is null, format does not
+     *         match valid options, or native API call fails.
      */
-    public WolfSSLCRL(String filePath, int format) throws WolfSSLException {
-        throw new WolfSSLException("CRL loading from file not implemented yet");
+    public WolfSSLCRL(String filePath, int format)
+        throws WolfSSLException {
+
+        if (filePath == null) {
+            throw new WolfSSLException(
+                "Input file path cannot be null");
+        }
+
+        if ((format != WolfSSL.SSL_FILETYPE_ASN1) &&
+            (format != WolfSSL.SSL_FILETYPE_PEM)) {
+            throw new WolfSSLException(
+                "Input format must be " +
+                "WolfSSL.SSL_FILETYPE_ASN1 or " +
+                "WolfSSL.SSL_FILETYPE_PEM");
+        }
+
+        crlPtr = X509_CRL_load_file(filePath, format);
+        if (crlPtr == 0) {
+            throw new WolfSSLException(
+                "Failed to create WolfSSLCRL from file");
+        }
+
+        this.weOwnCrlPtr = true;
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, crlPtr,
+            () -> "creating new WolfSSLCRL(" + filePath +
+            ", format: " + format + ")");
+
+        synchronized (stateLock) {
+            this.active = true;
+        }
     }
 
     /**
@@ -555,7 +658,7 @@ public class WolfSSLCRL implements Serializable {
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed.
      */
-    public int getVersion() {
+    public int getVersion() throws IllegalStateException {
         confirmObjectIsActive();
 
         synchronized (crlLock) {
@@ -574,7 +677,7 @@ public class WolfSSLCRL implements Serializable {
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed.
      */
-    public Date getLastUpdate() {
+    public Date getLastUpdate() throws IllegalStateException {
         String date;
 
         confirmObjectIsActive();
@@ -608,7 +711,7 @@ public class WolfSSLCRL implements Serializable {
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed.
      */
-    public Date getNextUpdate() {
+    public Date getNextUpdate() throws IllegalStateException {
         String date;
 
         confirmObjectIsActive();
@@ -641,7 +744,7 @@ public class WolfSSLCRL implements Serializable {
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed.
      */
-    public byte[] getSignature() {
+    public byte[] getSignature() throws IllegalStateException {
         confirmObjectIsActive();
 
         synchronized (crlLock) {
@@ -651,6 +754,101 @@ public class WolfSSLCRL implements Serializable {
 
             return X509_CRL_get_signature(this.crlPtr);
         }
+    }
+
+    /**
+     * Get CRL issuer name as a one-line string.
+     *
+     * @return issuer name string, or null if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCRL has been freed.
+     */
+    public String getIssuerName() throws IllegalStateException {
+        confirmObjectIsActive();
+
+        synchronized (crlLock) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.crlPtr,
+                () -> "entered getIssuerName()");
+
+            return X509_CRL_get_issuer_name_string(
+                this.crlPtr);
+        }
+    }
+
+    /**
+     * Get CRL signature algorithm type (OID sum).
+     *
+     * @return signature algorithm type, or 0 if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCRL has been freed.
+     */
+    public int getSignatureType() throws IllegalStateException {
+        confirmObjectIsActive();
+
+        synchronized (crlLock) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.crlPtr,
+                () -> "entered getSignatureType()");
+
+            return X509_CRL_get_signature_type(this.crlPtr);
+        }
+    }
+
+    /**
+     * Get CRL signature algorithm NID.
+     *
+     * @return signature algorithm NID, or 0 if not available.
+     *
+     * @throws IllegalStateException if WolfSSLCRL has been freed.
+     */
+    public int getSignatureNid() throws IllegalStateException {
+        confirmObjectIsActive();
+
+        synchronized (crlLock) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.crlPtr,
+                () -> "entered getSignatureNid()");
+
+            return X509_CRL_get_signature_nid(this.crlPtr);
+        }
+    }
+
+    /**
+     * Verify CRL signature with the provided public key.
+     *
+     * Note: this wraps wolfSSL_X509_CRL_verify(), which is currently
+     * a stub in wolfSSL and will return 0 (failure). This wrapper is
+     * provided for API completeness and will function correctly once
+     * the native implementation is completed.
+     *
+     * @param pubKey DER-encoded public key
+     *
+     * @return true if verification succeeds
+     *         (WolfSSL.SSL_SUCCESS), false otherwise.
+     *
+     * @throws IllegalStateException if WolfSSLCRL has been freed.
+     */
+    public boolean verify(byte[] pubKey) throws IllegalStateException {
+        confirmObjectIsActive();
+
+        int ret;
+        synchronized (crlLock) {
+            WolfSSLDebug.log(getClass(),
+                WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.crlPtr,
+                () -> "entered verify(byte[])");
+
+            ret = X509_CRL_verify(this.crlPtr, pubKey);
+        }
+
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            return true;
+        }
+        return false;
     }
 
     @Override

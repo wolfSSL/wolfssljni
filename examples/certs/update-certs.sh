@@ -148,6 +148,62 @@ rm intermediate/ca-int-ecc-cert.pem.bak
 rm intermediate/server-int-cert.pem.bak
 rm intermediate/server-int-ecc-cert.pem.bak
 
+# Generate test CRL (PEM and DER) for WolfSSLCRL decode testing.
+# Creates a self-signed CA, revokes a dummy serial, produces CRL in
+# both PEM and DER formats under test/.
+printf "\nGenerating test CRL for CRL decode testing...\n"
+TMP_DIR="$(mktemp -d)"
+
+# CA key + self-signed cert
+openssl genrsa -out "${TMP_DIR}/crl-test-ca-key.pem" 2048 2>/dev/null
+openssl req -x509 -new -nodes \
+  -key "${TMP_DIR}/crl-test-ca-key.pem" \
+  -sha256 -days 3650 \
+  -subj "/C=US/ST=Montana/L=Bozeman/O=wolfSSL Inc./OU=Development Test/CN=wolfSSL Test CA" \
+  -out "${TMP_DIR}/crl-test-ca-cert.pem" 2>/dev/null
+
+# CRL index / database files required by openssl ca
+touch "${TMP_DIR}/index.txt"
+echo "01" > "${TMP_DIR}/crlnumber"
+
+cat > "${TMP_DIR}/openssl-ca.cnf" <<EOF
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+database       = ${TMP_DIR}/index.txt
+crlnumber      = ${TMP_DIR}/crlnumber
+default_md     = sha256
+default_crl_days = 3650
+
+[ crl_ext ]
+authorityKeyIdentifier = keyid:always
+EOF
+
+# Generate CRL with empty revocation list. Decode tests only need to parse
+# the CRL structure (issuer, signature, dates, etc.), not iterate entries.
+openssl ca -gencrl \
+  -keyfile "${TMP_DIR}/crl-test-ca-key.pem" \
+  -cert "${TMP_DIR}/crl-test-ca-cert.pem" \
+  -config "${TMP_DIR}/openssl-ca.cnf" \
+  -out test/crl-decode.pem 2>/dev/null
+if [ $? -ne 0 ]; then
+    printf "Failed to generate test/crl-decode.pem\n"
+    rm -rf "${TMP_DIR}"
+    exit 1
+fi
+
+# Convert PEM CRL to DER
+openssl crl -in test/crl-decode.pem -outform DER \
+  -out test/crl-decode.der 2>/dev/null
+if [ $? -ne 0 ]; then
+    printf "Failed to generate test/crl-decode.der\n"
+    rm -rf "${TMP_DIR}"
+    exit 1
+fi
+rm -rf "${TMP_DIR}"
+printf "Generated test/crl-decode.pem and test/crl-decode.der\n"
+
 # Generate SAN test certificates for WolfSSLAltName testing
 printf "\nGenerating SAN test certificates...\n"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
