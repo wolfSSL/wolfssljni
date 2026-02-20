@@ -62,6 +62,8 @@ public class WolfSSLCRLTest {
     public static String clientKeyPem = "examples/certs/client-key.pem";
     public static String eccCaKeyPem = "examples/certs/ca-ecc-key.pem";
     public static String eccClientKeyPem = "examples/certs/ecc-client-key.pem";
+    public static String crlDecodePem = "examples/certs/test/crl-decode.pem";
+    public static String crlDecodeDer = "examples/certs/test/crl-decode.der";
 
     @BeforeClass
     public static void setCertPaths() throws WolfSSLException {
@@ -82,6 +84,8 @@ public class WolfSSLCRLTest {
         clientKeyPem = WolfSSLTestCommon.getPath(clientKeyPem);
         eccCaKeyPem = WolfSSLTestCommon.getPath(eccCaKeyPem);
         eccClientKeyPem = WolfSSLTestCommon.getPath(eccClientKeyPem);
+        crlDecodePem = WolfSSLTestCommon.getPath(crlDecodePem);
+        crlDecodeDer = WolfSSLTestCommon.getPath(crlDecodeDer);
     }
 
     /* Internal helper method, generate test IssuerName for CRL generation */
@@ -98,6 +102,72 @@ public class WolfSSLCRLTest {
         name.setOrganizationalUnitName("Development Test");
 
         return name;
+    }
+
+    /**
+     * Internal helper, generate a signed test CRL with RSA.
+     *
+     * Caller must free the returned CRL and the issuerName
+     * stored inside it. Use GenerateTestIssuerName() result
+     * separately if issuer cleanup is needed, or call
+     * genCrl.free() when done.
+     */
+    private WolfSSLCRL generateSignedTestCRL()
+        throws WolfSSLException, WolfSSLJNIException,
+               NoSuchAlgorithmException {
+
+        WolfSSLCRL crl = new WolfSSLCRL();
+        crl.setVersion(1);
+
+        WolfSSLX509Name issuerName =
+            GenerateTestIssuerName();
+        crl.setIssuerName(issuerName);
+        issuerName.free();
+
+        crl.setLastUpdate(new Date());
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, 30);
+        crl.setNextUpdate(cal.getTime());
+
+        byte[] serial =
+            new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        crl.addRevoked(serial, new Date());
+
+        KeyPairGenerator kpg =
+            KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+        crl.sign(keyPair.getPrivate(), "SHA256");
+
+        return crl;
+    }
+
+    /**
+     * Internal helper, load a pre-generated test CRL from
+     * the examples/certs/test directory (created by
+     * update-certs.sh using openssl). Caller must free
+     * the returned CRL.
+     *
+     * @param format WolfSSL.SSL_FILETYPE_PEM or
+     *               WolfSSL.SSL_FILETYPE_ASN1
+     *
+     * @return loaded WolfSSLCRL, never null
+     */
+    private WolfSSLCRL loadTestCRLFromFile(int format)
+        throws WolfSSLException {
+
+        String path;
+        if (format == WolfSSL.SSL_FILETYPE_PEM) {
+            path = crlDecodePem;
+        }
+        else {
+            path = crlDecodeDer;
+        }
+
+        WolfSSLCRL crl = new WolfSSLCRL(path, format);
+        assertNotNull(crl);
+
+        return crl;
     }
 
     @Test
@@ -966,6 +1036,262 @@ public class WolfSSLCRLTest {
         crl.free();
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testLoadFromDer()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tload CRL from DER");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* Load DER from pre-generated file */
+        byte[] der = Files.readAllBytes(
+            Paths.get(crlDecodeDer));
+        assertNotNull(der);
+        assertTrue(der.length > 0);
+
+        /* Load CRL from DER bytes */
+        WolfSSLCRL loadedCrl = new WolfSSLCRL(der);
+        assertNotNull(loadedCrl);
+
+        /* Test with format parameter */
+        WolfSSLCRL loadedCrl2 = new WolfSSLCRL(der,
+            WolfSSL.SSL_FILETYPE_ASN1);
+        assertNotNull(loadedCrl2);
+
+        /* Test null input throws exception */
+        try {
+            new WolfSSLCRL((byte[])null);
+            fail("null DER should throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* Test empty input throws exception */
+        try {
+            new WolfSSLCRL(new byte[0]);
+            fail("empty DER should throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* Test invalid format throws exception */
+        try {
+            new WolfSSLCRL(der, 12345);
+            fail("invalid format should throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        loadedCrl2.free();
+        loadedCrl.free();
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testLoadFromPem()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tload CRL from PEM");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* Load PEM from pre-generated file */
+        byte[] pem = Files.readAllBytes(
+            Paths.get(crlDecodePem));
+        assertNotNull(pem);
+        assertTrue(pem.length > 0);
+
+        /* Load CRL from PEM bytes */
+        WolfSSLCRL loadedCrl = new WolfSSLCRL(pem,
+            WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(loadedCrl);
+
+        loadedCrl.free();
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testLoadFromFile()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tload CRL from file");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* Load pre-generated PEM CRL from file */
+        WolfSSLCRL crl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
+        assertNotNull(crl);
+        crl.free();
+
+        /* Load pre-generated DER CRL from file */
+        WolfSSLCRL derCrl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_ASN1);
+        assertNotNull(derCrl);
+        derCrl.free();
+
+        /* Test null path throws exception */
+        try {
+            new WolfSSLCRL((String)null,
+                WolfSSL.SSL_FILETYPE_PEM);
+            fail("null path should throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* Generate CRL, write to temp file, reload */
+        if (WolfSSL.CrlGenerationEnabled()) {
+            WolfSSLCRL genCrl = generateSignedTestCRL();
+
+            File tempDer =
+                File.createTempFile("test_crl_load_", ".der");
+            genCrl.writeToFile(tempDer.getAbsolutePath(),
+                WolfSSL.SSL_FILETYPE_ASN1);
+
+            WolfSSLCRL loadedCrl = new WolfSSLCRL(
+                tempDer.getAbsolutePath(),
+                WolfSSL.SSL_FILETYPE_ASN1);
+            assertNotNull(loadedCrl);
+            assertEquals(genCrl.getVersion(),
+                loadedCrl.getVersion());
+
+            tempDer.delete();
+            loadedCrl.free();
+            genCrl.free();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testGetIssuerName()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tgetIssuerName()");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t\t... skipped");
+            return;
+        }
+
+        /* Test on CRL loaded from file */
+        WolfSSLCRL fileCrl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
+        String fileName = fileCrl.getIssuerName();
+        assertNotNull(
+            "File CRL issuer should not be null",
+            fileName);
+        assertTrue("Issuer should contain wolfSSL",
+            fileName.contains("wolfSSL"));
+        fileCrl.free();
+
+        /* Round-trip with generated CRL if available */
+        if (WolfSSL.CrlGenerationEnabled()) {
+            WolfSSLCRL genCrl = generateSignedTestCRL();
+            byte[] der = genCrl.getDer();
+            WolfSSLCRL loadedCrl = new WolfSSLCRL(der);
+            String name = loadedCrl.getIssuerName();
+            assertNotNull(
+                "Issuer name should not be null", name);
+            assertTrue(
+                "Issuer should contain wolfSSL",
+                name.contains("wolfSSL"));
+            loadedCrl.free();
+            genCrl.free();
+        }
+
+        System.out.println("\t\t\t... passed");
+    }
+
+    @Test
+    public void testGetSignatureType()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tgetSignatureType()");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* Test on CRL loaded from file */
+        WolfSSLCRL fileCrl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
+        int sigType = fileCrl.getSignatureType();
+        assertTrue("Signature type should be > 0",
+            sigType > 0);
+        fileCrl.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testGetSignatureNid()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tgetSignatureNid()");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* Test on CRL loaded from file */
+        WolfSSLCRL fileCrl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
+        int sigNid = fileCrl.getSignatureNid();
+        assertTrue("Signature NID should be > 0",
+            sigNid > 0);
+        fileCrl.free();
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testVerify()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tverify()");
+
+        if (!WolfSSL.CrlDecodeEnabled()) {
+            System.out.println("\t\t\t... skipped");
+            return;
+        }
+
+        /* Load CRL from file, attempt verify.
+         * wolfSSL_X509_CRL_verify is currently a stub and
+         * returns 0 (failure), so we just verify it does
+         * not crash and returns a value. */
+        WolfSSLCRL crl =
+            loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
+
+        /* verify() should not throw even though the native
+         * function is a stub */
+        boolean result = crl.verify(null);
+        assertFalse("Stub verify should return false",
+            result);
+
+        crl.free();
+        System.out.println("\t\t\t... passed");
     }
 
     @Test

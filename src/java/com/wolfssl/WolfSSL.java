@@ -1070,6 +1070,14 @@ public class WolfSSL {
     public static native boolean CrlGenerationEnabled();
 
     /**
+     * Tests if CRL decode support has been compiled into the native
+     * wolfSSL library. Requires HAVE_CRL and OPENSSL_EXTRA.
+     *
+     * @return true if enabled, otherwise false if not compiled in.
+     */
+    public static native boolean CrlDecodeEnabled();
+
+    /**
      * Tests if Certificate Signing Request (CSR) support has been compiled
      * into the native wolfSSL library.
      *
