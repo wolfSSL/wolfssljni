@@ -65,33 +65,65 @@ If building a wolfSSL FIPS or FIPS Ready release bundle, additional
 configure options may be required. Reference the wolfSSL Manual and build
 documentation for exact build instructions.
 
-## Building with ant
+## Building and testing with make/ant
 
 wolfSSL JNI/JSSE's ant build is the most stable and well-tested. Newer support
 for building with Maven has also been added. See section below for instructions
 on building with Maven.
 
-***Note 1)***
-The `java.sh` script uses a common location for the Java install location. If
-your Java install location is different, this could lead to an error when
-running `java.sh`. In this case, you should modify `java.sh` to match your
-environment.
+The `Makefile` compiles the native JNI shared library
+(`libwolfssljni.so`/`libwolfssljni.dylib`) and invokes `ant` to build the Java
+sources. It will auto-detect `JAVA_HOME` if not already set. To explicitly
+specify a Java installation, set `JAVA_HOME` before running `make`.
 
-Build targets for ant are :
-* **ant build (ant)**     (only builds the jar necessary for an app to use)
-* **ant test**      (builds the jar and tests then runs the tests, requires JUNIT setup)
-* **ant examples**  (builds the jar and example cases)
-* **ant clean**     (cleans all Java artifacts)
-* **ant cleanjni**  (cleans native artifacts)
+Make targets:
+* **make** / **make build** - Compiles the native JNI library and Java sources (JAR)
+* **make check**            - Builds and runs JUnit tests (requires `JUNIT_HOME`)
+* **make native**           - Compiles only the native JNI shared library
+* **make clean**            - Cleans all Java and native artifacts
+* **make clean-native**     - Cleans only native artifacts (`.o`, `.d`, shared lib)
+* **make install**          - Installs shared library and JARs
+* **make uninstall**        - Removes installed files
+
+Ant-only targets are also available:
+* **ant build (ant)** - Only builds the JAR
+* **ant test**        - Builds and runs tests (requires JUNIT setup)
+* **ant examples**    - Builds examples
+* **ant clean**       - Cleans Java artifacts
+* **ant cleanjni**    - Cleans native artifacts
 
 To build wolfJSSE:
 
 ```
 $ cd wolfssljni
-$ ./java.sh
-$ ant
 $ export JUNIT_HOME=/path/to/junit/jars
-$ ant test
+$ make build
+$ make check
+```
+
+Custom wolfSSL installation directories and library names can be passed to
+`make`:
+
+```
+$ make WOLFSSL_INSTALL_DIR=/path/to/wolfssl WOLFSSL_LIBNAME=wolfssljsse
+```
+
+Set `V=1` to see the full compiler commands:
+
+```
+$ make V=1
+```
+
+Set `ENABLE_PATCHES=1` to automatically detect and enable JNI code that
+depends on wolfSSL pull request patches (`WOLFSSL_PR*_PATCH_APPLIED` defines).
+This enables functionality and test coverage for features added since the last
+official wolfSSL build.
+
+**Note:** this requires a recent build of wolfSSL with the PR included, often 
+newer than the latest tagged release.
+
+```
+$ make ENABLE_PATCHES=1
 ```
 
 To compile and run the examples, use the `ant examples` target:
@@ -108,28 +140,20 @@ $ ./examples/provider/ServerJSSE.sh
 $ ./examples/provider/ClientJSSE.sh
 ```
 
-### java.sh Script Options
+### java.sh Script
 
-The `java.sh` script compiles the native JNI sources into a shared library named
-either `libwolfssljni.so` (Linux/Unix) or `libwolfssljni.dylib` (MacOS).
-Compiling on Linux/Unix and Mac OSX are currently supported.
+The `java.sh` script is a convenience wrapper around the Makefile that compiles
+the native JNI sources into a shared library named either `libwolfssljni.so`
+(Linux/Unix) or `libwolfssljni.dylib` (MacOS). It invokes `make clean-native`
+followed by `make native`, performing a clean rebuild of the native library each
+time.
 
-This script will attempt to auto-detect the `JAVA_HOME` location if not set.
-To explicitly use a Java home location, set the `JAVA_HOME` environment variable
-prior to running this script.
+The script accepts two optional arguments:
 
-This script will try to link against a wolfSSL library installed to the
-default location of `/usr/local`. This script accepts two arguments on the
-command line. The first argument can point to a custom wolfSSL installation
-location. A custom install location would match the directory set at wolfSSL
-`./configure --prefix=<DIR>`.
-
-The second argument represents the wolfSSL library name that should be
-linked against. This is helpful if a non-standard library name has been
-used with wolfSSL, for example the `./configure --with-libsuffix` option
-has been used to add a suffix to the wolfSSL library name. Note that to
-use this argument, an installation location must be specified via the
-first argument.
+1. **wolfSSL installation directory** (default: `/usr/local`) - should match
+   the directory set at wolfSSL `./configure --prefix=<DIR>`.
+2. **wolfSSL library name** (default: `wolfssl`) - useful if a non-standard
+   library name has been used, for example via `./configure --with-libsuffix`.
 
 For example, if wolfSSL was configured with `--with-libsuffix=jsse`, then
 this script could be called like so using the default installation
@@ -139,8 +163,7 @@ path of `/usr/local`:
 java.sh /usr/local wolfssljsse
 ```
 
-`java.sh` can use preset `CFLAGS` defines, if set in the environment variable
-prior to running the script, for example:
+`CFLAGS` can be set in the environment prior to running the script:
 
 ```
 CFLAGS=-DWOLFJNI_USE_IO_SELECT java.sh
@@ -153,12 +176,11 @@ are already set up to use and consume Maven packages.
 
 wolfJSSE's Maven build configuration is defined in the included `pom.xml`.
 
-First, compile the native JNI shared library (libwolfssljni.so/dylib) same
-as above. This will create the native JNI shared library under the `./lib`
-directory:
+First, compile the native JNI shared library (libwolfssljni.so/dylib). This
+will create the native JNI shared library under the `./lib` directory:
 
 ```
-$ ./java.sh
+$ make native
 ```
 
 Compile the Java sources, where Maven will place the compiled `.class` files
@@ -202,10 +224,10 @@ The local Maven repository installation location will be similar to:
 ~/.m2/repository/com/wolfssl/wolfssl-jsse/X.X.X-SNAPSHOT/wolfssl-jsse-X.X.X-SNAPSHOT.jar
 ```
 
-The wolfSSL JNI shared library (`libwolfssljni.so/dylib`) created with the
-`java.sh` script will need to be "installed" by being placed on your native
+The wolfSSL JNI shared library (`libwolfssljni.so/dylib`) will need to be
+"installed" by being placed on your native
 library search path. For example, copied into `/usr/local/lib`, `/usr/lib`,
-or other location. Alternatively, append the `./libs` directory to your native
+or other location. Alternatively, append the `./lib` directory to your native
 library search path by exporting `LD_LIBRARY_PATH` (Linux) or
 `DYLD_LIBRARY_PATH` (OSX):
 
@@ -261,15 +283,14 @@ Maven builds support automatic module-info compilation.
 
 ```
 $ export JAVA_HOME=/path/to/jdk11   # or any JDK 9+
-$ ./java.sh
-$ ant
+$ make build
 ```
 
 **Using Maven:**
 
 ```
 $ export JAVA_HOME=/path/to/jdk11   # or any JDK 9+
-$ ./java.sh
+$ make native
 $ mvn package
 ```
 
@@ -494,7 +515,8 @@ file descriptors inside Java Socket objects. These native file descriptors
 are watched for read and write events with either `select()` or `poll()`.
 
 By default `poll()` will be used, unless `WOLFJNI_USE_IO_SELECT` is defined
-or added to CFLAGS when compiling the native JNI sources (see `java.sh`).
+or added to CFLAGS when compiling the native JNI sources (e.g.
+`make CFLAGS=-DWOLFJNI_USE_IO_SELECT`).
 Windows builds will also default to using `select()` since `poll()` is not
 available there.
 
@@ -698,14 +720,14 @@ legacy behavior where SNI is automatically configured from hostname/peer informa
 even without explicit SSLParameters configuration. Default value is "false", where
 SNI is only set when explicitly configured through SSLParameters.
 
-**wolfssl.skipLibraryLoad (boolean)** - When set to "true", `WolfSSL.loadLibrary()`
+**wolfssl.skipLibraryLoad (boolean)** - When set to "true", `wolfSSL.loadLibrary()`
 will skip the default `System.loadLibrary()` calls for native wolfSSL and
 wolfSSL JNI libraries. This is useful when applications need to load the native
 libraries themselves using custom logic, for example when bundling the native
 library inside a JAR file and extracting it at runtime. The property must be set
-before `WolfSSL.loadLibrary()` is called, either directly or via
+before `wolfSSL.loadLibrary()` is called, either directly or via
 `WolfSSLProvider()` constructor. Applications can check if library loading was
-skipped by calling `WolfSSL.isLibraryLoadSkipped()`.
+skipped by calling `wolfSSL.isLibraryLoadSkipped()`.
 
 Setting via command line:
 
@@ -722,8 +744,8 @@ System.setProperty("wolfssl.skipLibraryLoad", "true");
 System.load("/path/to/libwolfssl.so");
 System.load("/path/to/libwolfssljni.so");
 
-/* Then use WolfSSL as normal */
-WolfSSL.loadLibrary();
+/* Then use wolfSSL as normal */
+wolfSSL.loadLibrary();
 ```
 
 If there are other System properties you would like to use with wolfJSSE,

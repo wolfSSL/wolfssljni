@@ -1252,7 +1252,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write__JLjava_nio_ByteBuf
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jobject buf, jint position,
    jint limit, jboolean hasArray, jint length, jint timeout)
 {
-    int ret;
+    int ret = BAD_FUNC_ARG;
     int maxInputSz;
     int inSz = length;
     byte* data = NULL;
@@ -1557,6 +1557,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_pending
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
     (void)jcl;
 
     /* Checks ssl for NULL internally, will return WOLFSSL_FAILURE */
@@ -2338,6 +2339,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
     int idBufSz = 0;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
+    (void)len;
 
     if (jenv == NULL || ssl == NULL || id == NULL) {
         return WOLFSSL_FAILURE;
@@ -2759,6 +2761,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsMacDropCount
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
     word32 dropCount = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_DROP_STATS)
     int ret = 0;
@@ -2770,15 +2776,16 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsMacDropCount
         return (jlong)ret;
     }
 #endif
-    (void)jenv;
-    (void)jcl;
-
     return (jlong)dropCount;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsReplayDropCount
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+
     word32 dropCount = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_DROP_STATS)
     int ret = 0;
@@ -2790,9 +2797,6 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getDtlsReplayDropCount
         return (jlong)ret;
     }
 #endif
-    (void)jenv;
-    (void)jcl;
-
     return (jlong)dropCount;
 }
 
@@ -3202,6 +3206,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
 {
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_MTU)
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
 
     /* wolfSSL_dtls_set_mtu() checks ssl for NULL */
     return (jint)wolfSSL_dtls_set_mtu(ssl, (unsigned short)mtu);
@@ -3248,6 +3254,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getMaxOutputSize
 #ifndef NO_TLS
     int ret;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
 
     if (jenv == NULL || ssl == NULL) {
         return 0;
@@ -5597,6 +5604,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     int peerProtoCount = 0;
     char* peerProtos = NULL;
     char* peerProtosCopy = NULL;
+    (void)arg;
     word16 peerProtosSz = 0;
     char* curr = NULL;
     char* ptr = NULL;
@@ -6129,6 +6137,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     jclass    sslClass;             /* WolfSSLSession class */
     jmethodID sessTicketCbMethodId; /* internalTls13SecretCallback ID */
     jbyteArray ticketArr = NULL;
+    (void)ctx;
 
     if (g_vm == NULL || ssl == NULL) {
         return BAD_FUNC_ARG;
@@ -6327,6 +6336,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableExtendedMasterSecr
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
     int ret = 0;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
     (void)jcl;
 
     /* Checks ssl for null internally */

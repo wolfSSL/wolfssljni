@@ -216,6 +216,8 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
 {
     JNIEnv* env;
 
+    (void)reserved;
+
     if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
         return;
     }
@@ -1830,6 +1832,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getWolfCryptFIPSCoreHash
   (JNIEnv* jenv, jclass jcl)
 {
 #ifdef HAVE_FIPS
+    (void)jcl;
     return (*jenv)->NewStringUTF(jenv, wolfCrypt_GetCoreHash_fips());
 #else
     (void)jenv;
@@ -2025,6 +2028,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getHmacMaxSize
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_getLibVersionHex
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
     return (jlong)wolfSSL_lib_version_hex();
 }
 
@@ -2273,6 +2279,10 @@ int DefaultNativeCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
   (JNIEnv* jenv, jclass jcl, jint devId)
 {
+    (void)jenv;
+    (void)jcl;
+    (void)devId;
+
 #ifdef WOLF_CRYPTO_CB
 
     /* WOLFSSLJNI_USE_NATIVE_CRYPTOCB callback is mutually exclusive of other
@@ -2304,9 +2314,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
     #endif
 #else
     /* no-op if crypto callbacks not compiled into native wolfSSL */
-    (void)jenv;
-    (void)jcl;
-    (void)devId;
     return 0;
 #endif
 }
@@ -2314,13 +2321,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1RegisterDevice
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSL_wc_1CryptoCb_1UnRegisterDevice
   (JNIEnv* jenv, jclass jcl, jint devId)
 {
+    (void)jenv;
+    (void)jcl;
+    (void)devId;
+
 #ifdef WOLF_CRYPTO_CB
     wc_CryptoCb_UnRegisterDevice((int)devId);
 #else
     /* no-op if crypto callbacks not compiled into native wolfSSL */
-    (void)jenv;
-    (void)jcl;
-    (void)devId;
     return;
 #endif
 }
@@ -2608,6 +2616,9 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getErrno
   (JNIEnv* jenv, jclass jcl)
 {
+    (void)jenv;
+    (void)jcl;
+
 #ifndef USE_WINDOWS_API
     return errno;
 #else
