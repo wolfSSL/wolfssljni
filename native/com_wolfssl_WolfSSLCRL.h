@@ -161,6 +161,54 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1pem
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature
   (JNIEnv *, jclass, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_load_buffer
+ * Signature: ([BI)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1load_1buffer
+  (JNIEnv *, jclass, jbyteArray, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_load_file
+ * Signature: (Ljava/lang/String;I)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1load_1file
+  (JNIEnv *, jclass, jstring, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_get_issuer_name_string
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1issuer_1name_1string
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_get_signature_type
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature_1type
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_get_signature_nid
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signature_1nid
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLCRL
+ * Method:    X509_CRL_verify
+ * Signature: (J[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1verify
+  (JNIEnv *, jclass, jlong, jbyteArray);
+
 #ifdef __cplusplus
 }
 #endif
