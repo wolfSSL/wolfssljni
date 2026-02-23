@@ -9,7 +9,7 @@
 - All tests should pass without problems
 
 # Code Style
-- Keep lines under 80 characters maximum length
+- Maximum line length is 80 characters. Only break/wrap lines that would exceed 80 characters
 - MUST only use multi-line comments, no "//" style ones
 - MUST remove all trailing white space
 - Use 4 spaces for one tab, no hard tabs
