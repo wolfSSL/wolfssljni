@@ -1524,6 +1524,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_cleanup
     }
 
 #ifdef HAVE_FIPS
+    /* Deregister native FIPS callback from wolfCrypt before releasing */
+    wolfCrypt_SetCb_fips(NULL);
+
     /* release existing FIPS callback object if set */
     if (g_fipsCbIfaceObj != NULL) {
         (*jenv)->DeleteGlobalRef(jenv, g_fipsCbIfaceObj);
@@ -1694,13 +1697,13 @@ void NativeFIPSErrorCallback(const int ok, const int err,
                              const char* const hash)
 {
 #ifdef HAVE_FIPS
-    JNIEnv*   jenv;
+    JNIEnv*   jenv = NULL;
     jint      vmret  = 0;
-    jclass    excClass;
     jclass    fipsCbClass;
     jmethodID errorMethod;
     jobjectRefType refcheck;
     jstring hashString;
+    int needsDetach = 0;
 
     /* get JNIEnv from JavaVM */
     vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
@@ -1712,75 +1715,77 @@ void NativeFIPSErrorCallback(const int ok, const int err,
 #endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
+            return;
         }
+        needsDetach = 1;
+
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM\n");
-    }
-
-    /* find exception class */
-    excClass = (*jenv)->FindClass(jenv, "java/lang/Exception");
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
         return;
     }
 
-    /* check if our stored object reference is valid */
+    /* Just return if stored callback object reference is NULL/invalid */
+    if (g_fipsCbIfaceObj == NULL) {
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return;
+    }
+
     refcheck = (*jenv)->GetObjectRefType(jenv, g_fipsCbIfaceObj);
-    if (refcheck == JNIGlobalRefType) {
-
-        /* lookup WolfSSLLoggingCallback class from global object ref */
-        fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
-        if (!fipsCbClass) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLFIPSErrorCallback class reference");
-            return;
-        }
-
-        errorMethod = (*jenv)->GetMethodID(jenv, fipsCbClass,
-                                            "errorCallback",
-                                            "(IILjava/lang/String;)V");
-        if (errorMethod == 0) {
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-            }
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting errorCallback method from JNI");
-            return;
-        }
-
-        /* create jstring from char* */
-        hashString = (*jenv)->NewStringUTF(jenv, hash);
-
-        (*jenv)->CallVoidMethod(jenv, g_fipsCbIfaceObj, errorMethod,
-                ok, err, hashString);
-
-        /* release local reference to jstring, since returning to native */
-        (*jenv)->DeleteLocalRef(jenv, hashString);
-
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "Error calling FIPS error callback from JNI");
-            return;
-        }
-
-    } else {
+    if (refcheck != JNIGlobalRefType) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return;
+    }
 
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Object reference invalid in NativeFIPSErrorCallback");
+    /* lookup WolfSSLFIPSErrorCallback class from global object ref */
+    fipsCbClass = (*jenv)->GetObjectClass(jenv, g_fipsCbIfaceObj);
+    if (!fipsCbClass) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return;
+    }
+
+    errorMethod = (*jenv)->GetMethodID(jenv, fipsCbClass, "errorCallback",
+                                       "(IILjava/lang/String;)V");
+    if (errorMethod == 0) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return;
+    }
+
+    /* create jstring from char* */
+    hashString = (*jenv)->NewStringUTF(jenv, hash);
+
+    (*jenv)->CallVoidMethod(jenv, g_fipsCbIfaceObj, errorMethod,
+                            ok, err, hashString);
+
+    /* release local reference to jstring, since returning to native */
+    (*jenv)->DeleteLocalRef(jenv, hashString);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+    }
+
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
     }
 #else
     (void)ok;
@@ -1816,6 +1821,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_setFIPSCb
 
         /* register NativeFIPSErrorCallback, wraps Java callback */
         ret = wolfCrypt_SetCb_fips(NativeFIPSErrorCallback);
+        if (ret == 0) {
+            ret = SSL_SUCCESS;
+        }
+    }
+    else {
+        /* NULL callback, deregister native FIPS callback */
+        ret = wolfCrypt_SetCb_fips(NULL);
         if (ret == 0) {
             ret = SSL_SUCCESS;
         }
