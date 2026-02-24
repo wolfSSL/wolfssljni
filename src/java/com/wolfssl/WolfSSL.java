@@ -670,14 +670,10 @@ public class WolfSSL {
             getTls13SecretEnum_CLIENT_HANDSHAKE_TRAFFIC_SECRET();
         SERVER_HANDSHAKE_TRAFFIC_SECRET =
             getTls13SecretEnum_SERVER_HANDSHAKE_TRAFFIC_SECRET();
-        CLIENT_TRAFFIC_SECRET =
-            getTls13SecretEnum_CLIENT_TRAFFIC_SECRET();
-        SERVER_TRAFFIC_SECRET =
-            getTls13SecretEnum_SERVER_TRAFFIC_SECRET();
-        EARLY_EXPORTER_SECRET =
-            getTls13SecretEnum_EARLY_EXPORTER_SECRET();
-        EXPORTER_SECRET =
-            getTls13SecretEnum_EXPORTER_SECRET();
+        CLIENT_TRAFFIC_SECRET = getTls13SecretEnum_CLIENT_TRAFFIC_SECRET();
+        SERVER_TRAFFIC_SECRET = getTls13SecretEnum_SERVER_TRAFFIC_SECRET();
+        EARLY_EXPORTER_SECRET = getTls13SecretEnum_EARLY_EXPORTER_SECRET();
+        EXPORTER_SECRET = getTls13SecretEnum_EXPORTER_SECRET();
 
         this.active = true;
 
@@ -783,8 +779,7 @@ public class WolfSSL {
 
         int fipsLoaded = 0;
 
-        String skipLoad =
-            System.getProperty("wolfssl.skipLibraryLoad");
+        String skipLoad = System.getProperty("wolfssl.skipLibraryLoad");
         if (skipLoad != null && skipLoad.equalsIgnoreCase("true")) {
             /* User will load native libraries manually */
             libraryLoadSkipped = true;

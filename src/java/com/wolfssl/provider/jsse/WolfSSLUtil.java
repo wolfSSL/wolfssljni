@@ -251,8 +251,7 @@ public class WolfSSLUtil {
             }
 
             if (schemeComp.length >= 3 &&
-                schemeComp[0].equals("RSA") &&
-                schemeComp[1].equals("PSS")) {
+                schemeComp[0].equals("RSA") && schemeComp[1].equals("PSS")) {
                 algorithm = "RSA-PSS";
                 hash = schemeComp[schemeComp.length - 1];
             } else {
@@ -384,8 +383,7 @@ public class WolfSSLUtil {
      */
     protected static String[] getSupportedCurves() {
 
-        String curves =
-            Security.getProperty("wolfjsse.enabledSupportedCurves");
+        String curves = Security.getProperty("wolfjsse.enabledSupportedCurves");
 
         if (curves == null || curves.isEmpty()) {
             return null;
@@ -460,8 +458,7 @@ public class WolfSSLUtil {
      */
     protected static boolean useExtendedMasterSecret() {
 
-        String useEMS =
-            System.getProperty("jdk.tls.useExtendedMasterSecret");
+        String useEMS = System.getProperty("jdk.tls.useExtendedMasterSecret");
 
         /* Native wolfSSL defaults to having extended master secret support
          * enabled. Do the same here if property not set or empty. */

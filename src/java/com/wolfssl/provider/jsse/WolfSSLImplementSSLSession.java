@@ -536,8 +536,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Error getting peer certificate: "
-                    + ex.getMessage());
+                    () -> "Error getting peer certificate: " + ex.getMessage());
             x509 = 0;
         }
 

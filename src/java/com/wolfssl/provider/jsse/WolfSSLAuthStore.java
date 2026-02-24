@@ -400,8 +400,7 @@ public class WolfSSLAuthStore {
             ses.setValid(true); /* new sessions marked as valid */
 
             ses.isFromTable = false;
-            ses.setPseudoSessionId(
-                Integer.toString(ssl.hashCode()).getBytes());
+            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -544,8 +543,7 @@ public class WolfSSLAuthStore {
         }
 
         synchronized (storeLock) {
-            Collection<WolfSSLImplementSSLSession> values =
-                store.values();
+            Collection<WolfSSLImplementSSLSession> values = store.values();
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "SessionStore Status : (" + this +
@@ -758,8 +756,7 @@ public class WolfSSLAuthStore {
                     diff = (now - current.creation.getTime()) / 1000;
 
                     if (diff < 0) {
-                    /* session is from the future ... */ //@TODO
-
+                    /* session is from the future ... @TODO */
                     }
 
                     if (in > 0 && diff > in) {

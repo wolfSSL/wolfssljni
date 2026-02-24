@@ -241,8 +241,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         /* sanitize protocol array for unsupported strings */
         List<String> supported;
 
-        supported = Arrays.asList(
-            WolfSSLUtil.sanitizeProtocols(
+        supported = Arrays.asList(WolfSSLUtil.sanitizeProtocols(
                 WolfSSL.getProtocols(), WolfSSL.TLS_VERSION.INVALID));
 
         for (int i = 0; i < protocols.length; i++) {

@@ -120,8 +120,7 @@ public class WolfSSLEngineHelper {
             checkBooleanProperty("jsse.enableSNIExtension", true);
         this.jdkTlsTrustNameService =
             checkBooleanProperty("jdk.tls.trustNameService", false);
-        this.wolfjsseAutoSni =
-            checkBooleanProperty("wolfjsse.autoSNI", false);
+        this.wolfjsseAutoSni = checkBooleanProperty("wolfjsse.autoSNI", false);
     }
 
     /**
@@ -1125,10 +1124,8 @@ public class WolfSSLEngineHelper {
              * user in "wolfjsse.enabledSigAlgorithms" Security property */
             sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
         }
-        sigSchemes =
-            WolfSSLUtil.getSignatureSchemes(this.clientMode);
-        cleanSigList =
-            WolfSSLUtil.formatSigSchemes(sigAlgos, sigSchemes);
+        sigSchemes = WolfSSLUtil.getSignatureSchemes(this.clientMode);
+        cleanSigList = WolfSSLUtil.formatSigSchemes(sigAlgos, sigSchemes);
 
         if (cleanSigList != null) {
             ret = this.ssl.setSignatureAlgorithms(cleanSigList);
@@ -1252,8 +1249,7 @@ public class WolfSSLEngineHelper {
 
         this.setLocalCiphers(
             WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
-        this.setLocalProtocol(
-            WolfSSLUtil.sanitizeProtocols(
+        this.setLocalProtocol(WolfSSLUtil.sanitizeProtocols(
                 this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID));
         this.setLocalAuth(socket, engine);
         this.setLocalServerNames();
@@ -1350,8 +1346,7 @@ public class WolfSSLEngineHelper {
                 this.session.setSessionContext(authStore.getServerContext());
                 this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
                 /* Track client auth state for getPeerCertificates() */
-                boolean clientAuthRequested =
-                    this.params.getNeedClientAuth() ||
+                boolean clientAuthRequested = this.params.getNeedClientAuth() ||
                     this.params.getWantClientAuth();
                 this.session.setClientAuthRequested(clientAuthRequested);
             }
@@ -1510,8 +1505,7 @@ public class WolfSSLEngineHelper {
         this.session.updateStoredSessionValues();
 
         if (!this.clientMode && !matchSNI()) {
-            throw new SSLHandshakeException(
-                "Unrecognized Server Name");
+            throw new SSLHandshakeException("Unrecognized Server Name");
         }
 
         return ret;

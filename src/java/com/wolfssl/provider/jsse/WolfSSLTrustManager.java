@@ -732,8 +732,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             /* [5] Try to load common CA cert locations */
             if (certs == null) {
-                certs = LoadCommonSystemCerts(wksAvailable, pass,
-                    requiredType);
+                certs = LoadCommonSystemCerts(wksAvailable, pass, requiredType);
             }
 
             /* [6] Try to load system certs if on Android */
@@ -777,8 +776,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 certPathParams.getParameters();
 
             if (certPathParameters instanceof PKIXParameters) {
-                PKIXParameters pkixParams =
-                    (PKIXParameters) certPathParameters;
+                PKIXParameters pkixParams = (PKIXParameters) certPathParameters;
                 Set<TrustAnchor> anchors = pkixParams.getTrustAnchors();
 
                 try {

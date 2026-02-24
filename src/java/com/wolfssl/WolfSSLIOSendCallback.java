@@ -50,7 +50,6 @@ public interface WolfSSLIOSendCallback {
      *              codes, see the default EmbedSend() function in
      *              wolfssl_package/src/io.c
      */
-    public int sendCallback(WolfSSLSession ssl, byte[] buf, int sz,
-           Object ctx);
+    public int sendCallback(WolfSSLSession ssl, byte[] buf, int sz, Object ctx);
 }
 

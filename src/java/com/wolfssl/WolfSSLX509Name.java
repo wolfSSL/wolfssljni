@@ -469,8 +469,7 @@ public class WolfSSLX509Name {
         confirmObjectIsActive();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509NamePtr,
-            () -> "entered getSurname()");
+            WolfSSLDebug.INFO, this.x509NamePtr, () -> "entered getSurname()");
 
         return this.surname;
     }
@@ -577,8 +576,7 @@ public class WolfSSLX509Name {
         confirmObjectIsActive();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, this.x509NamePtr,
-            () -> "entered getUserId()");
+            WolfSSLDebug.INFO, this.x509NamePtr, () -> "entered getUserId()");
 
         return this.userId;
     }

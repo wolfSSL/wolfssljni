@@ -155,8 +155,7 @@ public class WolfSSLContext {
         int ret;
 
         /* call user-registered recv method */
-        ret = internRecvCb.receiveCallback(ssl, buf, sz,
-                    ssl.getIOReadCtx());
+        ret = internRecvCb.receiveCallback(ssl, buf, sz, ssl.getIOReadCtx());
 
         return ret;
     }
@@ -166,8 +165,7 @@ public class WolfSSLContext {
         int ret;
 
         /* call user-registered recv method */
-        ret = internSendCb.sendCallback(ssl, buf, sz,
-                    ssl.getIOWriteCtx());
+        ret = internSendCb.sendCallback(ssl, buf, sz, ssl.getIOWriteCtx());
 
         return ret;
     }
@@ -319,8 +317,7 @@ public class WolfSSLContext {
     }
 
     private long internalPskClientCallback(WolfSSLSession ssl, String hint,
-            StringBuffer identity, long idMaxLen, byte[] key,
-            long keyMaxLen)
+            StringBuffer identity, long idMaxLen, byte[] key, long keyMaxLen)
     {
         long ret;
 

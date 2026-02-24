@@ -1322,8 +1322,7 @@ public class WolfSSLEngine extends SSLEngine {
                                         if (this.ssl.dtls() == 1) {
                                             int pending = this.ssl.pending();
                                             if (pending > 0) {
-                                                status =
-                                                    SSLEngineResult.Status.
+                                                status = SSLEngineResult.Status.
                                                     BUFFER_OVERFLOW;
                                             }
                                         }
@@ -1344,8 +1343,7 @@ public class WolfSSLEngine extends SSLEngine {
                          * time. */
                         synchronized (ioLock) {
                             if (this.handshakeFinished &&
-                                (ssl.getError(0) == 0) &&
-                                !this.sessionStored) {
+                                (ssl.getError(0) == 0) && !this.sessionStored) {
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     () -> "calling engineHelper.saveSession()");
                                 int ret2 = this.engineHelper.saveSession();
@@ -2259,8 +2257,7 @@ public class WolfSSLEngine extends SSLEngine {
                 }
                 byte[] newBuf = new byte[newSz];
                 System.arraycopy(this.internalIOSendBuf, 0,
-                                 newBuf, 0,
-                                 this.internalIOSendBufOffset);
+                                 newBuf, 0, this.internalIOSendBufOffset);
                 this.internalIOSendBuf = newBuf;
                 this.internalIOSendBufSz = newSz;
             }

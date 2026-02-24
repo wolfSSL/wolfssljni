@@ -50,7 +50,6 @@ public interface WolfSSLPskClientCallback {
      * @return          length of key in octets or 0 for error
      */
     public long pskClientCallback(WolfSSLSession ssl, String hint,
-            StringBuffer identity, long idMaxLen, byte[] key,
-            long keyMaxLen);
+            StringBuffer identity, long idMaxLen, byte[] key, long keyMaxLen);
 }
 

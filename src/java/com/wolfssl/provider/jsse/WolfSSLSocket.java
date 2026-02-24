@@ -940,8 +940,7 @@ public class WolfSSLSocket extends SSLSocket {
             this.socket.setPerformancePreferences(connectionTime,
                     latency, bandwidth);
         } else {
-            super.setPerformancePreferences(connectionTime, latency,
-                    bandwidth);
+            super.setPerformancePreferences(connectionTime, latency, bandwidth);
         }
     }
 
@@ -2108,8 +2107,7 @@ public class WolfSSLSocket extends SSLSocket {
                                 ret = ssl.shutdownSSL(
                                     this.socket.getSoLinger());
                             } else {
-                                ret = ssl.shutdownSSL(
-                                    super.getSoLinger());
+                                ret = ssl.shutdownSSL(super.getSoLinger());
                             }
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2297,8 +2295,7 @@ public class WolfSSLSocket extends SSLSocket {
            createSocket() was called without host/port, but
            SSLSocket.connect() was explicitly called with SocketAddress */
         if (address != null && EngineHelper != null) {
-            EngineHelper.setHostAndPort(
-                address.getAddress().getHostAddress(),
+            EngineHelper.setHostAndPort(address.getAddress().getHostAddress(), 
                 address.getPort());
             EngineHelper.setPeerAddress(address.getAddress());
         }
@@ -2407,8 +2404,7 @@ public class WolfSSLSocket extends SSLSocket {
                 }
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
 
-            } catch (NullPointerException |
-                     IndexOutOfBoundsException e) {
+            } catch (NullPointerException | IndexOutOfBoundsException e) {
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
             }
 
@@ -2473,8 +2469,7 @@ public class WolfSSLSocket extends SSLSocket {
                 }
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
 
-            } catch (NullPointerException |
-                     IndexOutOfBoundsException e) {
+            } catch (NullPointerException | IndexOutOfBoundsException e) {
                 return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
             }
 
@@ -2939,8 +2934,7 @@ public class WolfSSLSocket extends SSLSocket {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "thread got socket.handshakeLock (write)");
                 if (socket.connectionClosed == true) {
-                    throw new SocketException(
-                        "Connection already shutdown");
+                    throw new SocketException("Connection already shutdown");
                 }
             }
 

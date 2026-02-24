@@ -114,8 +114,7 @@ public class WolfSSLCRL implements Serializable {
         boolean useUtcTime = (year >= ASN1_UTC_YEAR_MIN &&
             year <= ASN1_UTC_YEAR_MAX);
 
-        String pattern = useUtcTime ? "yyMMddHHmmss'Z'" :
-            "yyyyMMddHHmmss'Z'";
+        String pattern = useUtcTime ? "yyMMddHHmmss'Z'" : "yyyyMMddHHmmss'Z'";
         int type = useUtcTime ? ASN_UTC_TIME : ASN_GENERALIZED_TIME;
 
         SimpleDateFormat format = new SimpleDateFormat(pattern, Locale.US);
@@ -160,8 +159,7 @@ public class WolfSSLCRL implements Serializable {
         this.weOwnCrlPtr = true;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-            WolfSSLDebug.INFO, crlPtr,
-            () -> "creating new WolfSSLCRL");
+            WolfSSLDebug.INFO, crlPtr, () -> "creating new WolfSSLCRL");
 
         synchronized (stateLock) {
             this.active = true;
@@ -646,8 +644,7 @@ public class WolfSSLCRL implements Serializable {
 
         synchronized (crlLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.crlPtr,
-                () -> "entered getSignature()");
+                WolfSSLDebug.INFO, this.crlPtr, () -> "entered getSignature()");
 
             return X509_CRL_get_signature(this.crlPtr);
         }

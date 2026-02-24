@@ -877,8 +877,7 @@ public class WolfSSLCertificate implements Serializable {
                 () -> "entering setAuthorityKeyIdEx(issuerPtr=" +
                     issuerX509Ptr + ")");
 
-            ret = X509_set_authority_key_id_ex(this.x509Ptr,
-                    issuerX509Ptr);
+            ret = X509_set_authority_key_id_ex(this.x509Ptr, issuerX509Ptr);
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
@@ -1238,8 +1237,7 @@ public class WolfSSLCertificate implements Serializable {
         throws IllegalStateException, WolfSSLException {
 
         if (ipAddress == null || ipAddress.isEmpty()) {
-            throw new WolfSSLException(
-                "IP address must not be null or empty");
+            throw new WolfSSLException("IP address must not be null or empty");
         }
 
         addAltName(ipAddress, WolfSSL.ASN_IP_TYPE);

@@ -50,8 +50,7 @@ public class WolfSSLDebug {
      *     com.wolfssl.jni - JNI layer logging
      *     com.wolfssl.jsse - JSSE layer logging
      */
-    private static final Logger jniLogger =
-        Logger.getLogger("com.wolfssl.jni");
+    private static final Logger jniLogger = Logger.getLogger("com.wolfssl.jni");
     private static final Logger jsseLogger =
         Logger.getLogger("com.wolfssl.jsse");
 
