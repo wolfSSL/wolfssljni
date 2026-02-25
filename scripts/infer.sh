@@ -64,6 +64,8 @@ infer --fail-on-issue run -- javac \
     src/java/com/wolfssl/WolfSSLPskServerCallback.java \
     src/java/com/wolfssl/WolfSSLRsaDecCallback.java \
     src/java/com/wolfssl/WolfSSLRsaEncCallback.java \
+    src/java/com/wolfssl/WolfSSLRsaPssSignCallback.java \
+    src/java/com/wolfssl/WolfSSLRsaPssVerifyCallback.java \
     src/java/com/wolfssl/WolfSSLRsaSignCallback.java \
     src/java/com/wolfssl/WolfSSLRsaVerifyCallback.java \
     src/java/com/wolfssl/WolfSSLSession.java \

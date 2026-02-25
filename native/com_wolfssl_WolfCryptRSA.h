@@ -39,6 +39,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doDec
   (JNIEnv *, jobject, jobject, jlong, jobject, jlong, jobject, jlong);
 
+/*
+ * Class:     com_wolfssl_WolfCryptRSA
+ * Method:    doPssSign
+ * Signature: (Ljava/nio/ByteBuffer;JLjava/nio/ByteBuffer;[IIILjava/nio/ByteBuffer;J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssSign
+  (JNIEnv *, jobject, jobject, jlong, jobject, jintArray, jint, jint, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfCryptRSA
+ * Method:    doPssVerify
+ * Signature: (Ljava/nio/ByteBuffer;JLjava/nio/ByteBuffer;JIILjava/nio/ByteBuffer;J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssVerify
+  (JNIEnv *, jobject, jobject, jlong, jobject, jlong, jint, jint, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

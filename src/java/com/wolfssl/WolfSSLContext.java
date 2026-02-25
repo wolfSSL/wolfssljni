@@ -59,6 +59,11 @@ public class WolfSSLContext {
     /* user-registered RSA sign/verify callbacks */
     private WolfSSLRsaSignCallback internRsaSignCb = null;
     private WolfSSLRsaVerifyCallback internRsaVerifyCb = null;
+    private WolfSSLRsaVerifyCallback internRsaSignCheckCb = null;
+
+    /* user-registered RSA-PSS sign/verify callbacks */
+    private WolfSSLRsaPssSignCallback internRsaPssSignCb = null;
+    private WolfSSLRsaPssVerifyCallback internRsaPssSignCheckCb = null;
 
     /* user-registered RSA enc/dec callbacks */
     private WolfSSLRsaEncCallback internRsaEncCb = null;
@@ -280,14 +285,53 @@ public class WolfSSLContext {
     }
 
     private int internalRsaVerifyCallback(WolfSSLSession ssl, ByteBuffer sig,
-           long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,
-           long keySz)
+            long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,
+            long keySz)
     {
         int ret;
 
         /* call user-registered rsa verify method */
-        ret = internRsaVerifyCb.rsaVerifyCallback(ssl, sig, sigSz, out,
-                outSz, keyDer, keySz, ssl.getRsaVerifyCtx());
+        ret = internRsaVerifyCb.rsaVerifyCallback(ssl, sig, sigSz, out, outSz,
+            keyDer, keySz, ssl.getRsaVerifyCtx());
+
+        return ret;
+    }
+
+    private int internalRsaSignCheckCallback(WolfSSLSession ssl, ByteBuffer sig,
+            long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,
+            long keySz)
+    {
+        int ret;
+
+        /* call user-registered rsa sign check method */
+        ret = internRsaSignCheckCb.rsaVerifyCallback(ssl, sig, sigSz, out,
+            outSz, keyDer, keySz, ssl.getRsaVerifyCtx());
+
+        return ret;
+    }
+
+    private int internalRsaPssSignCallback(WolfSSLSession ssl, ByteBuffer in,
+            long inSz, ByteBuffer out, int[] outSz, int hash, int mgf,
+            ByteBuffer keyDer, long keySz)
+    {
+        int ret;
+
+        /* call user-registered rsa pss sign method */
+        ret = internRsaPssSignCb.rsaPssSignCallback(ssl, in, inSz, out, outSz,
+            hash, mgf, keyDer, keySz, ssl.getRsaSignCtx());
+
+        return ret;
+    }
+
+    private int internalRsaPssSignCheckCallback(WolfSSLSession ssl,
+            ByteBuffer sig, long sigSz, ByteBuffer out, long outSz, int hash,
+            int mgf, ByteBuffer keyDer, long keySz)
+    {
+        int ret;
+
+        /* call user-registered rsa pss verify method */
+        ret = internRsaPssSignCheckCb.rsaPssVerifyCallback(ssl, sig, sigSz,
+            out, outSz, hash, mgf, keyDer, keySz, ssl.getRsaVerifyCtx());
 
         return ret;
     }
@@ -406,7 +450,10 @@ public class WolfSSLContext {
     private native void setEccVerifyCb(long ctx);
     private native void setEccSharedSecretCb(long ctx);
     private native void setRsaSignCb(long ctx);
+    private native void setRsaPssSignCb(long ctx);
     private native void setRsaVerifyCb(long ctx);
+    private native void setRsaSignCheckCb(long ctx);
+    private native void setRsaPssSignCheckCb(long ctx);
     private native void setRsaEncCb(long ctx);
     private native void setRsaDecCb(long ctx);
     private native void setPskClientCb(long ctx);
@@ -1933,23 +1980,128 @@ public class WolfSSLContext {
     }
 
     /**
-     * Allows caller to set the Public Key Callback for RSA Public Encrypt.
-     * The callback should return 0 for success or negative value for an
-     * error. The <b>ssl</b> and <b>ctx</b> objects are available for
-     * the users convenience. <b>in</b> is the input buffer to encrypt while
-     * <b>inSz</b> denotes the length of the input. <b>out</b> is the output
-     * buffer where the result of the encryption should be stored. <b>outSz</b>
-     * is an input/output variable that specifies the size of the output
-     * buffer upon invocation and the actual size of the encryption should be
-     * stored there before returning. <b>keyDer</b> is the RSA Public key in
-     * ASN1 format and <b>keySz</b> is the length of the key in bytes. An
-     * example callback can be found in examples/MyRsaEncCallback.java.
+     * Allows caller to set the Public Key Callback for RSA Sign Check (verify
+     * a signature that was just created). Uses the same callback signature as
+     * RSA Verify. The callback should return the number of plaintext bytes
+     * for success or a negative value for an error.
      *
-     * @param callback  object to be registered as the RSA public encrypt
-     *                  callback for the WolfSSL context. The signature of
-     *                  this object and corresponding method must match that
-     *                  as shown in WolfSSLRsaEncCallback.java, inside
-     *                  rsaEncCallback().
+     * @param callback  object to be registered as the RSA sign check callback
+     *                  for the WolfSSL context. The signature of this object
+     *                  and corresponding method must match that as shown in
+     *                  WolfSSLRsaVerifyCallback.java, inside
+     *                  rsaVerifyCallback().
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#setRsaVerifyCtx(Object)
+     */
+    public synchronized void setRsaSignCheckCb(
+        WolfSSLRsaVerifyCallback callback) throws IllegalStateException,
+        WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                () -> "entered setRsaSignCheckCb(" + callback + ")");
+
+            /* set rsa sign check callback */
+            internRsaSignCheckCb = callback;
+
+            /* register internal callback with native lib */
+            setRsaSignCheckCb(getContextPtr());
+        }
+    }
+
+    /**
+     * Allows caller to set the Public Key Callback for RSA-PSS Signing. The
+     * callback should return 0 for success or a negative value for an error.
+     * <b>in</b> is the input buffer to sign and <b>inSz</b> denotes the length
+     * of the input. <b>out</b> is the output buffer where the result of the
+     * signature should be stored. <b>outSz</b> is an input/output variable that
+     * specifies the size of the output buffer upon invocation. <b>hash</b> and
+     * <b>mgf</b> specify the hash algorithm and mask generation function.
+     * <b>keyDer</b> is the RSA Private key in ASN1 format and <b>keySz</b> is
+     * the length of the key in bytes.
+     *
+     * @param callback object to be registered as the RSA-PSS sign callback for
+     *                 the WolfSSL context. The signature of this object and
+     *                 corresponding method must match that as shown in
+     *                 WolfSSLRsaPssSignCallback.java.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#setRsaSignCtx(Object)
+     */
+    public synchronized void setRsaPssSignCb(WolfSSLRsaPssSignCallback callback)
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                () -> "entered setRsaPssSignCb(" + callback + ")");
+
+            /* set rsa pss sign callback */
+            internRsaPssSignCb = callback;
+
+            /* register internal callback with native lib */
+            setRsaPssSignCb(getContextPtr());
+        }
+    }
+
+    /**
+     * Allows caller to set the Public Key Callback for RSA-PSS Sign Check
+     * (verify a PSS signature that was just created). The callback should
+     * return the number of plaintext bytes for success or a negative value
+     * for an error. <b>hash</b> and <b>mgf</b> specify the hash algorithm and
+     * mask generation function.
+     *
+     * @param callback object to be registered as the RSA-PSS sign check
+     *                 callback for the WolfSSL context. The signature of
+     *                 this object and corresponding method must match that as
+     *                 shown in WolfSSLRsaPssVerifyCallback.java.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#setRsaVerifyCtx(Object)
+     */
+    public synchronized void setRsaPssSignCheckCb(
+        WolfSSLRsaPssVerifyCallback callback) throws IllegalStateException,
+        WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (ctxLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, getContextPtr(),
+                () -> "entered setRsaPssSignCheckCb(" + callback + ")");
+
+            /* set rsa pss sign check callback */
+            internRsaPssSignCheckCb = callback;
+
+            /* register internal callback with native lib */
+            setRsaPssSignCheckCb(getContextPtr());
+        }
+    }
+
+    /**
+     * Allows caller to set the Public Key Callback for RSA Public Encrypt.
+     * The callback should return 0 for success or negative value for an error.
+     * The <b>ssl</b> and <b>ctx</b> objects are available for the users
+     * convenience. <b>in</b> is the input buffer to encrypt while <b>inSz</b>
+     * denotes the length of the input. <b>out</b> is the output buffer where
+     * the result of the encryption should be stored. <b>outSz</b> is an
+     * input/output variable that specifies the size of the output buffer upon
+     * invocation and the actual size of the encryption should be stored there
+     * before returning. <b>keyDer</b> is the RSA Public key in ASN1 format
+     * and <b>keySz</b> is the length of the key in bytes. An example callback
+     * can be found in examples/MyRsaEncCallback.java.
+     *
+     * @param callback object to be registered as the RSA public encrypt
+     *                 callback for the WolfSSL context. The signature of
+     *                 this object and corresponding method must match that as
+     *                 shown in WolfSSLRsaEncCallback.java, inside
+     *                 rsaEncCallback().
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI exception
      * @see    WolfSSLSession#setRsaEncCtx(Object)
