@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.BeforeClass;
 import static org.junit.Assert.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -56,6 +57,7 @@ public class WolfSSLTest {
         test_WolfSSL_Method_Allocators(lib);
         test_WolfSSL_getLibVersionHex();
         test_WolfSSL_getErrno();
+        test_WolfSSL_getSNIFromBuffer();
         testGetCiphersAvailableIana();
         test_isLibraryLoadSkippedReturnsFalseByDefault();
         test_SystemPropertyNotSetByDefault();
@@ -234,6 +236,143 @@ public class WolfSSLTest {
         int errno = WolfSSL.getErrno();
 
         System.out.println("\t\t\t... passed");
+    }
+
+    public void test_WolfSSL_getSNIFromBuffer() throws WolfSSLException {
+        System.out.print("\tgetSNIFromBuffer()");
+
+        /* Minimal TLS 1.2 ClientHello with SNI extension for "www.example.com".
+         * This is a hand crafted minimal valid ClientHello message. */
+        String hostname = "www.example.com";
+        byte[] hostBytes = hostname.getBytes(StandardCharsets.UTF_8);
+        int hostLen = hostBytes.length;
+
+        /* SNI extension: type(2) + len(2) + sni_list_len(2) + sni_type(1) +
+         * sni_len(2) + sni_data */
+        int sniExtLen = 2 + 2 + 2 + 1 + 2 + hostLen;
+        /* Extensions block: ext_len(2) + sni_ext */
+        int extBlockLen = 2 + sniExtLen;
+
+        /* ClientHello body:
+         *   version(2) + random(32) + sessId_len(1) + cipher_suites_len(2) +
+         *   one_suite(2) + comp_len(1) + comp_null(1) + extensions */
+        int chBodyLen = 2 + 32 + 1 + 2 + 2 + 1 + 1 + extBlockLen;
+
+        /* Handshake header: type(1) + length(3) */
+        int hsLen = 1 + 3 + chBodyLen;
+
+        /* TLS record: type(1) + version(2) + length(2) */
+        int totalLen = 1 + 2 + 2 + hsLen;
+
+        byte[] clientHello = new byte[totalLen];
+        int offset = 0;
+
+        /* TLS record header */
+        clientHello[offset++] = 0x16; /* handshake */
+        clientHello[offset++] = 0x03; /* TLS 1.0 */
+        clientHello[offset++] = 0x01;
+        clientHello[offset++] = (byte)((hsLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(hsLen & 0xFF);
+
+        /* Handshake header */
+        clientHello[offset++] = 0x01; /* client_hello */
+        clientHello[offset++] = 0x00; /* length (3B) */
+        clientHello[offset++] = (byte)((chBodyLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(chBodyLen & 0xFF);
+
+        /* ClientHello body */
+        clientHello[offset++] = 0x03; /* TLS 1.2 */
+        clientHello[offset++] = 0x03;
+
+        /* 32 bytes random (zeros for test) */
+        offset += 32;
+
+        /* Session ID length = 0 */
+        clientHello[offset++] = 0x00;
+
+        /* Cipher suites: length=2, one suite */
+        clientHello[offset++] = 0x00;
+        clientHello[offset++] = 0x02;
+        clientHello[offset++] = (byte)0xC0;
+        clientHello[offset++] = 0x2F;
+
+        /* Compression: length=1, null */
+        clientHello[offset++] = 0x01;
+        clientHello[offset++] = 0x00;
+
+        /* Extensions length */
+        int extTotalLen = sniExtLen;
+        clientHello[offset++] = (byte)((extTotalLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(extTotalLen & 0xFF);
+
+        /* SNI extension type = 0x0000 */
+        clientHello[offset++] = 0x00;
+        clientHello[offset++] = 0x00;
+
+        /* SNI extension data length */
+        int sniDataLen = 2 + 1 + 2 + hostLen;
+        clientHello[offset++] = (byte)((sniDataLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(sniDataLen & 0xFF);
+
+        /* SNI list length */
+        int sniListLen = 1 + 2 + hostLen;
+        clientHello[offset++] = (byte)((sniListLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(sniListLen & 0xFF);
+
+        /* SNI type: host_name = 0 */
+        clientHello[offset++] = 0x00;
+
+        /* SNI host name length */
+        clientHello[offset++] = (byte)((hostLen >> 8) & 0xFF);
+        clientHello[offset++] = (byte)(hostLen & 0xFF);
+
+        /* SNI host name data */
+        System.arraycopy(hostBytes, 0, clientHello, offset, hostLen);
+        offset += hostLen;
+
+        byte[] sniOut = new byte[256];
+
+        int ret = WolfSSL.getSNIFromBuffer(clientHello,
+            (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME, sniOut);
+
+        if (ret == WolfSSL.NOT_COMPILED_IN) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        if (ret <= 0) {
+            System.out.println("\t\t... failed");
+            fail("getSNIFromBuffer() returned: " + ret);
+        }
+
+        String extracted = new String(sniOut, 0, ret, StandardCharsets.UTF_8);
+        if (!hostname.equals(extracted)) {
+            System.out.println("\t\t... failed");
+            fail("getSNIFromBuffer() expected [" + hostname + "] got [" +
+                extracted + "]");
+        }
+
+        /* Test null clientHello throws exception */
+        try {
+            WolfSSL.getSNIFromBuffer(null, (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
+                sniOut);
+            System.out.println("\t\t... failed");
+            fail("Expected IllegalArgumentException for null clientHello");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        /* Test null sni output buffer throws exception */
+        try {
+            WolfSSL.getSNIFromBuffer(clientHello,
+                (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME, null);
+            System.out.println("\t\t... failed");
+            fail("Expected IllegalArgumentException for null sni");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        System.out.println("\t\t... passed");
     }
 
     public void test_isLibraryLoadSkippedReturnsFalseByDefault() {

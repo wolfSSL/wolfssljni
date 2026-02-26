@@ -1678,6 +1678,35 @@ public class WolfSSL {
     public static native long getLibVersionHex();
 
     /**
+     * Retrieves the Server Name Indication (SNI) from a raw ClientHello
+     * message buffer.
+     *
+     * This is a utility method that does not require an active SSL/TLS session
+     * or context. It can be used to inspect the SNI before setting up the
+     * TLS session, for example for SNI-based routing.
+     *
+     * Wraps native wolfSSL_SNI_GetFromBuffer().
+     *
+     * @param clientHello raw Client Hello message bytes
+     * @param type        SNI type to retrieve, typically
+     *                    {@link #WOLFSSL_SNI_HOST_NAME}
+     * @param sni         output buffer where SNI value will be written. On
+     *                    success, the SNI data will be placed at the beginning
+     *                    of this array.
+     *
+     * @return number of bytes written into sni on success, 0 if no SNI
+     *         extension was found in Client Hello, {@link #NOT_COMPILED_IN} if
+     *         native wolfSSL was compiled without SNI support, negative value
+     *         on error.
+     * @throws IllegalArgumentException if clientHello or sni is null
+     * @throws WolfSSLException if native wolfSSL_SNI_GetFromBuffer() call
+     *         fails with a negative error code
+     */
+    public static native int getSNIFromBuffer(byte[] clientHello,
+        byte type, byte[] sni) throws IllegalArgumentException,
+        WolfSSLException;
+
+    /**
      * Returns the enabled cipher suites for native wolfSSL.
      *
      * @return array of cipher suite Strings

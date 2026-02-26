@@ -1225,6 +1225,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSL_getLibVersionHex
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    getSNIFromBuffer
+ * Signature: ([BB[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSNIFromBuffer
+  (JNIEnv *, jclass, jbyteArray, jbyte, jbyteArray);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    isEnabledCRL
  * Signature: ()I
  */
