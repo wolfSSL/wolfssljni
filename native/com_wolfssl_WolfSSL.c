@@ -2650,3 +2650,105 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getErrno
     return 0;
 #endif
 }
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getSNIFromBuffer
+  (JNIEnv* jenv, jclass jcl, jbyteArray clientHello, jbyte type, jbyteArray sni)
+{
+#ifdef HAVE_SNI
+    int ret = 0;
+    byte* clientHelloBuf = NULL;
+    byte* sniBuf = NULL;
+    unsigned int inOutSz = 0;
+    int helloSz = 0;
+    jclass excClass = NULL;
+    char errMsg[WOLFSSL_MAX_ERROR_SZ];
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    if (clientHello == NULL || sni == NULL) {
+        excClass = (*jenv)->FindClass(jenv,
+            "java/lang/IllegalArgumentException");
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            return (jint)BAD_FUNC_ARG;
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "clientHello and sni must be non-null");
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    inOutSz = (unsigned int)(*jenv)->GetArrayLength(jenv, sni);
+    if (inOutSz == 0) {
+        return (jint)0;
+    }
+
+    helloSz = (*jenv)->GetArrayLength(jenv, clientHello);
+
+    clientHelloBuf = (byte*)(*jenv)->GetByteArrayElements(jenv,
+        clientHello, NULL);
+    if (clientHelloBuf == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        return (jint)MEMORY_E;
+    }
+
+    sniBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, sni, NULL);
+    if (sniBuf == NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, clientHello,
+            (jbyte*)clientHelloBuf, JNI_ABORT);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        return (jint)MEMORY_E;
+    }
+
+    ret = wolfSSL_SNI_GetFromBuffer(clientHelloBuf, (unsigned int)helloSz,
+        (byte)type, sniBuf, &inOutSz);
+
+    if (ret == WOLFSSL_SUCCESS) {
+        /* copy back SNI data to Java array */
+        (*jenv)->ReleaseByteArrayElements(jenv, sni, (jbyte*)sniBuf, 0);
+        (*jenv)->ReleaseByteArrayElements(jenv, clientHello,
+            (jbyte*)clientHelloBuf, JNI_ABORT);
+
+        return (jint)inOutSz;
+
+    } else {
+        /* discard, don't copy back */
+        (*jenv)->ReleaseByteArrayElements(jenv, sni, (jbyte*)sniBuf, JNI_ABORT);
+        (*jenv)->ReleaseByteArrayElements(jenv, clientHello,
+            (jbyte*)clientHelloBuf, JNI_ABORT);
+
+        if (ret < 0) {
+            XSNPRINTF(errMsg, sizeof(errMsg),
+                "wolfSSL_SNI_GetFromBuffer() failed: %d", ret);
+            excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLException");
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                return (jint)ret;
+            }
+            (*jenv)->ThrowNew(jenv, excClass, errMsg);
+            return (jint)ret;
+        }
+    }
+
+    /* ret == 0: no SNI found, not an error */
+    return (jint)0;
+
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)clientHello;
+    (void)type;
+    (void)sni;
+    return (jint)NOT_COMPILED_IN;
+#endif /* HAVE_SNI */
+}
