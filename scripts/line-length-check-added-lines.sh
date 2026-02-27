@@ -106,9 +106,12 @@ while IFS= read -r entry; do
       ^[[:space:]]*return[[:space:]]+Java_com_wolfssl_.* ]]; then
       jni_skip=1
     elif [[ "$line_text" =~ \
-      ^[[:space:]]*\(JNIEnv\*[[:space:]]+env.*\) ]]; then
+      ^[[:space:]]*\(JNIEnv[[:space:]]*\* ]]; then
       jni_skip=1
-    elif [[ "$line_text" =~ ^[[:space:]]*JNIEnv\*[[:space:]]+env.* ]]; then
+    elif [[ "$line_text" =~ ^[[:space:]]*JNIEnv[[:space:]]*\* ]]; then
+      jni_skip=1
+    elif [[ "$line_text" =~ \
+      ^[[:space:]]*\*[[:space:]]+Signature: ]]; then
       jni_skip=1
     fi
 

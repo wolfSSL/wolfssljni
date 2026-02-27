@@ -70,9 +70,19 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
 int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         unsigned char* out, unsigned int* outSz, const unsigned char* keyDer,
         unsigned int keySz, void* ctx);
+int  NativeRsaPssSignCb(WOLFSSL* ssl,
+        const unsigned char* in, unsigned int inSz, unsigned char* out,
+        unsigned int* outSz, int hash, int mgf, const unsigned char* keyDer,
+        unsigned int keySz, void* ctx);
 int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
         unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
         void* ctx);
+int  NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
+        unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
+        void* ctx);
+int  NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
+        unsigned int sigSz, unsigned char** out, int hash, int mgf,
+        const unsigned char* keyDer, unsigned int keySz, void* ctx);
 int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         unsigned char* out, unsigned int* outSz, const unsigned char* keyDer,
         unsigned int keySz, void* ctx);
@@ -4152,6 +4162,324 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
 
 #endif /* HAVE_PK_CALLBACKS */
 
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaPssSignCb
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr)
+{
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    jclass excClass = NULL;
+    (void)jcl;
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(WC_RSA_PSS) && !defined(NO_RSA)
+    if (ctx != NULL) {
+        wolfSSL_CTX_SetRsaPssSignCb(ctx, NativeRsaPssSignCb);
+
+    } else {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Input WolfSSLContext object was null when setting RsaPssSignCb");
+    }
+#else
+    (void)ctx;
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callback support and/or RSA-PSS support");
+#endif
+}
+
+#if defined(HAVE_PK_CALLBACKS) && defined(WC_RSA_PSS) && !defined(NO_RSA)
+
+int NativeRsaPssSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
+    unsigned char* out, unsigned int* outSz, int hash, int mgf,
+    const unsigned char* keyDer, unsigned int keySz, void* ctx)
+{
+    jint       retval = 0;
+    jint       vmret  = 0;
+
+    JNIEnv*    jenv;
+    jclass     excClass;
+    int        needsDetach = 0;
+
+    static jobject* g_cachedSSLObj;
+    jclass     sessClass;
+    jfieldID   ctxFid;
+    jmethodID  getCtxMethodId;
+
+    jobject    ctxRef;
+    jclass     innerCtxClass;
+    jmethodID  rsaPssSignMethodId;
+    jintArray  j_outSz;
+
+    jobject    inBB = NULL;
+    jobject    outBB = NULL;
+    jobject    keyDerBB = NULL;
+    jint       tmpVal = 0;
+
+    (void)ctx;
+
+    if (!g_vm || !ssl || !in || !out || !outSz || !keyDer) {
+        return -1;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -1;
+        }
+        needsDetach = 1;
+    } else if (vmret != JNI_OK) {
+        return -1;
+    }
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "object reference in NativeRsaPssSignCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "class reference in NativeRsaPssSignCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+        "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get native WolfSSLContext field ID in NativeRsaPssSignCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get getAssociatedContextPtr() "
+            "method ID in NativeRsaPssSignCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+        getCtxMethodId);
+    CheckException(jenv);
+    if (!ctxRef) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeRsaPssSignCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference from Java land */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLContext "
+            "class reference in NativeRsaPssSignCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call internal RSA-PSS sign callback */
+    rsaPssSignMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+        "internalRsaPssSignCallback", "(Lcom/wolfssl/WolfSSLSession;"
+        "Ljava/nio/ByteBuffer;J" "Ljava/nio/ByteBuffer;[III"
+        "Ljava/nio/ByteBuffer;J)I");
+
+    if (!rsaPssSignMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalRsaPssSignCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'in' */
+    inBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)in, inSz);
+    if (!inBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSign in ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'out' */
+    outBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)out, *outSz);
+    if (!outBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSign out ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'keyDer' */
+    keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer, keySz);
+    if (!keyDerBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSign keyDer ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create jintArray to hold outSz, used as an output parameter from Java,
+     * only needs to have 1 element */
+    j_outSz = (*jenv)->NewIntArray(jenv, 1);
+    if (!j_outSz) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create result intArray in RsaPssSignCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* copy outSz into j_outSz */
+    (*jenv)->SetIntArrayRegion(jenv, j_outSz, 0, 1, (jint*)outSz);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to set j_outSz intArray in RsaPssSignCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call Java callback, java layer handles adding CTX ref */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, rsaPssSignMethodId,
+        (jobject)(*g_cachedSSLObj), inBB, (jlong)inSz, outBB, j_outSz, hash,
+        mgf, keyDerBB, (jlong)keySz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    if (retval == 0) {
+        /* copy j_outSz into outSz */
+        (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, inBB);
+            (*jenv)->DeleteLocalRef(jenv, outBB);
+            (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+            (*jenv)->DeleteLocalRef(jenv, j_outSz);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return -1;
+        }
+        *outSz = tmpVal;
+    }
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, inBB);
+    (*jenv)->DeleteLocalRef(jenv, outBB);
+    (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+    (*jenv)->DeleteLocalRef(jenv, j_outSz);
+
+    /* detach JNIEnv from thread */
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return retval;
+}
+
+#endif /* HAVE_PK_CALLBACKS && WC_RSA_PSS && !NO_RSA */
+
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaVerifyCb
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr)
 {
@@ -4399,12 +4727,532 @@ int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
     (*jenv)->DeleteLocalRef(jenv, keyDerBB);
 
     /* detach JNIEnv from thread */
-    (*g_vm)->DetachCurrentThread(g_vm);
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
 
 #endif /* HAVE_PK_CALLBACKS */
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaSignCheckCb
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr)
+{
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    jclass excClass = NULL;
+    (void)jcl;
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+    if (ctx != NULL) {
+        /* set RSA sign check callback */
+        wolfSSL_CTX_SetRsaSignCheckCb(ctx, NativeRsaSignCheckCb);
+    } else {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Input WolfSSLContext object was null when setting RsaSignCheckCb");
+    }
+#else
+    (void)ctx;
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callback and/or RSA support");
+#endif
+}
+
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaPssSignCheckCb
+  (JNIEnv* jenv, jobject jcl, jlong ctxPtr)
+{
+    WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
+    jclass excClass = NULL;
+    (void)jcl;
+
+    /* find exception class */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return;
+    }
+
+#if defined(HAVE_PK_CALLBACKS) && defined(WC_RSA_PSS) && !defined(NO_RSA)
+    if (ctx != NULL) {
+        /* set RSA-PSS sign check callback */
+        wolfSSL_CTX_SetRsaPssSignCheckCb(ctx, NativeRsaPssSignCheckCb);
+    } else {
+        (*jenv)->ThrowNew(jenv, excClass, "Input WolfSSLContext object was "
+            "null when setting RsaPssSignCheckCb");
+    }
+#else
+    (void)ctx;
+    (*jenv)->ThrowNew(jenv, excClass,
+        "wolfSSL not compiled with PK Callback and/or RSA-PSS support");
+#endif
+}
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
+
+int NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
+    unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
+    void* ctx)
+{
+    jint       retval = 0;
+    jint       vmret  = 0;
+
+    JNIEnv*    jenv;
+    jclass     excClass;
+    int        needsDetach = 0;
+
+    static jobject* g_cachedSSLObj;
+    jclass     sessClass;
+    jfieldID   ctxFid;
+    jmethodID  getCtxMethodId;
+
+    jobject    ctxRef;
+    jclass     innerCtxClass;
+    jmethodID  rsaSignCheckMethodId;
+
+    jobject    sigBB = NULL;
+    jobject    outBB = NULL;
+    jobject    keyDerBB = NULL;
+
+    (void)ctx;
+
+    if (!g_vm || !ssl || !sig || !out || !keyDer) {
+        return -1;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -1;
+        }
+        needsDetach = 1;
+    } else if (vmret != JNI_OK) {
+        return -1;
+    }
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "object reference in NativeRsaSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "class reference in NativeRsaSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+        "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLContext "
+            "field ID in NativeRsaSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get getAssociatedContextPtr() "
+            "method ID in NativeRsaSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+        getCtxMethodId);
+    CheckException(jenv);
+    if (!ctxRef) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeRsaSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLContext "
+            "class reference in NativeRsaSignCheckCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call internal RSA sign check callback */
+    rsaSignCheckMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+        "internalRsaSignCheckCallback", "(Lcom/wolfssl/WolfSSLSession;"
+        "Ljava/nio/ByteBuffer;JLjava/nio/ByteBuffer;J"
+        "Ljava/nio/ByteBuffer;J)I");
+
+    if (!rsaSignCheckMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalRsaSignCheckCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'sig' */
+    sigBB = (*jenv)->NewDirectByteBuffer(jenv, sig, sigSz);
+    if (!sigBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaSignCheck sig ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'out', since doing this inline, outBB points
+     * to the same address as sigBB */
+    outBB = (*jenv)->NewDirectByteBuffer(jenv, sig, sigSz);
+    if (!outBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaSignCheck out ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'keyDer' */
+    keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer, keySz);
+    if (!keyDerBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaSignCheck keyDer ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call Java callback, java layer handles adding CTX ref */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, rsaSignCheckMethodId,
+        (jobject)(*g_cachedSSLObj), sigBB, (jlong)sigSz, outBB, (jlong)sigSz,
+        keyDerBB, (jlong)keySz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+    }
+
+    /* point out* to the beginning of decrypted buffer */
+    if (retval > 0) {
+        *out = sig;
+    }
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, sigBB);
+    (*jenv)->DeleteLocalRef(jenv, outBB);
+    (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+
+    /* detach JNIEnv from thread */
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return retval;
+}
+
+#endif /* HAVE_PK_CALLBACKS && !NO_RSA */
+
+#if defined(HAVE_PK_CALLBACKS) && defined(WC_RSA_PSS) && !defined(NO_RSA)
+
+int NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
+    unsigned int sigSz, unsigned char** out, int hash, int mgf,
+    const unsigned char* keyDer, unsigned int keySz, void* ctx)
+{
+    jint       retval = 0;
+    jint       vmret  = 0;
+
+    JNIEnv*    jenv;
+    jclass     excClass;
+    int        needsDetach = 0;
+
+    static jobject* g_cachedSSLObj;
+    jclass     sessClass;
+    jfieldID   ctxFid;
+    jmethodID  getCtxMethodId;
+
+    jobject    ctxRef;
+    jclass     innerCtxClass;
+    jmethodID  rsaPssSignCheckMethodId;
+
+    jobject    sigBB = NULL;
+    jobject    outBB = NULL;
+    jobject    keyDerBB = NULL;
+
+    (void)ctx;
+
+    if (!g_vm || !ssl || !sig || !out || !keyDer) {
+        return -1;
+    }
+
+    /* get JavaEnv from JavaVM */
+    vmret = (int)((*g_vm)->GetEnv(g_vm, (void**) &jenv, JNI_VERSION_1_6));
+    if (vmret == JNI_EDETACHED) {
+#ifdef __ANDROID__
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, &jenv, NULL);
+#else
+        vmret = (*g_vm)->AttachCurrentThread(g_vm, (void**) &jenv, NULL);
+#endif
+        if (vmret) {
+            return -1;
+        }
+        needsDetach = 1;
+    } else if (vmret != JNI_OK) {
+        return -1;
+    }
+
+    /* find exception class in case we need it */
+    excClass = (*jenv)->FindClass(jenv, "com/wolfssl/WolfSSLJNIException");
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get stored WolfSSLSession jobject */
+    g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
+    if (!g_cachedSSLObj) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "object reference in NativeRsaPssSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLSession class from object */
+    sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
+    if (!sessClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLSession "
+            "class reference in NativeRsaPssSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* lookup WolfSSLContext private member fieldID */
+    ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
+        "Lcom/wolfssl/WolfSSLContext;");
+    if (!ctxFid) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLContext "
+            "field ID in NativeRsaPssSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* find getContextPtr() method */
+    getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
+    if (!getCtxMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get getAssociatedContextPtr() "
+            "method ID in NativeRsaPssSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext ctx object from Java land */
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+        getCtxMethodId);
+    CheckException(jenv);
+    if (!ctxRef) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Can't get WolfSSLContext object in NativeRsaPssSignCheckCb");
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* get WolfSSLContext class reference */
+    innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
+    if (!innerCtxClass) {
+        (*jenv)->ThrowNew(jenv, excClass, "Can't get native WolfSSLContext "
+            "class reference in NativeRsaPssSignCheckCb");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call internal RSA-PSS sign check callback */
+    rsaPssSignCheckMethodId = (*jenv)->GetMethodID(jenv,
+        innerCtxClass, "internalRsaPssSignCheckCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;J"
+        "Ljava/nio/ByteBuffer;JIILjava/nio/ByteBuffer;J)I");
+
+    if (!rsaPssSignCheckMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Error getting internalRsaPssSignCheckCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'sig' */
+    sigBB = (*jenv)->NewDirectByteBuffer(jenv, sig, sigSz);
+    if (!sigBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSignCheck sig ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'out', since doing inline, outBB points to
+     * the same address as sigBB */
+    outBB = (*jenv)->NewDirectByteBuffer(jenv, sig, sigSz);
+    if (!outBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSignCheck out ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create ByteBuffer to wrap 'keyDer' */
+    keyDerBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)keyDer, keySz);
+    if (!keyDerBB) {
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Failed to create rsaPssSignCheck keyDer ByteBuffer");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call Java callback, java layer handles adding CTX ref */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, rsaPssSignCheckMethodId,
+        (jobject)(*g_cachedSSLObj), sigBB, (jlong)sigSz, outBB, (jlong)sigSz,
+        hash, mgf, keyDerBB, (jlong)keySz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+    }
+
+    /* point out* to the beginning of decrypted buffer */
+    if (retval > 0) {
+        *out = sig;
+    }
+
+    /* delete local refs */
+    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    (*jenv)->DeleteLocalRef(jenv, sigBB);
+    (*jenv)->DeleteLocalRef(jenv, outBB);
+    (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+
+    /* detach JNIEnv from thread */
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return retval;
+}
+
+#endif /* HAVE_PK_CALLBACKS && WC_RSA_PSS && !NO_RSA */
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaEncCb
   (JNIEnv* jenv, jobject jcl, jlong ctxPtr)

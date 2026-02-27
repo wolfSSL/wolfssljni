@@ -329,10 +329,34 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaSignCb
 
 /*
  * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setRsaPssSignCb
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaPssSignCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
  * Method:    setRsaVerifyCb
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaVerifyCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setRsaSignCheckCb
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaSignCheckCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLContext
+ * Method:    setRsaPssSignCheckCb
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaPssSignCheckCb
   (JNIEnv *, jobject, jlong);
 
 /*

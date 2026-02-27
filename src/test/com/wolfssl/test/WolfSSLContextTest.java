@@ -25,6 +25,18 @@ import org.junit.Test;
 import org.junit.BeforeClass;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.net.ServerSocket;
+import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
@@ -32,6 +44,11 @@ import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
 import com.wolfssl.WolfSSLSession;
+import com.wolfssl.WolfSSLRsaSignCallback;
+import com.wolfssl.WolfSSLRsaVerifyCallback;
+import com.wolfssl.WolfSSLRsaPssSignCallback;
+import com.wolfssl.WolfSSLRsaPssVerifyCallback;
+import com.wolfssl.WolfCryptRSA;
 
 public class WolfSSLContextTest {
 
@@ -40,6 +57,8 @@ public class WolfSSLContextTest {
 
     public static String cliCert    = "examples/certs/client-cert.pem";
     public static String cliKey     = "examples/certs/client-key.pem";
+    public static String svrCert    = "examples/certs/server-cert.pem";
+    public static String svrKey     = "examples/certs/server-key.pem";
     public static String svrCertEcc = "examples/certs/server-ecc.pem";
     public static String caCert     = "examples/certs/ca-cert.pem";
     public static String dhParams   = "examples/certs/dh2048.pem";
@@ -63,6 +82,8 @@ public class WolfSSLContextTest {
 
         cliCert = WolfSSLTestCommon.getPath(cliCert);
         cliKey = WolfSSLTestCommon.getPath(cliKey);
+        svrCert = WolfSSLTestCommon.getPath(svrCert);
+        svrKey = WolfSSLTestCommon.getPath(svrKey);
         svrCertEcc = WolfSSLTestCommon.getPath(svrCertEcc);
         caCert = WolfSSLTestCommon.getPath(caCert);
         dhParams = WolfSSLTestCommon.getPath(dhParams);
@@ -80,6 +101,7 @@ public class WolfSSLContextTest {
         test_WolfSSLContext_set1SigAlgsList();
         test_WolfSSLContext_setMinRSAKeySize();
         test_WolfSSLContext_setMinECCKeySize();
+        test_WolfSSLContext_rsaCbHandshake();
         test_WolfSSLContext_free();
     }
 
@@ -733,6 +755,442 @@ public class WolfSSLContextTest {
         }
 
         System.out.println("\t\t... passed");
+    }
+
+    /* Context object shared between RSA sign/verify callbacks, tracks whether
+     * callback was invoked during handshake */
+    class TestRsaCbCtx
+    {
+        public boolean called = false;
+    }
+
+    class TestRsaSignCb implements WolfSSLRsaSignCallback
+    {
+        public int rsaSignCallback(WolfSSLSession ssl, ByteBuffer in, long inSz,
+            ByteBuffer out, int[] outSz, ByteBuffer keyDer, long keySz,
+            Object ctx) {
+
+            TestRsaCbCtx myCtx = (TestRsaCbCtx)ctx;
+            myCtx.called = true;
+
+            WolfCryptRSA rsa = new WolfCryptRSA();
+            return rsa.doSign(in, inSz, out, outSz, keyDer, keySz);
+        }
+    }
+
+    class TestRsaVerifyCb implements WolfSSLRsaVerifyCallback
+    {
+        public int rsaVerifyCallback(WolfSSLSession ssl, ByteBuffer sig,
+            long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,
+            long keySz, Object ctx) {
+
+            TestRsaCbCtx myCtx = (TestRsaCbCtx)ctx;
+            myCtx.called = true;
+
+            WolfCryptRSA rsa = new WolfCryptRSA();
+            return rsa.doVerify(sig, sigSz, out, outSz, keyDer, keySz);
+        }
+    }
+
+    class TestRsaPssSignCb implements WolfSSLRsaPssSignCallback
+    {
+        public int rsaPssSignCallback(WolfSSLSession ssl, ByteBuffer in,
+            long inSz, ByteBuffer out, int[] outSz, int hash, int mgf,
+            ByteBuffer keyDer, long keySz, Object ctx) {
+
+            TestRsaCbCtx myCtx = (TestRsaCbCtx)ctx;
+            myCtx.called = true;
+
+            WolfCryptRSA rsa = new WolfCryptRSA();
+            return rsa.doPssSign(in, inSz, out, outSz, hash, mgf, keyDer,
+                keySz);
+        }
+    }
+
+    class TestRsaPssVerifyCb implements WolfSSLRsaPssVerifyCallback
+    {
+        public int rsaPssVerifyCallback(WolfSSLSession ssl, ByteBuffer sig,
+            long sigSz, ByteBuffer out, long outSz, int hash, int mgf,
+            ByteBuffer keyDer, long keySz, Object ctx) {
+
+            TestRsaCbCtx myCtx = (TestRsaCbCtx)ctx;
+            myCtx.called = true;
+
+            WolfCryptRSA rsa = new WolfCryptRSA();
+            return rsa.doPssVerify(sig, sigSz, out, outSz, hash, mgf, keyDer,
+                keySz);
+        }
+    }
+
+    /**
+     * Helper to create and configure a WolfSSLContext with cert, key, and CA
+     * for handshake tests.
+     */
+    private WolfSSLContext createCtx(String certPath, String keyPath,
+        String caPath, long method) throws Exception {
+
+        int ret;
+        WolfSSLContext c = new WolfSSLContext(method);
+
+        ret = c.useCertificateChainFile(certPath);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            c.free();
+            throw new Exception("Failed to load cert: " + certPath);
+        }
+
+        ret = c.usePrivateKeyFile(keyPath, WolfSSL.SSL_FILETYPE_PEM);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            c.free();
+            throw new Exception("Failed to load key: " + keyPath);
+        }
+
+        ret = c.loadVerifyLocations(caPath, null);
+        if (ret != WolfSSL.SSL_SUCCESS) {
+            c.free();
+            throw new Exception("Failed to load CA: " + caPath);
+        }
+
+        return c;
+    }
+
+    public void test_WolfSSLContext_rsaCbHandshake() {
+
+        System.out.print("\trsaCbHandshake()");
+
+        if (!WolfSSL.RsaEnabled() || !WolfSSL.FileSystemEnabled()) {
+            System.out.println("\t\t... skipped");
+            return;
+        }
+
+        /* TLS 1.2 handshake with RSA PK callbacks */
+        rsaCbHandshakeTls12();
+
+        /* TLS 1.3 handshake with RSA-PSS PK callbacks */
+        if (WolfSSL.TLSv13Enabled() && WolfSSL.RsaPssEnabled()) {
+            rsaCbHandshakeTls13();
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    private void rsaCbHandshakeTls12() {
+
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+
+        try {
+            srvCtx = createCtx(svrCert, svrKey, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createCtx(cliCert, cliKey, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+
+            /* Register server-side RSA sign + sign check */
+            TestRsaSignCb signCb = new TestRsaSignCb();
+            TestRsaVerifyCb signCheckCb = new TestRsaVerifyCb();
+            srvCtx.setRsaSignCb(signCb);
+            srvCtx.setRsaSignCheckCb(signCheckCb);
+
+            /* Register client-side RSA verify */
+            TestRsaVerifyCb verifyCb = new TestRsaVerifyCb();
+            cliCtx.setRsaVerifyCb(verifyCb);
+
+            /* Register RSA-PSS callbacks in case rsa_pss_sa_algo is used
+             * as sig algo in TLS 1.2 */
+            if (WolfSSL.RsaPssEnabled()) {
+                TestRsaPssSignCb pssSignCb = new TestRsaPssSignCb();
+                TestRsaPssVerifyCb pssSrvChk = new TestRsaPssVerifyCb();
+                TestRsaPssVerifyCb pssCliChk = new TestRsaPssVerifyCb();
+                srvCtx.setRsaPssSignCb(pssSignCb);
+                srvCtx.setRsaPssSignCheckCb(pssSrvChk);
+                cliCtx.setRsaPssSignCheckCb(pssCliChk);
+            }
+
+            /* Context objects to track invocation */
+            final TestRsaCbCtx srvSignCtx = new TestRsaCbCtx();
+            final TestRsaCbCtx srvVerifyCtx = new TestRsaCbCtx();
+            final TestRsaCbCtx cliVerifyCtx = new TestRsaCbCtx();
+
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket fSrvSock = srvSocket;
+            final WolfSSLContext fSrvCtx = srvCtx;
+
+            final CountDownLatch ready = new CountDownLatch(1);
+
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> srvFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket srv = null;
+                    WolfSSLSession srvSes = null;
+                    try {
+                        ready.countDown();
+                        srv = fSrvSock.accept();
+                        srvSes = new WolfSSLSession(fSrvCtx);
+                        srvSes.setRsaSignCtx(srvSignCtx);
+                        srvSes.setRsaVerifyCtx(srvVerifyCtx);
+                        ret = srvSes.setFd(srv);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception("srv setFd fail: " + ret);
+                        }
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (
+                            ret != WolfSSL.SSL_SUCCESS &&
+                            (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                             err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception("srv accept fail: " + ret);
+                        }
+                        srvSes.shutdownSSL();
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (srv != null) {
+                            srv.close();
+                        }
+                        fSrvSock.close();
+                    }
+                    return null;
+                }
+            });
+
+            if (!ready.await(2, TimeUnit.SECONDS)) {
+                fail("Server did not become ready within timeout");
+            }
+
+            cliSock = new Socket("localhost", port);
+            cliSes = new WolfSSLSession(cliCtx);
+            cliSes.setRsaVerifyCtx(cliVerifyCtx);
+
+            int ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("cli setFd fail: " + ret);
+            }
+
+            int err;
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                 err == WolfSSL.SSL_ERROR_WANT_WRITE));
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("TLS 1.2 RSA CB connect fail: " + ret);
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSock.close();
+
+            /* Check server thread for errors */
+            es.shutdown();
+            srvFuture.get(5, TimeUnit.SECONDS);
+
+            /* Verify callbacks were invoked */
+            assertTrue("RSA sign cb not called", srvSignCtx.called);
+            assertTrue("RSA sign check cb not called", srvVerifyCtx.called);
+            if (!WolfSSL.RsaPssEnabled()) {
+                assertTrue("RSA verify (cli) cb not called",
+                    cliVerifyCtx.called);
+            }
+
+        } catch (WolfSSLJNIException e) {
+            /* PK callbacks may not be compiled in */
+            if (e.getMessage() != null &&
+                e.getMessage().contains("PK Callback")) {
+                return;
+            }
+            System.out.println("\t\t... failed");
+            fail("TLS 1.2 RSA CB handshake: " + e.getMessage());
+
+        } catch (ExecutionException e) {
+            System.out.println("\t\t... failed");
+            fail("TLS 1.2 RSA CB server: " + e.getCause().getMessage());
+
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            fail("TLS 1.2 RSA CB handshake: " + e.getMessage());
+
+        } finally {
+            if (cliSes != null) {
+                try { cliSes.freeSSL(); }
+                catch (Exception e) { /* ignore */ }
+            }
+            if (cliSock != null) {
+                try { cliSock.close(); }
+                catch (IOException e) { /* ignore */ }
+            }
+            if (srvSocket != null && !srvSocket.isClosed()) {
+                try { srvSocket.close(); }
+                catch (IOException e) { /* ignore */ }
+            }
+            if (cliCtx != null) cliCtx.free();
+            if (srvCtx != null) srvCtx.free();
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
+    }
+
+    private void rsaCbHandshakeTls13() {
+
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+
+        try {
+            srvCtx = createCtx(svrCert, svrKey, caCert,
+                WolfSSL.TLSv1_3_ServerMethod());
+            cliCtx = createCtx(cliCert, cliKey, caCert,
+                WolfSSL.TLSv1_3_ClientMethod());
+
+            /* Server: RSA-PSS sign + sign check */
+            TestRsaPssSignCb pssSignCb = new TestRsaPssSignCb();
+            TestRsaPssVerifyCb pssSrvChkCb = new TestRsaPssVerifyCb();
+            srvCtx.setRsaPssSignCb(pssSignCb);
+            srvCtx.setRsaPssSignCheckCb(pssSrvChkCb);
+
+            /* Context objects to track invocation */
+            final TestRsaCbCtx srvSignCtx = new TestRsaCbCtx();
+            final TestRsaCbCtx srvVerifyCtx = new TestRsaCbCtx();
+
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket fSrvSock = srvSocket;
+            final WolfSSLContext fSrvCtx = srvCtx;
+
+            final CountDownLatch ready = new CountDownLatch(1);
+
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> srvFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket srv = null;
+                    WolfSSLSession srvSes = null;
+                    try {
+                        ready.countDown();
+                        srv = fSrvSock.accept();
+                        srvSes = new WolfSSLSession(fSrvCtx);
+                        srvSes.setRsaSignCtx(srvSignCtx);
+                        srvSes.setRsaVerifyCtx(srvVerifyCtx);
+                        ret = srvSes.setFd(srv);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception("srv setFd fail: " + ret);
+                        }
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                            (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                             err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception("srv accept fail: " + ret);
+                        }
+                        srvSes.shutdownSSL();
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (srv != null) {
+                            srv.close();
+                        }
+                        fSrvSock.close();
+                    }
+                    return null;
+                }
+            });
+
+            if (!ready.await(2, TimeUnit.SECONDS)) {
+                fail("Server did not become ready within timeout");
+            }
+
+            cliSock = new Socket("localhost", port);
+            cliSes = new WolfSSLSession(cliCtx);
+
+            int ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("cli setFd fail: " + ret);
+            }
+
+            int err;
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                 err == WolfSSL.SSL_ERROR_WANT_WRITE));
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("TLS 1.3 PSS CB connect fail: " + ret);
+            }
+
+            cliSes.shutdownSSL();
+            cliSes.freeSSL();
+            cliSock.close();
+
+            /* Check server thread for errors */
+            es.shutdown();
+            srvFuture.get(5, TimeUnit.SECONDS);
+
+            /* Verify server-side callbacks were invoked. Client-side PSS peer
+             * verify uses internal wolfSSL code (no setRsaPssVerifyCb in
+             * JNI yet). */
+            assertTrue("PSS sign cb not called", srvSignCtx.called);
+            assertTrue("PSS sign check cb not called", srvVerifyCtx.called);
+
+        } catch (WolfSSLJNIException e) {
+            /* PK callbacks may not be compiled in */
+            if (e.getMessage() != null &&
+                e.getMessage().contains("PK Callback")) {
+                return;
+            }
+            System.out.println("\t\t... failed");
+            fail("TLS 1.3 PSS CB handshake: " + e.getMessage());
+
+        } catch (ExecutionException e) {
+            System.out.println("\t\t... failed");
+            fail("TLS 1.3 PSS CB server: " + e.getCause().getMessage());
+
+        } catch (Exception e) {
+            System.out.println("\t\t... failed");
+            fail("TLS 1.3 PSS CB handshake: " + e.getMessage());
+
+        } finally {
+            if (cliSes != null) {
+                try { cliSes.freeSSL(); }
+                catch (Exception e) { /* ignore */ }
+            }
+            if (cliSock != null) {
+                try { cliSock.close(); }
+                catch (IOException e) { /* ignore */ }
+            }
+            if (srvSocket != null && !srvSocket.isClosed()) {
+                try { srvSocket.close(); }
+                catch (IOException e) { /* ignore */ }
+            }
+            if (cliCtx != null) cliCtx.free();
+            if (srvCtx != null) srvCtx.free();
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
     }
 
     public void test_WolfSSLContext_free() {
