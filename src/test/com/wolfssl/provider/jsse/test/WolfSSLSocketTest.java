@@ -125,6 +125,7 @@ import com.wolfssl.WolfSSLException;
     public void testSocketConnectException();
     public void testSocketCloseInterruptsWrite();
     public void testSocketCloseInterruptsRead();
+    public void testSSLHandshakeExceptionCauseChain();
  */
 public class WolfSSLSocketTest {
 
@@ -4320,6 +4321,95 @@ public class WolfSSLSocketTest {
             orderCorrect[0]);
 
         System.out.println("\t\t... passed");
+    }
+
+    @Test
+    public void testSSLHandshakeExceptionCauseChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException, InterruptedException,
+               java.util.concurrent.ExecutionException {
+
+        System.out.print("\tSSLHandshakeException cause chain");
+
+        /* Create server context with valid certs */
+        SSLContext srvCtx = tf.createSSLContext("TLS", ctxProvider);
+
+        /* Create client context with rejecting TrustManager.
+         * When checkServerTrusted() throws CertificateException,
+         * wolfJSSE should preserve it as the cause of
+         * SSLHandshakeException thrown from startHandshake(). */
+        final String rejectMsg = "Intentional test rejection";
+        TrustManager[] rejectingTMs = { new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+            }
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                throw new CertificateException(rejectMsg);
+            }
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }};
+
+        SSLContext cliCtx = SSLContext.getInstance("TLS", "wolfJSSE");
+        cliCtx.init(null, rejectingTMs, null);
+
+        /* Create server socket on ephemeral port */
+        SSLServerSocket ss = (SSLServerSocket)srvCtx
+            .getServerSocketFactory().createServerSocket(0);
+
+        SSLSocket cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
+        cs.connect(new InetSocketAddress(
+            InetAddress.getLocalHost(), ss.getLocalPort()));
+
+        final SSLSocket server = (SSLSocket)ss.accept();
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> serverFuture = es.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    server.startHandshake();
+                } catch (SSLException e) {
+                    /* expected, client will reject server cert */
+                }
+                return null;
+            }
+        });
+
+        try {
+            cs.startHandshake();
+            System.out.println("\t... failed");
+            fail("Expected SSLHandshakeException from rejecting " +
+                 "TrustManager");
+        } catch (SSLHandshakeException e) {
+            /* Verify the cause chain preserves CertificateException */
+            Throwable cause = e.getCause();
+            assertNotNull(
+                "SSLHandshakeException cause should not be null",
+                cause);
+            assertTrue(
+                "Cause should be CertificateException, got: " +
+                cause.getClass().getName(),
+                cause instanceof CertificateException);
+            assertEquals(
+                "CertificateException message mismatch",
+                rejectMsg, cause.getMessage());
+        }
+
+        es.shutdown();
+        serverFuture.get();
+        cs.close();
+        server.close();
+        ss.close();
+
+        System.out.println("\t... passed");
     }
 }
 

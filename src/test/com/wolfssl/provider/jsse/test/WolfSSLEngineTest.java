@@ -50,10 +50,12 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
@@ -64,6 +66,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assert.assertEquals;
 import org.junit.Rule;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -2557,5 +2560,391 @@ public class WolfSSLEngineTest {
 
         pass("\t... passed");
     }
-}
 
+    @Test
+    public void testSSLHandshakeExceptionCauseChain()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException {
+
+        System.out.print("\tSSLEngine SSLHandshakeException cause chain");
+
+        final String rejectMsg = "Intentional engine test rejection";
+        TrustManager[] rejectingTMs = { new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+            }
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                throw new CertificateException(rejectMsg);
+            }
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }};
+
+        SSLContext srvCtx = tf.createSSLContext("TLS", engineProvider);
+        SSLContext cliCtx = SSLContext.getInstance("TLS", "wolfJSSE");
+        cliCtx.init(null, rejectingTMs, null);
+
+        SSLEngine server = srvCtx.createSSLEngine();
+        SSLEngine client = cliCtx.createSSLEngine("wolfSSL engine test", 11111);
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(
+            server.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer sink = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+
+        boolean sawExpected = false;
+        for (int loops = 0; loops < 50 && !sawExpected; loops++) {
+            try {
+                if (client.getHandshakeStatus() == HandshakeStatus.NEED_WRAP) {
+                    client.wrap(empty, cliToSer);
+                }
+            } catch (SSLHandshakeException e) {
+                Throwable cause = e.getCause();
+                assertNotNull("SSLHandshakeException cause should not be null",
+                    cause);
+                assertTrue("Cause should be CertificateException, got: " +
+                    cause.getClass().getName(),
+                    cause instanceof CertificateException);
+                assertEquals("CertificateException message mismatch",
+                    rejectMsg, cause.getMessage());
+                sawExpected = true;
+                break;
+            }
+
+            cliToSer.flip();
+            if (cliToSer.hasRemaining() &&
+                (server.getHandshakeStatus() ==
+                    HandshakeStatus.NEED_UNWRAP ||
+                 server.getHandshakeStatus() ==
+                    HandshakeStatus.NOT_HANDSHAKING)) {
+                try {
+                    server.unwrap(cliToSer, sink);
+                } catch (SSLException e) {
+                    /* Server may see handshake failure after client reject */
+                }
+            }
+            cliToSer.compact();
+
+            if (server.getHandshakeStatus() == HandshakeStatus.NEED_WRAP) {
+                try {
+                    server.wrap(empty, serToCli);
+                } catch (SSLException e) {
+                    /* Server may fail after client rejection */
+                }
+            }
+
+            serToCli.flip();
+            if (serToCli.hasRemaining() &&
+                (client.getHandshakeStatus() ==
+                    HandshakeStatus.NEED_UNWRAP ||
+                 client.getHandshakeStatus() ==
+                    HandshakeStatus.NOT_HANDSHAKING)) {
+                try {
+                    client.unwrap(serToCli, sink);
+                } catch (SSLHandshakeException e) {
+                    Throwable cause = e.getCause();
+                    assertNotNull(
+                        "SSLHandshakeException cause " +
+                        "should not be null", cause);
+                    assertTrue("Cause should be CertificateException, got: " +
+                        cause.getClass().getName(),
+                        cause instanceof CertificateException);
+                    assertEquals("CertificateException message mismatch",
+                        rejectMsg, cause.getMessage());
+                    sawExpected = true;
+                }
+            }
+            serToCli.compact();
+        }
+
+        if (!sawExpected) {
+            error("\t... failed");
+            fail("Expected SSLHandshakeException " +
+                "with CertificateException cause");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testCloseNotifyTLS13HandshakeStatus()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
+        /* TLS 1.3 close_notify should return NOT_HANDSHAKING,
+         * not NEED_WRAP (RFC 8446 Section 6.1). */
+        System.out.print("\tTesting TLS 1.3 close_notify status");
+
+        String[] proto = {"TLSv1.3"};
+        this.ctx = tf.createSSLContext("TLSv1.3", engineProvider);
+        if (this.ctx == null) {
+            /* TLS 1.3 not available, skip */
+            pass("\t... skipped");
+            return;
+        }
+
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client =
+            this.ctx.createSSLEngine("wolfSSL test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+        server.setEnabledProtocols(proto);
+        client.setEnabledProtocols(proto);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int ret = tf.testConnection(server, client, null, null,
+            "close_notify test");
+        if (ret != 0) {
+            error("\t... failed");
+            fail("failed to create connection");
+        }
+
+        /* Client sends close_notify */
+        client.closeOutbound();
+        if (client.getHandshakeStatus() != HandshakeStatus.NEED_WRAP) {
+            error("\t... failed");
+            fail("closeOutbound should result in NEED_WRAP");
+        }
+
+        ByteBuffer netBuf = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(
+            client.getSession().getApplicationBufferSize());
+
+        /* Wrap the close_notify */
+        SSLEngineResult result = client.wrap(
+            ByteBuffer.allocate(0), netBuf);
+        if (result.getStatus() != SSLEngineResult.Status.CLOSED) {
+            error("\t... failed");
+            fail("wrap after closeOutbound should return CLOSED");
+        }
+
+        /* Server receives close_notify, should get
+         * NOT_HANDSHAKING for TLS 1.3 */
+        netBuf.flip();
+        result = server.unwrap(netBuf, empty);
+
+        /* After receiving close_notify, server sees CLOSED status
+         * and calls closeOutbound to initiate its own close */
+        if (result.getStatus() == SSLEngineResult.Status.CLOSED) {
+            server.closeOutbound();
+        }
+
+        HandshakeStatus serverStatus = server.getHandshakeStatus();
+
+        /* After closeOutbound, server needs to wrap its close_notify */
+        if (serverStatus == HandshakeStatus.NEED_WRAP) {
+            /* Wrap server's close_notify response */
+            ByteBuffer serverNet = ByteBuffer.allocateDirect(
+                server.getSession().getPacketBufferSize());
+            result = server.wrap(ByteBuffer.allocate(0), serverNet);
+
+            serverStatus = server.getHandshakeStatus();
+
+            /* After wrapping close_notify, should be NOT_HANDSHAKING
+             * (not stuck in NEED_WRAP forever) */
+            if (serverStatus == HandshakeStatus.NEED_WRAP) {
+                error("\t... failed");
+                fail("server stuck in NEED_WRAP after wrapping " +
+                     "close_notify response");
+            }
+        }
+
+        /* Final state should be NOT_HANDSHAKING */
+        if (serverStatus != HandshakeStatus.NOT_HANDSHAKING) {
+            error("\t... failed");
+            fail("expected NOT_HANDSHAKING after close_notify " +
+                 "exchange, got " + serverStatus);
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testBufferUnderflowPartialRecord()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
+        /* Test that unwrap() returns BUFFER_UNDERFLOW with 0 bytes
+         * consumed when given a partial TLS record. */
+        System.out.print("\tTesting BUFFER_UNDERFLOW partial record");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client =
+            this.ctx.createSSLEngine("wolfSSL test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int ret = tf.testConnection(server, client, null, null,
+            "underflow test");
+        if (ret != 0) {
+            error("\t... failed");
+            fail("failed to create connection");
+        }
+
+        /* Client wraps some application data */
+        String testData = "Hello from client for underflow test";
+        ByteBuffer appBuf = ByteBuffer.wrap(testData.getBytes());
+        ByteBuffer netBuf = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+
+        SSLEngineResult result = client.wrap(appBuf, netBuf);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("wrap failed: " + result.getStatus());
+        }
+        netBuf.flip();
+        int fullRecordLen = netBuf.remaining();
+
+        if (fullRecordLen < 6) {
+            error("\t... failed");
+            fail("TLS record too short to test partial");
+        }
+
+        /* Create a partial record (only first 3 bytes of the
+         * TLS record header — less than the 5-byte header) */
+        ByteBuffer partialBuf = ByteBuffer.allocateDirect(3);
+        byte[] partial = new byte[3];
+        netBuf.get(partial);
+        partialBuf.put(partial);
+        partialBuf.flip();
+
+        ByteBuffer outBuf = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+
+        /* Unwrap with partial record should return BUFFER_UNDERFLOW */
+        result = server.unwrap(partialBuf, outBuf);
+
+        if (result.getStatus() !=
+            SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+            error("\t... failed");
+            fail("expected BUFFER_UNDERFLOW for partial TLS record, " +
+                 "got " + result.getStatus());
+        }
+
+        /* Should consume 0 bytes on BUFFER_UNDERFLOW */
+        if (result.bytesConsumed() != 0) {
+            error("\t... failed");
+            fail("BUFFER_UNDERFLOW should consume 0 bytes, consumed " +
+                 result.bytesConsumed());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testBufferOverflowSmallOutput()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException, CertificateException,
+               IOException, UnrecoverableKeyException {
+
+        /* Test BUFFER_OVERFLOW with small output, then retry
+         * with larger buffer. */
+        System.out.print("\tTesting BUFFER_OVERFLOW small output");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client =
+            this.ctx.createSSLEngine("wolfSSL test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int ret = tf.testConnection(server, client, null, null,
+            "overflow test");
+        if (ret != 0) {
+            error("\t... failed");
+            fail("failed to create connection");
+        }
+
+        /* Client wraps application data large enough to overflow
+         * a small output buffer */
+        byte[] bigData = new byte[1024];
+        new Random().nextBytes(bigData);
+        ByteBuffer appBuf = ByteBuffer.wrap(bigData);
+        ByteBuffer netBuf = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+
+        SSLEngineResult result = client.wrap(appBuf, netBuf);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("wrap failed: " + result.getStatus());
+        }
+        netBuf.flip();
+
+        /* Try to unwrap into a tiny output buffer (64 bytes for
+         * 1024 bytes of plaintext) */
+        ByteBuffer tinyOut = ByteBuffer.allocate(64);
+        ByteBuffer netCopy = netBuf.duplicate();
+
+        result = server.unwrap(netCopy, tinyOut);
+
+        if (result.getStatus() !=
+            SSLEngineResult.Status.BUFFER_OVERFLOW) {
+            error("\t... failed");
+            fail("expected BUFFER_OVERFLOW for small output buffer, " +
+                 "got " + result.getStatus());
+        }
+
+        /* Now retry with a properly-sized buffer */
+        ByteBuffer properOut = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+
+        result = server.unwrap(netBuf, properOut);
+
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("unwrap with proper buffer should succeed, got " +
+                 result.getStatus());
+        }
+
+        /* Verify we got the data */
+        properOut.flip();
+        if (properOut.remaining() != bigData.length) {
+            error("\t... failed");
+            fail("expected " + bigData.length + " bytes, got " +
+                 properOut.remaining());
+        }
+
+        byte[] received = new byte[properOut.remaining()];
+        properOut.get(received);
+        if (!java.util.Arrays.equals(received, bigData)) {
+            error("\t... failed");
+            fail("received data does not match sent data");
+        }
+
+        pass("\t\t... passed");
+    }
+}

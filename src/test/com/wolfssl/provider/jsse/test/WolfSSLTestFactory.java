@@ -153,6 +153,7 @@ class WolfSSLTestFactory {
             System.out.println("could not find file " + f.getAbsolutePath());
             throw new WolfSSLException("Unable to find test files");
         }
+
     }
 
     private void setPaths(String in) {
@@ -868,7 +869,9 @@ class WolfSSLTestFactory {
         }
         if (!s.toString().equals("NEED_WRAP") ||
                 !result.getStatus().name().equals("CLOSED") ) {
-            throw new SSLException("Bad status");
+            throw new SSLException(
+                "Bad status: HS=" + s +
+                " status=" + result.getStatus());
         }
 
         /* server wraps its own close_notify */
@@ -1168,4 +1171,3 @@ class WolfSSLTestFactory {
         return x509;
     }
 }
-

@@ -83,7 +83,24 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         if (store == null) {
             return null;
         }
-        return store.getSession(sessionId, side);
+        /* Actively invalidate any expired sessions before lookup */
+        if (this.sesTimout > 0) {
+            try {
+                store.updateTimeouts(this.sesTimout, this.side);
+            } catch (IllegalStateException e) {
+                /* Native session may have been freed already */
+            }
+        }
+        WolfSSLImplementSSLSession session =
+            store.getSession(sessionId, side);
+        if (session == null) {
+            return null;
+        }
+        /* Filter out invalidated sessions */
+        if (!session.isValid()) {
+            return null;
+        }
+        return session;
     }
 
 
@@ -91,6 +108,14 @@ public class WolfSSLSessionContext implements SSLSessionContext {
     public Enumeration<byte[]> getIds() {
         if (store == null) {
             return null;
+        }
+        /* Actively invalidate any expired sessions before returning IDs */
+        if (this.sesTimout > 0) {
+            try {
+                store.updateTimeouts(this.sesTimout, this.side);
+            } catch (IllegalStateException e) {
+                /* Native session may have been freed already */
+            }
         }
         return store.getAllIDs(side);
     }
@@ -102,7 +127,11 @@ public class WolfSSLSessionContext implements SSLSessionContext {
 
         /* check for any new timeouts after timeout has been set */
         if (store != null) {
-            store.updateTimeouts(in, this.side);
+            try {
+                store.updateTimeouts(in, this.side);
+            } catch (IllegalStateException e) {
+                /* Native session may have been freed already */
+            }
         }
     }
 

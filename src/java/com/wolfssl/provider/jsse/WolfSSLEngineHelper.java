@@ -161,7 +161,8 @@ public class WolfSSLEngineHelper {
             WolfSSLParameters params, int port, String hostname)
             throws WolfSSLException {
 
-        if (params == null || ssl == null || store == null || port < 0) {
+        /* SSLEngine(host, -1) is a valid JSSE/Netty unknown-port hint. */
+        if (params == null || ssl == null || store == null || port < -1) {
             throw new WolfSSLException("Bad argument");
         }
 
@@ -192,7 +193,7 @@ public class WolfSSLEngineHelper {
             throws WolfSSLException {
 
         if (params == null || ssl == null || store == null ||
-                peerAddr == null || port < 0) {
+                peerAddr == null || port < -1) {
             throw new WolfSSLException("Bad argument");
         }
 
@@ -273,6 +274,10 @@ public class WolfSSLEngineHelper {
             }
         }
         else {
+            if (engine instanceof WolfSSLEngine) {
+                ((WolfSSLEngine)engine).cacheRequestedServerNamesFromNetData();
+            }
+
             /* Loop through available key types until we find an alias
              * that works, or none that do and return null */
             for (String type : keyTypes) {
@@ -476,6 +481,19 @@ public class WolfSSLEngineHelper {
     }
 
     /**
+     * Get the last exception from TrustManager certificate verification.
+     * Delegates to the internal verify callback if available.
+     *
+     * @return Exception from last failed verification, or null
+     */
+    protected synchronized Exception getLastVerifyException() {
+        if (this.wicb != null) {
+            return this.wicb.getVerifyException();
+        }
+        return null;
+    }
+
+    /**
      * Get all supported cipher suites in native wolfSSL library, which
      * are also allowed by "wolfjsse.enabledCipherSuites" system Security
      * property, if set.
@@ -529,6 +547,14 @@ public class WolfSSLEngineHelper {
         }
 
         this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites));
+
+        if (this.ssl != null && !this.ssl.handshakeDone()) {
+            String[] protocols = WolfSSLUtil.sanitizeProtocols(
+                this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
+            if (protocols != null && protocols.length > 0) {
+                applyConfiguredCipherProtocolSettingsFromSetter();
+            }
+        }
     }
 
     /**
@@ -563,6 +589,14 @@ public class WolfSSLEngineHelper {
 
         this.params.setProtocols(
             WolfSSLUtil.sanitizeProtocols(p, WolfSSL.TLS_VERSION.INVALID));
+
+        if (this.ssl != null && !this.ssl.handshakeDone()) {
+            String[] protocols = WolfSSLUtil.sanitizeProtocols(
+                this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
+            if (protocols != null && protocols.length > 0) {
+                applyConfiguredCipherProtocolSettingsFromSetter();
+            }
+        }
     }
 
     /**
@@ -826,6 +860,119 @@ public class WolfSSLEngineHelper {
         this.ssl.setOptions(mask);
     }
 
+    private boolean isTls13CipherSuite(String suite) {
+        if (suite == null) {
+            return false;
+        }
+
+        return suite.startsWith("TLS_AES_") ||
+            suite.startsWith("TLS_CHACHA20_") ||
+            suite.startsWith("TLS_SM4_");
+    }
+
+    private String[] getEffectiveProtocolsForCiphers(String[] protocols,
+        String[] suites) {
+
+        boolean hasTls13Proto = false;
+        boolean hasLegacyProto = false;
+        boolean hasTls13Suite = false;
+        boolean hasLegacySuite = false;
+        ArrayList<String> filtered;
+
+        if (protocols == null || suites == null || suites.length == 0) {
+            return protocols;
+        }
+
+        for (String proto : protocols) {
+            if ("TLSv1.3".equals(proto) || "DTLSv1.3".equals(proto)) {
+                hasTls13Proto = true;
+            }
+            else if ("TLSv1.2".equals(proto) || "DTLSv1.2".equals(proto) ||
+                "TLSv1.1".equals(proto) || "TLSv1".equals(proto) ||
+                "SSLv3".equals(proto)) {
+                hasLegacyProto = true;
+            }
+        }
+
+        if (!hasTls13Proto) {
+            return protocols;
+        }
+
+        for (String suite : suites) {
+            if (isTls13CipherSuite(suite)) {
+                hasTls13Suite = true;
+            }
+            else {
+                hasLegacySuite = true;
+            }
+        }
+
+        if (!hasTls13Suite) {
+            filtered = new ArrayList<String>();
+            for (String proto : protocols) {
+                if (!"TLSv1.3".equals(proto) && !"DTLSv1.3".equals(proto)) {
+                    filtered.add(proto);
+                }
+            }
+
+            if (filtered.isEmpty()) {
+                return protocols;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "disabling TLSv1.3 since no TLSv1.3 cipher suites " +
+                "are enabled");
+
+            return filtered.toArray(new String[filtered.size()]);
+        }
+
+        if (!hasLegacySuite && hasLegacyProto) {
+            filtered = new ArrayList<String>();
+            for (String proto : protocols) {
+                if ("TLSv1.3".equals(proto) || "DTLSv1.3".equals(proto)) {
+                    filtered.add(proto);
+                }
+            }
+
+            if (filtered.isEmpty()) {
+                return protocols;
+            }
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "disabling pre-TLSv1.3 protocols since only TLSv1.3 " +
+                "cipher suites are enabled");
+
+            return filtered.toArray(new String[filtered.size()]);
+        }
+
+        return protocols;
+    }
+
+    private void applyConfiguredCipherProtocolSettings()
+        throws SSLException {
+
+        String[] suites;
+        String[] protocols;
+
+        suites = WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
+        protocols = WolfSSLUtil.sanitizeProtocols(
+            this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID);
+        protocols = getEffectiveProtocolsForCiphers(protocols, suites);
+
+        this.setLocalCiphers(suites);
+        this.setLocalProtocol(protocols);
+    }
+
+    private void applyConfiguredCipherProtocolSettingsFromSetter()
+        throws IllegalArgumentException {
+
+        try {
+            applyConfiguredCipherProtocolSettings();
+        } catch (SSLException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
     /* sets client auth on or off if needed / wanted */
     private void setLocalAuth(SSLSocket socket, SSLEngine engine) {
         int mask = WolfSSL.SSL_VERIFY_NONE;
@@ -870,7 +1017,7 @@ public class WolfSSLEngineHelper {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "Using checkClientTrusted/ServerTrusted() " +
                 "for verification");
-            this.verifyMask = WolfSSL.SSL_VERIFY_PEER;
+            this.verifyMask = mask;
         }
 
         this.ssl.setVerify(this.verifyMask, wicb);
@@ -916,7 +1063,7 @@ public class WolfSSLEngineHelper {
      * name depending on what createSocket() API the user has called and with
      * what String.
      */
-    private void setLocalServerNames() {
+    private void setLocalServerNames(SSLEngine engine) {
         boolean autoSNI = this.wolfjsseAutoSni;
 
         /* Detect HttpsURLConnection usage by checking:
@@ -931,9 +1078,16 @@ public class WolfSSLEngineHelper {
                 this.peerAddr != null &&
                 this.params.getServerNames() == null;
 
-        /* Enable SNI if explicitly requested via property or if
-         * HttpsURLConnection is detected */
-        autoSNI = autoSNI || isHttpsConnection;
+        /* SSLEngine(host, port) should send SNI by default if no explicit
+         * server names were configured and SNI extension is enabled. */
+        boolean isEngineConnectionWithHost = this.clientMode &&
+                engine != null &&
+                this.hostname != null &&
+                this.params.getServerNames() == null;
+
+        /* Enable SNI if explicitly requested via property, if
+         * HttpsURLConnection is detected, or for SSLEngine(host, port). */
+        autoSNI = autoSNI || isHttpsConnection || isEngineConnectionWithHost;
 
         if (!this.jsseEnableSniExtension) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1249,14 +1403,9 @@ public class WolfSSLEngineHelper {
 
     private void setLocalParams(SSLSocket socket, SSLEngine engine)
         throws SSLException {
-
-        this.setLocalCiphers(
-            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
-        this.setLocalProtocol(
-            WolfSSLUtil.sanitizeProtocols(
-                this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID));
+        applyConfiguredCipherProtocolSettings();
         this.setLocalAuth(socket, engine);
-        this.setLocalServerNames();
+        this.setLocalServerNames(engine);
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
         this.setLocalSecureRenegotiation();
@@ -1324,6 +1473,7 @@ public class WolfSSLEngineHelper {
         throws SSLException {
 
         String sessCacheHostname = this.hostname;
+        List<SNIServerName> cachedSniNames = null;
 
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -1335,6 +1485,14 @@ public class WolfSSLEngineHelper {
          * is not available and timeout is long. */
         if (sessCacheHostname == null && this.peerAddr != null) {
             sessCacheHostname = this.peerAddr.getHostAddress();
+        }
+
+        if (this.session != null) {
+            List<SNIServerName> existingNames =
+                this.session.getSNIServerNames();
+            if (existingNames != null && !existingNames.isEmpty()) {
+                cachedSniNames = new ArrayList<SNIServerName>(existingNames);
+            }
         }
 
         /* create non null session */
@@ -1349,6 +1507,9 @@ public class WolfSSLEngineHelper {
             else {
                 this.session.setSessionContext(authStore.getServerContext());
                 this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+                if (cachedSniNames != null && !cachedSniNames.isEmpty()) {
+                    this.session.setSNIServerNames(cachedSniNames);
+                }
                 /* Track client auth state for getPeerCertificates() */
                 boolean clientAuthRequested =
                     this.params.getNeedClientAuth() ||
@@ -1450,11 +1611,11 @@ public class WolfSSLEngineHelper {
              * try to use IP address:port instead. If both are null, skip
              * setting serverID. Setting newSession to 1 for setServerID since
              * we are controlling get/set session from Java */
-            if (hostname != null) {
+            if (this.port >= 0 && hostname != null) {
                 serverId = this.hostname.concat(
                     Integer.toString(this.port)).getBytes();
             }
-            else if (peerAddr != null) {
+            else if (this.port >= 0 && peerAddr != null) {
                 hostAddress = this.peerAddr.getHostAddress();
                 if (hostAddress != null) {
                     serverId = hostAddress.concat(
@@ -1708,4 +1869,3 @@ public class WolfSSLEngineHelper {
         super.finalize();
     }
 }
-
