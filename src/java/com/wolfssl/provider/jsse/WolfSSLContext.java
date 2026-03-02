@@ -488,7 +488,7 @@ public class WolfSSLContext extends SSLContextSpi {
         try {
             return new WolfSSLEngine(this.ctx, this.authStore, this.params);
         } catch (WolfSSLException ex) {
-            throw new IllegalStateException("Unable to create engine");
+            throw new IllegalStateException("Unable to create engine", ex);
         }
     }
 
@@ -516,7 +516,7 @@ public class WolfSSLContext extends SSLContextSpi {
             return new WolfSSLEngine(this.ctx, this.authStore, this.params,
                 host, port);
         } catch (WolfSSLException ex) {
-            throw new IllegalStateException("Unable to create engine");
+            throw new IllegalStateException("Unable to create engine", ex);
         }
     }
 

@@ -791,6 +791,19 @@ public class WolfSSLX509 extends X509Certificate {
             return getName();
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj instanceof Principal) {
+                return getName().equals(((Principal) obj).getName());
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return getName().hashCode();
+        }
 
     }
 }

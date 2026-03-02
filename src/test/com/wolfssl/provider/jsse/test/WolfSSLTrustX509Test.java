@@ -3169,6 +3169,98 @@ public class WolfSSLTrustX509Test {
         pass("\t\t... passed");
     }
 
+    /**
+     * Regression test for OCSP issuer handling in
+     * checkServerTrusted(chain, ocspData, ...).
+     *
+     * The OCSP response targets intermediate1-ca-cert. Verification should
+     * fail when the issuer cert is not present in chain[], and succeed when
+     * the issuer cert is provided in chain[1].
+     */
+    @Test
+    public void testCheckServerTrustedOCSPIssuerFromChain()
+        throws Exception {
+
+        System.out.print("\tOCSP issuer from chain");
+
+        String ocspRootCaPath =
+            "examples/certs/ocsp-root-ca-cert.pem";
+        String intermediate1Path =
+            "examples/certs/ocsp-intermediate1-ca-cert.pem";
+
+        if (WolfSSLTestFactory.isAndroid()) {
+            ocspRootCaPath = "/data/local/tmp/" + ocspRootCaPath;
+            intermediate1Path = "/data/local/tmp/" + intermediate1Path;
+        }
+
+        try {
+            KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+            ks.load(null, null);
+
+            X509Certificate ocspRootCa =
+                WolfSSLTestFactory.loadX509CertificateFromPem(ocspRootCaPath);
+            X509Certificate intermediate1Cert =
+                WolfSSLTestFactory.loadX509CertificateFromPem(
+                    intermediate1Path);
+            ks.setCertificateEntry("ocsp-root-ca", ocspRootCa);
+
+            TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance("X509", "wolfJSSE");
+            tmf.init(ks);
+            TrustManager[] tm = tmf.getTrustManagers();
+            WolfSSLTrustX509 wolfX509tm = (WolfSSLTrustX509)tm[0];
+
+            try {
+                X509Certificate[] noIssuerChain =
+                    new X509Certificate[] { intermediate1Cert };
+                wolfX509tm.checkServerTrusted(noIssuerChain,
+                    WolfSSLCertManagerTest.validOcspResponse,
+                    null, "RSA", "localhost");
+
+                error("\t\t... failed");
+                fail("OCSP validation should fail when issuer is not in " +
+                    "chain[]");
+
+            } catch (CertificateException e) {
+                String msg = e.getMessage();
+                if (msg != null && msg.contains("not compiled")) {
+                    System.out.println("\t... skipped (OCSP not compiled in)");
+                    return;
+                }
+            }
+
+            X509Certificate[] withIssuerChain =
+                new X509Certificate[] { intermediate1Cert, ocspRootCa };
+            List<X509Certificate> retChain =
+                wolfX509tm.checkServerTrusted(withIssuerChain,
+                    WolfSSLCertManagerTest.validOcspResponse,
+                    null, "RSA", "localhost");
+
+            if (retChain == null || retChain.size() < withIssuerChain.length) {
+                error("\t\t... failed");
+                fail("OCSP validation with issuer in chain[] returned " +
+                    "invalid chain");
+            }
+
+        } catch (CertificateException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("not compiled")) {
+                System.out.println("\t... skipped (OCSP not compiled in)");
+                return;
+            }
+            error("\t\t... failed");
+            fail("OCSP issuer-from-chain regression test failed: " +
+                 e.getMessage());
+
+        } catch (Exception e) {
+            error("\t\t... failed");
+            fail("OCSP issuer-from-chain regression test error: " +
+                 e.getMessage());
+        }
+
+        pass("\t\t... passed");
+    }
+
     /* TrustManager that trusts all certificates */
     TrustManager[] trustAllCerts = {
         new X509ExtendedTrustManager() {
@@ -4418,4 +4510,3 @@ public class WolfSSLTrustX509Test {
         pass("\t... passed");
     }
 }
-
