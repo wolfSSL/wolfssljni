@@ -65,7 +65,7 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
   auth_header=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
 fi
 
-if ! pr_json="$(curl -fsSL "${auth_header[@]}" "https://api.github.com/repos/${repo}/pulls/${pr_number}")"; then
+if ! pr_json="$(curl -fsSL ${auth_header[@]+"${auth_header[@]}"} "https://api.github.com/repos/${repo}/pulls/${pr_number}")"; then
   curl_rc=$?
   echo "error: curl failed ($curl_rc) fetching PR #${pr_number} from ${repo}" >&2
   exit 1
