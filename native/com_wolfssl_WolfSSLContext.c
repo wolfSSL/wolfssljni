@@ -5910,8 +5910,9 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -5919,10 +5920,10 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession object reference in "
-                "NativePskClientCb");
-        if (needsDetach)
+            "Can't get WolfSSLSession object reference in NativePskClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -5930,55 +5931,56 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
     if (!sessClass) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference in "
-                "NativePskClientCb");
-        if (needsDetach)
+            "Can't get WolfSSLSession class reference in NativePskClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* lookup WolfSSLContext private member fieldID */
     ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-            "Lcom/wolfssl/WolfSSLContext;");
+        "Lcom/wolfssl/WolfSSLContext;");
     if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in "
-                "NativePSKClientCb");
-        if (needsDetach)
+            "Can't get WolfSSLContext field ID in NativePSKClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativePSKClientCb");
-        if (needsDetach)
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativePSKClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
-            getCtxMethodId);
+        getCtxMethodId);
     CheckException(jenv);
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get WolfSSLContext object in NativePskClientCb");
-        if (needsDetach)
+            "Can't get WolfSSLContext object in NativePskClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -5986,54 +5988,53 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
     if (!innerCtxClass) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativePskClientCb");
+            "Can't get native WolfSSLContext class reference in "
+            "NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* figure out if we need to call the CTX or SSL level callback */
 
-    /*  1.  Get internPskClientCb FieldID */
+    /*  1. Get internPskClientCb FieldID */
     internPskClientCbFid = (*jenv)->GetFieldID(jenv, innerCtxClass,
-            "internPskClientCb",
-            "Lcom/wolfssl/WolfSSLPskClientCallback;");
+        "internPskClientCb", "Lcom/wolfssl/WolfSSLPskClientCallback;");
     if (!internPskClientCbFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native internPskClientCb field ID in "
-                "NativePSKClientCb");
+            "Can't get internPskClientCb field ID in NativePSKClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
-    /*  2.  Get WolfSSLPskClientCallback object (or null) */
+    /*  2. Get WolfSSLPskClientCallback object (or null) */
     internPskClientCbObj = (*jenv)->GetObjectField(jenv, ctxRef,
-            internPskClientCbFid);
+        internPskClientCbFid);
     if (!internPskClientCbObj) {
-        printf("Using SSL level PSK Client callback!!!\n");
         usingSSLCallback = 1;
     }
 
     if (usingSSLCallback == 1) {
         /* WolfSSLSession level callback */
         pskClientMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-                "internalPskClientCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
-                "Ljava/lang/StringBuffer;J[BJ)J");
+            "internalPskClientCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
+            "Ljava/lang/StringBuffer;J[BJ)J");
     } else {
         /* WolfSSLContext level callback */
         pskClientMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalPskClientCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
-                "Ljava/lang/StringBuffer;J[BJ)J");
+            "internalPskClientCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
+            "Ljava/lang/StringBuffer;J[BJ)J");
     }
 
     if (!pskClientMethodId) {
@@ -6043,10 +6044,11 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         }
 
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting internalPskClientCallback method from JNI");
+            "Error getting internalPskClientCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6058,10 +6060,11 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error creating String for PSK client hint");
+            "Error creating String for PSK client hint");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6073,29 +6076,29 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error finding StringBuffer class for PSK client identity");
+            "Error finding StringBuffer class for PSK client identity");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* find StringBuffer Constructor */
-    strBufMethodId = (*jenv)->GetMethodID(jenv, strBufClass,
-            "<init>", "()V");
+    strBufMethodId = (*jenv)->GetMethodID(jenv, strBufClass, "<init>", "()V");
     if (!strBufMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get StringBuffer constructor method ID "
-                "in NativePskClientCb");
+            "Can't get StringBuffer constructor methodID in NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6107,11 +6110,12 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get StringBuffer object in NativePskClientCb");
+            "Can't get StringBuffer object in NativePskClientCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6119,12 +6123,13 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     keyArray = (*jenv)->NewByteArray(jenv, max_key_len);
     if (!keyArray) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error creating jbyteArray for PSK client key");
+            "Error creating jbyteArray for PSK client key");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, hintString);
         (*jenv)->DeleteLocalRef(jenv, strBufObj);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6132,8 +6137,8 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     if (usingSSLCallback == 1) {
         /* call WolfSSLSession level callback */
         retval = (*jenv)->CallLongMethod(jenv, (jobject)(*g_cachedSSLObj),
-                pskClientMethodId, (jobject)(*g_cachedSSLObj), hintString,
-                strBufObj, (jlong)id_max_len, keyArray, (jlong)max_key_len);
+            pskClientMethodId, (jobject)(*g_cachedSSLObj), hintString,
+            strBufObj, (jlong)id_max_len, keyArray, (jlong)max_key_len);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -6141,15 +6146,16 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
     } else {
         /* call WolfSSLContext level callback */
         retval = (*jenv)->CallLongMethod(jenv, ctxRef, pskClientMethodId,
-                (jobject)(*g_cachedSSLObj), hintString, strBufObj,
-                (jlong)id_max_len, keyArray, (jlong)max_key_len);
+            (jobject)(*g_cachedSSLObj), hintString, strBufObj,
+            (jlong)id_max_len, keyArray, (jlong)max_key_len);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -6157,8 +6163,9 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
     }
@@ -6174,27 +6181,29 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
 
         /* get the String from the StringBuffer */
         toStringId = (*jenv)->GetMethodID(jenv, strBufClass,
-                "toString", "()Ljava/lang/String;");
+            "toString", "()Ljava/lang/String;");
         if (!toStringId) {
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
             (*jenv)->ThrowNew(jenv, excClass,
-                    "Error getting String ID from StringBuffer in PSK CB");
+                "Error getting String ID from StringBuffer in PSK CB");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
 
@@ -6203,13 +6212,14 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         CheckException(jenv);
         if (!bufString) {
             (*jenv)->ThrowNew(jenv, excClass,
-                    "Error getting String from StringBuffer in PSK CB");
+                "Error getting String from StringBuffer in PSK CB");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
 
@@ -6217,14 +6227,15 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         tmpString = (*jenv)->GetStringUTFChars(jenv, bufString, 0);
         if (!tmpString) {
             (*jenv)->ThrowNew(jenv, excClass,
-                    "Error with GetStringUTFChars in PSK Client CB");
+                "Error with GetStringUTFChars in PSK Client CB");
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, bufString);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
         strcpy(identity, tmpString);
@@ -6237,8 +6248,9 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     (*jenv)->DeleteLocalRef(jenv, hintString);
     (*jenv)->DeleteLocalRef(jenv, strBufObj);
     (*jenv)->DeleteLocalRef(jenv, keyArray);
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
@@ -6332,8 +6344,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6341,10 +6354,10 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession object reference in "
-                "NativePskServerCb");
-        if (needsDetach)
+            "Can't get WolfSSLSession object reference in NativePskServerCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6352,55 +6365,56 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     sessClass = (*jenv)->GetObjectClass(jenv, (jobject)(*g_cachedSSLObj));
     if (!sessClass) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession class reference in "
-                "NativePskServerCb");
-        if (needsDetach)
+            "Can't get WolfSSLSession class reference in NativePskServerCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* lookup WolfSSLContext private member fieldID */
     ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-            "Lcom/wolfssl/WolfSSLContext;");
+        "Lcom/wolfssl/WolfSSLContext;");
     if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext field ID in "
-                "NativePSKClientCb");
-        if (needsDetach)
+            "Can't get WolfSSLContext field ID in NativePSKClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-            "getAssociatedContextPtr",
-            "()Lcom/wolfssl/WolfSSLContext;");
+            "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get getAssociatedContextPtr() method ID in "
-                "NativePSKClientCb");
-        if (needsDetach)
+            "Can't get getAssociatedContextPtr() method ID in "
+            "NativePSKClientCb");
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* get WolfSSLContext(ctx) object from Java WolfSSLSession object */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
-            getCtxMethodId);
+        getCtxMethodId);
     CheckException(jenv);
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get WolfSSLContext object in NativePskServerCb");
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6408,17 +6422,17 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     innerCtxClass = (*jenv)->GetObjectClass(jenv, ctxRef);
     if (!innerCtxClass) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLContext class reference in "
-                "NativePskServerCb");
+            "Can't get WolfSSLContext class reference in NativePskServerCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* figure out if we need to call the CTX or SSL level callback */
 
-    /*  1.  Get the internPskServerCb FieldID */
+    /*  1. Get the internPskServerCb FieldID */
     internPskServerCbFid = (*jenv)->GetFieldID(jenv, innerCtxClass,
             "internPskServerCb",
             "Lcom/wolfssl/WolfSSLPskServerCallback;");
@@ -6428,34 +6442,31 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native internPskServerCb field ID in "
-                "NativePskServerCb");
+            "Can't get internPskServerCb field ID in NativePskServerCb");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
-    /*  2.  Get WolfSSLPskServerCallback object (or null) */
+    /*  2. Get WolfSSLPskServerCallback object (or null) */
     internPskServerCbObj = (*jenv)->GetObjectField(jenv, ctxRef,
-            internPskServerCbFid);
+        internPskServerCbFid);
     if (!internPskServerCbObj) {
-        printf("Using SSL level PSK Server callback!!!\n");
         usingSSLCallback = 1;
     }
 
     if (usingSSLCallback == 1) {
         /* WolfSSLSession level callback */
         pskServerMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-                "internalPskServerCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
-                "[BJ)J");
+            "internalPskServerCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;[BJ)J");
     } else {
         /* WolfSSLContext level callback */
         pskServerMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-                "internalPskServerCallback",
-                "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;"
-                "[BJ)J");
+            "internalPskServerCallback",
+            "(Lcom/wolfssl/WolfSSLSession;Ljava/lang/String;[BJ)J");
     }
 
     if (!pskServerMethodId) {
@@ -6464,10 +6475,11 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting internalPskServerCallback method from JNI");
+            "Error getting internalPskServerCallback method from JNI");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6479,10 +6491,11 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error creating String for PSK client identity");
+            "Error creating String for PSK client identity");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
@@ -6490,41 +6503,44 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     keyArray = (*jenv)->NewByteArray(jenv, max_key_len);
     if (!keyArray) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error creating jbyteArray for PSK server key");
+            "Error creating jbyteArray for PSK server key");
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         (*jenv)->DeleteLocalRef(jenv, identityString);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return 0;
     }
 
     /* call Java PSK server callback */
     if (usingSSLCallback == 1) {
         retval = (*jenv)->CallLongMethod(jenv, (jobject)(*g_cachedSSLObj),
-                pskServerMethodId, (jobject)(*g_cachedSSLObj), identityString,
-                keyArray, (jlong)max_key_len);
+            pskServerMethodId, (jobject)(*g_cachedSSLObj), identityString,
+            keyArray, (jlong)max_key_len);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
     } else {
         retval = (*jenv)->CallLongMethod(jenv, ctxRef, pskServerMethodId,
-                (jobject)(*g_cachedSSLObj), identityString,
-                keyArray, (jlong)max_key_len);
+            (jobject)(*g_cachedSSLObj), identityString,
+            keyArray, (jlong)max_key_len);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
     }
@@ -6539,8 +6555,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
-            if (needsDetach)
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return 0;
         }
     }
@@ -6549,8 +6566,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
     (*jenv)->DeleteLocalRef(jenv, identityString);
     (*jenv)->DeleteLocalRef(jenv, keyArray);
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
