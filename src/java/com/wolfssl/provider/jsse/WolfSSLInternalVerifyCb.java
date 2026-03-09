@@ -38,6 +38,8 @@ import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * Internal verify callback.
@@ -132,33 +134,31 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         WolfSSLTrustX509 wolfTM = (WolfSSLTrustX509)tm;
 
         try {
-            if (this.callingSocket != null &&
-                this.callingSocket.get() != null) {
+            SSLSocket sock = (this.callingSocket != null) ?
+                this.callingSocket.get() : null;
+            SSLEngine eng = (this.callingEngine != null) ?
+                this.callingEngine.get() : null;
 
+            if (sock != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "checking hostname verification using SSLSocket");
 
                 /* Throws CertificateException when verify fails */
-                wolfTM.verifyHostname(peer, this.callingSocket.get(),
-                    null, clientMode);
+                wolfTM.verifyHostname(peer, sock, null, clientMode);
             }
-            else if (this.callingEngine != null &&
-                     this.callingEngine.get() != null) {
-
+            else if (eng != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "checking hostname verification using SSLEngine");
 
                 /* Throws CertificateException when verify fails */
-                wolfTM.verifyHostname(peer, null,
-                    this.callingEngine.get(), clientMode);
+                wolfTM.verifyHostname(peer, null, eng, clientMode);
             }
             else {
                 /* SSLSocket/SSLEngine null. Fail if endpoint ID
                  * is set, otherwise skip hostname verification. */
                 String eia = null;
                 if (this.params != null) {
-                    eia = this.params
-                        .getEndpointIdentificationAlgorithm();
+                    eia = this.params.getEndpointIdentificationAlgorithm();
                 }
                 if (eia != null && !eia.isEmpty()) {
                     throw new CertificateException(
@@ -199,8 +199,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
         /* Get endpoint identification algorithm from params */
         if (this.params != null) {
-            endpointIdAlgo =
-                this.params.getEndpointIdentificationAlgorithm();
+            endpointIdAlgo = this.params.getEndpointIdentificationAlgorithm();
         }
 
         /* If no endpoint identification algorithm set, skip hostname
@@ -209,10 +208,18 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             return 1;
         }
 
-        /* Only HTTPS and LDAPS are supported */
+        /* Only HTTPS and LDAPS are supported. Fail if endpoint ID was
+         * explicitly set to something else (typo or unsupported algo). */
         if (!endpointIdAlgo.equals("HTTPS") &&
             !endpointIdAlgo.equals("LDAPS")) {
-            return 1;
+            final String tmpAlgoUnsup = endpointIdAlgo;
+            this.verifyException = new CertificateException(
+                "Unsupported endpoint identification algorithm: " +
+                endpointIdAlgo);
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Unsupported endpoint identification algorithm: "
+                    + tmpAlgoUnsup);
+            return 0;
         }
 
         final String tmpAlgo = endpointIdAlgo;
@@ -222,21 +229,20 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
         /* Get peer host from SSLEngine or SSLSocket handshake session */
         try {
-            if (this.callingEngine != null &&
-                this.callingEngine.get() != null) {
-                session =
-                    this.callingEngine.get().getHandshakeSession();
+            SSLEngine eng = (this.callingEngine != null) ?
+                this.callingEngine.get() : null;
+            SSLSocket sock = (this.callingSocket != null) ?
+                this.callingSocket.get() : null;
+
+            if (eng != null) {
+                session = eng.getHandshakeSession();
             }
-            else if (this.callingSocket != null &&
-                     this.callingSocket.get() != null) {
-                javax.net.ssl.SSLSocket sock =
-                    this.callingSocket.get();
+            else if (sock != null) {
                 session = sock.getHandshakeSession();
             }
         } catch (UnsupportedOperationException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "getHandshakeSession() not supported: " +
-                e.getMessage());
+                () -> "getHandshakeSession() not supported: " + e.getMessage());
             CertificateException ce = new CertificateException(
                 "getHandshakeSession() not supported: " + e.getMessage());
             ce.initCause(e);
@@ -249,8 +255,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
          * but for SNI verification we need the logical hostname the client
          * requested (e.g. "something.netty.io"). */
         if (this.params != null) {
-            java.util.List<WolfSSLSNIServerName> sniNames =
-                this.params.getServerNames();
+            List<WolfSSLSNIServerName> sniNames = this.params.getServerNames();
             if (sniNames != null && !sniNames.isEmpty()) {
                 for (WolfSSLSNIServerName sni : sniNames) {
                     /* Type 0 = host_name (RFC 6066) */
@@ -258,7 +263,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                         byte[] encoded = sni.getEncoded();
                         if (encoded != null && encoded.length > 0) {
                             peerHost = new String(encoded,
-                                java.nio.charset.StandardCharsets.US_ASCII);
+                                StandardCharsets.US_ASCII);
                         }
                         break;
                     }
@@ -292,17 +297,15 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             int ret = wCert.checkHost(peerHost);
             if (ret == WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Provider-level hostname " +
-                    "verification passed for: " + tmpHost);
+                    () -> "Provider-level hostname verification " +
+                        "passed for: " + tmpHost);
                 return 1;
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Provider-level hostname " +
-                    "verification FAILED for: " + tmpHost);
-                this.verifyException =
-                    new CertificateException(
-                    "Hostname verification failed for: "
-                    + tmpHost);
+                    () -> "Provider-level hostname verification " +
+                        "FAILED for: " + tmpHost);
+                this.verifyException = new CertificateException(
+                    "Hostname verification failed for: " + tmpHost);
                 return 0;
             }
         } catch (Exception e) {
@@ -344,30 +347,29 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         try {
             /* Call TrustManager to do cert verification, should throw
              * CertificateException if verification fails */
+            SSLSocket sock = (this.callingSocket != null) ?
+                this.callingSocket.get() : null;
+            SSLEngine eng = (this.callingEngine != null) ?
+                this.callingEngine.get() : null;
+
             if (this.clientMode) {
                 if (this.tm instanceof X509ExtendedTrustManager) {
                     X509ExtendedTrustManager xtm =
                         (X509ExtendedTrustManager)this.tm;
 
-                    if (this.callingSocket != null &&
-                        this.callingSocket.get() != null) {
-
+                    if (sock != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkServerTrusted(" +
                           "SSLSocket)");
 
-                        xtm.checkServerTrusted(certs, authType,
-                            this.callingSocket.get());
+                        xtm.checkServerTrusted(certs, authType, sock);
                     }
-                    else if (this.callingEngine != null &&
-                             this.callingEngine.get() != null) {
-
+                    else if (eng != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkServerTrusted(" +
                           "SSLEngine)");
 
-                        xtm.checkServerTrusted(certs, authType,
-                            this.callingEngine.get());
+                        xtm.checkServerTrusted(certs, authType, eng);
                     }
                     else {
                         /* If we do have access to X509ExtendedTrustManager,
@@ -391,25 +393,19 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
                     X509ExtendedTrustManager xtm =
                         (X509ExtendedTrustManager)this.tm;
 
-                    if (this.callingSocket != null &&
-                        this.callingSocket.get() != null) {
-
+                    if (sock != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkClientTrusted(" +
                           "SSLSocket)");
 
-                        xtm.checkClientTrusted(certs, authType,
-                            this.callingSocket.get());
+                        xtm.checkClientTrusted(certs, authType, sock);
                     }
-                    else if (this.callingEngine != null &&
-                             this.callingEngine.get() != null) {
-
+                    else if (eng != null) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                           () -> "Calling TrustManager.checkClientTrusted(" +
                           "SSLEngine)");
 
-                        xtm.checkClientTrusted(certs, authType,
-                            this.callingEngine.get());
+                        xtm.checkClientTrusted(certs, authType, eng);
                     }
                     else {
                         /* If we do have access to X509ExtendedTrustManager,

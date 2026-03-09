@@ -2857,8 +2857,9 @@ public class WolfSSLEngineTest {
     @Test
     public void testBufferUnderflowPartialRecord()
         throws NoSuchProviderException, NoSuchAlgorithmException,
-               KeyManagementException, KeyStoreException, CertificateException,
-               IOException, UnrecoverableKeyException {
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException {
 
         /* Test that unwrap() returns BUFFER_UNDERFLOW with 0 bytes
          * consumed when given a partial TLS record. */
@@ -2884,13 +2885,16 @@ public class WolfSSLEngineTest {
         }
 
         /* Client wraps some application data */
-        String testData = "Hello from client for underflow test";
-        ByteBuffer appBuf = ByteBuffer.wrap(testData.getBytes());
+        String testData =
+            "Hello from client for underflow test";
+        ByteBuffer appBuf =
+            ByteBuffer.wrap(testData.getBytes());
         ByteBuffer netBuf = ByteBuffer.allocateDirect(
             client.getSession().getPacketBufferSize());
 
         SSLEngineResult result = client.wrap(appBuf, netBuf);
-        if (result.getStatus() != SSLEngineResult.Status.OK) {
+        if (result.getStatus() !=
+            SSLEngineResult.Status.OK) {
             error("\t... failed");
             fail("wrap failed: " + result.getStatus());
         }
@@ -2903,31 +2907,33 @@ public class WolfSSLEngineTest {
         }
 
         /* Create a partial record (only first 3 bytes of the
-         * TLS record header — less than the 5-byte header) */
-        ByteBuffer partialBuf = ByteBuffer.allocateDirect(3);
+         * TLS record header, less than the 5-byte header) */
+        ByteBuffer partialBuf =
+            ByteBuffer.allocateDirect(3);
         byte[] partial = new byte[3];
         netBuf.get(partial);
         partialBuf.put(partial);
         partialBuf.flip();
 
         ByteBuffer outBuf = ByteBuffer.allocate(
-            server.getSession().getApplicationBufferSize());
+            server.getSession()
+                .getApplicationBufferSize());
 
-        /* Unwrap with partial record should return BUFFER_UNDERFLOW */
+        /* Unwrap partial record: BUFFER_UNDERFLOW expected */
         result = server.unwrap(partialBuf, outBuf);
 
         if (result.getStatus() !=
             SSLEngineResult.Status.BUFFER_UNDERFLOW) {
             error("\t... failed");
-            fail("expected BUFFER_UNDERFLOW for partial TLS record, " +
-                 "got " + result.getStatus());
+            fail("expected BUFFER_UNDERFLOW for partial " +
+                 "TLS record, got " + result.getStatus());
         }
 
         /* Should consume 0 bytes on BUFFER_UNDERFLOW */
         if (result.bytesConsumed() != 0) {
             error("\t... failed");
-            fail("BUFFER_UNDERFLOW should consume 0 bytes, consumed " +
-                 result.bytesConsumed());
+            fail("BUFFER_UNDERFLOW should consume 0 bytes" +
+                 ", consumed " + result.bytesConsumed());
         }
 
         pass("\t... passed");
