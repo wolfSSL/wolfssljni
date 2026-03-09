@@ -673,12 +673,11 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     public synchronized Principal getPeerPrincipal()
         throws SSLPeerUnverifiedException {
 
-        /* Use standard Java X509Certificate.getSubjectDN()
-         * for X500Name equals() compatibility */
+        /* Return X500Principal for proper equals() symmetry */
         Certificate[] certs = getPeerCertificates();
         if (certs != null && certs.length > 0 &&
             certs[0] instanceof X509Certificate) {
-            return ((X509Certificate) certs[0]).getSubjectDN();
+            return ((X509Certificate) certs[0]).getSubjectX500Principal();
         }
         throw new SSLPeerUnverifiedException("No peer certificate");
     }
@@ -699,7 +698,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         if (certs.length > 0){
             /* When chain of certificates exceeds one,
              * the user certifcate is the first */
-            localPrincipal = certs[0].getSubjectDN();
+            localPrincipal = certs[0].getSubjectX500Principal();
         }
 
         /* free native resources earlier than garbage collection if
