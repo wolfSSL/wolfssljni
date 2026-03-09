@@ -1074,13 +1074,44 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     @Override
     public String[] getLocalSupportedSignatureAlgorithms() {
-        ArrayList<String> algs = new ArrayList<String>(2);
+        ArrayList<String> algs = new ArrayList<String>();
 
         if (WolfSSL.RsaEnabled()) {
-            algs.add("SHA256withRSA");
+            if (WolfSSL.Sha512Enabled()) {
+                algs.add("SHA512withRSA");
+            }
+            if (WolfSSL.Sha384Enabled()) {
+                algs.add("SHA384withRSA");
+            }
+            if (WolfSSL.Sha256Enabled()) {
+                algs.add("SHA256withRSA");
+            }
+            if (WolfSSL.Sha224Enabled()) {
+                algs.add("SHA224withRSA");
+            }
+            if (WolfSSL.ShaEnabled()) {
+                algs.add("SHA1withRSA");
+            }
         }
         if (WolfSSL.EccEnabled()) {
-            algs.add("SHA256withECDSA");
+            if (WolfSSL.Sha512Enabled()) {
+                algs.add("SHA512withECDSA");
+            }
+            if (WolfSSL.Sha384Enabled()) {
+                algs.add("SHA384withECDSA");
+            }
+            if (WolfSSL.Sha256Enabled()) {
+                algs.add("SHA256withECDSA");
+            }
+            if (WolfSSL.Sha224Enabled()) {
+                algs.add("SHA224withECDSA");
+            }
+            if (WolfSSL.ShaEnabled()) {
+                algs.add("SHA1withECDSA");
+            }
+        }
+        if (WolfSSL.RsaPssEnabled()) {
+            algs.add("RSASSA-PSS");
         }
 
         return algs.toArray(new String[algs.size()]);
@@ -1088,7 +1119,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     @Override
     public String[] getPeerSupportedSignatureAlgorithms() {
-        return new String[0];
+        /* TODO */
+        return null;
     }
 
     /**

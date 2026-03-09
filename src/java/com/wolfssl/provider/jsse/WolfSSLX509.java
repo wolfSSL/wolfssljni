@@ -791,6 +791,13 @@ public class WolfSSLX509 extends X509Certificate {
             return getName();
         }
 
+        /**
+         * Compares by DN string against any Principal for X500Name
+         * compatibility. Note: this is intentionally asymmetric —
+         * wolfSSLPrincipal.equals(x500Principal) may return true
+         * while x500Principal.equals(wolfSSLPrincipal) returns false
+         * since X500Principal.equals() checks for exact type match.
+         */
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
