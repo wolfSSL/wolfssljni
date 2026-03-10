@@ -365,7 +365,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1set_1object_1boolean
-  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint nid, jboolean extValue, jboolean isCritical)
+  (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jint nid, jboolean extValue, jboolean isCritical, jint pathLen)
 {
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
@@ -376,6 +376,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
 
     if (jenv == NULL || x509 == NULL) {
         return WOLFSSL_FAILURE;
+    }
+
+    /* pathLen >= 0 requires wolfSSL > 5.8.4 which includes fixes so
+     * wolfSSL_ASN1_OBJECT_dup() copies pathlen and wolfSSL_X509_add_ext()
+     * correctly sets pathLengthSet for DER encoding. Without these fixes,
+     * pathLen is silently dropped during cert generation. */
+    if (pathLen >= 0) {
+#if !((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+      defined(WOLFSSL_PR9940_PATCH_APPLIED))
+        return (jint)NOT_COMPILED_IN;
+#endif
     }
 
     ext = wolfSSL_X509_EXTENSION_new();
@@ -405,6 +416,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
         }
     }
 
+    if (ret == WOLFSSL_SUCCESS && pathLen >= 0) {
+        obj->pathlen = wolfSSL_ASN1_INTEGER_new();
+        if (obj->pathlen == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            obj->pathlen->length = pathLen;
+        }
+    }
+
     if (ret == WOLFSSL_SUCCESS) {
         ret = wolfSSL_X509_EXTENSION_set_object(ext, obj);
     }
@@ -412,7 +433,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
     if (ret == WOLFSSL_SUCCESS) {
         ret = wolfSSL_X509_add_ext(x509, ext, -1);
     }
-
 
     if (obj != NULL) {
         wolfSSL_ASN1_OBJECT_free(obj);
@@ -429,6 +449,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
     (void)nid;
     (void)extValue;
     (void)isCritical;
+    (void)pathLen;
     return (jint)NOT_COMPILED_IN;
 #endif
 }
