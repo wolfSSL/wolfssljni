@@ -101,6 +101,9 @@ public class WolfSSLEngine extends SSLEngine {
     private int lastSSLConnectRet = WolfSSL.SSL_FAILURE;
     private int lastSSLAcceptRet = WolfSSL.SSL_FAILURE;
 
+    /* SNI mismatch detected during handshake */
+    private boolean sniMismatch = false;
+
     /* closeNotify status when shutting down */
     private boolean closeNotifySent = false;
     private boolean closeNotifyReceived = false;
@@ -1036,6 +1039,11 @@ public class WolfSSLEngine extends SSLEngine {
                     () -> "==================================================");
             }
 
+            if (this.sniMismatch) {
+                throw new SSLHandshakeException(
+                    "Unrecognized Server Name");
+            }
+
             return new SSLEngineResult(status, hs, consumed, produced);
 
         } finally {
@@ -1331,6 +1339,13 @@ public class WolfSSLEngine extends SSLEngine {
             this.netData = in;
             inPosition = in.position();
             inRemaining = in.remaining();
+        }
+
+        /* Cache SNI from ClientHello before native handshake consumes
+         * the data. The read callback advances netData position, so
+         * SNI must be parsed here while the buffer is still intact. */
+        if (!this.handshakeFinished) {
+            cacheRequestedServerNamesFromNetData();
         }
 
         if (extraDebugEnabled) {
@@ -1816,6 +1831,11 @@ public class WolfSSLEngine extends SSLEngine {
                     () -> "==================================================");
             }
 
+            if (this.sniMismatch) {
+                throw new SSLHandshakeException(
+                    "Unrecognized Server Name");
+            }
+
             return new SSLEngineResult(status, hs, consumed, produced);
 
         } catch (SSLException | RuntimeException e) {
@@ -1918,6 +1938,10 @@ public class WolfSSLEngine extends SSLEngine {
                             (this.nativeWantsToWrite == 0) &&
                             (this.nativeWantsToRead == 0)) {
 
+                            if (!this.getUseClientMode() &&
+                                !this.engineHelper.matchSNI()) {
+                                this.sniMismatch = true;
+                            }
                             this.handshakeFinished = true;
                             hs = SSLEngineResult.HandshakeStatus.FINISHED;
                             this.engineHelper.getSession().updateStoredSessionValues();
