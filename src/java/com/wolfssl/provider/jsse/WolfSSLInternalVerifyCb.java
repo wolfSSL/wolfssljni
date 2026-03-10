@@ -32,7 +32,6 @@ import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
@@ -574,8 +573,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             (!this.params.getNeedClientAuth())) {
             /* wantClientAuth is set and client sent a certificate.
              * Try to verify via TrustManager, but don't fail the
-             * handshake if verification fails — wantClientAuth means
-             * verification failure is non-fatal (JSSE contract). */
+             * handshake if verification fails — matches SunJSSE
+             * behavior where wantClientAuth is non-fatal. */
             if (VerifyCertChainWithTrustManager(x509certs, authType)) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "wantClientAuth: client cert verified successfully");

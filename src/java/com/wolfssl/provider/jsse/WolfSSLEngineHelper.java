@@ -569,8 +569,8 @@ public class WolfSSLEngineHelper {
      *
      * @param p String array of SSL/TLS protocols to be enabled
      *
-     * @throws IllegalArgumentException if input array is null,
-     *         has length zero, or contains invalid/unsupported protocols
+     * @throws IllegalArgumentException if input array is null or
+     *         contains invalid/unsupported protocols
      */
     protected synchronized void setProtocols(String[] p)
         throws IllegalArgumentException {
@@ -580,7 +580,9 @@ public class WolfSSLEngineHelper {
         }
 
         if (p.length == 0) {
-            throw new IllegalArgumentException("input array has length zero");
+            /* Empty array is valid, store empty set */
+            this.params.setProtocols(new String[0]);
+            return;
         }
 
         /* sanitize protocol array for unsupported strings */

@@ -1118,8 +1118,10 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     @Override
     public String[] getPeerSupportedSignatureAlgorithms() {
-        /* TODO */
-        return null;
+        /* TODO: Wire to native wolfSSL_get_peer_sigalgs() once
+         * available. Returns String[0] not null because JSSE
+         * callers iterate the result directly. Null causes NPE. */
+        return new String[0];
     }
 
     /**

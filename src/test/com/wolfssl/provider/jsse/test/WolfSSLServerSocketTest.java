@@ -416,15 +416,18 @@ public class WolfSSLServerSocketTest {
                 /* expected */
             }
 
-            /* test failure, empty string */
+            String[] savedProtos = s.getEnabledProtocols();
+
+            /* test empty array accepted */
             try {
                 String[] empty = {};
                 s.setEnabledProtocols(empty);
-                System.out.println("\t... failed");
-                fail("setEnabledProtocols() failed");
             } catch (IllegalArgumentException e) {
-                /* expected */
+                System.out.println("\t... failed");
+                fail("setEnabledProtocols() should accept empty");
             }
+
+            s.setEnabledProtocols(savedProtos);
 
             /* test failure, bad value */
             try {

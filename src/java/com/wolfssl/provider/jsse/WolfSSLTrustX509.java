@@ -573,10 +573,33 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
         ret = cm.CertManagerVerifyBuffer(peer, peer.length,
                 WolfSSL.SSL_FILETYPE_ASN1);
         if (ret != WolfSSL.SSL_SUCCESS) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Failed to verify peer certificate");
-            cm.free();
-            throw new CertificateException("Failed to verify peer certificate");
+            /* Native CA lookup by subject hash may return wrong issuer
+             * for cross-signed certs. Find correct one by signature,
+             * reload it, and retry. */
+            X509Certificate issuer = findIssuerBySignature(
+                sortedCerts[0], this.store);
+            if (issuer != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Found issuer by signature for peer: " +
+                    sortedCerts[0].getSubjectX500Principal().getName());
+                try {
+                    cm.CertManagerUnloadCAs();
+                    byte[] issuerEnc = issuer.getEncoded();
+                    cm.CertManagerLoadCABuffer(issuerEnc,
+                        issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
+                } catch (Exception e) {
+                    /* Fall through to failure below */
+                }
+                ret = cm.CertManagerVerifyBuffer(peer, peer.length,
+                    WolfSSL.SSL_FILETYPE_ASN1);
+            }
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Failed to verify peer certificate");
+                cm.free();
+                throw new CertificateException(
+                    "Failed to verify peer certificate");
+            }
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
