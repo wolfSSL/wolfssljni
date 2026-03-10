@@ -72,7 +72,7 @@ public class WolfSSLCertRequest {
     static native int X509_add_ext_via_nconf_nid(long x509Ptr, int nid,
         String extValue, boolean isCritical);
     static native int X509_add_ext_via_set_object_boolean(long x509Ptr,
-        int nid, boolean extValue, boolean isCritical);
+        int nid, boolean extValue, boolean isCritical, int pathLen);
 
     /**
      * Create new empty WolfSSLCertRequest object, for use with CSR generation
@@ -506,6 +506,36 @@ public class WolfSSLCertRequest {
     public void addExtension(int nid, boolean value, boolean isCritical)
         throws IllegalStateException, WolfSSLException {
 
+        addExtension(nid, value, -1, isCritical);
+    }
+
+    /**
+     * Add Basic Constraints extension with CA flag and path length constraint
+     * to a WolfSSLCertRequest.
+     *
+     * This method allows setting the Basic Constraints extension with both the
+     * CA boolean and an optional path length constraint. The path length limits
+     * the number of intermediate CA certificates that may follow this
+     * certificate in a valid certification path.
+     *
+     * To set Basic Constraints without a path length constraint, use
+     * {@link #addExtension(int, boolean, boolean)} with
+     * {@code WolfSSL.NID_basic_constraints} instead.
+     *
+     * @param nid NID of extension to add. Must be:
+     *            WolfSSL.NID_basic_constraints
+     * @param value Boolean value of CA flag (true for CA, false for end entity)
+     * @param pathLen Maximum number of intermediate CA certificates allowed
+     *        below this CA. Must be &gt;= 0, or -1 to not set a path length
+     *        constraint. Only meaningful when value is true.
+     * @param isCritical Boolean flag indicating if this extension is critical
+     *
+     * @throws IllegalStateException if WolfSSLCertRequest has been freed
+     * @throws WolfSSLException if invalid arguments or on native JNI error
+     */
+    public void addExtension(int nid, boolean value, int pathLen,
+        boolean isCritical) throws IllegalStateException, WolfSSLException {
+
         int ret = 0;
 
         confirmObjectIsActive();
@@ -514,7 +544,7 @@ public class WolfSSLCertRequest {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509ReqPtr,
                 () -> "entered addExtension(nid: " + nid + ", value: " + value +
-                ", isCritical: " + isCritical + ")");
+                ", pathLen: " + pathLen + ", isCritical: " + isCritical + ")");
         }
 
         if (nid != WolfSSL.NID_basic_constraints) {
@@ -522,12 +552,29 @@ public class WolfSSLCertRequest {
                 "Unsupported X509v3 extension NID: " + nid);
         }
 
-        synchronized (x509ReqLock) {
-            ret = X509_add_ext_via_set_object_boolean(
-                    this.x509ReqPtr, nid, value, isCritical);
+        if (pathLen < -1) {
+            throw new WolfSSLException(
+                "Path length must be >= 0 or -1, got: " + pathLen);
         }
 
-        if (ret != WolfSSL.SSL_SUCCESS) {
+        if (!value && pathLen >= 0) {
+            throw new WolfSSLException(
+                "pathLen must not be set when isCA is FALSE (RFC 5280), " +
+                "got pathLen: " + pathLen);
+        }
+
+        synchronized (x509ReqLock) {
+            ret = X509_add_ext_via_set_object_boolean(this.x509ReqPtr, nid,
+                value, isCritical, pathLen);
+        }
+
+        if (ret == WolfSSL.NOT_COMPILED_IN) {
+            throw new WolfSSLException(
+                "addExtension NOT_COMPILED_IN, pathLen " +
+                "support requires wolfSSL > 5.8.4 or " +
+                "PR 9940 patch (ret: " + ret + ")");
+        }
+        else if (ret != WolfSSL.SSL_SUCCESS) {
             throw new WolfSSLException(
                 "Error setting extension into native WOLFSSL_X509 " +
                 "(ret: " + ret + ")");
