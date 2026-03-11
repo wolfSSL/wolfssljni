@@ -606,16 +606,42 @@ public class WolfSSL {
     /**
      * Initializes the wolfSSL library for use.
      *
+     * If the Security property "wolfjsse.skipFIPSCAST" is set to "true",
+     * FIPS CAST (Conditional Algorithm Self Tests) will be skipped
+     * from explicitly being run during initialization. This can be useful
+     * when using both WolfSSLProvider (wolfJSSE) and WolfCryptProvider
+     * (wolfJCE) together, where CASTs can be run once through wolfJCE's
+     * Fips.runAllCast_fips() to avoid potential threading issues from
+     * concurrent CAST execution.
+     *
+     * This property can be set programmatically via
+     * {@code Security.setProperty("wolfjsse.skipFIPSCAST", "true")} or
+     * in the {@code java.security} configuration file.
+     *
      * @throws com.wolfssl.WolfSSLException if wolfSSL library fails to
      *                                      initialize correctly
      */
     public WolfSSL() throws WolfSSLException {
         int ret;
+        int skipCAST = 0;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
             WolfSSLDebug.INFO, () -> "initializing wolfSSL library");
 
-        ret = init();
+        /* Check if FIPS CAST should be skipped during init. This is
+         * a Security property since it controls security-relevant
+         * provider initialization behavior. */
+        String skipFIPSCAST =
+            java.security.Security.getProperty("wolfjsse.skipFIPSCAST");
+        if (skipFIPSCAST != null &&
+            skipFIPSCAST.trim().equalsIgnoreCase("true")) {
+            skipCAST = 1;
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, () -> "Skipping FIPS CAST in wolfJSSE " +
+                "init (wolfjsse.skipFIPSCAST=true)");
+        }
+
+        ret = init(skipCAST);
         if (ret != SSL_SUCCESS) {
             throw new WolfSSLException(
                 "Failed to initialize wolfSSL library: " + ret);
@@ -687,7 +713,7 @@ public class WolfSSL {
 
     /* ------------------- private/protected methods -------------------- */
 
-    private native int init();
+    private native int init(int skipFIPSCAST);
 
     /**
      * Free native memory allocated at pointer provided.

@@ -167,6 +167,40 @@ $ ./examples/provider/DtlsClientEngine.sh
 The client connects to the server, sends a message, and receives the echoed response.
 Both examples support various command-line options that can be viewed with the -? flag.
 
+## DualProviderFIPSTest.java
+
+This example tests using both WolfCryptProvider (wolfJCE) and WolfSSLProvider
+(wolfJSSE) together with wolfCrypt FIPS or FIPS Ready. It verifies that the
+`wolfjsse.skipFIPSCAST` Security property works correctly to prevent duplicate
+FIPS CAST (Conditional Algorithm Self Test) execution when both providers are
+used in the same application.
+
+When both providers are used together with FIPS, both independently try to run
+all CASTs during initialization. If this happens concurrently on different
+threads, it can cause `FIPS_NOT_ALLOWED_E` errors. The recommended workflow
+to avoid this is:
+
+1. Run CASTs once via wolfJCE `Fips.runAllCast_fips()`
+2. Set `wolfjsse.skipFIPSCAST=true` via `Security.setProperty()` or in the
+   `java.security` configuration file
+3. Register both `WolfCryptProvider` and `WolfSSLProvider`
+
+This example is **not** compiled by `ant examples` because it depends on
+wolfcrypt-jni (wolfJCE) JARs which are not part of this repository. It is
+compiled and run separately by the `fips-ready-dual-provider.yml` GitHub
+Actions workflow, or can be compiled and run manually:
+
+```
+$ cd <wolfssljni_root>
+$ javac -classpath \
+    lib/wolfssl.jar:lib/wolfssl-jsse.jar:<wolfcryptjni_root>/lib/wolfcrypt-jni.jar \
+    examples/provider/DualProviderFIPSTest.java
+$ ./examples/provider/DualProviderFIPSTest.sh
+```
+
+The `WOLFCRYPTJNI_DIR` environment variable can be set to point to the
+wolfcrypt-jni build directory (defaults to `../../wolfcryptjni`).
+
 ## Support
 
 Please contact the wolfSSL support team at support@wolfssl.com with any

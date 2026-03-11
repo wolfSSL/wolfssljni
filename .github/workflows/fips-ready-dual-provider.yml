@@ -1,0 +1,167 @@
+name: FIPS Ready Dual Provider Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ 'master' ]
+
+jobs:
+  dual-provider-fips-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        jdk_version: [ '11', '21' ]
+    name: Dual Provider FIPS (JDK ${{ matrix.jdk_version }})
+
+    steps:
+      - name: Checkout wolfssljni
+        uses: actions/checkout@v4
+        with:
+          path: wolfssljni
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.jdk_version }}
+
+      - name: Cache JUnit dependencies
+        uses: actions/cache@v4
+        id: cache-junit
+        with:
+          path: junit
+          key: junit-jars-v1
+
+      - name: Download junit-4.13.2.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: |
+          wget --directory-prefix=$GITHUB_WORKSPACE/junit \
+            https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
+          echo "8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3  $GITHUB_WORKSPACE/junit/junit-4.13.2.jar" \
+            | sha256sum -c -
+
+      - name: Download hamcrest-all-1.3.jar
+        if: steps.cache-junit.outputs.cache-hit != 'true'
+        run: |
+          wget --directory-prefix=$GITHUB_WORKSPACE/junit \
+            https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar
+          echo "4877670629ab96f34f5f90ab283125fcd9acb7e683e66319a68be6eb2cca60de  $GITHUB_WORKSPACE/junit/hamcrest-all-1.3.jar" \
+            | sha256sum -c -
+
+      # Get latest wolfSSL stable version for FIPS Ready download URL
+      - name: Get latest wolfSSL stable version
+        id: wolfssl-version
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_TAG=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/wolfSSL/wolfssl/tags?per_page=100" | \
+            jq -r '.[].name | select(endswith("-stable"))' | \
+            sort -V | tail -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Error: No stable wolfSSL tags found" >&2
+            exit 1
+          fi
+          VERSION=$(echo "$LATEST_TAG" | sed 's/^v//' | sed 's/-stable$//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest wolfSSL stable version: $VERSION"
+
+      # Cache only the downloaded zip to avoid reusing stale build
+      # artifacts across matrix jobs (JDK 11 vs 21)
+      - name: Cache wolfSSL FIPS Ready zip
+        uses: actions/cache@v4
+        id: cache-fips-ready
+        with:
+          path: wolfssl-fips-ready.zip
+          key: wolfssl-fips-ready-${{ steps.wolfssl-version.outputs.version }}
+
+      - name: Download wolfSSL FIPS Ready
+        if: steps.cache-fips-ready.outputs.cache-hit != 'true'
+        run: |
+          VERSION=${{ steps.wolfssl-version.outputs.version }}
+          URL="https://www.wolfssl.com/wolfssl-${VERSION}-gplv3-fips-ready.zip"
+          echo "Downloading: $URL"
+          wget -q "$URL" -O wolfssl-fips-ready.zip
+
+      - name: Extract wolfSSL FIPS Ready
+        run: unzip -q wolfssl-fips-ready.zip -d wolfssl-fips-ready
+
+      # Build wolfSSL FIPS Ready with JNI support
+      - name: Build wolfSSL FIPS Ready
+        working-directory: wolfssl-fips-ready
+        run: |
+          # Find the extracted directory (name may vary)
+          WOLFSSL_DIR=$(find . -maxdepth 1 -type d -name "wolfssl-*" | head -1)
+          if [ -z "$WOLFSSL_DIR" ]; then
+            echo "Error: No wolfSSL directory found after unzip" >&2
+            exit 1
+          fi
+          cd "$WOLFSSL_DIR"
+          ./configure --enable-fips=ready --enable-jni \
+            --prefix=$GITHUB_WORKSPACE/build-dir
+          make
+          ./fips-hash.sh
+          make
+          make install
+
+      - name: Set library paths
+        run: |
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$GITHUB_WORKSPACE/wolfssljni/lib:$GITHUB_WORKSPACE/wolfcryptjni/lib" >> "$GITHUB_ENV"
+          echo "JUNIT_HOME=$GITHUB_WORKSPACE/junit" >> "$GITHUB_ENV"
+
+      # Build wolfssljni (wolfJSSE)
+      - name: Build wolfssljni JNI library
+        working-directory: wolfssljni
+        run: ./java.sh $GITHUB_WORKSPACE/build-dir
+
+      - name: Build wolfssljni JAR
+        working-directory: wolfssljni
+        run: ant
+
+      # Clone and build wolfcryptjni (wolfJCE)
+      - name: Checkout wolfcryptjni
+        uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfcryptjni
+          path: wolfcryptjni
+
+      - name: Build wolfcryptjni JNI library
+        working-directory: wolfcryptjni
+        run: |
+          cp makefile.linux makefile
+          PREFIX=$GITHUB_WORKSPACE/build-dir make
+
+      - name: Build wolfcryptjni JCE JAR
+        working-directory: wolfcryptjni
+        run: ant build-jce-release
+
+      # Run standard wolfssljni tests first to verify nothing
+      # is broken with the FIPS Ready build
+      - name: Run wolfssljni tests (ant test)
+        working-directory: wolfssljni
+        run: ant test
+
+      # Compile and run the dual provider FIPS test
+      - name: Compile DualProviderFIPSTest
+        working-directory: wolfssljni
+        run: |
+          javac -classpath \
+            lib/wolfssl.jar:lib/wolfssl-jsse.jar:$GITHUB_WORKSPACE/wolfcryptjni/lib/wolfcrypt-jni.jar \
+            examples/provider/DualProviderFIPSTest.java
+
+      - name: Run DualProviderFIPSTest
+        working-directory: wolfssljni
+        run: |
+          java -classpath \
+            lib/wolfssl.jar:lib/wolfssl-jsse.jar:$GITHUB_WORKSPACE/wolfcryptjni/lib/wolfcrypt-jni.jar:examples/provider \
+            DualProviderFIPSTest
+
+      - name: Show logs on failure
+        if: failure() || cancelled()
+        working-directory: wolfssljni
+        run: |
+          cat build/reports/*.txt 2>/dev/null || true
+

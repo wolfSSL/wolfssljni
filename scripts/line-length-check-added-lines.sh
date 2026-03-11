@@ -61,6 +61,10 @@ while IFS= read -r file; do
       continue
     fi
 
+    if [[ "$file" =~ README\.md$ ]]; then
+      continue
+    fi
+
     if ! LC_ALL=C grep -Iq . "$file"; then
       continue
     fi
