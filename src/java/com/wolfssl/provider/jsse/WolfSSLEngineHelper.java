@@ -871,8 +871,7 @@ public class WolfSSLEngineHelper {
         }
 
         return suite.startsWith("TLS_AES_") ||
-            suite.startsWith("TLS_CHACHA20_") ||
-            suite.startsWith("TLS_SM4_");
+            suite.startsWith("TLS_CHACHA20_") || suite.startsWith("TLS_SM4_");
     }
 
     private String[] getEffectiveProtocolsForCiphers(String[] protocols,
@@ -953,8 +952,7 @@ public class WolfSSLEngineHelper {
         return protocols;
     }
 
-    private void applyConfiguredCipherProtocolSettings()
-        throws SSLException {
+    private void applyConfiguredCipherProtocolSettings() throws SSLException {
 
         String[] suites;
         String[] protocols;
@@ -1087,8 +1085,7 @@ public class WolfSSLEngineHelper {
         /* SSLEngine(host, port) should send SNI by default if no explicit
          * server names were configured and SNI extension is enabled. */
         boolean isEngineConnectionWithHost = this.clientMode &&
-                engine != null &&
-                this.hostname != null &&
+                engine != null && this.hostname != null &&
                 this.params.getServerNames() == null;
 
         /* Enable SNI if explicitly requested via property, if

@@ -2638,8 +2638,7 @@ public class WolfSSLEngineTest {
     public void testSSLHandshakeExceptionCauseChain()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException,
-               CertificateException, IOException,
-               UnrecoverableKeyException {
+               CertificateException, IOException, UnrecoverableKeyException {
 
         System.out.print("\tSSLEngine SSLHandshakeException cause chain");
 
@@ -2702,10 +2701,9 @@ public class WolfSSLEngineTest {
 
             cliToSer.flip();
             if (cliToSer.hasRemaining() &&
-                (server.getHandshakeStatus() ==
-                    HandshakeStatus.NEED_UNWRAP ||
+                (server.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP ||
                  server.getHandshakeStatus() ==
-                    HandshakeStatus.NOT_HANDSHAKING)) {
+                     HandshakeStatus.NOT_HANDSHAKING)) {
                 try {
                     server.unwrap(cliToSer, sink);
                 } catch (SSLException e) {
@@ -2724,10 +2722,9 @@ public class WolfSSLEngineTest {
 
             serToCli.flip();
             if (serToCli.hasRemaining() &&
-                (client.getHandshakeStatus() ==
-                    HandshakeStatus.NEED_UNWRAP ||
+                (client.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP ||
                  client.getHandshakeStatus() ==
-                    HandshakeStatus.NOT_HANDSHAKING)) {
+                     HandshakeStatus.NOT_HANDSHAKING)) {
                 try {
                     client.unwrap(serToCli, sink);
                 } catch (SSLHandshakeException e) {
@@ -2774,8 +2771,7 @@ public class WolfSSLEngineTest {
         }
 
         SSLEngine server = this.ctx.createSSLEngine();
-        SSLEngine client =
-            this.ctx.createSSLEngine("wolfSSL test", 11111);
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
 
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
@@ -2806,8 +2802,7 @@ public class WolfSSLEngineTest {
             client.getSession().getApplicationBufferSize());
 
         /* Wrap the close_notify */
-        SSLEngineResult result = client.wrap(
-            ByteBuffer.allocate(0), netBuf);
+        SSLEngineResult result = client.wrap(ByteBuffer.allocate(0), netBuf);
         if (result.getStatus() != SSLEngineResult.Status.CLOSED) {
             error("\t... failed");
             fail("wrap after closeOutbound should return CLOSED");
@@ -2858,8 +2853,7 @@ public class WolfSSLEngineTest {
     public void testBufferUnderflowPartialRecord()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException,
-               CertificateException, IOException,
-               UnrecoverableKeyException {
+               CertificateException, IOException, UnrecoverableKeyException {
 
         /* Test that unwrap() returns BUFFER_UNDERFLOW with 0 bytes
          * consumed when given a partial TLS record. */
@@ -2867,8 +2861,7 @@ public class WolfSSLEngineTest {
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         SSLEngine server = this.ctx.createSSLEngine();
-        SSLEngine client =
-            this.ctx.createSSLEngine("wolfSSL test", 11111);
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
 
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
@@ -2885,16 +2878,13 @@ public class WolfSSLEngineTest {
         }
 
         /* Client wraps some application data */
-        String testData =
-            "Hello from client for underflow test";
-        ByteBuffer appBuf =
-            ByteBuffer.wrap(testData.getBytes());
+        String testData = "Hello from client for underflow test";
+        ByteBuffer appBuf = ByteBuffer.wrap(testData.getBytes());
         ByteBuffer netBuf = ByteBuffer.allocateDirect(
             client.getSession().getPacketBufferSize());
 
         SSLEngineResult result = client.wrap(appBuf, netBuf);
-        if (result.getStatus() !=
-            SSLEngineResult.Status.OK) {
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
             error("\t... failed");
             fail("wrap failed: " + result.getStatus());
         }
@@ -2908,22 +2898,19 @@ public class WolfSSLEngineTest {
 
         /* Create a partial record (only first 3 bytes of the
          * TLS record header, less than the 5-byte header) */
-        ByteBuffer partialBuf =
-            ByteBuffer.allocateDirect(3);
+        ByteBuffer partialBuf = ByteBuffer.allocateDirect(3);
         byte[] partial = new byte[3];
         netBuf.get(partial);
         partialBuf.put(partial);
         partialBuf.flip();
 
         ByteBuffer outBuf = ByteBuffer.allocate(
-            server.getSession()
-                .getApplicationBufferSize());
+            server.getSession().getApplicationBufferSize());
 
         /* Unwrap partial record: BUFFER_UNDERFLOW expected */
         result = server.unwrap(partialBuf, outBuf);
 
-        if (result.getStatus() !=
-            SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+        if (result.getStatus() != SSLEngineResult.Status.BUFFER_UNDERFLOW) {
             error("\t... failed");
             fail("expected BUFFER_UNDERFLOW for partial " +
                  "TLS record, got " + result.getStatus());
@@ -2951,8 +2938,7 @@ public class WolfSSLEngineTest {
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         SSLEngine server = this.ctx.createSSLEngine();
-        SSLEngine client =
-            this.ctx.createSSLEngine("wolfSSL test", 11111);
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
 
         server.setUseClientMode(false);
         server.setNeedClientAuth(false);
@@ -2990,8 +2976,7 @@ public class WolfSSLEngineTest {
 
         result = server.unwrap(netCopy, tinyOut);
 
-        if (result.getStatus() !=
-            SSLEngineResult.Status.BUFFER_OVERFLOW) {
+        if (result.getStatus() != SSLEngineResult.Status.BUFFER_OVERFLOW) {
             error("\t... failed");
             fail("expected BUFFER_OVERFLOW for small output buffer, " +
                  "got " + result.getStatus());

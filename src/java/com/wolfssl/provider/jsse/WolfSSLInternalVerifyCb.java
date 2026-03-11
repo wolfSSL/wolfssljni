@@ -310,8 +310,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
             }
         } catch (Exception e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Hostname verification error: " +
-                e.getMessage());
+                () -> "Hostname verification error: " + e.getMessage());
             this.verifyException = e;
             return 0;
         } finally {
@@ -545,28 +544,46 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         }
 
         /* If server-side application has explicitly disabled client
-         * authentication, return as success and skip X509TrustManager
-         * verification */
+         * authentication (neither needClientAuth nor wantClientAuth set),
+         * return as success and skip X509TrustManager verification. */
         if ((!this.clientMode) && (this.params != null) &&
-            (!this.params.getNeedClientAuth())) {
+            (!this.params.getNeedClientAuth()) &&
+            (!this.params.getWantClientAuth())) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Application has disabled client verification with " +
-                "setNeedClientAuth(false), skipping verification");
+                () -> "Application has disabled client verification " +
+                "(needClientAuth=false, wantClientAuth=false), " +
+                "skipping verification");
             return 1;
         }
-        else if ((preverify_ok == 1) && (x509certs.length == 0) &&
+        else if ((x509certs.length == 0) &&
             (!this.clientMode) && (this.params != null) &&
             this.params.getWantClientAuth() &&
             (!this.params.getNeedClientAuth())) {
-            /* If native wolfSSL verification has passed, and we have no peer
-             * certificates, if application has set client authentication be
-             * requested (wantClientAuth == true), but not fatal if no
-             * certificate was sent (needClientAuth == false), don't call
-             * TrustManager with empty certificate chain just consider
-             * verification successful at this point */
+            /* No peer certificates sent and client authentication is
+             * optional (wantClientAuth == true, needClientAuth == false).
+             * Don't call TrustManager with empty certificate chain,
+             * just consider verification successful. Don't require
+             * preverify_ok == 1 here since native wolfSSL may report
+             * failure when no CAs are loaded (foreign TrustManager). */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "No client cert sent and client auth marked optional, " +
                 "not calling TrustManager for hostname verification");
+        }
+        else if ((!this.clientMode) && (this.params != null) &&
+            this.params.getWantClientAuth() &&
+            (!this.params.getNeedClientAuth())) {
+            /* wantClientAuth is set and client sent a certificate.
+             * Try to verify via TrustManager, but don't fail the
+             * handshake if verification fails — wantClientAuth means
+             * verification failure is non-fatal (JSSE contract). */
+            if (VerifyCertChainWithTrustManager(x509certs, authType)) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "wantClientAuth: client cert verified successfully");
+            } else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "wantClientAuth: client cert verification failed, " +
+                    "continuing handshake (non-fatal)");
+            }
         }
         else {
             /* Poll X509TrustManager / X509ExtendedTrustManager for certificate

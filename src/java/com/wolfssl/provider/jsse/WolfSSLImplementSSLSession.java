@@ -1136,8 +1136,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         byte[] sniRequestArr = null;
 
         if (this.ssl == null) {
-            if (this.sniServerNames != null &&
-                !this.sniServerNames.isEmpty()) {
+            if (this.sniServerNames != null && !this.sniServerNames.isEmpty()) {
                 return Collections.unmodifiableList(
                     new ArrayList<SNIServerName>(this.sniServerNames));
             }
