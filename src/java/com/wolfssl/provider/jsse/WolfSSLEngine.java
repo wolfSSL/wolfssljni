@@ -321,8 +321,7 @@ public class WolfSSLEngine extends SSLEngine {
         List<SNIServerName> names;
         WolfSSLImplementSSLSession session;
 
-        if (this.engineHelper == null ||
-            this.engineHelper.getUseClientMode()) {
+        if (this.engineHelper == null || this.engineHelper.getUseClientMode()) {
             return;
         }
 
@@ -354,7 +353,8 @@ public class WolfSSLEngine extends SSLEngine {
         List<SNIServerName> names;
 
         synchronized (netDataLock) {
-            if (this.netData == null || this.netData.remaining() < 5) {
+            if (this.netData == null ||
+                this.netData.remaining() < TLS_RECORD_HEADER_LEN) {
                 return null;
             }
             in = this.netData.asReadOnlyBuffer();
@@ -1199,8 +1199,7 @@ public class WolfSSLEngine extends SSLEngine {
                 default:
                     /* Throw SSLHandshakeException if handshake not finished */
                     if (!this.handshakeFinished) {
-                        SSLHandshakeException hse =
-                            new SSLHandshakeException(
+                        SSLHandshakeException hse = new SSLHandshakeException(
                             "SSL/TLS handshake error in read: " + ret +
                             " , err = " + err);
                         if (this.engineHelper != null) {
@@ -1235,11 +1234,13 @@ public class WolfSSLEngine extends SSLEngine {
                 /* Copy from intermediate buffer to output bufs */
                 for (i = 0; i < ret;) {
                     if (idx + ofst >= length) {
+                        /* no more output buffers left */
                         break;
                     }
 
                     bufSpace = out[idx + ofst].remaining();
                     if (bufSpace == 0) {
+                        /* no more space in current out buffer, advance */
                         idx++;
                         continue;
                     }
@@ -1450,13 +1451,15 @@ public class WolfSSLEngine extends SSLEngine {
                          * report bytesConsumed() == 0. DTLS still
                          * relies on the native WANT_READ path. */
                         boolean bufferUnderflow = false;
-                        if (inRemaining > 0 &&
-                            (this.ssl.dtls() == 0)) {
+                        if (inRemaining > 0 && (this.ssl.dtls() == 0)) {
                             synchronized (netDataLock) {
                                 int pos = in.position();
                                 if (inRemaining < TLS_RECORD_HEADER_LEN) {
+                                    /* Not enough for TLS record header */
                                     bufferUnderflow = true;
                                 } else {
+                                    /* Peek at record length from header
+                                     * bytes 3-4 (big-endian) */
                                     int recLen =
                                         ((in.get(pos + TLS_RECORD_LEN_HI_OFF)
                                             & 0xFF) << 8) |
@@ -1482,8 +1485,7 @@ public class WolfSSLEngine extends SSLEngine {
                                 for (int pos = 0;
                                         pos < this.pendingAppDataLen;) {
                                     if (idx2 + ofst >= length) break;
-                                    int space =
-                                        out[idx2 + ofst].remaining();
+                                    int space = out[idx2 + ofst].remaining();
                                     if (space == 0) { idx2++; continue; }
                                     int sz2 = Math.min(space,
                                         this.pendingAppDataLen - pos);
@@ -1537,8 +1539,7 @@ public class WolfSSLEngine extends SSLEngine {
                                     in.position(inPosition);
                                 }
                                 produced = 0;
-                                status =
-                                    SSLEngineResult.Status.BUFFER_OVERFLOW;
+                                status = SSLEngineResult.Status.BUFFER_OVERFLOW;
                             }
                             else {
                                 /* Check for BUFFER_OVERFLOW status. This can
@@ -1657,9 +1658,8 @@ public class WolfSSLEngine extends SSLEngine {
                                     "SSL/TLS handshake error, ret:err = " +
                                     ret + " : " + err);
                                 if (this.engineHelper != null) {
-                                    Exception verifyEx2 =
-                                        this.engineHelper
-                                            .getLastVerifyException();
+                                    Exception verifyEx2 = this.engineHelper
+                                        .getLastVerifyException();
                                     if (verifyEx2 != null) {
                                         hse2.initCause(verifyEx2);
                                     }

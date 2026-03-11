@@ -91,8 +91,7 @@ public class WolfSSLSessionContext implements SSLSessionContext {
                 /* Native session may have been freed already */
             }
         }
-        WolfSSLImplementSSLSession session =
-            store.getSession(sessionId, side);
+        WolfSSLImplementSSLSession session = store.getSession(sessionId, side);
         if (session == null) {
             return null;
         }

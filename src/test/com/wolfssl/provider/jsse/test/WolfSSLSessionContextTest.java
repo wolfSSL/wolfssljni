@@ -551,14 +551,12 @@ public class WolfSSLSessionContextTest {
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");
-        Security.setProperty("wolfjsse.clientSessionCache.disabled",
-            "false");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
         try {
             this.ctx = tf.createSSLContext("TLS", engineProvider);
             server = this.ctx.createSSLEngine();
-            client = this.ctx.createSSLEngine(
-                "wolfSSL timeout test", 11111);
+            client = this.ctx.createSSLEngine("wolfSSL timeout test", 11111);
 
             server.setUseClientMode(false);
             server.setNeedClientAuth(false);
@@ -658,8 +656,7 @@ public class WolfSSLSessionContextTest {
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");
-        Security.setProperty("wolfjsse.clientSessionCache.disabled",
-            "false");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
 
         try {
             this.ctx = tf.createSSLContext("TLS", engineProvider);
