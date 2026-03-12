@@ -1597,9 +1597,18 @@ public class WolfSSLSocket extends SSLSocket {
             }
 
             if (ret != WolfSSL.SSL_SUCCESS) {
+                /* Save verify exception before close(), which nullifies
+                 * EngineHelper and would lose the stored exception */
+                Exception verifyEx = (EngineHelper != null) ?
+                    EngineHelper.getLastVerifyException() : null;
                 close();
-                throw new SSLHandshakeException(errStr + " (error code: " +
+                SSLHandshakeException hse = new SSLHandshakeException(
+                    errStr + " (error code: " +
                     err + ", TID " + Thread.currentThread().getId() + ")");
+                if (verifyEx != null) {
+                    hse.initCause(verifyEx);
+                }
+                throw hse;
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -2045,6 +2054,8 @@ public class WolfSSLSocket extends SSLSocket {
 
         try {
             if (beforeObjectInit == false) {
+                /* Ensure SSL state exists before TLS-specific close path. */
+                checkAndInitSSLSocket();
 
                 /* Check if underlying Socket is still open before closing,
                  * in case application calls SSLSocket.close() multiple times */
