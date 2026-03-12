@@ -254,6 +254,7 @@
                classpathref="classpath"
                includeantruntime="false">
             <compilerarg value="-Xlint:-options"/>
+            <exclude name="**/DualProviderFIPSTest.java"/>
         </javac>
     </target>
 

@@ -269,6 +269,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
         ret = WOLFSSL_FAILURE;
     }
     else {
+        XMEMSET(&revoked, 0, sizeof(revoked));
         serialInt = wolfSSL_ASN1_INTEGER_new();
         if (serialInt == NULL) {
             ret = MEMORY_E;

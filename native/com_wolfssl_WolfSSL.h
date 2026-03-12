@@ -314,10 +314,10 @@ extern "C" {
 /*
  * Class:     com_wolfssl_WolfSSL
  * Method:    init
- * Signature: ()I
+ * Signature: (I)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_init
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSL

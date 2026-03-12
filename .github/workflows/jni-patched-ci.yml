@@ -54,6 +54,8 @@ jobs:
       - name: Evaluate PR statuses
         id: eval_prs
         if: steps.find_defines.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 

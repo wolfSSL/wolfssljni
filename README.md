@@ -571,6 +571,7 @@ and used by wolfSSL JNI/JSSE.
 | wolfjsse.keystore.type.required | | String | Restricts KeyStore type |
 | wolfjsse.clientSessionCache.disabled | | "true" | Disables client session cache |
 | wolfjsse.X509KeyManager.disableCache | "false" | "true" | Disables X509KeyManager KeyStore entry caching |
+| wolfjsse.skipFIPSCAST | "false" | "true" | Skips FIPS CAST during wolfJSSE init |
 
 **wolfssl.readWriteByteBufferPool.disabled (String)** - Can be used to disable
 the static per-thread ByteBuffer pool used in com.wolfssl.WolfSSLSession
@@ -666,6 +667,20 @@ performance. This should be set to the String "true" to disable caching:
 
 ```
 wolfjsse.X509KeyManager.disableCache=true
+```
+
+**wolfjsse.skipFIPSCAST (String)** - Can be used to skip FIPS CAST (Conditional
+Algorithm Self Test) up front execution during wolfJSSE initialization. This is
+useful when using both WolfSSLProvider (wolfJSSE) and WolfCryptProvider
+(wolfJCE) together with wolfCrypt FIPS. Both providers run all CASTs during
+init, which can cause `FIPS_NOT_ALLOWED_E` errors if done concurrently on
+different threads. Setting this to "true" allows the application to run CASTs
+once through wolfJCE's `Fips.runAllCast_fips()` before registering providers,
+avoiding duplicate CAST execution. Must be set before `WolfSSLProvider` is
+constructed:
+
+```
+wolfjsse.skipFIPSCAST=true
 ```
 
 If there are other Security properties you would like to use with wolfJSSE,
