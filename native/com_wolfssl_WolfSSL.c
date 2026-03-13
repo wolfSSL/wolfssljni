@@ -2237,6 +2237,11 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     }
 
     numCiphers = sk_num(supportedCiphers);
+    if (numCiphers == 0) {
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return NULL;
+    }
 
     for (i = 0; i < numCiphers; i++) {
         cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i);
