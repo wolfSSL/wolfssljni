@@ -897,6 +897,7 @@ public class WolfSSLCertificateTest {
             testCertGen_CASigned_UsingFiles();
             testCertGen_CASigned_UsingBuffers();
             testCertGen_CASigned_UsingJavaClasses();
+            testCertGen_SelfSigned_WithPathLen();
         }
     }
 
@@ -959,6 +960,48 @@ public class WolfSSLCertificateTest {
         runOrAllowNotCompiled(
             () -> x509.setAuthorityKeyIdEx(issuer),
             "setAuthorityKeyIdEx");
+
+        /* Basic Constraints with pathLen */
+        try {
+            x509.addExtension(WolfSSL.NID_basic_constraints, true, 0, true);
+        } catch (WolfSSLException e) {
+            if (!isNotCompiledIn(e)) {
+                throw e;
+            }
+            System.out.println("\t\t... skipped");
+        }
+        try {
+            x509.addExtension(WolfSSL.NID_basic_constraints, true, 3, true);
+        } catch (WolfSSLException e) {
+            if (!isNotCompiledIn(e)) {
+                throw e;
+            }
+            System.out.println("\t\t... skipped");
+        }
+
+        /* Invalid pathLen (< -1) should throw WolfSSLException */
+        try {
+            x509.addExtension(WolfSSL.NID_basic_constraints, true, -2, true);
+            fail("Expected WolfSSLException for invalid pathLen");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* pathLen with isCA=false should throw (RFC 5280) */
+        try {
+            x509.addExtension(WolfSSL.NID_basic_constraints, false, 0, true);
+            fail("Expected WolfSSLException for pathLen with isCA=false");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* Unsupported NID with pathLen overload should throw */
+        try {
+            x509.addExtension(123456, true, 0, true);
+            fail("Expected WolfSSLException for unsupported NID");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
 
         runOrAllowNotCompiled(
             () -> x509.addCrlDistPoint("http://crl.example.com/ca.crl", false),
@@ -1565,6 +1608,87 @@ public class WolfSSLCertificateTest {
             null, 0, issuer.getDer(), WolfSSL.SSL_FILETYPE_ASN1);
 
         /* Free native memory */
+        subjectName.free();
+        x509.free();
+
+        System.out.println("\t... passed");
+    }
+
+    /* Test self-signed CA certificate generation with Basic Constraints
+     * pathLen set, verifying it round-trips through DER encoding.
+     * Requires wolfSSL > 5.8.4 or WOLFSSL_PR9940_PATCH_APPLIED. */
+    private void testCertGen_SelfSigned_WithPathLen()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException, NoSuchAlgorithmException {
+
+        System.out.print("\tSelf-signed CA (pathLen)");
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        assertNotNull(x509);
+
+        /* Set notBefore/notAfter dates */
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+        x509.setNotBefore(notBefore);
+        x509.setNotAfter(notAfter);
+
+        /* Set serial number */
+        x509.setSerialNumber(BigInteger.valueOf(99999));
+
+        /* Set Subject Name */
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+        x509.setSubjectName(subjectName);
+
+        /* Set Public Key from generated java.security.PublicKey */
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+        x509.setPublicKey(keyPair.getPublic());
+
+        /* Set Extensions */
+        if (WolfSSL.getLibVersionHex() > 0x05006003) {
+            x509.addExtension(WolfSSL.NID_key_usage,
+                "digitalSignature,cRLSign,keyCertSign", true);
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "clientAuth,serverAuth,OCSPSigning", false);
+        }
+
+        /* Basic Constraints: CA=true, pathLen=0. Skip test if
+         * pathLen support not compiled in (older wolfSSL). */
+        try {
+            x509.addExtension(WolfSSL.NID_basic_constraints, true, 0, true);
+        } catch (WolfSSLException e) {
+            if (isNotCompiledIn(e)) {
+                System.out.println("\t... skipped");
+                subjectName.free();
+                x509.free();
+                return;
+            }
+            throw e;
+        }
+
+        /* Sign cert, self-signed */
+        x509.signCert(keyPair.getPrivate(), "SHA256");
+
+        /* Output to DER */
+        byte[] derCert = x509.getDer();
+        assertNotNull(derCert);
+        assertTrue(derCert.length > 0);
+
+        /* Re-load generated cert and verify pathLen */
+        WolfSSLCertificate reloaded = new WolfSSLCertificate(derCert,
+            WolfSSL.SSL_FILETYPE_ASN1);
+        assertNotNull(reloaded);
+        assertEquals(1, reloaded.isCA());
+        assertEquals(0, reloaded.getPathLen());
+
+        /* Sanity check generated cert buffers */
+        sanityCheckCertFileBytes(derCert, WolfSSL.SSL_FILETYPE_ASN1);
+
+        /* Free native memory */
+        reloaded.free();
         subjectName.free();
         x509.free();
 
