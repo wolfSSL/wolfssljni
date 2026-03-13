@@ -22,6 +22,7 @@ package com.wolfssl.provider.jsse;
 
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -48,6 +49,8 @@ import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.WolfSSLPskClientCallback;
+import com.wolfssl.WolfSSLPskServerCallback;
 
 /**
  * This is a helper class to account for similar methods between SSLSocket
@@ -929,6 +932,7 @@ public class WolfSSLEngineHelper {
         boolean isHttpsConnection = this.clientMode &&
                 this.hostname != null &&
                 this.peerAddr != null &&
+                this.params.getWolfSSLServerNames() == null &&
                 this.params.getServerNames() == null;
 
         /* Enable SNI if explicitly requested via property or if
@@ -945,15 +949,29 @@ public class WolfSSLEngineHelper {
                 () -> "jsse.enableSNIExtension property set to true, " +
                 "enabling SNI");
 
-            /* Explicitly set if user has set through SSLParameters */
-            List<WolfSSLSNIServerName> names = this.params.getServerNames();
+            /* Explicitly set if user has set through SSLParameters. Check
+             * wolfSSL-specific server names first, then fall back to standard
+             * SSLParameters server names (set via parent setServerNames()). */
+            List<WolfSSLSNIServerName> names =
+                this.params.getWolfSSLServerNames();
             if (names != null && names.size() > 0) {
-                /* Should only be one server name */
                 WolfSSLSNIServerName sni = names.get(0);
                 if (sni != null) {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
                 }
-            } else if (autoSNI) {
+            } else {
+                /* Check parent SSLParameters server names */
+                List<SNIServerName> parentNames = this.params.getServerNames();
+                if (parentNames != null && parentNames.size() > 0) {
+                    SNIServerName sni = parentNames.get(0);
+                    if (sni != null) {
+                        this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                    }
+                }
+            }
+
+            if ((names == null) &&
+                (this.params.getServerNames() == null) && autoSNI) {
                 if (this.peerAddr != null && this.jdkTlsTrustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "setting SNI extension with " +
@@ -1247,6 +1265,70 @@ public class WolfSSLEngineHelper {
         }
     }
 
+    private void setLocalPskSettings() throws SSLException {
+
+        WolfSSLPskClientCallback clientCb = this.params.getPskClientCb();
+        WolfSSLPskServerCallback serverCb = this.params.getPskServerCb();
+        String identityHint = this.params.getPskIdentityHint();
+        boolean keepArr = this.params.getKeepArrays();
+
+        try {
+            if (clientCb != null) {
+                if (this.clientMode) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "setting PSK client callback " +
+                              "from WolfSSLParameters");
+                    this.ssl.setPskClientCb(clientCb);
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ignoring PSK client callback " +
+                              "in server mode");
+                }
+            }
+
+            if (serverCb != null) {
+                if (!this.clientMode) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "setting PSK server callback " +
+                              "from WolfSSLParameters");
+                    this.ssl.setPskServerCb(serverCb);
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ignoring PSK server callback " +
+                              "in client mode");
+                }
+            }
+
+            if (identityHint != null) {
+                if (!this.clientMode) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "setting PSK identity hint " +
+                              "from WolfSSLParameters");
+                    int ret = this.ssl.usePskIdentityHint(identityHint);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        throw new SSLException(
+                            "Error setting PSK identity hint, ret = " + ret);
+                    }
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "ignoring PSK identity hint in client mode");
+                }
+            }
+
+            if (keepArr) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "enabling keepArrays from WolfSSLParameters");
+                this.ssl.keepArrays();
+            }
+
+        } catch (IllegalStateException | WolfSSLJNIException e) {
+            SSLException sslEx = new SSLException(
+                "Error setting PSK parameters: " + e.getMessage());
+            sslEx.initCause(e);
+            throw sslEx;
+        }
+    }
+
     private void setLocalParams(SSLSocket socket, SSLEngine engine)
         throws SSLException {
 
@@ -1264,6 +1346,7 @@ public class WolfSSLEngineHelper {
         this.setLocalSupportedCurves();
         this.setLocalMaximumPacketSize();
         this.setLocalExtendedMasterSecret();
+        this.setLocalPskSettings();
     }
 
     /**
@@ -1510,8 +1593,7 @@ public class WolfSSLEngineHelper {
         this.session.updateStoredSessionValues();
 
         if (!this.clientMode && !matchSNI()) {
-            throw new SSLHandshakeException(
-                "Unrecognized Server Name");
+            throw new SSLHandshakeException("Unrecognized Server Name");
         }
 
         return ret;
@@ -1587,11 +1669,11 @@ public class WolfSSLEngineHelper {
      * @return true on success or false if no match was found
      */
     protected synchronized boolean matchSNI(){
-        List <SNIMatcher> matchers = this.params.getSNIMatchers();
+        Collection<SNIMatcher> matchers = this.params.getSNIMatchers();
         if (matchers != null && !matchers.isEmpty()) {
             /* Match a server name to SNI requested by Client */
-            List <SNIServerName> serverNames = this.session
-                                                    .getRequestedServerNames();
+            List <SNIServerName> serverNames =
+                this.session.getRequestedServerNames();
             if (serverNames != null && !serverNames.isEmpty()) {
                 for (SNIServerName serverName : serverNames) {
                     if (serverName.getType() == WolfSSL.WOLFSSL_SNI_HOST_NAME) {

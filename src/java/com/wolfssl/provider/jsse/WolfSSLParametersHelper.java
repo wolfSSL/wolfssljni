@@ -337,6 +337,25 @@ public class WolfSSLParametersHelper
             /* Not available, just ignore and continue */
         }
 
+        /* If input is a WolfSSLParameters, copy wolfJSSE specific fields
+         * that are not part of the standard SSLParameters API */
+        if (in instanceof WolfSSLParameters) {
+            WolfSSLParameters wolfIn = (WolfSSLParameters)in;
+            out.setPskClientCb(wolfIn.getPskClientCb());
+            out.setPskServerCb(wolfIn.getPskServerCb());
+            out.setPskIdentityHint(wolfIn.getPskIdentityHint());
+            out.setKeepArrays(wolfIn.getKeepArrays());
+            out.setWolfSSLServerNames(wolfIn.getWolfSSLServerNames());
+        } else {
+            /* Clear any existing PSK-related configuration to avoid
+             * leakage across importParams() calls when input is not
+             * WolfSSLParameters. */
+            out.setPskClientCb(null);
+            out.setPskServerCb(null);
+            out.setPskIdentityHint(null);
+            out.setKeepArrays(false);
+        }
+
     }
 }
 
