@@ -478,28 +478,33 @@ public class WolfSSLEngineHelper {
     /**
      * Get all supported cipher suites in native wolfSSL library, which
      * are also allowed by "wolfjsse.enabledCipherSuites" system Security
-     * property, if set.
+     * property, if set. Does not auto-filter out anon suites, since this
+     * returns all supported suites in native wolfSSL.
      *
      * @return String array of all supported cipher suites
      */
     protected static synchronized String[] getAllCiphers() {
-        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana(), false);
     }
 
     /**
-     * Get all enabled cipher suites, and allowed via
-     * wolfjsse.enabledCipherSuites system Security property (if set).
+     * Get all enabled cipher suites, filtered by
+     * wolfjsse.enabledCipherSuites system Security property (if set). Does
+     * not auto-filter out anon suites, since this returns all enabled suites in
+     * native wolfSSL.
      *
      * @return String array of all enabled cipher suites
      */
     protected synchronized String[] getCiphers() {
-        return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
+        return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites(), false);
     }
 
     /**
-     * Set cipher suites enabled in WolfSSLParameters
+     * Set cipher suites enabled in WolfSSLParameters.
      *
-     * Sanitizes input array for invalid suites
+     * Validates input array against supported cipher suites but does
+     * not filter anonymous suites, allowing applications to explicitly
+     * enable them if needed.
      *
      * @param suites String array of cipher suites to be enabled
      *
@@ -528,7 +533,7 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites));
+        this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites, false));
     }
 
     /**
@@ -1251,7 +1256,7 @@ public class WolfSSLEngineHelper {
         throws SSLException {
 
         this.setLocalCiphers(
-            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
+            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites(), false));
         this.setLocalProtocol(
             WolfSSLUtil.sanitizeProtocols(
                 this.params.getProtocols(), WolfSSL.TLS_VERSION.INVALID));

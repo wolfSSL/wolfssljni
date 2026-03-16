@@ -125,37 +125,64 @@ public class WolfSSLUtil {
      * Sanitize or filter SSL/TLS cipher suite list based on custom wolfJSSE
      * system property limitations.
      *
-     * Supported system Security properties which limit cipher suite list are:
-     *    - wolfjsse.enabledCipherSuites
+     * When filterAnon is true, this method filters the default enabled cipher
+     * suite list, removing anonymous cipher suites to match SunJSSE behavior.
+     * When filterAnon is false, anonymous cipher suites are preserved, allowing
+     * applications to explicitly enable them via
+     * SSLEngine.setEnabledCipherSuites() or SSLSocket.setEnabledCipherSuites().
      *
-     * This security property should contain a comma-separated list of
-     * values, for example:
+     * Filtering applied:
+     *
+     * 1. If filterAnon is true, anonymous cipher suites (containing
+     *    "_anon_" in IANA name) are removed, matching SunJSSE behavior.
+     *
+     * 2. If the wolfjsse.enabledCipherSuites security property is set,
+     *    the list is further filtered to only include suites in that
+     *    property. This should contain a comma-separated list of values,
+     *    for example:
      *
      *    wolfjsse.enabledCipherSuites=
      *        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, \
      *         TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
      *
-     * Only the cipher suites included in this list will be allowed to be used
-     * in JSSE TLS connections. Applications can still set cipher suites,
-     * using for example SSLParameters, but the set cipher suite list will be
-     * filtered by this function to remove any suites not included in the
-     * system property mentioned here if it has been set.
-     *
      * @param suites Full list of TLS cipher suites to sanitize/filter,
-     *               should be in format similar to: "SUITE1", "SUITE2", etc.
+     *               should be in format similar to: "SUITE1", "SUITE2",
+     *               etc.
+     * @param filterAnon If true, anonymous cipher suites (containing "_anon_"
+     *                   in IANA name) will be filtered out. If false, anonymous
+     *                   suites are preserved.
      *
-     * @return New filtered String array of cipher suites.
+     * @return New filtered String array of cipher suites, or null if input
+     *         is null.
      */
-    protected static String[] sanitizeSuites(String[] suites) {
+    protected static String[] sanitizeSuites(String[] suites,
+        boolean filterAnon) {
+
         ArrayList<String> filtered = new ArrayList<String>();
+
+        if (suites == null) {
+            return null;
+        }
+
+        /* Filter out anonymous cipher suites if requested. SunJSSE also
+         * excludes them from the default enabled list. Anonymous suites
+         * contain "_anon_" in IANA format. When filterAnon is false, all
+         * non-null suites pass through. */
+        for (int i = 0; i < suites.length; i++) {
+            if (suites[i] != null) {
+                if (!filterAnon || !suites[i].contains("_anon_")) {
+                    filtered.add(suites[i]);
+                }
+            }
+        }
 
         String enabledSuites =
             Security.getProperty("wolfjsse.enabledCipherSuites");
         List<?> enabledList = null;
 
-        /* If system property not set, no filtering needed */
+        /* If system property not set, return filtered list */
         if (enabledSuites == null || enabledSuites.isEmpty()) {
-            return suites;
+            return filtered.toArray(new String[filtered.size()]);
         }
 
         final String tmpSuites = enabledSuites;
@@ -168,13 +195,15 @@ public class WolfSSLUtil {
         enabledSuites = enabledSuites.replaceAll(", ",",");
         enabledList = Arrays.asList(enabledSuites.split(","));
 
-        for (int i = 0; i < suites.length; i++) {
-            if (enabledList.contains(suites[i])) {
-                filtered.add(suites[i]);
+        /* Further filter by wolfjsse.enabledCipherSuites property */
+        ArrayList<String> propFiltered = new ArrayList<String>();
+        for (int i = 0; i < filtered.size(); i++) {
+            if (enabledList.contains(filtered.get(i))) {
+                propFiltered.add(filtered.get(i));
             }
         }
 
-        return filtered.toArray(new String[filtered.size()]);
+        return propFiltered.toArray(new String[propFiltered.size()]);
     }
 
     /**

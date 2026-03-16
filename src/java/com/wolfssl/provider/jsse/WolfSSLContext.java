@@ -180,9 +180,9 @@ public class WolfSSLContext extends SSLContextSpi {
         if (WolfSSLUtil.isSecurityPropertyStringSet(
             "wolfjsse.enabledCipherSuites")) {
             /* User is overriding cipher suites, set CTX list */
-            this.setCtxCiphers(WolfSSLUtil.sanitizeSuites(ciphersIana));
+            this.setCtxCiphers(WolfSSLUtil.sanitizeSuites(ciphersIana, true));
         }
-        params.setCipherSuites(WolfSSLUtil.sanitizeSuites(ciphersIana));
+        params.setCipherSuites(WolfSSLUtil.sanitizeSuites(ciphersIana, true));
 
         /* Auto-populate enabled protocols with supported ones. Protocols
          * which have been disabled via system property get filtered in

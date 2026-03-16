@@ -160,7 +160,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getEnabledCipherSuites()");
 
-        return WolfSSLUtil.sanitizeSuites(params.getCipherSuites());
+        return WolfSSLUtil.sanitizeSuites(params.getCipherSuites(), false);
     }
 
     @Override
@@ -178,9 +178,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
             throw new IllegalArgumentException("input array has length zero");
         }
 
-        /* sanitize cipher array for unsupported strings */
+        /* validate cipher array for unsupported strings. Not filtering
+         * anon suites in case user wants to explicitly set. */
         List<String> supported = Arrays.asList(
-            WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana()));
+            WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana(), false));
         for (int i = 0; i < suites.length; i++) {
             if (!supported.contains(suites[i])) {
                 throw new IllegalArgumentException("Unsupported CipherSuite: " +
@@ -200,7 +201,7 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getSupportedCipherSuites()");
 
-        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana(), false);
     }
 
     @Override

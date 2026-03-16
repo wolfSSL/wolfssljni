@@ -29,6 +29,8 @@ import java.util.ArrayList;
 
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
 
+import java.util.Arrays;
+import java.util.List;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import javax.net.ssl.SSLSocket;
@@ -52,6 +54,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
@@ -438,5 +441,60 @@ public class WolfSSLSocketFactoryTest {
 
         System.out.println("\t\t\t... passed");
     }
-}
 
+    @Test
+    public void testFactoryAnonCipherSuiteFiltering()
+        throws Exception {
+
+        System.out.print("\tanon cipher filtering");
+
+        String[] allCiphers = WolfSSL.getCiphersIana();
+        boolean haveAnon = false;
+        for (String s : allCiphers) {
+            if (s != null && s.contains("_anon_")) {
+                haveAnon = true;
+                break;
+            }
+        }
+
+        if (!haveAnon) {
+            System.out.println("\t\t... skipped (no anon suites)");
+            return;
+        }
+
+        Security.setProperty("wolfjsse.enabledCipherSuites", "");
+        SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
+        ctx.init(null, null, null);
+        SSLSocketFactory sf = ctx.getSocketFactory();
+
+        /* Default should not include anon */
+        String[] defaults = sf.getDefaultCipherSuites();
+        assertNotNull(defaults);
+        for (String s : defaults) {
+            if (s != null && s.contains("_anon_")) {
+                fail("Default should not contain anon: " + s);
+            }
+        }
+
+        /* Supported should include anon */
+        String[] supported = sf.getSupportedCipherSuites();
+        assertNotNull(supported);
+        boolean foundAnon = false;
+        for (String s : supported) {
+            if (s != null && s.contains("_anon_")) {
+                foundAnon = true;
+                break;
+            }
+        }
+        assertTrue("Supported should include anon suites", foundAnon);
+
+        /* Supported should be superset of default */
+        List<String> suppList = Arrays.asList(supported);
+        for (String s : defaults) {
+            assertTrue("Default suite not in supported: " + s,
+                suppList.contains(s));
+        }
+
+        System.out.println("\t\t... passed");
+    }
+}

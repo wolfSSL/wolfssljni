@@ -118,6 +118,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
     /**
      * Returns the default cipher suite list for wolfJSSE.
      *
+     * Filters out anon suites by default.
+     *
      * @return default array of cipher suite Strings for wolfSSL
      */
     @Override
@@ -126,7 +128,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getDefaultCipherSuites()");
 
-        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana(), true);
     }
 
     /**
@@ -140,7 +142,7 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getSupportedCipherSuites()");
 
-        return getDefaultCipherSuites();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana(), false);
     }
 
     /**

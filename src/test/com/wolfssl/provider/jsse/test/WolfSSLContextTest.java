@@ -796,8 +796,19 @@ public class WolfSSLContextTest {
                 fail("Invalid TLS version");
             }
 
-            /* String[] of all available native wolfSSL suites for version */
-            nativeSuites = WolfSSL.getCiphersAvailableIana(version);
+            /* String[] of all available native wolfSSL suites for version,
+             * filtered to remove anonymous cipher suites to match what
+             * SSLContext will return (wolfJSSE filters anon suites) */
+            String[] rawSuites = WolfSSL.getCiphersAvailableIana(version);
+            ArrayList<String> nonAnon = new ArrayList<String>();
+            if (rawSuites != null) {
+                for (String s : rawSuites) {
+                    if (s != null && !s.contains("_anon_")) {
+                        nonAnon.add(s);
+                    }
+                }
+            }
+            nativeSuites = nonAnon.toArray(new String[nonAnon.size()]);
 
             /* ------------------------------------------------------------- */
 
@@ -991,12 +1002,57 @@ public class WolfSSLContextTest {
                 return;
             }
 
-            System.out.println("\t\t... passed");
+            System.out.println("\t... passed");
 
         } catch (Exception e) {
             System.out.println("\t... failed");
             fail("Exception during sanitizeProtocols test: " + e.getMessage());
         }
+    }
+
+    /* Helper: check if array has any anon suite */
+    private boolean arrayHasAnonSuite(String[] arr) {
+        if (arr == null) {
+            return false;
+        }
+        for (String s : arr) {
+            if (s != null && s.contains("_anon_")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    public void testContextDefaultParamsExcludeAnon() throws Exception {
+
+        System.out.print("\tdefault params exclude anon");
+
+        String[] allCiphers = WolfSSL.getCiphersIana();
+        boolean haveAnon = false;
+        for (String s : allCiphers) {
+            if (s != null && s.contains("_anon_")) {
+                haveAnon = true;
+                break;
+            }
+        }
+
+        if (!haveAnon) {
+            System.out.println("\t... skipped (no anon suites)");
+            return;
+        }
+
+        Security.setProperty("wolfjsse.enabledCipherSuites", "");
+        SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
+        ctx.init(null, null, null);
+
+        String[] defaults =
+            ctx.getDefaultSSLParameters().getCipherSuites();
+        assertNotNull(defaults);
+        assertFalse("Default params should not contain anon",
+            arrayHasAnonSuite(defaults));
+
+        System.out.println("\t... passed");
     }
 }
 
