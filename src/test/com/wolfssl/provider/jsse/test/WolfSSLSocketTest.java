@@ -4321,5 +4321,77 @@ public class WolfSSLSocketTest {
 
         System.out.println("\t\t... passed");
     }
+
+    @Test
+    public void testSocketAnonCipherSuiteFiltering() throws Exception {
+
+        System.out.print("\tanon cipher suite filtering");
+
+        String[] allCiphers = WolfSSL.getCiphersIana();
+        String anonSuite = null;
+        String nonAnonSuite = null;
+        for (String s : allCiphers) {
+            if (s == null) continue;
+            if (s.contains("_anon_") && anonSuite == null) {
+                anonSuite = s;
+            }
+            else if (!s.contains("_anon_") && nonAnonSuite == null) {
+                nonAnonSuite = s;
+            }
+        }
+
+        if (anonSuite == null) {
+            System.out.println("\t... skipped (no anon suites)");
+            return;
+        }
+
+        Security.setProperty("wolfjsse.enabledCipherSuites", "");
+        SSLContext ctx = tf.createSSLContext("TLS", "wolfJSSE");
+        SSLSocket sock = (SSLSocket)ctx.getSocketFactory().createSocket();
+
+        /* Default enabled should not include anon */
+        String[] enabled = sock.getEnabledCipherSuites();
+        assertNotNull(enabled);
+        for (String s : enabled) {
+            if (s != null && s.contains("_anon_")) {
+                fail("Default enabled should not contain anon: " + s);
+            }
+        }
+
+        /* Supported should include anon */
+        String[] supported = sock.getSupportedCipherSuites();
+        assertNotNull(supported);
+        boolean foundAnon = false;
+        for (String s : supported) {
+            if (s != null && s.contains("_anon_")) {
+                foundAnon = true;
+                break;
+            }
+        }
+        assertTrue("Supported should include anon suites", foundAnon);
+
+        /* Supported superset of enabled */
+        List<String> suppList = Arrays.asList(supported);
+        for (String s : enabled) {
+            assertTrue("Enabled suite not in supported: " + s,
+                suppList.contains(s));
+        }
+
+        /* Explicit set of anon should succeed */
+        sock.setEnabledCipherSuites(new String[] { anonSuite });
+        enabled = sock.getEnabledCipherSuites();
+        assertNotNull(enabled);
+        assertEquals(1, enabled.length);
+        assertEquals(anonSuite, enabled[0]);
+
+        /* Roundtrip: set both, get both back */
+        sock.setEnabledCipherSuites(new String[] { nonAnonSuite, anonSuite });
+        enabled = sock.getEnabledCipherSuites();
+        assertEquals(2, enabled.length);
+
+        sock.close();
+
+        System.out.println("\t... passed");
+    }
 }
 

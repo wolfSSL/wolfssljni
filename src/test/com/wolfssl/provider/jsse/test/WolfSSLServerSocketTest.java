@@ -25,7 +25,9 @@ import org.junit.Test;
 import org.junit.BeforeClass;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
@@ -57,6 +59,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
@@ -881,6 +884,82 @@ public class WolfSSLServerSocketTest {
         ss.close();
 
         System.out.println("\t... passed");
+    }
+
+    @Test
+    public void testServerSocketAnonCipherSuiteFiltering()
+        throws Exception {
+
+        System.out.print("\tanon cipher filtering");
+
+        String[] allCiphers = WolfSSL.getCiphersIana();
+        String anonSuite = null;
+        String nonAnonSuite = null;
+        for (String s : allCiphers) {
+            if (s == null) continue;
+            if (s.contains("_anon_") && anonSuite == null) {
+                anonSuite = s;
+            }
+            else if (!s.contains("_anon_") && nonAnonSuite == null) {
+                nonAnonSuite = s;
+            }
+        }
+
+        if (anonSuite == null) {
+            System.out.println("\t\t... skipped (no anon suites)");
+            return;
+        }
+
+        Security.setProperty("wolfjsse.enabledCipherSuites", "");
+        this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
+        SSLServerSocket ss =
+            (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+
+        /* Default enabled should not include anon */
+        String[] enabled = ss.getEnabledCipherSuites();
+        assertNotNull(enabled);
+        for (String s : enabled) {
+            if (s != null && s.contains("_anon_")) {
+                ss.close();
+                fail("Default enabled should not contain anon: " + s);
+            }
+        }
+
+        /* Supported should include anon */
+        String[] supported = ss.getSupportedCipherSuites();
+        assertNotNull(supported);
+        boolean foundAnon = false;
+        for (String s : supported) {
+            if (s != null && s.contains("_anon_")) {
+                foundAnon = true;
+                break;
+            }
+        }
+        assertTrue("Supported should include anon suites", foundAnon);
+
+        /* Supported superset of enabled */
+        List<String> suppList = Arrays.asList(supported);
+        for (String s : enabled) {
+            assertTrue("Enabled suite not in supported: " + s,
+                suppList.contains(s));
+        }
+
+        /* Explicit set of anon should succeed */
+        ss.setEnabledCipherSuites(new String[] { anonSuite });
+        enabled = ss.getEnabledCipherSuites();
+        assertNotNull(enabled);
+        assertEquals(1, enabled.length);
+        assertEquals(anonSuite, enabled[0]);
+
+        /* Roundtrip: set both, get both back */
+        ss.setEnabledCipherSuites(new String[] { nonAnonSuite, anonSuite });
+        enabled = ss.getEnabledCipherSuites();
+        assertEquals(2, enabled.length);
+
+        ss.close();
+
+        System.out.println("\t\t... passed");
     }
 }
 

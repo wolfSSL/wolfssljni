@@ -214,6 +214,32 @@ public class WolfSSLTest {
             fail("available ciphers array length was zero");
         }
 
+        /* Test all protocol versions. For each, if a non-null list is returned
+         * it must not be empty and must not contain empty strings. A null
+         * return is acceptable for protocol versions not compiled into native
+         * wolfSSL. */
+        for (WolfSSL.TLS_VERSION ver : WolfSSL.TLS_VERSION.values()) {
+            if (ver == WolfSSL.TLS_VERSION.INVALID) {
+                continue;
+            }
+            String[] verCiphers = WolfSSL.getCiphersAvailableIana(ver);
+            if (verCiphers != null) {
+                if (verCiphers.length == 0) {
+                    System.out.println("\t... failed");
+                    fail("getCiphersAvailableIana(" + ver +
+                        ") returned empty array");
+                }
+                for (int i = 0; i < verCiphers.length; i++) {
+                    if (verCiphers[i] == null ||
+                        verCiphers[i].isEmpty()) {
+                        System.out.println("\t... failed");
+                        fail("getCiphersAvailableIana(" + ver +
+                            ") contains null/empty cipher at index " + i);
+                    }
+                }
+            }
+        }
+
         System.out.println("\t... passed");
     }
 
