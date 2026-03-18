@@ -164,7 +164,8 @@ public class WolfSSLEngine extends SSLEngine {
     private final Object toSendLock = new Object();
 
     /** ALPN selector callback, if set */
-    protected BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
+    protected volatile
+        BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
 
     /** Turn on extra/verbose SSLEngine debug logging */
     private boolean extraDebugEnabled = false;
@@ -2069,7 +2070,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public String[] getEnabledCipherSuites() {
+    public synchronized String[] getEnabledCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getEnabledCipherSuites()");
         return this.engineHelper.getCiphers();

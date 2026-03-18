@@ -114,7 +114,8 @@ public class WolfSSLSocket extends SSLSocket {
     private final Object initLock = new Object();
 
     /** ALPN selector callback, if set */
-    protected BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
+    protected volatile
+        BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
 
     /* true if client, otherwise false */
     private boolean isClientMode = false;

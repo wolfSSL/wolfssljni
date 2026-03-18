@@ -237,7 +237,11 @@ public class WolfSSLSession {
             if (readWritePoolDisabled()) {
                 this.byteBufferPoolEnabled = false;
             }
+        }
 
+        /* Use class lock for static fields shared across all
+         * WolfSSLSession instances */
+        synchronized (WolfSSLSession.class) {
             /* Check if the maximum size of the static per-thread direct
              * ByteBuffer pool has been adjusted by setting of the
              * "wolfssl.readWriteByteBufferPool.size" Security property. */

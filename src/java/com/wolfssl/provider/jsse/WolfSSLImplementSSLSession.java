@@ -92,7 +92,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      * true and the sesPtr is then freed by that object either during
      * setResume() or finalization.
      */
-    protected boolean isInTable = false;
+    protected volatile boolean isInTable = false;
 
     /**
      * Tracks if WOLFSSL_SESSION pointer has been updated after retreived from
