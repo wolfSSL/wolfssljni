@@ -790,7 +790,7 @@ public class WolfSSLAuthStore {
         }
     }
 
-    private class SessionStore<K, V> extends LinkedHashMap<K, V> {
+    private static class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**
          * user defined ID
          */

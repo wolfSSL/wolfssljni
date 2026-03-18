@@ -2344,7 +2344,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL send callback context, used with SocketSendCallback to
      * gain access to the underlying Socket object.
      */
-    class SocketSendCtx {
+    static class SocketSendCtx {
         private Socket sock = null;
 
         public SocketSendCtx(Socket s) {
@@ -2360,7 +2360,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL receive callback context, used with SocketRecvCallback to
      * gain access to the underlying Socket object.
      */
-    class SocketRecvCtx {
+    static class SocketRecvCtx {
         private Socket sock = null;
 
         public SocketRecvCtx(Socket s) {
@@ -2381,7 +2381,7 @@ public class WolfSSLSocket extends SSLSocket {
      * subclasses contain an internal file descriptor (fd), or alternatively
      * expect the calling application to do I/O using the InputStream and
      * OutputStream of the Socket */
-    class SocketSendCallback implements WolfSSLIOSendCallback {
+    static class SocketSendCallback implements WolfSSLIOSendCallback {
 
         /**
          * I/O send callback method.
@@ -2439,7 +2439,7 @@ public class WolfSSLSocket extends SSLSocket {
      * subclasses contain an internal file descriptor (fd), or alternatively
      * expect the calling application to do I/O using the InputStream and
      * OutputStream of the Socket */
-    class SocketRecvCallback implements WolfSSLIORecvCallback {
+    static class SocketRecvCallback implements WolfSSLIORecvCallback {
 
         /**
          * I/O receive callback method.
@@ -2500,7 +2500,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL receive callback context, used with ConsumedRecvCallback to
      * gain access to underlying Socket and InputStream objects.
      */
-    class ConsumedRecvCtx {
+    static class ConsumedRecvCtx {
         private Socket s = null;
         private DataInputStream consumed = null;
         private DataInputStream sockStream = null;
@@ -2547,7 +2547,7 @@ public class WolfSSLSocket extends SSLSocket {
      * This callback will read all data from the pre-existing/populated
      * InputStream first, then start reading from the Socket proper.
      */
-    class ConsumedRecvCallback implements WolfSSLIORecvCallback {
+    static class ConsumedRecvCallback implements WolfSSLIORecvCallback {
 
         public int receiveCallback(WolfSSLSession ssl, byte[] buf,
             int sz, Object ctx) {
@@ -2592,7 +2592,7 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    class WolfSSLInputStream extends InputStream {
+    static class WolfSSLInputStream extends InputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
@@ -2834,7 +2834,7 @@ public class WolfSSLSocket extends SSLSocket {
         }
     } /* end WolfSSLInputStream inner class */
 
-    class WolfSSLOutputStream extends OutputStream {
+    static class WolfSSLOutputStream extends OutputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;

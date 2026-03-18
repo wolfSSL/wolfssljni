@@ -2703,7 +2703,7 @@ public class WolfSSLEngine extends SSLEngine {
         return 0;
     }
 
-    private class SendCB implements WolfSSLByteBufferIOSendCallback {
+    private static class SendCB implements WolfSSLByteBufferIOSendCallback {
 
         protected SendCB() {
 
@@ -2716,7 +2716,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     }
 
-    private class RecvCB implements WolfSSLByteBufferIORecvCallback {
+    private static class RecvCB implements WolfSSLByteBufferIORecvCallback {
 
         protected RecvCB() {
 
@@ -2729,7 +2729,8 @@ public class WolfSSLEngine extends SSLEngine {
 
     }
 
-    private class SessionTicketCB implements WolfSSLSessionTicketCallback {
+    private static class SessionTicketCB
+        implements WolfSSLSessionTicketCallback {
 
         protected SessionTicketCB() {
         }

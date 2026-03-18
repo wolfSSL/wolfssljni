@@ -42,7 +42,7 @@ public final class WolfSSLProvider extends Provider {
     /**
      * Inner callback class for wolfCrypt FIPS 140-2/3 errors
      */
-    public class JSSEFIPSErrorCallback implements WolfSSLFIPSErrorCallback {
+    public static class JSSEFIPSErrorCallback implements WolfSSLFIPSErrorCallback {
 
         /** Default JSSEFIPSErrorCallback constructor */
         public JSSEFIPSErrorCallback() { }
