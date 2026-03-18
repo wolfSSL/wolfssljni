@@ -283,7 +283,8 @@
     </Match>
 
     <!--
-        IS2_INCONSISTENT_SYNC: WolfSSLEngine.ssl and
+        IS2_INCONSISTENT_SYNC: WolfSSLEngine.ssl,
+        extraDebugEnabled, and ioDebugEnabled, and
         WolfSSLSocket.ssl fields set in constructor (before
         publication), unsynchronized reads only in debug logging
         lambdas (read-only, non-critical).
@@ -294,9 +295,376 @@
         <Bug pattern="IS2_INCONSISTENT_SYNC"/>
     </Match>
     <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLEngine"/>
+        <Field name="extraDebugEnabled"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLEngine"/>
+        <Field name="ioDebugEnabled"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
         <Class name="com.wolfssl.provider.jsse.WolfSSLSocket"/>
         <Field name="ssl"/>
         <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+
+    <!--
+        IS2_INCONSISTENT_SYNC: WolfSSLParameters array-based
+        getters/setters (cipherSuites, protocols, applicationProtocols)
+        and copy() are synchronized. Remaining primitive
+        getters/setters (booleans, ints) are intentionally not
+        synchronized since primitive reads/writes are atomic and
+        objects are copied before sharing across threads.
+    -->
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParameters"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+
+    <!--
+        NM_METHOD_NAMING_CONVENTION: Public native JNI methods use
+        PascalCase to match native wolfSSL C function naming.
+        Renaming would break existing users and require updating
+        native JNI C code.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Bug pattern="NM_METHOD_NAMING_CONVENTION"/>
+    </Match>
+
+    <!--
+        MS_PKGPROTECT: Public API constants in WolfSSL documented
+        in Javadoc as values users pass to methods like
+        getExtensionSet(), setKeyUsage(), setPublicKey(), etc.
+        Reducing visibility would break users.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_surname"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_serialNumber"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_pkcs9_unstructuredName"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_pkcs9_contentType"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_pkcs9_challengePassword"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_givenName"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_initials"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_key_usage"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_subject_alt_name"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_basic_constraints"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_ext_key_usage"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="NID_dnQualifier"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="RSAk"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="ECDSAk"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+
+    <!--
+        FI_FINALIZER_NULLS_FIELDS: Finalizers null out fields as
+        defensive cleanup for JNI native resources. Nulling ensures
+        references to native pointers and shared objects don't
+        linger if something holds a reference to the finalized
+        object. The finalizers also do real work (freeSSL(),
+        store.clear()). Harmless and intentional.
+    -->
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLAuthStore"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLContext"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLEngine"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLEngineHelper"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLSocket"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLTrustX509"/>
+        <Method name="finalize"/>
+        <Bug pattern="FI_FINALIZER_NULLS_FIELDS"/>
+    </Match>
+
+    <!--
+        PA_PUBLIC_PRIMITIVE_ATTRIBUTE: WolfSSLDebug public debug
+        flags are public API for users to check/control debug
+        logging at runtime.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSLDebug"/>
+        <Field name="DEBUG"/>
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLDebug"/>
+        <Field name="DEBUG_JNI"/>
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLDebug"/>
+        <Field name="DEBUG_JSON"/>
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
+    </Match>
+
+    <!--
+        AT_STALE_THREAD_WRITE_OF_PRIMITIVE: WolfSSLParameters
+        objects are copied via copy() before being shared across
+        threads, providing the thread-safety boundary. Matching
+        the JDK SSLParameters pattern which also does not
+        synchronize primitive getters/setters.
+
+        WolfSSLImplementSSLSession.side is set once during setup
+        before the session is used across threads.
+    -->
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParameters"/>
+        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLImplementSSLSession"/>
+        <Field name="side"/>
+        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
+    </Match>
+
+    <!--
+        RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE: Defensive null
+        check on getSession() return value. The session could be
+        null depending on engine state, keeping as defensive check.
+    -->
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLEngine"/>
+        <Method name="cacheRequestedServerNamesFromNetData"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
+
+    <!--
+        RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE: Defensive null check
+        on certPem in catch block after constructor threw. Kept as
+        defensive coding to free native resources if constructor
+        behavior changes in the future.
+    -->
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLTrustManager"/>
+        <Method name="LoadAndroidSystemCertsManually"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"/>
+    </Match>
+
+    <!--
+        DCN_NULLPOINTER_EXCEPTION: Intentional catch of
+        NullPointerException. close() uses it to detect calls from
+        super() before object init. I/O callbacks catch it
+        defensively when socket/stream may be nulled by another
+        thread during close. InputStream wraps it in IOException.
+    -->
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLSocket"/>
+        <Method name="close"/>
+        <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLSocket$SocketSendCallback"/>
+        <Method name="sendCallback"/>
+        <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLSocket$SocketRecvCallback"/>
+        <Method name="receiveCallback"/>
+        <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLSocket$WolfSSLInputStream"/>
+        <Method name="read"/>
+        <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+    </Match>
+
+    <!--
+        REC_CATCH_EXCEPTION: WolfSSLParametersHelper uses reflection
+        for Java version compatibility. catch(Exception) is the
+        standard pattern for reflection calls that may throw
+        NoSuchMethodException, IllegalAccessException,
+        InvocationTargetException, ClassNotFoundException, etc.
+        on older Java versions where methods don't exist.
+    -->
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParametersHelper"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParametersHelper$1"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+
+    <!--
+        DE_MIGHT_IGNORE: Same reflection compatibility code as
+        above. Exceptions are intentionally ignored when methods
+        don't exist on older Java versions.
+    -->
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParametersHelper"/>
+        <Method name="decoupleParams"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <Class name=
+            "com.wolfssl.provider.jsse.WolfSSLParametersHelper"/>
+        <Method name="importParams"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+
+    <!--
+        VA_FORMAT_STRING_USES_NEWLINE: JSON format requires \n per
+        spec (not platform-specific %n). Hex dump formatting also
+        needs consistent \n across platforms.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSLDebug$JSONFormatter"/>
+        <Method name="format"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLDebug"/>
+        <Method name="logHex"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+
+    <!--
+        MS_CANNOT_BE_FINAL: WolfSSL.devId is intentionally mutable,
+        set at runtime by users via WolfSSLProvider.setDevId() to
+        configure crypto callback device ID.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSL"/>
+        <Field name="devId"/>
+        <Bug pattern="MS_CANNOT_BE_FINAL"/>
+    </Match>
+
+    <!--
+        ESync_EMPTY_SYNC: Empty synchronized block in close() is
+        intentional. Used to detect if close() is called from
+        super() constructor before WolfSSLSocket fields are
+        initialized. If handshakeLock is null (not yet init),
+        NPE is caught and TLS shutdown is skipped.
+    -->
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLSocket"/>
+        <Method name="close"/>
+        <Bug pattern="ESync_EMPTY_SYNC"/>
+    </Match>
+
+    <!--
+        ENV_USE_PROPERTY_INSTEAD_OF_ENV: getJavaHome() intentionally
+        checks JAVA_HOME env var first, then falls back to
+        java.home property. JAVA_HOME and java.home can point to
+        different locations (JDK root vs JRE within it).
+    -->
+    <Match>
+        <Class name="com.wolfssl.provider.jsse.WolfSSLUtil"/>
+        <Method name="getJavaHome"/>
+        <Bug pattern="ENV_USE_PROPERTY_INSTEAD_OF_ENV"/>
+    </Match>
+
+    <!--
+        SE_TRANSIENT_FIELD_NOT_RESTORED: Lock fields in
+        WolfSSLCertificate and WolfSSLCRL are marked transient to
+        satisfy Android Gradle -Werror serialization warnings.
+        These classes are not actually serialized, so the fields
+        not being restored after deserialization is not a concern.
+    -->
+    <Match>
+        <Class name="com.wolfssl.WolfSSLCertificate"/>
+        <Field name="stateLock"/>
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLCertificate"/>
+        <Field name="x509Lock"/>
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLCRL"/>
+        <Field name="stateLock"/>
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    </Match>
+    <Match>
+        <Class name="com.wolfssl.WolfSSLCRL"/>
+        <Field name="crlLock"/>
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
     </Match>
 
 </FindBugsFilter>
