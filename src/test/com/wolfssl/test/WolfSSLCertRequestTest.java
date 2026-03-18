@@ -74,6 +74,16 @@ public class WolfSSLCertRequestTest {
         cliEccKeyPem = WolfSSLTestCommon.getPath(cliEccKeyPem);
     }
 
+    private boolean isNotCompiledIn(WolfSSLException e) {
+        String msg = e.getMessage();
+        if (msg == null) {
+            return false;
+        }
+        return msg.contains(
+            Integer.toString(WolfSSL.NOT_COMPILED_IN)) ||
+            msg.contains("NOT_COMPILED_IN");
+    }
+
     /* Internal helper method, generate test SubjectName for cert generation */
     private WolfSSLX509Name GenerateTestSubjectName() throws WolfSSLException {
 
@@ -184,6 +194,51 @@ public class WolfSSLCertRequestTest {
         /* Test boolean extension setting */
         req.addExtension(WolfSSL.NID_basic_constraints, true, true);
         req.addExtension(WolfSSL.NID_basic_constraints, false, true);
+
+        /* Test boolean extension with pathLen */
+        try {
+            req.addExtension(WolfSSL.NID_basic_constraints, true, 0, true);
+        } catch (WolfSSLException e) {
+            if (!isNotCompiledIn(e)) {
+                throw e;
+            }
+            System.out.println("\t\t\t... skipped");
+        }
+        try {
+            req.addExtension(WolfSSL.NID_basic_constraints, true, 3, true);
+        } catch (WolfSSLException e) {
+            if (!isNotCompiledIn(e)) {
+                throw e;
+            }
+            System.out.println("\t\t\t... skipped");
+        }
+
+        /* Invalid pathLen (< -1) should throw WolfSSLException */
+        try {
+            req.addExtension(WolfSSL.NID_basic_constraints, true, -2, true);
+            System.out.println("\t\t\t... failed");
+            fail("Invalid pathLen did not throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* pathLen with isCA=false should throw (RFC 5280) */
+        try {
+            req.addExtension(WolfSSL.NID_basic_constraints, false, 0, true);
+            System.out.println("\t\t\t... failed");
+            fail("pathLen with isCA=false did not throw");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
+
+        /* Unsupported NID with pathLen should throw exception */
+        try {
+            req.addExtension(123456, true, 0, true);
+            System.out.println("\t\t\t... failed");
+            fail("Unsupported NID did not throw exception");
+        } catch (WolfSSLException e) {
+            /* expected */
+        }
 
         /* Adding unsupported NID should throw exception */
         try {

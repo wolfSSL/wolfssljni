@@ -352,10 +352,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
  * Method:    X509_add_ext_via_set_object_boolean
- * Signature: (JIZZ)I
+ * Signature: (JIZZI)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1set_1object_1boolean
-  (JNIEnv *, jclass, jlong, jint, jboolean, jboolean);
+  (JNIEnv *, jclass, jlong, jint, jboolean, jboolean, jint);
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
