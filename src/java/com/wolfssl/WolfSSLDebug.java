@@ -263,9 +263,6 @@ public class WolfSSLDebug {
             String levelStr = (level != null) ? level.toString() : "UNKNOWN";
 
             String threadName = Thread.currentThread().getName();
-            if (threadName == null) {
-                threadName = "unknown";
-            }
 
             String message = record.getMessage();
             if (message == null) {

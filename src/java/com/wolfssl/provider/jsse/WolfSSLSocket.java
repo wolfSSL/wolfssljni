@@ -2307,7 +2307,7 @@ public class WolfSSLSocket extends SSLSocket {
         /* register host/port for session resumption in case where
            createSocket() was called without host/port, but
            SSLSocket.connect() was explicitly called with SocketAddress */
-        if (address != null && EngineHelper != null) {
+        if (EngineHelper != null) {
             EngineHelper.setHostAndPort(
                 address.getAddress().getHostAddress(),
                 address.getPort());

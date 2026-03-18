@@ -254,7 +254,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
          * but for SNI verification we need the logical hostname the client
          * requested (e.g. "something.netty.io"). */
         if (this.params != null) {
-            List<WolfSSLSNIServerName> sniNames = this.params.getServerNames();
+            List<WolfSSLSNIServerName> sniNames =
+                this.params.getWolfSSLServerNames();
             if (sniNames != null && !sniNames.isEmpty()) {
                 for (WolfSSLSNIServerName sni : sniNames) {
                     /* Type 0 = host_name (RFC 6066) */

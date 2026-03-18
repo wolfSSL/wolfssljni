@@ -524,19 +524,14 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             String caStoreDir = androidRoot.concat("etc/security/cacerts");
             File cadir = new File(caStoreDir);
-            final String[] cafiles;
-
-            if (cadir == null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Unable to open etc/security/cacerts, none loaded");
-                return null;
-            }
+            String[] cafiles = new String[0];
 
             try {
-                cafiles = cadir.list();
-                if (cafiles != null) {
+                String[] listed = cadir.list();
+                if (listed != null) {
+                    cafiles = listed;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "Found " + cafiles.length +
+                        () -> "Found " + listed.length +
                         " CA files to load into KeyStore");
                 }
             } catch (Exception e) {

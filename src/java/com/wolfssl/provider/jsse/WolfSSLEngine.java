@@ -319,6 +319,13 @@ public class WolfSSLEngine extends SSLEngine {
         }
     }
 
+    /**
+     * Cache requested SNI server names from raw network data.
+     *
+     * Parses SNI names from the ClientHello in the network input
+     * buffer and caches them into the session, if not already set.
+     * Only operates on the server side.
+     */
     protected synchronized void cacheRequestedServerNamesFromNetData() {
         List<SNIServerName> cachedNames;
         List<SNIServerName> names;
