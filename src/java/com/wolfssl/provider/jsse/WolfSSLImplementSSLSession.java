@@ -281,8 +281,12 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         this.sesPtr = orig.sesPtr;
         this.sesPtrUpdatedAfterTable = false;
 
-        /* Not copying binding, not needed */
-        this.binding = null;
+        /* Copy binding HashMap so session values are preserved */
+        if (orig.binding != null) {
+            this.binding = new HashMap<String, Object>(orig.binding);
+        } else {
+            this.binding = new HashMap<String, Object>();
+        }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "created new session (WolfSSLImplementSSLSession)");
@@ -669,52 +673,13 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     public synchronized Principal getPeerPrincipal()
         throws SSLPeerUnverifiedException {
 
-        long peerX509 = 0;
-        Principal peerPrincipal = null;
-        WolfSSLX509 x509 = null;
-
-        if (ssl == null) {
-            throw new SSLPeerUnverifiedException("handshake not done");
+        /* Return X500Principal for proper equals() symmetry */
+        Certificate[] certs = getPeerCertificates();
+        if (certs != null && certs.length > 0 &&
+            certs[0] instanceof X509Certificate) {
+            return ((X509Certificate) certs[0]).getSubjectX500Principal();
         }
-
-        /* Throw if server side with no client auth requested */
-        if (this.side == WolfSSL.WOLFSSL_SERVER_END &&
-            !this.clientAuthRequested) {
-            throw new SSLPeerUnverifiedException(
-                "peer not authenticated (no client auth requested)");
-        }
-
-        try {
-            peerX509 = this.ssl.getPeerCertificate();
-            if (peerX509 == 0) {
-                throw new SSLPeerUnverifiedException("No peer certificate");
-            }
-
-            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
-             * structure from wolfSSL_get_peer_certificate(). In that case,
-             * we need to free the pointer when finished. Prior to 5.3.0,
-             * this memory was freed internally by wolfSSL since the API
-             * only returned a pointer to internal memory */
-            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
-                x509 = new WolfSSLX509(peerX509, true);
-            }
-            else {
-                x509 = new WolfSSLX509(peerX509, false);
-            }
-
-            if (x509 != null) {
-                peerPrincipal = x509.getSubjectDN();
-                x509.free();
-            }
-
-            return peerPrincipal;
-
-        } catch (IllegalStateException | WolfSSLJNIException |
-                WolfSSLException ex) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Error getting peer principal: " + ex.getMessage());
-        }
-        return null;
+        throw new SSLPeerUnverifiedException("No peer certificate");
     }
 
     @Override
@@ -733,7 +698,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         if (certs.length > 0){
             /* When chain of certificates exceeds one,
              * the user certifcate is the first */
-            localPrincipal = certs[0].getSubjectDN();
+            localPrincipal = certs[0].getSubjectX500Principal();
         }
 
         /* free native resources earlier than garbage collection if
@@ -1108,14 +1073,55 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
     @Override
     public String[] getLocalSupportedSignatureAlgorithms() {
-        /* TODO */
-        return null;
+        ArrayList<String> algs = new ArrayList<String>();
+
+        if (WolfSSL.RsaEnabled()) {
+            if (WolfSSL.Sha512Enabled()) {
+                algs.add("SHA512withRSA");
+            }
+            if (WolfSSL.Sha384Enabled()) {
+                algs.add("SHA384withRSA");
+            }
+            if (WolfSSL.Sha256Enabled()) {
+                algs.add("SHA256withRSA");
+            }
+            if (WolfSSL.Sha224Enabled()) {
+                algs.add("SHA224withRSA");
+            }
+            if (WolfSSL.ShaEnabled()) {
+                algs.add("SHA1withRSA");
+            }
+        }
+        if (WolfSSL.EccEnabled()) {
+            if (WolfSSL.Sha512Enabled()) {
+                algs.add("SHA512withECDSA");
+            }
+            if (WolfSSL.Sha384Enabled()) {
+                algs.add("SHA384withECDSA");
+            }
+            if (WolfSSL.Sha256Enabled()) {
+                algs.add("SHA256withECDSA");
+            }
+            if (WolfSSL.Sha224Enabled()) {
+                algs.add("SHA224withECDSA");
+            }
+            if (WolfSSL.ShaEnabled()) {
+                algs.add("SHA1withECDSA");
+            }
+        }
+        if (WolfSSL.RsaPssEnabled()) {
+            algs.add("RSASSA-PSS");
+        }
+
+        return algs.toArray(new String[algs.size()]);
     }
 
     @Override
     public String[] getPeerSupportedSignatureAlgorithms() {
-        /* TODO */
-        return null;
+        /* TODO: Wire to native wolfSSL_get_peer_sigalgs() once
+         * available. Returns String[0] not null because JSSE
+         * callers iterate the result directly. Null causes NPE. */
+        return new String[0];
     }
 
     /**
@@ -1132,6 +1138,10 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         byte[] sniRequestArr = null;
 
         if (this.ssl == null) {
+            if (this.sniServerNames != null && !this.sniServerNames.isEmpty()) {
+                return Collections.unmodifiableList(
+                    new ArrayList<SNIServerName>(this.sniServerNames));
+            }
             return Collections.emptyList();
         }
 
@@ -1154,11 +1164,17 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 List<SNIServerName> sniNames = new ArrayList<>(1);
                 SNIHostName sniName = new SNIHostName(sniRequestArr);
                 sniNames.add(sniName);
+                this.sniServerNames = new ArrayList<SNIServerName>(sniNames);
 
                 return sniNames;
             }
         } catch (IllegalArgumentException e) {
             throw new UnsupportedOperationException(e);
+        }
+
+        if (this.sniServerNames != null && !this.sniServerNames.isEmpty()) {
+            return Collections.unmodifiableList(
+                new ArrayList<SNIServerName>(this.sniServerNames));
         }
 
         return Collections.emptyList();
@@ -1250,4 +1266,3 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             && Objects.equals(this.creation, other.creation);
     }
 }
-

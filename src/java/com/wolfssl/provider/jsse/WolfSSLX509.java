@@ -791,6 +791,31 @@ public class WolfSSLX509 extends X509Certificate {
             return getName();
         }
 
+        /**
+         * Compares by DN string against any Principal for X500Name
+         * compatibility. Note: this is intentionally asymmetric —
+         * wolfSSLPrincipal.equals(x500Principal) may return true
+         * while x500Principal.equals(wolfSSLPrincipal) returns false
+         * since X500Principal.equals() checks for exact type match.
+         */
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj instanceof Principal) {
+                String thisName = getName();
+                if (thisName == null) {
+                    return ((Principal) obj).getName() == null;
+                }
+                return thisName.equals(((Principal) obj).getName());
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            String n = getName();
+            return (n != null) ? n.hashCode() : 0;
+        }
 
     }
 }

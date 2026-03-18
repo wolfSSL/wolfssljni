@@ -179,7 +179,8 @@ public class WolfSSLCertManager {
                     cert = (X509Certificate) ks.getCertificate(name);
                 }
 
-                if (cert != null && cert.getBasicConstraints() >= 0) {
+                if (cert != null && (cert.getBasicConstraints() >= 0 ||
+                        WolfSSL.trustPeerCertEnabled())) {
                     ret = CertManagerLoadCABuffer(cert.getEncoded(),
                             cert.getEncoded().length,
                             WolfSSL.SSL_FILETYPE_ASN1);

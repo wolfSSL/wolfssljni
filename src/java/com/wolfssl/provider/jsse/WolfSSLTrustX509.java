@@ -336,6 +336,76 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
     }
 
     /**
+     * Find the actual issuer of a certificate from the KeyStore by checking
+     * both subject DN match and signature verification. This handles the case
+     * where multiple CA certificates share the same subject DN (e.g.,
+     * cross-signed roots with the same CN but different key pairs).
+     *
+     * @param cert Certificate whose issuer we want to find
+     * @param ks KeyStore containing trusted CA certificates
+     *
+     * @return The CA certificate that actually signed cert, or null if not
+     *         found
+     */
+    private X509Certificate findIssuerBySignature(X509Certificate cert,
+        KeyStore ks) {
+
+        if (cert == null || ks == null) {
+            return null;
+        }
+
+        X500Principal issuerDN = cert.getIssuerX500Principal();
+        if (issuerDN == null) {
+            return null;
+        }
+
+        try {
+            Enumeration<String> aliases = ks.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                X509Certificate candidate = null;
+
+                if (ks.isKeyEntry(alias)) {
+                    java.security.cert.Certificate[] chain =
+                        ks.getCertificateChain(alias);
+                    if (chain != null && chain.length > 0) {
+                        candidate = (X509Certificate) chain[0];
+                    }
+                } else {
+                    java.security.cert.Certificate c = ks.getCertificate(alias);
+                    if (c instanceof X509Certificate) {
+                        candidate = (X509Certificate) c;
+                    }
+                }
+
+                if (candidate == null) {
+                    continue;
+                }
+
+                /* Check subject DN matches cert's issuer DN */
+                if (!candidate.getSubjectX500Principal().equals(issuerDN)) {
+                    continue;
+                }
+
+                /* Verify the signature to confirm this is the actual issuer,
+                 * not just a CA with the same subject DN */
+                try {
+                    cert.verify(candidate.getPublicKey());
+                    return candidate;
+                } catch (Exception e) {
+                    /* Signature didn't match, try next candidate */
+                }
+            }
+        } catch (KeyStoreException e) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "KeyStoreException in findIssuerBySignature: " +
+                e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * Verify cert chain using WolfSSLCertManager.
      * Do all loading and verification in one function to avoid holding native
      * resources at the object/class level.
@@ -404,7 +474,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
          * Similarly to native wolfSSL WOLFSSL_ALT_CERT_CHAINS behavior: if a CA
          * certificate cannot be verified, we skip it and continue building
          * the chain through other certificates. This allows handling of
-         * cross-signed certificates and extra certificates in the chain. */
+         * cross-signed certificates and extra certificates in the chain.
+         *
+         * When verification fails for a CA cert, we also try to find its
+         * actual issuer in the KeyStore by signature verification. This
+         * handles the case where multiple CAs share the same subject DN
+         * (e.g., cross-signed roots) and the native CA lookup returns the
+         * wrong one first. */
 
         for (int i = sortedCerts.length-1; i > 0; i--) {
             final int tmpI = i;
@@ -418,22 +494,48 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                /* Failure here is ok if this is a CA cert and we can still
-                 * build and verify a complete chain. Some cert chains may
-                 * include extra CA certs. Similar to native wolfSSL
-                 * WOLFSSL_ALT_CERT_CHAINS. */
+                /* Verification failed. If this is a CA cert, try to find
+                 * and load its actual issuer from the KeyStore. This handles
+                 * cross-signed certs where multiple CAs share the same
+                 * subject DN but have different keys. */
                 if (sortedCerts[tmpI].getBasicConstraints() != -1) {
-                    /* This is a CA certificate, skip it and continue.
-                     * Do not add it to the certificate manager. */
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "Using alternate cert chain (skipping CA): " +
-                        sortedCerts[tmpI].getSubjectX500Principal().getName());
-                    continue;
+                    X509Certificate issuer = findIssuerBySignature(
+                        sortedCerts[tmpI], this.store);
+                    if (issuer != null) {
+                        /* Found the actual issuer, load it and retry */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "Found issuer by signature for: " +
+                            sortedCerts[tmpI].getSubjectX500Principal()
+                                .getName());
+                        try {
+                            byte[] issuerEnc = issuer.getEncoded();
+                            cm.CertManagerLoadCABuffer(issuerEnc,
+                                issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
+                        } catch (Exception e) {
+                            /* If loading issuer fails, fall through to
+                             * skip logic below */
+                        }
+                        /* Retry verification after loading issuer */
+                        ret = cm.CertManagerVerifyBuffer(encoded,
+                            encoded.length, WolfSSL.SSL_FILETYPE_ASN1);
+                    }
                 }
-                /* Non-CA certificates must verify successfully */
-                cm.free();
-                throw new CertificateException(
-                    "Failed to verify intermediate chain cert");
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    if (sortedCerts[tmpI].getBasicConstraints() != -1) {
+                        /* This is a CA certificate, skip it and continue.
+                         * Do not add it to the certificate manager. */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "Using alternate cert chain " +
+                            "(skipping CA): " +
+                            sortedCerts[tmpI].getSubjectX500Principal()
+                                .getName());
+                        continue;
+                    }
+                    /* Non-CA certificates must verify successfully */
+                    cm.free();
+                    throw new CertificateException(
+                        "Failed to verify intermediate chain cert");
+                }
             }
 
             /* Load chain cert as trusted CA */
@@ -471,10 +573,33 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
         ret = cm.CertManagerVerifyBuffer(peer, peer.length,
                 WolfSSL.SSL_FILETYPE_ASN1);
         if (ret != WolfSSL.SSL_SUCCESS) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Failed to verify peer certificate");
-            cm.free();
-            throw new CertificateException("Failed to verify peer certificate");
+            /* Native CA lookup by subject hash may return wrong issuer
+             * for cross-signed certs. Find correct one by signature,
+             * reload it, and retry. */
+            X509Certificate issuer = findIssuerBySignature(
+                sortedCerts[0], this.store);
+            if (issuer != null) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Found issuer by signature for peer: " +
+                    sortedCerts[0].getSubjectX500Principal().getName());
+                try {
+                    cm.CertManagerUnloadCAs();
+                    byte[] issuerEnc = issuer.getEncoded();
+                    cm.CertManagerLoadCABuffer(issuerEnc,
+                        issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
+                } catch (Exception e) {
+                    /* Fall through to failure below */
+                }
+                ret = cm.CertManagerVerifyBuffer(peer, peer.length,
+                    WolfSSL.SSL_FILETYPE_ASN1);
+            }
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Failed to verify peer certificate");
+                cm.free();
+                throw new CertificateException(
+                    "Failed to verify peer certificate");
+            }
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1201,8 +1326,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                  * behavior does vary slightly from the default Sun
                  * implementation. */
                 if (cert != null &&
-                    (cert.getBasicConstraints() >= 0) ||
-                    (WolfSSL.trustPeerCertEnabled())) {
+                    (cert.getBasicConstraints() >= 0 ||
+                     WolfSSL.trustPeerCertEnabled())) {
                     CAs.add(cert);
                 }
             }

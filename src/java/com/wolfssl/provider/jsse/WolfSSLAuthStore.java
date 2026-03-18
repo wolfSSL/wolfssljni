@@ -331,8 +331,9 @@ public class WolfSSLAuthStore {
             return null;
         }
 
-        /* Return new session if in server mode, or if host is null */
-        if (!clientMode || host == null) {
+        /* Unknown port (-1) is a valid SSLEngine host hint.
+         * Skip cache keying. */
+        if (!clientMode || host == null || port < 0) {
             return this.getSession(ssl, clientMode, host, port);
         }
 
@@ -693,9 +694,15 @@ public class WolfSSLAuthStore {
     }
 
     /**
-     * Internal function to return a list of all session ID's
+     * Internal function to return a list of valid session IDs.
+     *
+     * Expired sessions should already have been invalidated before this call
+     * via updateTimeouts(), but callers may also invalidate sessions for
+     * other reasons. Filter validity here so callers can avoid an extra
+     * per-ID lookup.
+     *
      * @param side server or client side to get list of ID's from
-     * @return enumerated session IDs
+     * @return enumerated valid session IDs
      */
     protected Enumeration<byte[]> getAllIDs(int side) {
         List<byte[]> ret = new ArrayList<>();
@@ -704,7 +711,7 @@ public class WolfSSLAuthStore {
             for (Object obj : store.values()) {
                 WolfSSLImplementSSLSession current =
                     (WolfSSLImplementSSLSession)obj;
-                if (current.getSide() == side) {
+                if (current.getSide() == side && current.isValid()) {
                     ret.add(current.getId());
                 }
             }
@@ -758,14 +765,24 @@ public class WolfSSLAuthStore {
                     diff = (now - current.creation.getTime()) / 1000;
 
                     if (diff < 0) {
-                    /* session is from the future ... */ //@TODO
+                    /* session is from the future ... */ /* TODO */
 
                     }
 
-                    if (in > 0 && diff > in) {
+                    if (in > 0 && diff >= in) {
                         current.invalidate();
                     }
-                    current.setNativeTimeout(in);
+                    try {
+                        current.setNativeTimeout(in);
+                    } catch (IllegalStateException e) {
+                        /* Native WolfSSLSession has been freed,
+                         * invalidate this session entry */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "Native session freed while updating " +
+                                "timeout, invalidating cache entry: " +
+                                e.getMessage());
+                        current.invalidate();
+                    }
                 }
             }
         }
@@ -803,4 +820,3 @@ public class WolfSSLAuthStore {
         super.finalize();
     }
 }
-

@@ -47,4 +47,3 @@ public class WolfSSLJSSETestSuite {
      * only used as a holder for the above
      * annotations */
 }
-

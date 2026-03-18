@@ -236,7 +236,9 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         }
 
         if (protocols.length == 0) {
-            throw new IllegalArgumentException("input array has length zero");
+            /* Empty array is valid, store empty set */
+            params.setProtocols(new String[0]);
+            return;
         }
 
         /* sanitize protocol array for unsupported strings */
