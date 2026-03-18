@@ -518,6 +518,14 @@ public class WolfSSLNameConstraintsTest {
             return;
         }
 
+        /* Native wolfSSL XINET_PTON on Windows casts char* to
+         * PCWSTR, causing IP address parsing to fail. Skip until
+         * fixed in native wolfSSL (should use InetPtonA). */
+        if (WolfSSLTestCommon.isWindows()) {
+            System.out.println("\t... skipped (Windows)");
+            return;
+        }
+
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
         try {
@@ -670,6 +678,12 @@ public class WolfSSLNameConstraintsTest {
             return;
         }
 
+        /* Skip on Windows, see testCheckIpAddressPermitted */
+        if (WolfSSLTestCommon.isWindows()) {
+            System.out.println("\t\t... skipped (Windows)");
+            return;
+        }
+
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
         try {
@@ -705,6 +719,12 @@ public class WolfSSLNameConstraintsTest {
 
         if (!WolfSSL.NameConstraintsEnabled()) {
             System.out.println("\t... skipped (not compiled in)");
+            return;
+        }
+
+        /* Skip on Windows, see testCheckIpAddressPermitted */
+        if (WolfSSLTestCommon.isWindows()) {
+            System.out.println("\t... skipped (Windows)");
             return;
         }
 

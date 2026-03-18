@@ -56,4 +56,13 @@ public class WolfSSLTestCommon {
             return in;
         }
 	}
+
+	/**
+	 * Check if running on Windows platform.
+	 * @return true if os.name contains "Windows"
+	 */
+	public static boolean isWindows() {
+		String os = System.getProperty("os.name");
+		return (os != null && os.contains("Windows"));
+	}
 }
