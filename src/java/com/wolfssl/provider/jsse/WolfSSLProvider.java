@@ -168,7 +168,7 @@ public final class WolfSSLProvider extends Provider {
      * @throws WolfSSLException if error registering native crypto callback
      *         function
      */
-    public void setDevId(int devId) throws WolfSSLException {
+    public static void setDevId(int devId) throws WolfSSLException {
 
         /* Store devId into static WolfSSL variable, used by
          * WolfSSLContext (SSLContext) */

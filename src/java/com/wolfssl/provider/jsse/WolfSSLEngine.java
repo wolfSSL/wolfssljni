@@ -167,12 +167,12 @@ public class WolfSSLEngine extends SSLEngine {
     protected BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
 
     /** Turn on extra/verbose SSLEngine debug logging */
-    public boolean extraDebugEnabled = false;
+    private boolean extraDebugEnabled = false;
 
     /** Turn on Send/Recv callback debug to print out bytes sent/received.
      * WARNING: enabling this will slow down sending and receiving data,
      * enough so that app may run into timeouts. Enable with caution. */
-    public boolean ioDebugEnabled = false;
+    private boolean ioDebugEnabled = false;
 
     /**
      * Turns on additional debugging based on system properties set.
@@ -264,7 +264,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         try {
-            this.engineHelper.LoadKeyAndCertChain(null, this);
+            this.engineHelper.loadKeyAndCertChain(null, this);
             certKeyLoaded = true;
         } catch (CertificateEncodingException | IOException |
                  WolfSSLException e) {
@@ -281,7 +281,7 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * This logic is not included directly in WolfSSLEngine constructors
      * to avoid possible 'this' escape before subclass is fully initialized
-     * when using 'this' in LoadKeyAndCertChain().
+     * when using 'this' in loadKeyAndCertChain().
      *
      * @throws SSLException if initialization fails
      */

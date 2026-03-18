@@ -329,7 +329,7 @@ public class WolfSSLEngineHelper {
      * @throws IOException on error concatenating certificate chain into
      *         single byte array
      */
-    protected synchronized void LoadKeyAndCertChain(
+    protected synchronized void loadKeyAndCertChain(
         Socket sock, SSLEngine engine)
         throws WolfSSLException, CertificateEncodingException, IOException {
 

@@ -543,9 +543,9 @@ public class WolfSSLSocket extends SSLSocket {
                         () -> "loading private key and cert chain");
 
                     if (this.socket != null) {
-                        EngineHelper.LoadKeyAndCertChain(this.socket, null);
+                        EngineHelper.loadKeyAndCertChain(this.socket, null);
                     } else {
-                        EngineHelper.LoadKeyAndCertChain(this, null);
+                        EngineHelper.loadKeyAndCertChain(this, null);
                     }
                 } else {
                     throw new WolfSSLException(

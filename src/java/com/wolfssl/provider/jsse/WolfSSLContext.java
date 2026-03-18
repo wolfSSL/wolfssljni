@@ -86,7 +86,7 @@ public class WolfSSLContext extends SSLContextSpi {
         /* Allow ability for user to hard-code and override version, cipher
          * suite, and NO_* disable options. Otherwise just sets defaults
          * into ctxAttr. */
-        WolfSSLCustomUser ctxAttr = WolfSSLCustomUser.GetCtxAttributes
+        WolfSSLCustomUser ctxAttr = WolfSSLCustomUser.getCtxAttributes
                           (this.currentVersion, ciphersIana);
 
         /* Explicitly set SSLContext version if overridden by

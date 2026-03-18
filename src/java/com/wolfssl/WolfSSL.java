@@ -586,7 +586,7 @@ public class WolfSSL {
     /* ------------------------- Flag Values ---------------------------- */
     /** WolfSSLCertificate.checkHost() match only wildcards in left-most
      * position, used for LDAPS hostname verification. */
-    public static int WOLFSSL_LEFT_MOST_WILDCARD_ONLY = 0x40;
+    public static final int WOLFSSL_LEFT_MOST_WILDCARD_ONLY = 0x40;
 
     /* ------------------------ Internal state -------------------------- */
 

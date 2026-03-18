@@ -300,19 +300,6 @@
     </Match>
 
     <!--
-        IS2_INCONSISTENT_SYNC: WolfSSLParameters objects are copied
-        via copy() before being shared across threads. The copy()
-        method is synchronized to protect the source object during
-        copying. Individual getters/setters are intentionally not
-        synchronized to match JDK SSLParameters behavior.
-    -->
-    <Match>
-        <Class name=
-            "com.wolfssl.provider.jsse.WolfSSLParameters"/>
-        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    </Match>
-
-    <!--
         NM_METHOD_NAMING_CONVENTION: Public native JNI methods use
         PascalCase to match native wolfSSL C function naming.
         Renaming would break existing users and require updating
@@ -459,52 +446,6 @@
         <Class name="com.wolfssl.WolfSSLDebug"/>
         <Field name="DEBUG_JSON"/>
         <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
-    </Match>
-
-    <!--
-        AT_STALE_THREAD_WRITE_OF_PRIMITIVE: WolfSSLParameters
-        objects are copied via copy() before being shared across
-        threads, providing the thread-safety boundary. Matching
-        the JDK SSLParameters pattern which also does not
-        synchronize primitive getters/setters.
-
-        WolfSSLImplementSSLSession.side is set once during setup
-        before the session is used across threads.
-    -->
-    <Match>
-        <Class name=
-            "com.wolfssl.provider.jsse.WolfSSLParameters"/>
-        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
-    </Match>
-    <Match>
-        <Class name=
-            "com.wolfssl.provider.jsse.WolfSSLImplementSSLSession"/>
-        <Field name="side"/>
-        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
-    </Match>
-
-    <!--
-        RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE: Defensive null
-        check on getSession() return value. The session could be
-        null depending on engine state, keeping as defensive check.
-    -->
-    <Match>
-        <Class name="com.wolfssl.provider.jsse.WolfSSLEngine"/>
-        <Method name="cacheRequestedServerNamesFromNetData"/>
-        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
-    </Match>
-
-    <!--
-        RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE: Defensive null check
-        on certPem in catch block after constructor threw. Kept as
-        defensive coding to free native resources if constructor
-        behavior changes in the future.
-    -->
-    <Match>
-        <Class name=
-            "com.wolfssl.provider.jsse.WolfSSLTrustManager"/>
-        <Method name="LoadAndroidSystemCertsManually"/>
-        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"/>
     </Match>
 
 </FindBugsFilter>

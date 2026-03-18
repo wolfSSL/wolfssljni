@@ -311,6 +311,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_WOLFSSL_FFDHE_8192 260L
 #undef com_wolfssl_WolfSSL_INVALID_DEVID
 #define com_wolfssl_WolfSSL_INVALID_DEVID -2L
+#undef com_wolfssl_WolfSSL_WOLFSSL_LEFT_MOST_WILDCARD_ONLY
+#define com_wolfssl_WolfSSL_WOLFSSL_LEFT_MOST_WILDCARD_ONLY 64L
 /*
  * Class:     com_wolfssl_WolfSSL
  * Method:    init
