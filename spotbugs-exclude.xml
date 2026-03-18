@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    SpotBugs exclusion filter for wolfSSL JNI/JSSE
+
+    This file lists bugs that have been reviewed and determined to be
+    intentional design decisions or false positives.
+
+    Documentation:
+        https://spotbugs.readthedocs.io/en/stable/filter.html
+-->
+<FindBugsFilter>
+</FindBugsFilter>
