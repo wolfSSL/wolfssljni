@@ -201,6 +201,37 @@ $ ./examples/provider/DualProviderFIPSTest.sh
 The `WOLFCRYPTJNI_DIR` environment variable can be set to point to the
 wolfcrypt-jni build directory (defaults to `../../wolfcryptjni`).
 
+## PSK Examples (SSLSocket and SSLEngine)
+
+Example client/server applications that demonstrate PSK (Pre-Shared Key)
+authentication using `WolfSSLParameters` with both SSLSocket and SSLEngine.
+
+PSK callbacks and cipher suites are configured through `WolfSSLParameters`,
+which extends `SSLParameters` and is applied via the standard
+`setSSLParameters()` API.
+
+**PskServerSocket.java** - PSK server using SSLSocket \
+**PskClientSocket.java** - PSK client using SSLSocket \
+**PskServerEngine.java** - PSK server using SSLEngine \
+**PskClientEngine.java** - PSK client using SSLEngine
+
+SSLSocket examples:
+
+```
+$ ./examples/provider/PskServerSocket.sh
+$ ./examples/provider/PskClientSocket.sh
+```
+
+SSLEngine examples:
+
+```
+$ ./examples/provider/PskServerEngine.sh
+$ ./examples/provider/PskClientEngine.sh
+```
+
+Optional arguments: `[host] [port]` for clients, `[port]` for servers. Default
+host is `localhost`, default port is `11111`.
+
 ## Support
 
 Please contact the wolfSSL support team at support@wolfssl.com with any

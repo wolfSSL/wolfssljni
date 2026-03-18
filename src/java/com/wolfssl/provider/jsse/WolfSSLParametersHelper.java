@@ -337,6 +337,44 @@ public class WolfSSLParametersHelper
             /* Not available, just ignore and continue */
         }
 
+        /* If input is a WolfSSLParameters, copy wolfJSSE specific fields
+         * that are not part of the standard SSLParameters API */
+        if (in instanceof WolfSSLParameters) {
+            WolfSSLParameters wolfIn = (WolfSSLParameters)in;
+            out.setPskClientCb(wolfIn.getPskClientCb());
+            out.setPskServerCb(wolfIn.getPskServerCb());
+            out.setPskIdentityHint(wolfIn.getPskIdentityHint());
+            out.setKeepArrays(wolfIn.getKeepArrays());
+            out.setWolfSSLServerNames(wolfIn.getWolfSSLServerNames());
+        } else {
+            /* Clear any existing PSK-related configuration to avoid
+             * leakage across importParams() calls when input is not
+             * WolfSSLParameters. */
+            out.setPskClientCb(null);
+            out.setPskServerCb(null);
+            out.setPskIdentityHint(null);
+            out.setKeepArrays(false);
+
+            /* Clear wolfSSL-specific SNI names only if input has no standard
+             * server names. JDK8Helper.getServerNames() only sets
+             * wolfSSLServerNames when in.getServerNames() is non-null, so
+             * stale values could persist otherwise. */
+            boolean hasStdSni = false;
+            try {
+                if (getServerNames != null) {
+                    Object sni = getServerNames.invoke(in);
+                    if (sni != null) {
+                        hasStdSni = true;
+                    }
+                }
+            } catch (IllegalAccessException |
+                     InvocationTargetException e) {
+                /* Not available, assume no standard SNI */
+            }
+            if (!hasStdSni) {
+                out.setWolfSSLServerNames(null);
+            }
+        }
     }
 }
 

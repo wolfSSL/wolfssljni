@@ -60,7 +60,7 @@ public class WolfSSLJDK8Helper
                 "WolfSSLJDK8Helper.setServerNames() cannot be null");
         }
 
-        List<WolfSSLSNIServerName> wsni = in.getServerNames();
+        List<WolfSSLSNIServerName> wsni = in.getWolfSSLServerNames();
         if (wsni != null) {
             /* convert WolfSSLSNIServerName list to SNIServerName */
             final ArrayList<SNIServerName> sni =
@@ -109,8 +109,8 @@ public class WolfSSLJDK8Helper
                          name.getEncoded()));
             }
 
-            /* call WolfSSLParameters.setServerNames() */
-            out.setServerNames(wsni);
+            /* call WolfSSLParameters.setWolfSSLServerNames() */
+            out.setWolfSSLServerNames(wsni);
         }
     }
 
