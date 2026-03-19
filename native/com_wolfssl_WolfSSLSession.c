@@ -813,6 +813,12 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
         return WOLFJNI_IO_EVENT_ERROR;
     }
 
+    /* Guard against FD_SET overflow. FD_SET behavior is undefined
+     * if sockfd >= FD_SETSIZE (1024 on Linux, 64 on Windows). */
+    if (sockfd < 0 || sockfd >= FD_SETSIZE) {
+        return WOLFJNI_IO_EVENT_ERROR;
+    }
+
 #ifndef USE_WINDOWS_API
     do {
 #endif
@@ -824,6 +830,9 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
         FD_SET(sockfd, &fds);
 #ifndef USE_WINDOWS_API
         if ((shutdown == 0) && (appData->interruptFds[0] != -1)) {
+            if (appData->interruptFds[0] >= FD_SETSIZE) {
+                return WOLFJNI_IO_EVENT_ERROR;
+            }
             FD_SET(appData->interruptFds[0], &fds);
             /* nfds should be set to the highest number descriptor plus 1 */
             if (appData->interruptFds[0] > sockfd) {
