@@ -141,7 +141,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doVerify
                 (unsigned int)outSz, &myKey);
         if (ret < 0) {
             printf("wc_RsaSSL_Verify failed, ret = %d\n", ret);
-            return ret;
         }
     } else {
         printf("wc_RsaPublicKeyDecode failed, ret = %d\n", ret);
@@ -444,7 +443,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doDec
                 (unsigned int)outSz, &myKey);
         if (ret < 0) {
             printf("wc_RsaPrivateDecrypt failed, ret = %d\n", ret);
-            return ret;
         }
     } else {
         printf("wc_RsaPrivateKeyDecode failed, ret = %d\n", ret);
