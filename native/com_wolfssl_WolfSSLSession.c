@@ -698,6 +698,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setUsingNonblock
     if (ssl == NULL) {
         throwWolfSSLJNIException(jenv,
                 "Input WolfSSLSession object was null in setUsingNonblock");
+        return;
     }
 
     wolfSSL_set_using_nonblock(ssl, nonblock);
@@ -716,6 +717,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getUsingNonblock
     if (ssl == NULL) {
         throwWolfSSLJNIException(jenv,
                 "Input WolfSSLSession object was null in getUsingNonblock");
+        return 0;
     }
 
     return wolfSSL_get_using_nonblock(ssl);
@@ -3847,6 +3849,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
         if (g_crlCbIfaceObj == NULL) {
             throwWolfSSLException(jenv,
                 "Error storing global missingCRLCallback interface");
+            return SSL_FAILURE;
         }
 
         ret = wolfSSL_SetCRL_Cb(ssl, NativeMissingCRLCallback);
