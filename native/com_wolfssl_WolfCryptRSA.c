@@ -92,6 +92,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doSign
     }
 
     wc_FreeRsaKey(&myKey);
+    wc_FreeRng(&rng);
 
     return ret;
 }
@@ -211,6 +212,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
     }
 
     wc_FreeRsaKey(&myKey);
+    wc_FreeRng(&rng);
 
     return ret;
 }
