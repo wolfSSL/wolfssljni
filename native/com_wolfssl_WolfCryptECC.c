@@ -150,7 +150,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
 
     wc_ecc_free(&myKey);
 
-    (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, (jlong*)&tmpOut);
+    tmp = (jlong)tmpOut;
+    (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
 
     (void)jcl;
     return ret;
