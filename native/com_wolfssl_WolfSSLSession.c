@@ -1231,6 +1231,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write__J_3BIII
     }
 
     if ((offset >= 0) && (length >= 0)) {
+        jsize arrayLen = (*jenv)->GetArrayLength(jenv, raw);
+        if (offset > arrayLen || length > arrayLen - offset) {
+            return BAD_FUNC_ARG;
+        }
+
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -1440,6 +1445,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
     }
 
     if ((offset >= 0) && (length >= 0)) {
+        jsize arrayLen = (*jenv)->GetArrayLength(jenv, raw);
+        if (offset > arrayLen || length > arrayLen - offset) {
+            return BAD_FUNC_ARG;
+        }
+
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
