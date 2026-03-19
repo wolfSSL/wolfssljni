@@ -237,7 +237,11 @@ public class WolfSSLSession {
             if (readWritePoolDisabled()) {
                 this.byteBufferPoolEnabled = false;
             }
+        }
 
+        /* Use class lock for static fields shared across all
+         * WolfSSLSession instances */
+        synchronized (WolfSSLSession.class) {
             /* Check if the maximum size of the static per-thread direct
              * ByteBuffer pool has been adjusted by setting of the
              * "wolfssl.readWriteByteBufferPool.size" Security property. */
@@ -2358,6 +2362,7 @@ public class WolfSSLSession {
         throws IllegalStateException {
 
         int ret;
+        int idLen = 0;
 
         confirmObjectIsActive();
 
@@ -2366,13 +2371,17 @@ public class WolfSSLSession {
                 WolfSSLDebug.INFO, this.sslPtr,
                 () -> "entered setServerID(byte[], newSess: " + newSess + ")");
 
-            ret = setServerID(this.sslPtr, id, id.length, newSess);
+            if (id != null) {
+                idLen = id.length;
+            }
+
+            ret = setServerID(this.sslPtr, id, idLen, newSess);
 
             if (ret == WolfSSL.SSL_SUCCESS) {
                 if (id != null) {
                     WolfSSLDebug.logHex(getClass(), WolfSSLDebug.Component.JNI,
                         WolfSSLDebug.INFO, this.sslPtr,
-                        () -> "set server ID", id, id.length);
+                        () -> "set server ID", id, idLen);
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,

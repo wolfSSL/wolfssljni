@@ -239,17 +239,6 @@ public class WolfSSLDebug {
                 return "{\"error\": \"null record\"}\n";
             }
 
-            String sourceClass = record.getSourceClassName();
-            if (sourceClass == null) {
-                sourceClass = "unknown";
-            } else {
-                /* Extract simple class name (after last dot) */
-                int lastDot = sourceClass.lastIndexOf('.');
-                if (lastDot >= 0) {
-                    sourceClass = sourceClass.substring(lastDot + 1);
-                }
-            }
-
             String component;
             String loggerName = record.getLoggerName();
             if (loggerName != null && loggerName.contains("jni")) {
@@ -263,9 +252,6 @@ public class WolfSSLDebug {
             String levelStr = (level != null) ? level.toString() : "UNKNOWN";
 
             String threadName = Thread.currentThread().getName();
-            if (threadName == null) {
-                threadName = "unknown";
-            }
 
             String message = record.getMessage();
             if (message == null) {
@@ -454,11 +440,6 @@ public class WolfSSLDebug {
         }
 
         Level level = tag.equals(ERROR) ? Level.SEVERE : Level.INFO;
-
-        String className = cl.getSimpleName();
-        if (nativePtr != 0) {
-            className = className + ": " + nativePtr;
-        }
 
         LogRecord record = new LogRecord(level, messageSupplier.get());
         record.setSourceClassName(cl.getName());

@@ -51,6 +51,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
+import java.nio.charset.StandardCharsets;
 
 /**
  * This is a helper class to account for similar methods between SSLSocket
@@ -328,7 +329,7 @@ public class WolfSSLEngineHelper {
      * @throws IOException on error concatenating certificate chain into
      *         single byte array
      */
-    protected synchronized void LoadKeyAndCertChain(
+    protected synchronized void loadKeyAndCertChain(
         Socket sock, SSLEngine engine)
         throws WolfSSLException, CertificateEncodingException, IOException {
 
@@ -1136,7 +1137,8 @@ public class WolfSSLEngineHelper {
                         this.peerAddr.getHostName());
 
                     this.ssl.useSNI((byte)0,
-                        this.peerAddr.getHostName().getBytes());
+                        this.peerAddr.getHostName().getBytes(
+                            StandardCharsets.UTF_8));
 
                 } else if (this.hostname != null) {
                     if (peerAddr != null) {
@@ -1152,7 +1154,9 @@ public class WolfSSLEngineHelper {
                             () -> "peerAddr is null, setting SNI extension " +
                             "with hostname: " + this.hostname);
                     }
-                    this.ssl.useSNI((byte)0, this.hostname.getBytes());
+                    this.ssl.useSNI((byte)0,
+                        this.hostname.getBytes(StandardCharsets.UTF_8));
+
                 } else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "hostname and peerAddr are null, " +
@@ -1699,14 +1703,14 @@ public class WolfSSLEngineHelper {
              * setting serverID. Setting newSession to 1 for setServerID since
              * we are controlling get/set session from Java */
             if (this.port >= 0 && hostname != null) {
-                serverId = this.hostname.concat(
-                    Integer.toString(this.port)).getBytes();
+                serverId = this.hostname.concat(Integer.toString(this.port))
+                    .getBytes(StandardCharsets.UTF_8);
             }
             else if (this.port >= 0 && peerAddr != null) {
                 hostAddress = this.peerAddr.getHostAddress();
                 if (hostAddress != null) {
-                    serverId = hostAddress.concat(
-                        Integer.toString(this.port)).getBytes();
+                    serverId = hostAddress.concat(Integer.toString(this.port))
+                        .getBytes(StandardCharsets.UTF_8);
                 }
             }
             if (serverId == null) {

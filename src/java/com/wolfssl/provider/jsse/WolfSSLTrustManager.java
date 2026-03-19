@@ -126,7 +126,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                         "wolfjsse.keystore.type.required");
                 }
 
-                sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                     tsFile, passArr, tsType);
             }
             else {
@@ -134,7 +134,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                  * FIPS is being used */
                 if (wksAvailable &&
                     (requiredType == null || requiredType.equals("WKS"))) {
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         tsFile, passArr, "WKS");
                 }
 
@@ -143,7 +143,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "Detected Android VM, trying BKS KeyStore type");
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         tsFile, passArr, "BKS");
                 }
 
@@ -153,7 +153,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "javax.net.ssl.trustStoreType system property " +
                         "not set, trying type: JKS");
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         tsFile, passArr, "JKS");
                 }
             }
@@ -524,19 +524,14 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             String caStoreDir = androidRoot.concat("etc/security/cacerts");
             File cadir = new File(caStoreDir);
-            final String[] cafiles;
-
-            if (cadir == null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Unable to open etc/security/cacerts, none loaded");
-                return null;
-            }
+            String[] cafiles = new String[0];
 
             try {
-                cafiles = cadir.list();
-                if (cafiles != null) {
+                String[] listed = cadir.list();
+                if (listed != null) {
+                    cafiles = listed;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "Found " + cafiles.length +
+                        () -> "Found " + listed.length +
                         " CA files to load into KeyStore");
                 }
             } catch (Exception e) {
@@ -704,7 +699,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             /* Get JAVA_HOME for trying to load system certs next */
             if (certs == null) {
-                javaHome = WolfSSLUtil.GetJavaHome();
+                javaHome = WolfSSLUtil.getJavaHome();
                 if (javaHome == null) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "$JAVA_HOME not set, unable to load system " +

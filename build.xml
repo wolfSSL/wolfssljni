@@ -70,6 +70,29 @@
         </and>
     </condition>
 
+    <!-- Check if SpotBugs is available -->
+    <condition property="spotbugs.available">
+        <and>
+            <isset property="env.SPOTBUGS_HOME"/>
+            <available
+                file="${env.SPOTBUGS_HOME}/lib/spotbugs-ant.jar"/>
+        </and>
+    </condition>
+
+    <!-- SpotBugs requires Java 11+, check compatibility -->
+    <condition property="spotbugs.java.compatible">
+        <not>
+            <or>
+                <equals arg1="${ant.java.version}" arg2="1.5"/>
+                <equals arg1="${ant.java.version}" arg2="1.6"/>
+                <equals arg1="${ant.java.version}" arg2="1.7"/>
+                <equals arg1="${ant.java.version}" arg2="1.8"/>
+                <equals arg1="${ant.java.version}" arg2="9"/>
+                <equals arg1="${ant.java.version}" arg2="10"/>
+            </or>
+        </not>
+    </condition>
+
     <taskdef uri="antlib:org.jacoco.ant" resource="org/jacoco/ant/antlib.xml">
         <classpath path="${env.JACOCO_HOME}/jacocoant.jar"/>
     </taskdef>
@@ -463,5 +486,66 @@
     </target>
 
     <target name="coverage" depends="build-jacoco"/>
+
+    <!-- SpotBugs static analysis targets -->
+    <target name="spotbugs-taskdef" if="spotbugs.available">
+        <taskdef
+            resource="edu/umd/cs/findbugs/anttask/tasks.properties">
+            <classpath>
+                <fileset dir="${env.SPOTBUGS_HOME}/lib"
+                         includes="*.jar"/>
+            </classpath>
+        </taskdef>
+    </target>
+
+    <target name="spotbugs-check">
+        <fail unless="spotbugs.java.compatible">
+SpotBugs requires Java 11 or later to run.
+Current Java version: ${ant.java.version}
+To fix this, run ant with Java 11+:
+  export JAVA_HOME=/path/to/jdk11
+  ant spotbugs
+        </fail>
+        <fail unless="spotbugs.available">
+SpotBugs not found. Please set SPOTBUGS_HOME.
+To install SpotBugs:
+  1. Download from https://spotbugs.github.io/
+  2. Extract (e.g., /opt/spotbugs-4.8.6)
+  3. Set SPOTBUGS_HOME=/opt/spotbugs-4.8.6
+  4. Run 'ant spotbugs'
+        </fail>
+    </target>
+
+    <target name="spotbugs"
+            depends="build, spotbugs-check, spotbugs-taskdef"
+            description="Run SpotBugs static analysis
+                         (requires SPOTBUGS_HOME)">
+        <mkdir dir="${reports.dir}"/>
+        <spotbugs home="${env.SPOTBUGS_HOME}"
+                  output="html"
+                  outputFile="${reports.dir}/spotbugs.html"
+                  effort="max"
+                  reportLevel="medium"
+                  excludeFilter="spotbugs-exclude.xml"
+                  failOnError="false">
+            <sourcePath path="${src.dir}"/>
+            <class location="${lib.dir}/wolfssl.jar"/>
+            <class location="${lib.dir}/wolfssl-jsse.jar"/>
+        </spotbugs>
+        <spotbugs home="${env.SPOTBUGS_HOME}"
+                  output="xml"
+                  outputFile="${reports.dir}/spotbugs.xml"
+                  effort="max"
+                  reportLevel="medium"
+                  excludeFilter="spotbugs-exclude.xml"
+                  failOnError="false">
+            <sourcePath path="${src.dir}"/>
+            <class location="${lib.dir}/wolfssl.jar"/>
+            <class location="${lib.dir}/wolfssl-jsse.jar"/>
+        </spotbugs>
+        <echo message="SpotBugs reports generated:
+                       ${reports.dir}/spotbugs.html
+                       ${reports.dir}/spotbugs.xml"/>
+    </target>
 
 </project>

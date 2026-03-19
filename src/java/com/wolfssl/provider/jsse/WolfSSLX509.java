@@ -689,7 +689,7 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
     /* wolfSSL Principal class */
-    private class WolfSSLPrincipal implements Principal {
+    private static class WolfSSLPrincipal implements Principal {
         private String name;
         private String[] DNs = { "/emailAddress=", "/CN=", "/OU=",
                 "/O=", "/L=", "/ST=", "/C="};

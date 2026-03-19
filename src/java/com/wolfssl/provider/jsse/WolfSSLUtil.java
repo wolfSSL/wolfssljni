@@ -605,7 +605,7 @@ public class WolfSSLUtil {
      *
      * @return String path to Java home directory, otherwise null if not set
      */
-    protected static String GetJavaHome() {
+    protected static String getJavaHome() {
 
         String javaHome = System.getenv("JAVA_HOME");
 
@@ -672,7 +672,7 @@ public class WolfSSLUtil {
      * @return new KeyStore object loaded with KeyStore file, or null
      *         if unable to load KeyStore
      */
-    protected static KeyStore LoadKeyStoreFileByType(String file, char[] pass,
+    protected static KeyStore loadKeyStoreFileByType(String file, char[] pass,
         String type) {
 
         KeyStore ks = null;

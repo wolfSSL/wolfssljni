@@ -106,7 +106,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                         "KeyStore type from wolfjsse.keystore.type.required");
                 }
 
-                sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                     file, this.pswd, type);
             }
             else {
@@ -114,7 +114,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                  * FIPS is being used */
                 if (wksAvailable &&
                     (requiredType == null || requiredType.equals("WKS"))) {
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         file, this.pswd, "WKS");
                 }
 
@@ -123,7 +123,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                     (requiredType == null || requiredType.equals("BKS"))) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "Detected Android VM, trying BKS KeyStore type");
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         file, this.pswd, "BKS");
                 }
 
@@ -133,7 +133,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "javax.net.ssl.keyStoreType system property " +
                         "not set, trying type: JKS");
-                    sysStore = WolfSSLUtil.LoadKeyStoreFileByType(
+                    sysStore = WolfSSLUtil.loadKeyStoreFileByType(
                         file, this.pswd, "JKS");
                 }
             }

@@ -88,7 +88,11 @@ public class WolfSSLParameters extends SSLParameters {
         }
     }
 
-    /* create duplicate copy of these parameters */
+    /**
+     * Create duplicate copy of these parameters.
+     *
+     * @return new WolfSSLParameters copy of this object
+     */
     protected synchronized WolfSSLParameters copy() {
         WolfSSLParameters cp = new WolfSSLParameters();
         cp.setCipherSuites(this.cipherSuites);
@@ -127,7 +131,7 @@ public class WolfSSLParameters extends SSLParameters {
     }
 
     @Override
-    public String[] getCipherSuites() {
+    public synchronized String[] getCipherSuites() {
         if (this.cipherSuites == null) {
             return null;
         }
@@ -135,7 +139,7 @@ public class WolfSSLParameters extends SSLParameters {
     }
 
     @Override
-    public void setCipherSuites(String[] cipherSuites) {
+    public synchronized void setCipherSuites(String[] cipherSuites) {
         /* cipherSuites array is sanitized by wolfJSSE caller */
         if (cipherSuites == null) {
             this.cipherSuites = null;
@@ -271,14 +275,14 @@ public class WolfSSLParameters extends SSLParameters {
      * methods, which may not exist on older runtimes.
      */
 
-    public String[] getApplicationProtocols() {
+    public synchronized String[] getApplicationProtocols() {
         if (this.applicationProtocols == null) {
             return null;
         }
         return this.applicationProtocols.clone();
     }
 
-    public void setApplicationProtocols(String[] protocols) {
+    public synchronized void setApplicationProtocols(String[] protocols) {
         if (protocols == null) {
             this.applicationProtocols = new String[0];
         }

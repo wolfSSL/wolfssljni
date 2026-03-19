@@ -20,6 +20,8 @@
  */
 package com.wolfssl;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * WolfSSLX509Name class, wraps native WOLFSSL_X509_NAME functionality.
  */
@@ -125,6 +127,7 @@ public class WolfSSLX509Name {
         throws WolfSSLException {
 
         int ret = 0;
+        byte[] entryBytes = null;
 
         if (field == null || entry == null) {
             throw new WolfSSLException(
@@ -132,9 +135,10 @@ public class WolfSSLX509Name {
         }
 
         synchronized (x509NameLock) {
+            entryBytes = entry.getBytes(StandardCharsets.UTF_8);
+
             ret = X509_NAME_add_entry_by_txt(this.x509NamePtr, field,
-                    MBSTRING_UTF8, entry.getBytes(),
-                    entry.getBytes().length, -1, 0);
+                    MBSTRING_UTF8, entryBytes, entryBytes.length, -1, 0);
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {

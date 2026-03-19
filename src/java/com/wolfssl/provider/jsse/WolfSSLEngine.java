@@ -164,15 +164,16 @@ public class WolfSSLEngine extends SSLEngine {
     private final Object toSendLock = new Object();
 
     /** ALPN selector callback, if set */
-    protected BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
+    protected volatile
+        BiFunction<SSLEngine, List<String>, String> alpnSelector = null;
 
     /** Turn on extra/verbose SSLEngine debug logging */
-    public boolean extraDebugEnabled = false;
+    private boolean extraDebugEnabled = false;
 
     /** Turn on Send/Recv callback debug to print out bytes sent/received.
      * WARNING: enabling this will slow down sending and receiving data,
      * enough so that app may run into timeouts. Enable with caution. */
-    public boolean ioDebugEnabled = false;
+    private boolean ioDebugEnabled = false;
 
     /**
      * Turns on additional debugging based on system properties set.
@@ -264,7 +265,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         try {
-            this.engineHelper.LoadKeyAndCertChain(null, this);
+            this.engineHelper.loadKeyAndCertChain(null, this);
             certKeyLoaded = true;
         } catch (CertificateEncodingException | IOException |
                  WolfSSLException e) {
@@ -281,7 +282,7 @@ public class WolfSSLEngine extends SSLEngine {
      *
      * This logic is not included directly in WolfSSLEngine constructors
      * to avoid possible 'this' escape before subclass is fully initialized
-     * when using 'this' in LoadKeyAndCertChain().
+     * when using 'this' in loadKeyAndCertChain().
      *
      * @throws SSLException if initialization fails
      */
@@ -319,6 +320,13 @@ public class WolfSSLEngine extends SSLEngine {
         }
     }
 
+    /**
+     * Cache requested SNI server names from raw network data.
+     *
+     * Parses SNI names from the ClientHello in the network input
+     * buffer and caches them into the session, if not already set.
+     * Only operates on the server side.
+     */
     protected synchronized void cacheRequestedServerNamesFromNetData() {
         List<SNIServerName> cachedNames;
         List<SNIServerName> names;
@@ -2062,7 +2070,7 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     @Override
-    public String[] getEnabledCipherSuites() {
+    public synchronized String[] getEnabledCipherSuites() {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getEnabledCipherSuites()");
         return this.engineHelper.getCiphers();
@@ -2695,7 +2703,7 @@ public class WolfSSLEngine extends SSLEngine {
         return 0;
     }
 
-    private class SendCB implements WolfSSLByteBufferIOSendCallback {
+    private static class SendCB implements WolfSSLByteBufferIOSendCallback {
 
         protected SendCB() {
 
@@ -2708,7 +2716,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     }
 
-    private class RecvCB implements WolfSSLByteBufferIORecvCallback {
+    private static class RecvCB implements WolfSSLByteBufferIORecvCallback {
 
         protected RecvCB() {
 
@@ -2721,7 +2729,8 @@ public class WolfSSLEngine extends SSLEngine {
 
     }
 
-    private class SessionTicketCB implements WolfSSLSessionTicketCallback {
+    private static class SessionTicketCB
+        implements WolfSSLSessionTicketCallback {
 
         protected SessionTicketCB() {
         }

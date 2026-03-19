@@ -2375,7 +2375,7 @@ public class WolfSSLContext {
         synchronized (ctxLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, getContextPtr(),
-                () -> "entered setGroups(" + Arrays.asList(groups) + ")");
+                () -> "entered setGroups(" + Arrays.toString(groups) + ")");
 
             return setGroups(getContextPtr(), groups);
         }

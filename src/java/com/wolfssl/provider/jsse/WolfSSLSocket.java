@@ -114,7 +114,8 @@ public class WolfSSLSocket extends SSLSocket {
     private final Object initLock = new Object();
 
     /** ALPN selector callback, if set */
-    protected BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
+    protected volatile
+        BiFunction<SSLSocket, List<String>, String> alpnSelector = null;
 
     /* true if client, otherwise false */
     private boolean isClientMode = false;
@@ -543,9 +544,9 @@ public class WolfSSLSocket extends SSLSocket {
                         () -> "loading private key and cert chain");
 
                     if (this.socket != null) {
-                        EngineHelper.LoadKeyAndCertChain(this.socket, null);
+                        EngineHelper.loadKeyAndCertChain(this.socket, null);
                     } else {
-                        EngineHelper.LoadKeyAndCertChain(this, null);
+                        EngineHelper.loadKeyAndCertChain(this, null);
                     }
                 } else {
                     throw new WolfSSLException(
@@ -2307,7 +2308,7 @@ public class WolfSSLSocket extends SSLSocket {
         /* register host/port for session resumption in case where
            createSocket() was called without host/port, but
            SSLSocket.connect() was explicitly called with SocketAddress */
-        if (address != null && EngineHelper != null) {
+        if (EngineHelper != null) {
             EngineHelper.setHostAndPort(
                 address.getAddress().getHostAddress(),
                 address.getPort());
@@ -2343,7 +2344,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL send callback context, used with SocketSendCallback to
      * gain access to the underlying Socket object.
      */
-    class SocketSendCtx {
+    static class SocketSendCtx {
         private Socket sock = null;
 
         public SocketSendCtx(Socket s) {
@@ -2359,7 +2360,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL receive callback context, used with SocketRecvCallback to
      * gain access to the underlying Socket object.
      */
-    class SocketRecvCtx {
+    static class SocketRecvCtx {
         private Socket sock = null;
 
         public SocketRecvCtx(Socket s) {
@@ -2380,7 +2381,7 @@ public class WolfSSLSocket extends SSLSocket {
      * subclasses contain an internal file descriptor (fd), or alternatively
      * expect the calling application to do I/O using the InputStream and
      * OutputStream of the Socket */
-    class SocketSendCallback implements WolfSSLIOSendCallback {
+    static class SocketSendCallback implements WolfSSLIOSendCallback {
 
         /**
          * I/O send callback method.
@@ -2438,7 +2439,7 @@ public class WolfSSLSocket extends SSLSocket {
      * subclasses contain an internal file descriptor (fd), or alternatively
      * expect the calling application to do I/O using the InputStream and
      * OutputStream of the Socket */
-    class SocketRecvCallback implements WolfSSLIORecvCallback {
+    static class SocketRecvCallback implements WolfSSLIORecvCallback {
 
         /**
          * I/O receive callback method.
@@ -2499,7 +2500,7 @@ public class WolfSSLSocket extends SSLSocket {
      * wolfSSL receive callback context, used with ConsumedRecvCallback to
      * gain access to underlying Socket and InputStream objects.
      */
-    class ConsumedRecvCtx {
+    static class ConsumedRecvCtx {
         private Socket s = null;
         private DataInputStream consumed = null;
         private DataInputStream sockStream = null;
@@ -2546,7 +2547,7 @@ public class WolfSSLSocket extends SSLSocket {
      * This callback will read all data from the pre-existing/populated
      * InputStream first, then start reading from the Socket proper.
      */
-    class ConsumedRecvCallback implements WolfSSLIORecvCallback {
+    static class ConsumedRecvCallback implements WolfSSLIORecvCallback {
 
         public int receiveCallback(WolfSSLSession ssl, byte[] buf,
             int sz, Object ctx) {
@@ -2591,7 +2592,7 @@ public class WolfSSLSocket extends SSLSocket {
         }
     }
 
-    class WolfSSLInputStream extends InputStream {
+    static class WolfSSLInputStream extends InputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;
@@ -2833,7 +2834,7 @@ public class WolfSSLSocket extends SSLSocket {
         }
     } /* end WolfSSLInputStream inner class */
 
-    class WolfSSLOutputStream extends OutputStream {
+    static class WolfSSLOutputStream extends OutputStream {
 
         private WolfSSLSession ssl;
         private WolfSSLSocket  socket;

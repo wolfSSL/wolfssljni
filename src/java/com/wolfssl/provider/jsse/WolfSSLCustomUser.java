@@ -39,11 +39,11 @@ import  com.wolfssl.WolfSSL.TLS_VERSION;
  */
 public class WolfSSLCustomUser {
     /** SSL/TLS version to be used with new SSLContext objects. */
-    public TLS_VERSION version;
+    TLS_VERSION version;
     /** String array of allowed cipher suites for new SSLContext objects */
-    public String[] list;
+    String[] list;
     /** Mask of options to set for the associated native WOLFSSL_CTX */
-    public long noOptions;
+    long noOptions;
 
     /** Default WolfSSLCustomUser constructor */
     public WolfSSLCustomUser() { }
@@ -65,7 +65,7 @@ public class WolfSSLCustomUser {
      *                      list needs to contain a subset of the default cipher
      *                      list. If it is null, default list is applied.
      */
-    public static WolfSSLCustomUser GetCtxAttributes(TLS_VERSION version,
+    public static WolfSSLCustomUser getCtxAttributes(TLS_VERSION version,
                                                      String[] list) {
 
         WolfSSLCustomUser ctxAttr = new WolfSSLCustomUser();

@@ -66,16 +66,16 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-30-x86_64-atd-v1
+          key: avd-30-x86_64-google_apis-v1
 
       # Create AVD and generate snapshot for caching
       - name: Create AVD and generate snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.37.0
         with:
           api-level: 30
           arch: x86_64
-          target: aosp_atd
+          target: google_apis
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
@@ -83,12 +83,12 @@ jobs:
 
       # Run instrumented tests on Android emulator
       - name: Run Android Instrumented Tests
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.37.0
         timeout-minutes: 15
         with:
           api-level: 30
           arch: x86_64
-          target: aosp_atd
+          target: google_apis
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true

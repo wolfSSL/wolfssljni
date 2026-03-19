@@ -49,6 +49,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Helper class used to store common settings, objects, etc.
@@ -401,8 +402,8 @@ public class WolfSSLAuthStore {
             ses.setValid(true); /* new sessions marked as valid */
 
             ses.isFromTable = false;
-            ses.setPseudoSessionId(
-                Integer.toString(ssl.hashCode()).getBytes());
+            ses.setPseudoSessionId(Integer.toString(ssl.hashCode())
+                .getBytes(StandardCharsets.UTF_8));
         }
         else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -426,7 +427,7 @@ public class WolfSSLAuthStore {
 
                         /* Set the SNI directly on the SSL object */
                         ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
-                            hostName.getBytes());
+                            hostName.getBytes(StandardCharsets.UTF_8));
                     }
                 }
             }
@@ -439,8 +440,8 @@ public class WolfSSLAuthStore {
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
                 ses.setValid(true);
                 ses.isFromTable = false;
-                ses.setPseudoSessionId(
-                    Integer.toString(ssl.hashCode()).getBytes());
+                ses.setPseudoSessionId(Integer.toString(ssl.hashCode())
+                    .getBytes(StandardCharsets.UTF_8));
             }
         }
 
@@ -586,7 +587,8 @@ public class WolfSSLAuthStore {
 
         ses.setValid(true);
         ses.isFromTable = false;
-        ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
+        ses.setPseudoSessionId(Integer.toString(ssl.hashCode())
+            .getBytes(StandardCharsets.UTF_8));
 
         return ses;
     }
@@ -788,7 +790,7 @@ public class WolfSSLAuthStore {
         }
     }
 
-    private class SessionStore<K, V> extends LinkedHashMap<K, V> {
+    private static class SessionStore<K, V> extends LinkedHashMap<K, V> {
         /**
          * user defined ID
          */

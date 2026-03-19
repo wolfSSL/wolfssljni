@@ -1,0 +1,105 @@
+name: SpotBugs Static Analysis
+
+on:
+  pull_request:
+    branches: [ '*' ]
+    paths:
+      - '**/*.java'
+      - 'build.xml'
+      - 'spotbugs-exclude.xml'
+
+jobs:
+  spotbugs:
+    runs-on: ubuntu-latest
+    name: Run SpotBugs
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Ant
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ant
+
+      - name: Download JUnit
+        run: |
+          mkdir -p /tmp/junit
+          wget -q -P /tmp/junit \
+            "https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar"
+          EXPECTED_SHA="8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3"
+          echo "${EXPECTED_SHA}  /tmp/junit/junit-4.13.2.jar" | sha256sum -c -
+          echo "JUNIT_HOME=/tmp/junit" >> $GITHUB_ENV
+
+      - name: Download and set up SpotBugs
+        run: |
+          SPOTBUGS_VERSION="4.9.3"
+          wget -q "https://github.com/spotbugs/spotbugs/releases/download/${SPOTBUGS_VERSION}/spotbugs-${SPOTBUGS_VERSION}.tgz"
+          EXPECTED_SHA="d464d56050cf1dbda032e9482e1188f7cd7b7646eaff79c2e6cbe4d6822f4d9f"
+          echo "${EXPECTED_SHA}  spotbugs-${SPOTBUGS_VERSION}.tgz" | sha256sum -c -
+          tar xzf "spotbugs-${SPOTBUGS_VERSION}.tgz"
+          echo "SPOTBUGS_HOME=${GITHUB_WORKSPACE}/spotbugs-${SPOTBUGS_VERSION}" >> $GITHUB_ENV
+
+      - name: Run SpotBugs
+        run: |
+          ant spotbugs
+
+      - name: Check for SpotBugs warnings
+        if: always()
+        run: |
+          REPORT_XML="build/reports/spotbugs.xml"
+          if [ ! -f "$REPORT_XML" ]; then
+            echo "SpotBugs XML report not found"
+            exit 1
+          fi
+
+          # Extract warning count from XML report
+          COUNT=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('$REPORT_XML')
+          root = tree.getroot()
+          bugs = root.findall('.//BugInstance')
+          print(len(bugs))
+          ")
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "=================================="
+            echo "SpotBugs: 0 warnings found"
+            echo "=================================="
+            exit 0
+          fi
+
+          echo "=================================="
+          echo "SpotBugs: $COUNT warning(s) found"
+          echo "=================================="
+          echo ""
+
+          # Print each warning from XML
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('$REPORT_XML')
+          root = tree.getroot()
+          for bug in root.findall('.//BugInstance'):
+              bug_type = bug.get('type', 'UNKNOWN')
+              priority = bug.get('priority', 'N/A')
+              long_msg = bug.find('LongMessage')
+              msg = long_msg.text.strip() if long_msg is not None and long_msg.text else ''
+              src = bug.find('.//SourceLine')
+              loc = ''
+              if src is not None:
+                  loc = src.get('sourcefile', '') + ':' + src.get('start', '')
+              print(f'[P{priority}] {bug_type}')
+              if msg:
+                  print(f'  {msg[:200]}')
+              if loc:
+                  print(f'  at {loc}')
+              print()
+          "
+
+          exit 1

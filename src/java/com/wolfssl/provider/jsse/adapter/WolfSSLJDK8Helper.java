@@ -169,9 +169,6 @@ public class WolfSSLJDK8Helper
              * call it if available */
             Method meth = SSLParameters.class.getMethod(
                 "getApplicationProtocols");
-            if (meth == null) {
-                return;
-            }
             String[] appProtos = (String[])meth.invoke(in);
             if (appProtos != null) {
                 /* call WolfSSLParameters.setApplicationProtocols() */
