@@ -3049,7 +3049,8 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     }
 
     /* copy outSz into j_outSz */
-    (*jenv)->SetLongArrayRegion(jenv, j_outSz, 0, 1, (jlong*)outSz);
+    tmpVal = (jlong)(*outSz);
+    (*jenv)->SetLongArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
