@@ -660,7 +660,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1der
 
     derArr = (*jenv)->NewByteArray(jenv, sz);
     if (derArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_CRL_get_der");
         XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
@@ -742,7 +742,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1pem
 
     pemArr = (*jenv)->NewByteArray(jenv, pemSz);
     if (pemArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_CRL_get_pem");
         XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
@@ -801,7 +801,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1signatu
 
     sigArr = (*jenv)->NewByteArray(jenv, sigSz);
     if (sigArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_CRL_get_signature");
         return NULL;
     }

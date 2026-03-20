@@ -698,6 +698,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setUsingNonblock
     if (ssl == NULL) {
         throwWolfSSLJNIException(jenv,
                 "Input WolfSSLSession object was null in setUsingNonblock");
+        return;
     }
 
     wolfSSL_set_using_nonblock(ssl, nonblock);
@@ -716,6 +717,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getUsingNonblock
     if (ssl == NULL) {
         throwWolfSSLJNIException(jenv,
                 "Input WolfSSLSession object was null in getUsingNonblock");
+        return 0;
     }
 
     return wolfSSL_get_using_nonblock(ssl);
@@ -811,6 +813,12 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
         return WOLFJNI_IO_EVENT_ERROR;
     }
 
+    /* Guard against FD_SET overflow. FD_SET behavior is undefined
+     * if sockfd >= FD_SETSIZE (1024 on Linux, 64 on Windows). */
+    if (sockfd < 0 || sockfd >= FD_SETSIZE) {
+        return WOLFJNI_IO_EVENT_ERROR;
+    }
+
 #ifndef USE_WINDOWS_API
     do {
 #endif
@@ -822,6 +830,9 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
         FD_SET(sockfd, &fds);
 #ifndef USE_WINDOWS_API
         if ((shutdown == 0) && (appData->interruptFds[0] != -1)) {
+            if (appData->interruptFds[0] >= FD_SETSIZE) {
+                return WOLFJNI_IO_EVENT_ERROR;
+            }
             FD_SET(appData->interruptFds[0], &fds);
             /* nfds should be set to the highest number descriptor plus 1 */
             if (appData->interruptFds[0] > sockfd) {
@@ -1045,6 +1056,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1151,6 +1167,11 @@ static int SSLWriteNonblockingWithSelectPoll(WOLFSSL* ssl, byte* data,
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* lock mutex around session I/O before write attempt */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1229,6 +1250,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write__J_3BIII
     }
 
     if ((offset >= 0) && (length >= 0)) {
+        jsize arrayLen = (*jenv)->GetArrayLength(jenv, raw);
+        if (offset > arrayLen || length > arrayLen - offset) {
+            return BAD_FUNC_ARG;
+        }
+
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -1365,6 +1391,11 @@ static int SSLReadNonblockingWithSelectPoll(WOLFSSL* ssl, byte* out,
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* lock mutex around session I/O before read attempt */
         if (wc_LockMutex(jniSessLock) != 0) {
             size = WOLFSSL_FAILURE;
@@ -1438,6 +1469,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
     }
 
     if ((offset >= 0) && (length >= 0)) {
+        jsize arrayLen = (*jenv)->GetArrayLength(jenv, raw);
+        if (offset > arrayLen || length > arrayLen - offset) {
+            return BAD_FUNC_ARG;
+        }
+
         data = (byte*)(*jenv)->GetByteArrayElements(jenv, raw, NULL);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -1600,6 +1636,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1889,6 +1930,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -2275,6 +2321,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
     jbyteArray ret = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* session = NULL;
+    (void)jcl;
 
     if (ssl == NULL) {
         return NULL;
@@ -2290,7 +2337,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
 
         ret = (*jenv)->NewByteArray(jenv, sz);
         if (!ret) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native getSessionID");
             wolfSSL_SESSION_free(session);
             return NULL;
@@ -3847,6 +3894,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
         if (g_crlCbIfaceObj == NULL) {
             throwWolfSSLException(jenv,
                 "Error storing global missingCRLCallback interface");
+            return SSL_FAILURE;
         }
 
         ret = wolfSSL_SetCRL_Cb(ssl, NativeMissingCRLCallback);
@@ -5175,7 +5223,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSNIRequest
     if (ret > 0) {
         sniRequest = (*jenv)->NewByteArray(jenv, ret);
         if (sniRequest == NULL) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native getSNIRequest");
             return NULL;
         }
@@ -5432,7 +5480,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
 
     alpnArray = (*jenv)->NewByteArray(jenv, protocol_nameSz);
     if (alpnArray == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native sslGet0AlpnSelected");
         return NULL;
     }
@@ -5921,7 +5969,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientRandom
 
     randomArr = (*jenv)->NewByteArray(jenv, clientRandomSz);
     if (randomArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native getClientRandom()");
         return NULL;
     }

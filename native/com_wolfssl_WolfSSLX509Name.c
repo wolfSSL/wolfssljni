@@ -92,7 +92,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1add_1entry_1
     (void)jcl;
     (void)entryLen;
 
-    if (jenv == NULL) {
+    if (jenv == NULL || fieldStr == NULL || entryArr == NULL) {
         return ret;
     }
 
