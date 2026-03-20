@@ -1031,7 +1031,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -1242,7 +1242,7 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -1467,7 +1467,7 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -2036,7 +2036,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -2299,7 +2299,7 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -2556,7 +2556,7 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
     int        needsDetach = 0;       /* Should we explicitly detach? */
     int        hmacSize = 0;          /* WOLFSSL HMAC digest size */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -2851,7 +2851,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -3158,7 +3158,7 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -3561,7 +3561,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     JNIEnv*    jenv = NULL;           /* JNI Environment */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
 
     jobject    ctxRef;                /* WolfSSLContext object */
     jmethodID  eccSharedSecretMethodId;
@@ -3899,7 +3899,7 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -4206,7 +4206,7 @@ int NativeRsaPssSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     jclass     excClass;
     int        needsDetach = 0;
 
-    static jobject* g_cachedSSLObj;
+    jobject* g_cachedSSLObj;
     jclass     sessClass;
     jfieldID   ctxFid;
     jmethodID  getCtxMethodId;
@@ -4526,7 +4526,7 @@ int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -4810,7 +4810,7 @@ int NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
     jclass     excClass;
     int        needsDetach = 0;
 
-    static jobject* g_cachedSSLObj;
+    jobject* g_cachedSSLObj;
     jclass     sessClass;
     jfieldID   ctxFid;
     jmethodID  getCtxMethodId;
@@ -5039,7 +5039,7 @@ int NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
     jclass     excClass;
     int        needsDetach = 0;
 
-    static jobject* g_cachedSSLObj;
+    jobject* g_cachedSSLObj;
     jclass     sessClass;
     jfieldID   ctxFid;
     jmethodID  getCtxMethodId;
@@ -5300,7 +5300,7 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -5602,7 +5602,7 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
     jclass     excClass;              /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass     sessClass;             /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
@@ -5861,7 +5861,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     JNIEnv*     jenv;                 /* JNI environment */
     jclass      excClass;             /* class: WolfSSLJNIException */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass      sessClass;            /* WolfSSLSession class */
     jfieldID    ctxFid;               /* WolfSSLSession->ctx fieldID */
     jmethodID   getCtxMethodId;       /* WolfSSLSession->getAssCtxPtr() ID */
@@ -6301,7 +6301,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     JNIEnv*     jenv;                 /* JNI environment */
     jclass      excClass;             /* class: WolfSSLJNIException */
 
-    static jobject* g_cachedSSLObj;   /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
     jclass      sessClass;            /* WolfSSLSession class */
     jfieldID    ctxFid;               /* WolfSSLSession->ctx fieldID */
     jmethodID   getCtxMethodId;       /* WolfSSLSession->getAssCtxPtr() ID */
