@@ -67,13 +67,30 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCA
         return (jint)BAD_FUNC_ARG;
     }
 
-    certFile = (*jenv)->GetStringUTFChars(jenv, f, 0);
-    certPath = (*jenv)->GetStringUTFChars(jenv, d, 0);
+    if (f != NULL) {
+        certFile = (*jenv)->GetStringUTFChars(jenv, f, 0);
+        if (certFile == NULL) {
+            return (jint)MEMORY_E;
+        }
+    }
+    if (d != NULL) {
+        certPath = (*jenv)->GetStringUTFChars(jenv, d, 0);
+        if (certPath == NULL) {
+            if (certFile != NULL) {
+                (*jenv)->ReleaseStringUTFChars(jenv, f, certFile);
+            }
+            return (jint)MEMORY_E;
+        }
+    }
 
     ret = wolfSSL_CertManagerLoadCA(cm, certFile, certPath);
 
-    (*jenv)->ReleaseStringUTFChars(jenv, f, certFile);
-    (*jenv)->ReleaseStringUTFChars(jenv, d, certPath);
+    if (certFile != NULL) {
+        (*jenv)->ReleaseStringUTFChars(jenv, f, certFile);
+    }
+    if (certPath != NULL) {
+        (*jenv)->ReleaseStringUTFChars(jenv, d, certPath);
+    }
 
     return (jint)ret;
 #else

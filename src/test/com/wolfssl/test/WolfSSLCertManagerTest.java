@@ -525,6 +525,47 @@ public class WolfSSLCertManagerTest {
     }
 
     @Test
+    public void testCertManagerLoadCA() throws Exception {
+
+        int ret = 0;
+        WolfSSLCertManager cm = null;
+
+        System.out.print("\tCertManagerLoadCA()");
+
+        try {
+            cm = new WolfSSLCertManager();
+
+            /* Test loading CA cert by file only (null path) */
+            ret = cm.CertManagerLoadCA(ocspRootCaCert, null);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("CertManagerLoadCA(file, null) failed, ret = " + ret);
+            }
+
+            /* Test with null file (null, null) should not crash, expected to
+             * return error */
+            ret = cm.CertManagerLoadCA(null, null);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                System.out.println("\t\t... failed");
+                fail("CertManagerLoadCA(null, null) should " +
+                    "have failed but returned success");
+            }
+
+        } catch (WolfSSLException e) {
+            System.out.println("\t\t... failed");
+            fail("CertManagerLoadCA test failed: " + e.getMessage());
+
+        } finally {
+            if (cm != null) {
+                cm.free();
+                cm = null;
+            }
+        }
+
+        System.out.println("\t\t... passed");
+    }
+
+    @Test
     public void testCertManagerCheckOCSPResponse()
         throws Exception {
 
