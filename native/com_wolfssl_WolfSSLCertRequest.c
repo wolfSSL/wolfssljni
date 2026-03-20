@@ -484,7 +484,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1get_
 
     derArr = (*jenv)->NewByteArray(jenv, sz);
     if (derArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_REQ_get_der");
         return NULL;
     }
@@ -567,7 +567,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1get_
 
     pemArr = (*jenv)->NewByteArray(jenv, pemSz);
     if (pemArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_REQ_get_pem");
         XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;

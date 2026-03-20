@@ -2296,6 +2296,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
     jbyteArray ret = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     WOLFSSL_SESSION* session = NULL;
+    (void)jcl;
 
     if (ssl == NULL) {
         return NULL;
@@ -2311,7 +2312,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
 
         ret = (*jenv)->NewByteArray(jenv, sz);
         if (!ret) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native getSessionID");
             wolfSSL_SESSION_free(session);
             return NULL;
@@ -5197,7 +5198,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSNIRequest
     if (ret > 0) {
         sniRequest = (*jenv)->NewByteArray(jenv, ret);
         if (sniRequest == NULL) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native getSNIRequest");
             return NULL;
         }
@@ -5454,7 +5455,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
 
     alpnArray = (*jenv)->NewByteArray(jenv, protocol_nameSz);
     if (alpnArray == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native sslGet0AlpnSelected");
         return NULL;
     }
@@ -5943,7 +5944,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getClientRandom
 
     randomArr = (*jenv)->NewByteArray(jenv, clientRandomSz);
     if (randomArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native getClientRandom()");
         return NULL;
     }

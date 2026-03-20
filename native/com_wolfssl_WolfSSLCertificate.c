@@ -1085,6 +1085,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
     jbyteArray  derArr = NULL;
     jclass excClass = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1097,7 +1098,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1der
 
     derArr = (*jenv)->NewByteArray(jenv, sz);
     if (derArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_get_der");
         return NULL;
     }
@@ -1133,6 +1134,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pem
     jbyteArray pemArr = NULL;
     jclass excClass = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1162,7 +1164,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pem
 
     pemArr = (*jenv)->NewByteArray(jenv, pemSz);
     if (pemArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_get_pem");
         XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
@@ -1207,6 +1209,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
     const unsigned char* tbs;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     jclass excClass = NULL;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1219,7 +1222,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1tbs
 
     tbsArr = (*jenv)->NewByteArray(jenv, sz);
     if (tbsArr == NULL) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_get_tbs");
         return NULL;
     }
@@ -1374,6 +1377,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
     unsigned char* buf = NULL;
     jbyteArray ret = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1385,7 +1389,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
 
     ret = (*jenv)->NewByteArray(jenv, sz);
     if (!ret) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_get_signature");
         return NULL;
     }
@@ -1419,6 +1423,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
 {
     int type;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1459,7 +1464,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
             return (*jenv)->NewStringUTF(jenv, "RSASSA-PSS");
 
         default:
-            (*jenv)->ThrowNew(jenv, jcl, "Unknown signature type");
+            throwWolfSSLJNIException(jenv, "Unknown signature type");
             return NULL;
     }
 }
@@ -1773,6 +1778,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubk
     unsigned char* buf;
     jbyteArray ret;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1784,7 +1790,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubk
 
     ret = (*jenv)->NewByteArray(jenv, sz);
     if (!ret) {
-        (*jenv)->ThrowNew(jenv, jcl,
+        throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_get_signature");
         return NULL;
     }
@@ -1818,6 +1824,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey_
 {
     int type;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1834,7 +1841,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubkey_
         case ED25519k:
             return (*jenv)->NewStringUTF(jenv, "EdDSA");
         default:
-            (*jenv)->ThrowNew(jenv, jcl, "Unknown public key type");
+            throwWolfSSLJNIException(jenv, "Unknown public key type");
             return NULL;
     }
 }
@@ -1944,6 +1951,7 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
     jboolean values[9];
     unsigned short kuse;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
         return NULL;
@@ -1953,7 +1961,7 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
     if (kuse != 0) {
         ret = (*jenv)->NewBooleanArray(jenv, 9);
         if (!ret) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create boolean array in native X509_get_key_usage");
             return NULL;
         }
@@ -1973,7 +1981,7 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ret);
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                     "Failed to set boolean region getting key usage");
             return NULL;
         }
@@ -2032,6 +2040,7 @@ static jobjectArray stackStringToArray(JNIEnv* jenv, jclass jcl,
     jclass stringClass = NULL;
     int count;
     int i;
+    (void)jcl;
 
     if (jenv == NULL || sk == NULL) {
         return NULL;
@@ -2063,7 +2072,7 @@ static jobjectArray stackStringToArray(JNIEnv* jenv, jclass jcl,
             (*jenv)->DeleteLocalRef(jenv, ret);
             (*jenv)->DeleteLocalRef(jenv, stringClass);
             wolfSSL_X509_email_free(sk);
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create String in native AIA getter");
             return NULL;
         }
@@ -2076,7 +2085,7 @@ static jobjectArray stackStringToArray(JNIEnv* jenv, jclass jcl,
             (*jenv)->DeleteLocalRef(jenv, ret);
             (*jenv)->DeleteLocalRef(jenv, stringClass);
             wolfSSL_X509_email_free(sk);
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to set String[] element in native AIA getter");
             return NULL;
         }
@@ -2249,6 +2258,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
     unsigned char* data = NULL;
     unsigned int sz = 0;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
+    (void)jcl;
 
     if (jenv == NULL || oidIn == NULL || x509 == NULL) {
         return NULL;
@@ -2290,7 +2300,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
 
         ret = (*jenv)->NewByteArray(jenv, sz);
         if (!ret) {
-            (*jenv)->ThrowNew(jenv, jcl,
+            throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native X509_get_extension");
             return NULL;
         }
