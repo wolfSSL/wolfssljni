@@ -1443,9 +1443,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
         case CTC_SHAwECDSA:
             return (*jenv)->NewStringUTF(jenv, "SHAwithECDSA");
         case CTC_SHA224wRSA:
-            return (*jenv)->NewStringUTF(jenv, "SHA244withRSA");
+            return (*jenv)->NewStringUTF(jenv, "SHA224withRSA");
         case CTC_SHA224wECDSA:
-            return (*jenv)->NewStringUTF(jenv, "SHA244withECDSA");
+            return (*jenv)->NewStringUTF(jenv, "SHA224withECDSA");
         case CTC_SHA256wRSA:
             return (*jenv)->NewStringUTF(jenv, "SHA256withRSA");
         case CTC_SHA256wECDSA:
