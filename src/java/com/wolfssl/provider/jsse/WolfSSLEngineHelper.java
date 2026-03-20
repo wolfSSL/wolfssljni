@@ -359,32 +359,43 @@ public class WolfSSLEngineHelper {
 
         if (privKey != null) {
             byte[] privKeyEncoded = privKey.getEncoded();
-            if (!privKey.getFormat().equals("PKCS#8")) {
-                throw new WolfSSLException(
-                    "Private key is not in PKCS#8 format");
-            }
-
-            /* Skip past PKCS#8 offset */
-            offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
-                privKeyEncoded.length);
-
-            byte[] privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
-                offset, privKeyEncoded.length);
-
+            byte[] privKeyTraditional = null;
             try {
-                ret = this.ssl.usePrivateKeyBuffer(privKeyTraditional,
-                    privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
-            } catch (WolfSSLJNIException e) {
-                throw new WolfSSLException(e);
-            }
+                if (!privKey.getFormat().equals("PKCS#8")) {
+                    throw new WolfSSLException(
+                        "Private key is not in PKCS#8 format");
+                }
 
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new WolfSSLException("Failed to load private key " +
-                    "buffer into WOLFSSL, err = " + ret);
+                /* Skip past PKCS#8 offset */
+                offset = WolfSSL.getPkcs8TraditionalOffset(privKeyEncoded, 0,
+                    privKeyEncoded.length);
+
+                privKeyTraditional = Arrays.copyOfRange(privKeyEncoded,
+                    offset, privKeyEncoded.length);
+
+                try {
+                    ret = this.ssl.usePrivateKeyBuffer(privKeyTraditional,
+                        privKeyTraditional.length, WolfSSL.SSL_FILETYPE_ASN1);
+                } catch (WolfSSLJNIException e) {
+                    throw new WolfSSLException(e);
+                }
+
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new WolfSSLException("Failed to load private key " +
+                        "buffer into WOLFSSL, err = " + ret);
+                }
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "loaded private key from X509KeyManager (alias: " +
+                    alias + ")");
+
+            } finally {
+                if (privKeyEncoded != null) {
+                    Arrays.fill(privKeyEncoded, (byte)0);
+                }
+                if (privKeyTraditional != null) {
+                    Arrays.fill(privKeyTraditional, (byte)0);
+                }
             }
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "loaded private key from X509KeyManager " +
-                    "(alias: " + alias + ")");
         } else {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "no private key found in X509KeyManager " +
