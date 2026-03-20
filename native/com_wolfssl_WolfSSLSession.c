@@ -1056,6 +1056,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1162,6 +1167,11 @@ static int SSLWriteNonblockingWithSelectPoll(WOLFSSL* ssl, byte* data,
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* lock mutex around session I/O before write attempt */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1381,6 +1391,11 @@ static int SSLReadNonblockingWithSelectPoll(WOLFSSL* ssl, byte* out,
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* lock mutex around session I/O before read attempt */
         if (wc_LockMutex(jniSessLock) != 0) {
             size = WOLFSSL_FAILURE;
@@ -1621,6 +1636,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_accept
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
@@ -1910,6 +1930,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
     }
 
     do {
+        pollRx = 0;
+    #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
+        pollTx = 0;
+    #endif
+
         /* get I/O lock */
         if (wc_LockMutex(jniSessLock) != 0) {
             ret = WOLFSSL_FAILURE;
