@@ -340,7 +340,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1sign
     }
     (*jenv)->ReleaseByteArrayElements(jenv, keyBytes, (jbyte*)keyBuf,
                                       JNI_ABORT);
-    (*jenv)->ReleaseStringUTFChars(jenv, digestAlg, mdName);
+    if (mdName != NULL) {
+        (*jenv)->ReleaseStringUTFChars(jenv, digestAlg, mdName);
+    }
 
     return (jint)ret;
 #else
