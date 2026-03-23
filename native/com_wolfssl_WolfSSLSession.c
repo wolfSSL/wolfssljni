@@ -5848,11 +5848,10 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         /* get char* from jstring */
         selectedProtoCharArr = (*jenv)->GetStringUTFChars(jenv,
             selectedProto, 0);
-        selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
-
         /* see if selected ALPN protocol is in original sent list.
          * Wire format is length-prefixed: (LEN|PROTO|LEN|PROTO|...) */
         if (selectedProtoCharArr != NULL) {
+            selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
             idx = 0;
             while (idx < inlen) {
                 unsigned char protoLen = in[idx];
