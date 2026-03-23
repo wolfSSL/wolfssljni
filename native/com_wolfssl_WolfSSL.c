@@ -1989,7 +1989,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
     if (inBuf == NULL) {
         return MEMORY_E;
     }
-    XMEMSET(inBuf, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMSET(inBuf, 0, (long)sz);
 
     (*jenv)->GetByteArrayRegion(jenv, in, 0, (jsize)sz, (jbyte*)inBuf);
     if ((*jenv)->ExceptionOccurred(jenv)) {
