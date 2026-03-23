@@ -5850,26 +5850,27 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
             selectedProto, 0);
         selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
 
-        /* see if selected ALPN protocol is in original sent list */
+        /* see if selected ALPN protocol is in original sent list.
+         * Wire format is length-prefixed: (LEN|PROTO|LEN|PROTO|...) */
         if (selectedProtoCharArr != NULL) {
-            for (idx = 0; idx < inlen; idx++) {
-                if (idx + selectedProtoCharArrSz > inlen) {
-                    /* No match found, fatal error. in not long enough for
-                     * search. Reset ret to error condition, match not set
-                     * correctly */
+            idx = 0;
+            while (idx < inlen) {
+                unsigned char protoLen = in[idx];
+                if (idx + 1 + protoLen > inlen) {
                     ret = SSL_TLSEXT_ERR_ALERT_FATAL;
                     break;
                 }
-                if (XMEMCMP(in + idx, selectedProtoCharArr,
+                if (protoLen == selectedProtoCharArrSz &&
+                    XMEMCMP(in + idx + 1, selectedProtoCharArr,
                         selectedProtoCharArrSz) == 0) {
-                    /* Match found. Format of input array is length byte of
-                     * ALPN protocol, followed by ALPN protocol,
-                     * ie (LEN+ALPN|LEN+ALPN|...) We set *out to ALPN selected
-                     * protocol and *outlen to length of protocol (idx - 1) */
-                    *out = in + idx;
-                    *outlen = in[idx - 1];
+                    *out = in + idx + 1;
+                    *outlen = protoLen;
                     break;
                 }
+                idx += 1 + protoLen;
+            }
+            if (idx >= inlen && ret != SSL_TLSEXT_ERR_ALERT_FATAL) {
+                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
             }
         }
         else {
