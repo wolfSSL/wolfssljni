@@ -3640,6 +3640,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyBuffer
 
     ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
 
+    XMEMSET(buff, 0, (long)sz);
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
