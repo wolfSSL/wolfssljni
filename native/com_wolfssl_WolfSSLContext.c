@@ -6170,7 +6170,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         }
     }
 
-    if (retval > 0) {
+    if (retval > 0 && retval <= (jlong)max_key_len) {
 
         /* copy jbyteArray into char key array */
         (*jenv)->GetByteArrayRegion(jenv, keyArray, 0, retval, (jbyte*)key);
@@ -6255,6 +6255,9 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         identity[XSTRLEN(tmpString)] = '\0';
         (*jenv)->ReleaseStringUTFChars(jenv, bufString, tmpString);
         (*jenv)->DeleteLocalRef(jenv, bufString);
+    }
+    else {
+        retval = 0;
     }
 
     /* delete local obj refs, detach JNIEnv from thread */
@@ -6559,7 +6562,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         }
     }
 
-    if (retval > 0) {
+    if (retval > 0 && retval <= (jlong)max_key_len) {
 
         /* copy jbyteArray into char key array */
         (*jenv)->GetByteArrayRegion(jenv, keyArray, 0, retval, (jbyte*)key);
@@ -6574,6 +6577,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             }
             return 0;
         }
+    }
+    else {
+        retval = 0;
     }
 
     /* delete local obj refs, detach JNIEnv from thread */
