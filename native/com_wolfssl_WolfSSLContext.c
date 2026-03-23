@@ -1793,9 +1793,11 @@ void NativeCtxMissingCRLCallback(const char* url)
 #endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
+            return;
         }
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM\n");
+        return;
     }
 
     /* find exception class */
