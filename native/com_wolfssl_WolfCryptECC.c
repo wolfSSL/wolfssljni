@@ -73,17 +73,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doVerify
                 (unsigned int)hashSz, &tmpResult, &myKey);
         if (ret != 0) {
             printf("wc_ecc_verify_hash failed, ret = %d\n", ret);
-            wc_ecc_free(&myKey);
-            return -1;
         }
     } else {
         printf("wc_ecc_import_x963 failed, ret = %d\n", ret);
-        return -1;
     }
 
     wc_ecc_free(&myKey);
 
-    (*jenv)->SetIntArrayRegion(jenv, result, 0, 1, &tmpResult);
+    if (ret == 0) {
+        (*jenv)->SetIntArrayRegion(jenv, result, 0, 1, &tmpResult);
+    }
 
     (void)jcl;
     return ret;
@@ -140,17 +139,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
                 &rng, &myKey);
         if (ret != 0) {
             printf("wc_ecc_sign_hash failed, ret = %d\n", ret);
-            wc_ecc_free(&myKey);
-            return -1;
         }
     } else {
         printf("wc_EccPrivateKeyDecode failed, ret = %d\n", ret);
-        return -1;
     }
 
     wc_ecc_free(&myKey);
+    wc_FreeRng(&rng);
 
-    (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, (jlong*)&tmpOut);
+    if (ret == 0) {
+        tmp = (jlong)tmpOut;
+        (*jenv)->SetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
+    }
 
     (void)jcl;
     return ret;

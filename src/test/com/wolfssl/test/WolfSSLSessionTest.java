@@ -2858,6 +2858,176 @@ public class WolfSSLSessionTest {
     }
 
     @Test
+    public void test_WolfSSLSession_readWriteBoundsCheck() throws Exception {
+        int ret = 0;
+        int err = 0;
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+        byte[] testData = "Hello from client".getBytes();
+
+        /* Create client/server WolfSSLContext objects */
+        final WolfSSLContext srvCtx;
+        WolfSSLContext cliCtx;
+
+        System.out.print("\tTesting read/write bounds check");
+
+        /* Create ServerSocket first to get ephemeral port */
+        final ServerSocket srvSocket = new ServerSocket(0);
+
+        srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+            WolfSSL.SSL_FILETYPE_PEM, cliCert, WolfSSL.SSLv23_ServerMethod());
+        cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+            WolfSSL.SSL_FILETYPE_PEM, caCert, WolfSSL.SSLv23_ClientMethod());
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+
+        /* Start server */
+        try {
+            es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        server = srvSocket.accept();
+                        srvSes = new WolfSSLSession(srvCtx);
+
+                        ret = srvSes.setFd(server);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.setFd() failed: " + ret);
+                        }
+
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                               (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.accept() failed: " + err);
+                        }
+
+                        srvSes.shutdownSSL();
+                        srvSes.freeSSL();
+                        srvSes = null;
+                        server.close();
+                        server = null;
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                    }
+
+                    return null;
+                }
+            });
+
+        } catch (Exception e) {
+            System.out.println("\t... failed");
+            e.printStackTrace();
+            fail();
+        }
+
+        synchronized (byteBufferPoolPropertyLock) {
+
+            /* Disable ByteBuffer pool so native byte[] path is used */
+            String originalProp = Security.getProperty(
+                "wolfssl.readWriteByteBufferPool.disabled");
+            Security.setProperty(
+                "wolfssl.readWriteByteBufferPool.disabled", "true");
+
+            try {
+                /* Client connection */
+                cliSock = new Socket(InetAddress.getLocalHost(),
+                    srvSocket.getLocalPort());
+
+                cliSes = new WolfSSLSession(cliCtx);
+
+                ret = cliSes.setFd(cliSock);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception(
+                        "WolfSSLSession.setFd() failed, ret = " + ret);
+                }
+
+                /* Do handshake */
+                do {
+                    ret = cliSes.connect();
+                    err = cliSes.getError(ret);
+                } while (ret != WolfSSL.SSL_SUCCESS &&
+                       (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                        err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception(
+                        "WolfSSLSession.connect() failed: " + err);
+                }
+
+                /* Test write with offset + length > array length.
+                 * Array is 17 bytes, offset=5 length=100 should be rejected */
+                ret = cliSes.write(testData, 5, 100, 0);
+                if (ret >= 0) {
+                    throw new Exception("write() with out-of-bounds offset/" +
+                        "length should have failed but got: " + ret);
+                }
+
+                /* Test read with offset + length > array length */
+                byte[] readBuf = new byte[10];
+                ret = cliSes.read(readBuf, 5, 100, 0);
+                if (ret >= 0) {
+                    throw new Exception("read() with out-of-bounds offset/" +
+                        "length should have failed but got: " + ret);
+                }
+
+                cliSes.shutdownSSL();
+                cliSes.freeSSL();
+                cliSes = null;
+                cliSock.close();
+                cliSock = null;
+
+            } catch (Exception e) {
+                System.out.println("\t... failed");
+                e.printStackTrace();
+                fail();
+
+            } finally {
+                /* Restore original property */
+                if (originalProp == null) {
+                    originalProp = "";
+                }
+                Security.setProperty(
+                    "wolfssl.readWriteByteBufferPool.disabled", originalProp);
+
+                /* Free resources */
+                if (cliSes != null) {
+                    cliSes.freeSSL();
+                }
+                if (cliSock != null) {
+                    cliSock.close();
+                }
+                if (srvSocket != null) {
+                    srvSocket.close();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+                es.shutdown();
+            }
+        }
+
+        System.out.println("\t... passed");
+    }
+
+    @Test
     public void test_WolfSSLSession_sessionToDerFromDer() throws Exception {
 
         int ret = 0;
