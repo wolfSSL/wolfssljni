@@ -5876,6 +5876,11 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
             /* Not able to get selected ALPN protocol from Java, fatal error */
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
+
+        if (selectedProtoCharArr != NULL) {
+            (*jenv)->ReleaseStringUTFChars(jenv, selectedProto,
+                selectedProtoCharArr);
+        }
     }
 
    return ret;
