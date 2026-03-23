@@ -6238,7 +6238,21 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             }
             return 0;
         }
-        strcpy(identity, tmpString);
+        if (XSTRLEN(tmpString) >= id_max_len) {
+            (*jenv)->ReleaseStringUTFChars(jenv, bufString,
+                tmpString);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, hintString);
+            (*jenv)->DeleteLocalRef(jenv, strBufObj);
+            (*jenv)->DeleteLocalRef(jenv, keyArray);
+            (*jenv)->DeleteLocalRef(jenv, bufString);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return 0;
+        }
+        XMEMCPY(identity, tmpString, XSTRLEN(tmpString));
+        identity[XSTRLEN(tmpString)] = '\0';
         (*jenv)->ReleaseStringUTFChars(jenv, bufString, tmpString);
         (*jenv)->DeleteLocalRef(jenv, bufString);
     }
