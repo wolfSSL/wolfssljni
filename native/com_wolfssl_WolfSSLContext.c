@@ -6679,6 +6679,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
 
     if (groupsSz == 0 || groupsSz > WOLFSSL_MAX_GROUP_COUNT ||
         jniGroups == NULL) {
+        if (jniGroups != NULL) {
+            (*jenv)->ReleaseIntArrayElements(jenv, groups,
+                jniGroups, JNI_ABORT);
+        }
         return (jint)BAD_FUNC_ARG;
     }
 
