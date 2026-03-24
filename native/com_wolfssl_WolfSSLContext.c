@@ -1777,6 +1777,7 @@ void NativeCtxMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
     jint      vmret  = 0;
+    int       needsDetach = 0;
     jclass    excClass;
     jclass    crlClass = NULL;
     jmethodID crlMethod;
@@ -1795,6 +1796,7 @@ void NativeCtxMissingCRLCallback(const char* url)
             printf("Failed to attach JNIEnv to thread\n");
             return;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM\n");
         return;
@@ -1805,6 +1807,8 @@ void NativeCtxMissingCRLCallback(const char* url)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return;
     }
 
@@ -1817,6 +1821,8 @@ void NativeCtxMissingCRLCallback(const char* url)
         if (!crlClass) {
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -1831,6 +1837,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting missingCRLCallback method from JNI");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -1843,7 +1851,6 @@ void NativeCtxMissingCRLCallback(const char* url)
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            return;
         }
 
     } else {
@@ -1855,6 +1862,9 @@ void NativeCtxMissingCRLCallback(const char* url)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 }
 
 #endif /* HAVE_CRL */
