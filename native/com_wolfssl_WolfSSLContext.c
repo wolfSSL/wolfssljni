@@ -1777,6 +1777,7 @@ void NativeCtxMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
     jint      vmret  = 0;
+    int       needsDetach = 0;
     jclass    excClass;
     jclass    crlClass = NULL;
     jmethodID crlMethod;
@@ -1793,9 +1794,12 @@ void NativeCtxMissingCRLCallback(const char* url)
 #endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
+            return;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM\n");
+        return;
     }
 
     /* find exception class */
@@ -1803,6 +1807,8 @@ void NativeCtxMissingCRLCallback(const char* url)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return;
     }
 
@@ -1815,6 +1821,8 @@ void NativeCtxMissingCRLCallback(const char* url)
         if (!crlClass) {
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -1829,6 +1837,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting missingCRLCallback method from JNI");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -1841,7 +1851,6 @@ void NativeCtxMissingCRLCallback(const char* url)
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            return;
         }
 
     } else {
@@ -1853,6 +1862,9 @@ void NativeCtxMissingCRLCallback(const char* url)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 }
 
 #endif /* HAVE_CRL */
@@ -6171,7 +6183,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         }
     }
 
-    if (retval > 0) {
+    if (retval > 0 && retval <= (jlong)max_key_len) {
 
         /* copy jbyteArray into char key array */
         (*jenv)->GetByteArrayRegion(jenv, keyArray, 0, retval, (jbyte*)key);
@@ -6239,9 +6251,26 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             }
             return 0;
         }
-        strcpy(identity, tmpString);
+        if (XSTRLEN(tmpString) >= id_max_len) {
+            (*jenv)->ReleaseStringUTFChars(jenv, bufString,
+                tmpString);
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            (*jenv)->DeleteLocalRef(jenv, hintString);
+            (*jenv)->DeleteLocalRef(jenv, strBufObj);
+            (*jenv)->DeleteLocalRef(jenv, keyArray);
+            (*jenv)->DeleteLocalRef(jenv, bufString);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return 0;
+        }
+        XMEMCPY(identity, tmpString, XSTRLEN(tmpString));
+        identity[XSTRLEN(tmpString)] = '\0';
         (*jenv)->ReleaseStringUTFChars(jenv, bufString, tmpString);
         (*jenv)->DeleteLocalRef(jenv, bufString);
+    }
+    else {
+        retval = 0;
     }
 
     /* delete local obj refs, detach JNIEnv from thread */
@@ -6546,7 +6575,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
         }
     }
 
-    if (retval > 0) {
+    if (retval > 0 && retval <= (jlong)max_key_len) {
 
         /* copy jbyteArray into char key array */
         (*jenv)->GetByteArrayRegion(jenv, keyArray, 0, retval, (jbyte*)key);
@@ -6561,6 +6590,9 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             }
             return 0;
         }
+    }
+    else {
+        retval = 0;
     }
 
     /* delete local obj refs, detach JNIEnv from thread */
@@ -6648,6 +6680,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setGroups
 
     if (groupsSz == 0 || groupsSz > WOLFSSL_MAX_GROUP_COUNT ||
         jniGroups == NULL) {
+        if (jniGroups != NULL) {
+            (*jenv)->ReleaseIntArrayElements(jenv, groups,
+                jniGroups, JNI_ABORT);
+        }
         return (jint)BAD_FUNC_ARG;
     }
 

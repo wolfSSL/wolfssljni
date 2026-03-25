@@ -3687,6 +3687,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyBuffer
 
     ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
 
+    XMEMSET(buff, 0, (long)sz);
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -3916,6 +3917,7 @@ void NativeMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
     jint      vmret  = 0;
+    int       needsDetach = 0;
     jclass    crlClass = NULL;
     jmethodID crlMethod = NULL;
     jobjectRefType refcheck;
@@ -3931,9 +3933,12 @@ void NativeMissingCRLCallback(const char* url)
 #endif
         if (vmret) {
             printf("Failed to attach JNIEnv to thread\n");
+            return;
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         printf("Unable to get JNIEnv from JavaVM\n");
+        return;
     }
 
     /* check if our stored object reference is valid */
@@ -3945,6 +3950,8 @@ void NativeMissingCRLCallback(const char* url)
         if (!crlClass) {
             throwWolfSSLException(jenv,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -3959,6 +3966,8 @@ void NativeMissingCRLCallback(const char* url)
 
             throwWolfSSLException(jenv,
                 "Error getting missingCRLCallback method from JNI");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return;
         }
 
@@ -3970,7 +3979,6 @@ void NativeMissingCRLCallback(const char* url)
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            return;
         }
 
     } else {
@@ -3982,6 +3990,9 @@ void NativeMissingCRLCallback(const char* url)
         throwWolfSSLException(jenv,
             "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 }
 
 #endif /* HAVE_CRL */
@@ -5896,33 +5907,38 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         /* get char* from jstring */
         selectedProtoCharArr = (*jenv)->GetStringUTFChars(jenv,
             selectedProto, 0);
-        selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
-
-        /* see if selected ALPN protocol is in original sent list */
+        /* see if selected ALPN protocol is in original sent list.
+         * Wire format is length-prefixed: (LEN|PROTO|LEN|PROTO|...) */
         if (selectedProtoCharArr != NULL) {
-            for (idx = 0; idx < inlen; idx++) {
-                if (idx + selectedProtoCharArrSz > inlen) {
-                    /* No match found, fatal error. in not long enough for
-                     * search. Reset ret to error condition, match not set
-                     * correctly */
+            selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
+            idx = 0;
+            while (idx < inlen) {
+                unsigned char protoLen = in[idx];
+                if (idx + 1 + protoLen > inlen) {
                     ret = SSL_TLSEXT_ERR_ALERT_FATAL;
                     break;
                 }
-                if (XMEMCMP(in + idx, selectedProtoCharArr,
+                if (protoLen == selectedProtoCharArrSz &&
+                    XMEMCMP(in + idx + 1, selectedProtoCharArr,
                         selectedProtoCharArrSz) == 0) {
-                    /* Match found. Format of input array is length byte of
-                     * ALPN protocol, followed by ALPN protocol,
-                     * ie (LEN+ALPN|LEN+ALPN|...) We set *out to ALPN selected
-                     * protocol and *outlen to length of protocol (idx - 1) */
-                    *out = in + idx;
-                    *outlen = in[idx - 1];
+                    *out = in + idx + 1;
+                    *outlen = protoLen;
                     break;
                 }
+                idx += 1 + protoLen;
+            }
+            if (idx >= inlen && ret != SSL_TLSEXT_ERR_ALERT_FATAL) {
+                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
             }
         }
         else {
             /* Not able to get selected ALPN protocol from Java, fatal error */
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+        }
+
+        if (selectedProtoCharArr != NULL) {
+            (*jenv)->ReleaseStringUTFChars(jenv, selectedProto,
+                selectedProtoCharArr);
         }
     }
 
