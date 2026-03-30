@@ -1031,7 +1031,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
     }
 
     /* release array, don't copy back contents */
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)certBuf, JNI_ABORT);
+    if (certBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in,
+            (jbyte*)certBuf, JNI_ABORT);
+    }
 
     return (jlong)(uintptr_t)x509;
 }
