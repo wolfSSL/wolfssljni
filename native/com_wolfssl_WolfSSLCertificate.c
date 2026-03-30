@@ -562,6 +562,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
         if (serial == NULL) {
             ret = WOLFSSL_FAILURE;
         }
+        else if (serialSz > (int)(serial->dataMax - 2)) {
+            wolfSSL_ASN1_INTEGER_free(serial);
+            serial = NULL;
+            ret = WOLFSSL_FAILURE;
+        }
         else {
             serial->data[0] = ASN_INTEGER;
             serial->data[1] = serialSz;
