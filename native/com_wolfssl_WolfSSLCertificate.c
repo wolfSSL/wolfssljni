@@ -633,7 +633,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1subject_1k
         ret = wolfSSL_X509_set_subject_key_id(x509, skidBuf, skidSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, skid, (jbyte*)skidBuf, JNI_ABORT);
+    if (skidBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, skid,
+            (jbyte*)skidBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
