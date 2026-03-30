@@ -105,6 +105,7 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     JNIEnv*   jenv;
     jint      vmret  = 0;
     jint      retval = -1;
+    int       needsDetach = 0;
     jobjectRefType refcheck;
     SSLAppData* appData;            /* WOLFSSL app data, stored verify cb obj */
     jobject* g_verifySSLCbIfaceObj;  /* Global jobject, stored in app data */
@@ -125,6 +126,7 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
         if (vmret) {
             return -101;    /* failed to attach JNIEnv to thread */
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return -102;        /* unable to get JNIEnv from JavaVM */
     }
@@ -134,6 +136,8 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
                 wolfSSL_X509_STORE_CTX_get_ex_data(store, 0));
     if (appData == NULL) {
         printf("Error getting app data from WOLFSSL\n");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -105;
     }
 
@@ -141,6 +145,8 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     g_verifySSLCbIfaceObj = appData->g_verifySSLCbIfaceObj;
     if (g_verifySSLCbIfaceObj == NULL || *g_verifySSLCbIfaceObj == NULL) {
         printf("Error getting g_verifySSLCbIfaceObj from appData\n");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -106;
     }
 
@@ -156,6 +162,8 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             throwWolfSSLJNIException(jenv,
                 "verifyCallback method ID is null in NativeSSLVerifyCallback");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -107;
         }
 
@@ -167,6 +175,8 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
             /* exception occurred on the Java side during method call */
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -109;
         }
 
@@ -178,8 +188,13 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
         throwWolfSSLJNIException(jenv,
                 "Object reference invalid in NativeSSLVerifyCallback");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }
