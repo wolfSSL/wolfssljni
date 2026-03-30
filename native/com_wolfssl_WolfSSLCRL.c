@@ -174,7 +174,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, time, (jbyte*)timeBuf, JNI_ABORT);
+    if (timeBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, time,
+            (jbyte*)timeBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
@@ -230,7 +233,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, time, (jbyte*)timeBuf, JNI_ABORT);
+    if (timeBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, time,
+            (jbyte*)timeBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
