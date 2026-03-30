@@ -452,8 +452,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1set_1pubke
         XMEMSET(derBuf, 0, derSz);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, fileBytes, (jbyte*)fileBuf,
-                                      JNI_ABORT);
+    if (fileBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, fileBytes,
+            (jbyte*)fileBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
