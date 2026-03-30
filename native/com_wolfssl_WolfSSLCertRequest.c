@@ -136,7 +136,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1add1_1attr
                 attr, attrSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, attrBytes, (jbyte*)attr, JNI_ABORT);
+    if (attr != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, attrBytes,
+            (jbyte*)attr, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
