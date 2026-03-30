@@ -589,8 +589,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
         wolfSSL_ASN1_INTEGER_free(serial);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, serialBytes, (jbyte*)serialBuf,
-                                      JNI_ABORT);
+    if (serialBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, serialBytes,
+            (jbyte*)serialBuf, JNI_ABORT);
+    }
 
     return ret;
 #else
