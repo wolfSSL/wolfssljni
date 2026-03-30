@@ -341,8 +341,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1sign
         XMEMSET(derBuf, 0, derSz);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, keyBytes, (jbyte*)keyBuf,
-                                      JNI_ABORT);
+    if (keyBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, keyBytes,
+            (jbyte*)keyBuf, JNI_ABORT);
+    }
     if (mdName != NULL) {
         (*jenv)->ReleaseStringUTFChars(jenv, digestAlg, mdName);
     }
