@@ -284,7 +284,7 @@ public class WolfSSLAuthStore {
 
         /* @TODO check for side server/client, currently a resize is for all */
         synchronized (storeLock) {
-            store.putAll(newStore);
+            newStore.putAll(store);
             store = newStore;
         }
     }
