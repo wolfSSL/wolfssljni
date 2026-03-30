@@ -785,7 +785,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1set_1dist_
         ret = wolfSSL_X509_CRL_set_dist_points(x509, derBuf, derSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, der, (jbyte*)derBuf, JNI_ABORT);
+    if (derBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, der,
+            (jbyte*)derBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
