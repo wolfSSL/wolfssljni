@@ -156,7 +156,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1na
         wolfSSL_X509_free(x509In);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, certDer, (jbyte*)der, JNI_ABORT);
+    if (der != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, certDer,
+            (jbyte*)der, JNI_ABORT);
+    }
 
     return ret;
 #else
