@@ -291,8 +291,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, serial, (jbyte*)serialBuf,
-        JNI_ABORT);
+    if (serialBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, serial,
+            (jbyte*)serialBuf, JNI_ABORT);
+    }
     if (serialInt != NULL) {
         wolfSSL_ASN1_INTEGER_free(serialInt);
     }
