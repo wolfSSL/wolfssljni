@@ -337,8 +337,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
         ret = wolfSSL_X509_CRL_add_revoked_cert(crl, certBuf, certSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, certDer, (jbyte*)certBuf,
-        JNI_ABORT);
+    if (certBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, certDer,
+            (jbyte*)certBuf, JNI_ABORT);
+    }
 
     return ret;
 #else
