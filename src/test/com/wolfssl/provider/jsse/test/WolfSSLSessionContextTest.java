@@ -250,6 +250,70 @@ public class WolfSSLSessionContextTest {
         pass("\t\t... passed");
     }
 
+    private void testResizeCache(SSLSession ses) {
+        System.out.print("\tTesting ResizeCache");
+
+        if (ctx.getProvider() != Security.getProvider("wolfJSSE")) {
+            pass("\t\t... skipped");
+            return;
+        }
+
+        SSLSessionContext sesCtx = ses.getSessionContext();
+        if (sesCtx == null) {
+            error("\t\t... failed");
+            fail("session context was null");
+        }
+
+        int originalSize = sesCtx.getSessionCacheSize();
+
+        /* get session IDs and count before resize */
+        Enumeration<byte[]> idsBefore = sesCtx.getIds();
+        int countBefore = 0;
+        byte[] firstId = null;
+        while (idsBefore.hasMoreElements()) {
+            byte[] id = idsBefore.nextElement();
+            if (firstId == null) {
+                firstId = id;
+            }
+            countBefore++;
+        }
+
+        if (countBefore == 0 || firstId == null) {
+            error("\t\t... failed");
+            fail("no sessions in cache before resize");
+        }
+
+        /* resize up, all sessions should survive */
+        sesCtx.setSessionCacheSize(countBefore + 10);
+
+        Enumeration<byte[]> idsAfter = sesCtx.getIds();
+        int countAfter = 0;
+        boolean found = false;
+        while (idsAfter.hasMoreElements()) {
+            byte[] id = idsAfter.nextElement();
+            if (Arrays.equals(id, firstId)) {
+                found = true;
+            }
+            countAfter++;
+        }
+
+        if (countAfter != countBefore) {
+            error("\t\t... failed");
+            fail("resize-up lost sessions: before=" +
+                countBefore + " after=" + countAfter);
+        }
+
+        if (!found) {
+            error("\t\t... failed");
+            fail("original session ID not found after resize");
+        }
+
+        /* restore original cache size */
+        sesCtx.setSessionCacheSize(originalSize);
+
+        pass("\t\t... passed");
+    }
+
     @Test
     public void testSessionIDsTLS13()
         throws NoSuchProviderException, NoSuchAlgorithmException,
@@ -518,6 +582,7 @@ public class WolfSSLSessionContextTest {
 
             /* additional tests on the engines and sessions while open */
             testSetCacheSize(ses);
+            testResizeCache(ses);
 
 
             try {
