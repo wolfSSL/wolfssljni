@@ -162,9 +162,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
     buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
     buffSz = (*jenv)->GetArrayLength(jenv, in);
 
-    ret = wolfSSL_CertManagerVerifyBuffer(cm, buff, buffSz, format);
-
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        ret = wolfSSL_CertManagerVerifyBuffer(cm, buff, buffSz, format);
+        (*jenv)->ReleaseByteArrayElements(jenv, in,
+            (jbyte*)buff, JNI_ABORT);
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
 
     return (jint)ret;
 }
