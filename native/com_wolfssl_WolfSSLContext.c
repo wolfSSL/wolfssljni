@@ -558,6 +558,7 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     JNIEnv*   jenv;
     jint      vmret  = 0;
     jint      retval = -1;
+    int       needsDetach = 0;
     jclass    excClass = NULL;
     jclass    verifyClass = NULL;
     jmethodID verifyMethod = NULL;
@@ -579,6 +580,7 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
         if (vmret) {
             return -101;    /* failed to attach JNIEnv to thread */
         }
+        needsDetach = 1;
     } else if (vmret != JNI_OK) {
         return -102;        /* unable to get JNIEnv from JavaVM */
     }
@@ -588,6 +590,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     if( (*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -103;
     }
 
@@ -605,6 +609,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLVerifyCallback class reference");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -104;
         }
 
@@ -618,6 +624,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting verifyCallback method from JNI");
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -105;
         }
 
@@ -628,6 +636,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
             /* exception occurred on the Java side during method call */
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            if (needsDetach)
+                (*g_vm)->DetachCurrentThread(g_vm);
             return -106;
         }
 
@@ -639,8 +649,13 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeVerifyCallback");
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
+
+    if (needsDetach)
+        (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
 }

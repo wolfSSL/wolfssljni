@@ -106,8 +106,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1add_1entry_1
                 entry, len, (int)loc, (int)set);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, entryArr, (jbyte*)entry, JNI_ABORT);
-    (*jenv)->ReleaseStringUTFChars(jenv, fieldStr, field);
+    if (entry != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, entryArr,
+            (jbyte*)entry, JNI_ABORT);
+    }
+    if (field != NULL) {
+        (*jenv)->ReleaseStringUTFChars(jenv, fieldStr, field);
+    }
 
     return (jint)ret;
 #else

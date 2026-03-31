@@ -136,7 +136,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1add1_1attr
                 attr, attrSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, attrBytes, (jbyte*)attr, JNI_ABORT);
+    if (attr != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, attrBytes,
+            (jbyte*)attr, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
@@ -338,8 +341,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1sign
         XMEMSET(derBuf, 0, derSz);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, keyBytes, (jbyte*)keyBuf,
-                                      JNI_ABORT);
+    if (keyBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, keyBytes,
+            (jbyte*)keyBuf, JNI_ABORT);
+    }
     if (mdName != NULL) {
         (*jenv)->ReleaseStringUTFChars(jenv, digestAlg, mdName);
     }
@@ -447,8 +452,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1set_1pubke
         XMEMSET(derBuf, 0, derSz);
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, fileBytes, (jbyte*)fileBuf,
-                                      JNI_ABORT);
+    if (fileBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, fileBytes,
+            (jbyte*)fileBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else

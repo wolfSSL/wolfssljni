@@ -2027,7 +2027,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSL_x509_1getDer
 
     derCert = wolfSSL_X509_get_der(x509, &outSz);
 
-    if (outSz >= 0) {
+    if (outSz >= 0 && derCert != NULL) {
+
+        out = (*jenv)->NewByteArray(jenv, outSz);
+        if (out == NULL) {
+            return NULL;
+        }
 
         (*jenv)->SetByteArrayRegion(jenv, out, 0, outSz, (jbyte*)derCert);
         if ((*jenv)->ExceptionOccurred(jenv)) {

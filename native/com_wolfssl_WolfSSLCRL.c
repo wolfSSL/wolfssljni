@@ -174,7 +174,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, time, (jbyte*)timeBuf, JNI_ABORT);
+    if (timeBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, time,
+            (jbyte*)timeBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
@@ -230,7 +233,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, time, (jbyte*)timeBuf, JNI_ABORT);
+    if (timeBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, time,
+            (jbyte*)timeBuf, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
@@ -285,8 +291,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
         }
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, serial, (jbyte*)serialBuf,
-        JNI_ABORT);
+    if (serialBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, serial,
+            (jbyte*)serialBuf, JNI_ABORT);
+    }
     if (serialInt != NULL) {
         wolfSSL_ASN1_INTEGER_free(serialInt);
     }
@@ -329,8 +337,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
         ret = wolfSSL_X509_CRL_add_revoked_cert(crl, certBuf, certSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, certDer, (jbyte*)certBuf,
-        JNI_ABORT);
+    if (certBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, certDer,
+            (jbyte*)certBuf, JNI_ABORT);
+    }
 
     return ret;
 #else
