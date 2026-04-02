@@ -1122,25 +1122,38 @@ public class WolfSSLEngineHelper {
 
             /* Explicitly set if user has set through SSLParameters. Check
              * wolfSSL-specific server names first, then fall back to standard
-             * SSLParameters server names (set via parent setServerNames()). */
+             * SSLParameters server names (set via parent setServerNames()).
+             * If neither have been set and session is being resumed, check
+             * cached SNI */
+            boolean sniSet = false;
             List<WolfSSLSNIServerName> names =
                 this.params.getWolfSSLServerNames();
             List<SNIServerName> parentNames =
                 this.params.getServerNames();
+            List<SNIServerName> sniServerNames =
+                (this.session == null) ? null :
+                    this.session.getSNIServerNames();
             if (names != null && !names.isEmpty()) {
                 WolfSSLSNIServerName sni = names.get(0);
                 if (sni != null) {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                    sniSet = true;
                 }
             } else if (parentNames != null && !parentNames.isEmpty()) {
                 SNIServerName sni = parentNames.get(0);
                 if (sni != null) {
                     this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                    sniSet = true;
+                }
+            } else if (sniServerNames != null && !sniServerNames.isEmpty()) {
+                SNIServerName sni = sniServerNames.get(0);
+                if (sni != null) {
+                    this.ssl.useSNI((byte)sni.getType(), sni.getEncoded());
+                    sniSet = true;
                 }
             }
 
-            if ((names == null || names.isEmpty()) &&
-                (parentNames == null || parentNames.isEmpty()) && autoSNI) {
+            if (!sniSet && autoSNI) {
                 if (this.peerAddr != null && this.jdkTlsTrustNameService) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "setting SNI extension with " +
@@ -1173,10 +1186,14 @@ public class WolfSSLEngineHelper {
                         () -> "hostname and peerAddr are null, " +
                         "not setting SNI");
                 }
+            } else if (sniSet) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "SNI configured through SSLParameters " +
+                    "or session resumption");
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "No SNI configured through SSLParameters, " +
-                    "not setting SNI");
+                    () -> "No SNI configured through SSLParameters " +
+                    "or session resumption, not setting SNI");
             }
         }
     }

@@ -411,27 +411,6 @@ public class WolfSSLAuthStore {
 
             ses.isFromTable = true;
 
-            /* Check if the session has stored SNI server names */
-            List<SNIServerName> sniNames = ses.getSNIServerNames();
-            if (sniNames != null && !sniNames.isEmpty()) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Found SNI server names in cached session");
-
-                /* Apply SNI settings to the SSL connection */
-                for (SNIServerName name : sniNames) {
-                    if (name instanceof SNIHostName) {
-                        String hostName = ((SNIHostName)name).getAsciiName();
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Applying SNI hostname for resumption: " +
-                            hostName);
-
-                        /* Set the SNI directly on the SSL object */
-                        ssl.useSNI((byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
-                            hostName.getBytes(StandardCharsets.UTF_8));
-                    }
-                }
-            }
-
             if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "native wolfSSL_set_session() failed, " +
