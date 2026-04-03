@@ -2927,6 +2927,128 @@ public class WolfSSLEngineTest {
     }
 
     @Test
+    public void testHandshakeUnwrapConsumedNotBufferUnderflow()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException {
+
+        System.out.print("\tTest unwrap consumed != BUFFER_UNDERFLOW");
+
+        if (!enabledProtocols.contains("TLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        SSLContext ctx13 = tf.createSSLContext("TLSv1.3", engineProvider);
+        SSLEngine server = ctx13.createSSLEngine();
+        SSLEngine client = ctx13.createSSLEngine("localhost", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int packetBufSize = client.getSession().getPacketBufferSize();
+        int appBufSize = client.getSession().getApplicationBufferSize();
+
+        /* Wrap ClientHello */
+        ByteBuffer cliToSrv =
+            ByteBuffer.allocateDirect(packetBufSize);
+        ByteBuffer emptyApp = ByteBuffer.allocate(0);
+        SSLEngineResult result = client.wrap(emptyApp, cliToSrv);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("client wrap (ClientHello) failed: " +
+                 result.getStatus());
+        }
+        cliToSrv.flip();
+
+        /* Server unwraps ClientHello */
+        ByteBuffer srvAppBuf =
+            ByteBuffer.allocateDirect(appBufSize);
+        result = server.unwrap(cliToSrv, srvAppBuf);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("server unwrap (ClientHello) failed: " +
+                 result.getStatus());
+        }
+
+        /* Collect entire TLS 1.3 server first flight (ServerHello,
+         * optional Change Cipher Spec, encrypted flight). */
+        if (server.getHandshakeStatus() !=
+                HandshakeStatus.NEED_WRAP) {
+            error("\t... failed");
+            fail("expected server NEED_WRAP after ClientHello, " +
+                 "got: " + server.getHandshakeStatus());
+        }
+
+        ByteBuffer srvFlight =
+            ByteBuffer.allocateDirect(packetBufSize * 4);
+        HandshakeStatus hs = server.getHandshakeStatus();
+        while (hs == HandshakeStatus.NEED_WRAP) {
+            ByteBuffer srvNet =
+                ByteBuffer.allocateDirect(packetBufSize);
+            result = server.wrap(emptyApp, srvNet);
+            if (result.getStatus() != SSLEngineResult.Status.OK) {
+                error("\t... failed");
+                fail("server wrap failed: " + result.getStatus());
+            }
+            srvNet.flip();
+            if (srvNet.remaining() > srvFlight.remaining()) {
+                error("\t... failed");
+                fail("server flight exceeded srvFlight capacity");
+            }
+            srvFlight.put(srvNet);
+            hs = server.getHandshakeStatus();
+        }
+        srvFlight.flip();
+
+        int total = srvFlight.remaining();
+        if (total < 2) {
+            error("\t... failed");
+            fail("server flight too small to split: " + total);
+        }
+
+        /* Feed the first half of the server flight to
+         * client.unwrap(). wolfSSL will consume these bytes through
+         * the I/O callback, exhaust the buffer, and return
+         * SSL_ERROR_WANT_READ. With the fix, BUFFER_UNDERFLOW must
+         * NOT be set because inRemaining > 0 (data was provided). */
+        int half = total / 2;
+        byte[] halfBytes = new byte[half];
+        srvFlight.get(halfBytes);
+        ByteBuffer firstHalf = ByteBuffer.wrap(halfBytes);
+
+        ByteBuffer cliAppBuf =
+            ByteBuffer.allocateDirect(appBufSize);
+        result = client.unwrap(firstHalf, cliAppBuf);
+
+        /* BUFFER_UNDERFLOW must not be returned when input was
+         * consumed - regression for inRemaining == 0 guard fix */
+        if (result.getStatus() ==
+                SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+            error("\t... failed");
+            fail("unwrap() with consumed handshake data must not " +
+                 "return BUFFER_UNDERFLOW (regression: inRemaining" +
+                 " == 0 guard), bytesConsumed=" +
+                 result.bytesConsumed());
+        }
+
+        /* Input was non-empty so at least some bytes must have
+         * been consumed */
+        if (result.bytesConsumed() == 0) {
+            error("\t... failed");
+            fail("unwrap() consumed 0 bytes from a non-empty " +
+                 "handshake buffer");
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
     public void testBufferOverflowSmallOutput()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException, CertificateException,
