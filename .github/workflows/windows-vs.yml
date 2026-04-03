@@ -6,7 +6,7 @@ on:
       ant_version:
         description: 'Apache Ant version to use'
         required: false
-        default: '1.10.15'
+        default: '1.10.16'
         type: string
       platform_toolset:
         description: 'Visual Studio platform toolset (auto-detect if not specified)'

@@ -52,6 +52,9 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.SSLEngineResult;
@@ -1204,6 +1207,123 @@ public class WolfSSLEngineTest {
 
             pass("\t\t\t... passed");
 
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    /**
+     * Test that SNI is correctly preserved across TLS session resumption
+     * when using SSLEngine. Regression test for the bug where
+     * setLocalServerNames() would overwrite session-cached SNI with the
+     * autoSNI hostname on resumption.
+     */
+    @Test
+    public void testEngineSessionResumptionSNI()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+            KeyManagementException, KeyStoreException, IOException,
+            CertificateException, UnrecoverableKeyException {
+
+        System.out.print("\tEngine session resumption SNI");
+
+        /* Requires WOLFSSL_ALWAYS_KEEP_SNI, enabled by default with
+         * --enable-jni in wolfSSL 5.7.6+ (PR 8283) */
+        if (WolfSSL.getLibVersionHex() < 0x05007006L) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        if (!enabledProtocols.contains("TLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* wolfjsse.clientSessionCache.disabled could be set in users
+         * java.security file which would cause this test to not work
+         * properly. Save their setting here, and re-enable session
+         * cache for this test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        /* SNI hostname intentionally differs from peer hostname.
+         * autoSNI would send "localhost"; the fix sends "www.example.com"
+         * from the session cache instead. The server SNI matcher only
+         * accepts "www.example.com", so the outcome distinguishes the two. */
+        final String sniHostname  = "www.example.com";
+        final String peerHostname = "localhost";
+        final SNIMatcher matcher  =
+            SNIHostName.createSNIMatcher("www\\.example\\.com");
+
+        try {
+            int ret;
+            SSLEngine client1 = null, client2 = null;
+            SSLEngine server1 = null, server2 = null;
+            SSLContext ctx13 = tf.createSSLContext("TLSv1.3", engineProvider);
+
+            /* --- Connection #1: explicit SNI, caches it in the session --- */
+            try {
+                client1 = ctx13.createSSLEngine(peerHostname, 8443);
+                client1.setUseClientMode(true);
+                SSLParameters cliParams1 = client1.getSSLParameters();
+                cliParams1.setServerNames(
+                    Arrays.asList(new SNIHostName(sniHostname)));
+                client1.setSSLParameters(cliParams1);
+
+                server1 = ctx13.createSSLEngine();
+                server1.setUseClientMode(false);
+                SSLParameters srvParams1 = server1.getSSLParameters();
+                srvParams1.setSNIMatchers(Arrays.asList(matcher));
+                server1.setSSLParameters(srvParams1);
+
+                ret = tf.testConnection(server1, client1, null, null, "Hello");
+                if (ret != 0) {
+                    error("\t... failed");
+                    fail("Initial connection with explicit SNI failed");
+                }
+            } finally {
+                if (server1 != null && client1 != null) {
+                    tf.CloseConnection(server1, client1, false);
+                }
+            }
+
+            /* Connection #2: SNI must come from session cache */
+            try {
+                client2 = ctx13.createSSLEngine(peerHostname, 8443);
+                client2.setUseClientMode(true);
+                /* Intentionally no setSSLParameters() with server names.
+                 * peerHostname ("localhost") makes
+                 * isEngineConnectionWithHost=true and autoSNI=true. Without
+                 * the fix, autoSNI would send "localhost" and the server
+                 * would reject it. With the fix, the session-cached
+                 * "www.example.com" is used instead. */
+
+                server2 = ctx13.createSSLEngine();
+                server2.setUseClientMode(false);
+                SSLParameters srvParams2 = server2.getSSLParameters();
+                srvParams2.setSNIMatchers(Arrays.asList(matcher));
+                server2.setSSLParameters(srvParams2);
+
+                ret = tf.testConnection(server2, client2, null, null, "Hello");
+            } finally {
+                if (server2 != null && client2 != null) {
+                    tf.CloseConnection(server2, client2, false);
+                }
+            }
+            if (ret != 0) {
+                error("\t... failed");
+                fail("Resumed connection did not carry session-cached SNI");
+            }
+
+            pass("\t... passed");
+
+        } catch (Exception e) {
+            error("\t... failed");
+            e.printStackTrace();
+            fail("testEngineSessionResumptionSNI failed with exception: " + e);
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {
                 Security.setProperty(
