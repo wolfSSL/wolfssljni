@@ -68,7 +68,7 @@ certList=(
 for i in ${!certList[@]};
 do
     printf "Updating: ${certList[$i]}\n"
-    cp $CERT_LOCATION/${certList[$i]} ./${certList[$i]}
+    cp "$CERT_LOCATION/${certList[$i]}" "./${certList[$i]}"
     if [ $? -ne 0 ]; then
         printf "Failed to copy cert: ${certList[$i]}\n"
         exit 1
@@ -77,14 +77,14 @@ done
 
 # Copy OCSP certs (stored flat, not in subdirectory)
 printf "Updating: ocsp-root-ca-cert.pem\n"
-cp $CERT_LOCATION/ocsp/root-ca-cert.pem ./ocsp-root-ca-cert.pem
+cp "$CERT_LOCATION/ocsp/root-ca-cert.pem" ./ocsp-root-ca-cert.pem
 if [ $? -ne 0 ]; then
     printf "Failed to copy cert: ocsp/root-ca-cert.pem\n"
     exit 1
 fi
 
 printf "Updating: ocsp-intermediate1-ca-cert.pem\n"
-cp $CERT_LOCATION/ocsp/intermediate1-ca-cert.pem ./ocsp-intermediate1-ca-cert.pem
+cp "$CERT_LOCATION/ocsp/intermediate1-ca-cert.pem" ./ocsp-intermediate1-ca-cert.pem
 if [ $? -ne 0 ]; then
     printf "Failed to copy cert: ocsp/intermediate1-ca-cert.pem\n"
     exit 1

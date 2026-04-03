@@ -35,39 +35,39 @@ wolfssljni_dir=$2
 aosp_dir=$3
 
 # Check if directories exist
-if [ ! -d $wolfssl_dir ]; then
+if [ ! -d "$wolfssl_dir" ]; then
     echo "wolfSSL directory does not exist: $wolfssl_dir"
     exit 1
 fi
 
-if [ ! -d $wolfssljni_dir ]; then
+if [ ! -d "$wolfssljni_dir" ]; then
     echo "wolfSSL JNI directory does not exist: $wolfssljni_dir"
     exit 1
 fi
 
-if [ ! -d $aosp_dir ]; then
+if [ ! -d "$aosp_dir" ]; then
     echo "Android AOSP directory does not exist: $aosp_dir"
     exit 1
 fi
 
-if [ ! -d $wolfssljni_dir/platform/android_aosp ]; then
+if [ ! -d "$wolfssljni_dir/platform/android_aosp" ]; then
     echo "wolfSSL JNI does not contain 'platform/android_aosp' directory"
     exit 1
 fi
 
 # Check if AOSP files exist in wolfssljni bundle
 jni_has_aosp=1
-jni_aosp=$wolfssljni_dir/platform/android_aosp
+jni_aosp="$wolfssljni_dir/platform/android_aosp"
 
-if [ ! -f $jni_aosp/wolfssl/Android.mk ]; then
+if [ ! -f "$jni_aosp/wolfssl/Android.mk" ]; then
     jni_has_aosp=0
 fi
 
-if [ ! -f $jni_aosp/wolfssl/CleanSpec.mk ]; then
+if [ ! -f "$jni_aosp/wolfssl/CleanSpec.mk" ]; then
     jni_has_aosp=0
 fi
 
-if [ ! -f $jni_aosp/wolfssljni/Android.mk ]; then
+if [ ! -f "$jni_aosp/wolfssljni/Android.mk" ]; then
     jni_has_aosp=0
 fi
 
@@ -76,24 +76,24 @@ if [ $jni_has_aosp -eq 0 ]; then
     exit 1
 fi
 
-aosp_wolfssl=$aosp_dir/external/wolfssl
-aosp_wolfssljni=$aosp_dir/external/wolfssljni
+aosp_wolfssl="$aosp_dir/external/wolfssl"
+aosp_wolfssljni="$aosp_dir/external/wolfssljni"
 
 # Copy wolfSSL sources over to AOSP code tree
-if [ -d $aosp_wolfssl ]; then
+if [ -d "$aosp_wolfssl" ]; then
     echo "$aosp_wolfssl already exists, skipping wolfSSL copy"
 else
-    mkdir -p $aosp_wolfssl
-    cp $jni_aosp/wolfssl/Android.mk $aosp_wolfssl
-    cp $jni_aosp/wolfssl/CleanSpec.mk $aosp_wolfssl
+    mkdir -p "$aosp_wolfssl"
+    cp "$jni_aosp/wolfssl/Android.mk" "$aosp_wolfssl"
+    cp "$jni_aosp/wolfssl/CleanSpec.mk" "$aosp_wolfssl"
 
-    cp -r $wolfssl_dir/certs $aosp_wolfssl/certs
-    cp -r $wolfssl_dir/src $aosp_wolfssl/src
-    cp -r $wolfssl_dir/wolfcrypt $aosp_wolfssl/wolfcrypt
-    cp -r $wolfssl_dir/wolfssl $aosp_wolfssl/wolfssl
+    cp -r "$wolfssl_dir/certs" "$aosp_wolfssl/certs"
+    cp -r "$wolfssl_dir/src" "$aosp_wolfssl/src"
+    cp -r "$wolfssl_dir/wolfcrypt" "$aosp_wolfssl/wolfcrypt"
+    cp -r "$wolfssl_dir/wolfssl" "$aosp_wolfssl/wolfssl"
 
-    cp $wolfssl_dir/README $aosp_wolfssl
-    cp $wolfssl_dir/COPYING $aosp_wolfssl
+    cp "$wolfssl_dir/README" "$aosp_wolfssl"
+    cp "$wolfssl_dir/COPYING" "$aosp_wolfssl"
 
     # Touch missing files if needed. If wolfSSL has been cloned from
     # GitHub, they don't exist. Only in stable releases.
@@ -106,13 +106,13 @@ else
 fi
 
 # Copy wolfSSL JNI sources over to AOSP code tree
-if [ -d $aosp_wolfssljni ]; then
+if [ -d "$aosp_wolfssljni" ]; then
     echo "$aosp_wolfssljni already exists, skipping wolfSSL copy"
 else
-    mkdir -p $aosp_wolfssljni
-    cp $jni_aosp/wolfssljni/Android.mk $aosp_wolfssljni
+    mkdir -p "$aosp_wolfssljni"
+    cp "$jni_aosp/wolfssljni/Android.mk" "$aosp_wolfssljni"
 
-    cp -r $wolfssljni_dir/* $aosp_wolfssljni
+    cp -r "$wolfssljni_dir"/* "$aosp_wolfssljni"
 fi
 
 echo "All Files copied into Android AOSP source tree."
