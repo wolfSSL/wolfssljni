@@ -3147,9 +3147,12 @@ public class WolfSSLEngineTest {
         result = client.unwrap(firstHalf, cliAppBuf);
 
         /* BUFFER_UNDERFLOW must not be returned when input was
-         * consumed - regression for inRemaining == 0 guard fix */
+         * consumed - regression for inRemaining == 0 guard fix.
+         * If BUFFER_UNDERFLOW is returned, bytesConsumed() must be 0
+         * per the JSSE spec ("No data was consumed"). */
         if (result.getStatus() ==
-                SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+                SSLEngineResult.Status.BUFFER_UNDERFLOW &&
+                result.bytesConsumed() > 0) {
             error("\t... failed");
             fail("unwrap() with consumed handshake data must not " +
                  "return BUFFER_UNDERFLOW (regression: inRemaining" +
@@ -3159,7 +3162,8 @@ public class WolfSSLEngineTest {
 
         /* Input was non-empty so at least some bytes must have
          * been consumed */
-        if (result.bytesConsumed() == 0) {
+        if (result.getStatus() != SSLEngineResult.Status.BUFFER_UNDERFLOW
+                && result.bytesConsumed() == 0) {
             error("\t... failed");
             fail("unwrap() consumed 0 bytes from a non-empty " +
                  "handshake buffer");
