@@ -29,6 +29,7 @@
 #endif
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -926,6 +927,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyBuffer
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
     word32 buffSz = 0;
+    jboolean isCopy = JNI_FALSE;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
     (void)sz;
@@ -934,13 +936,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyBuffer
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, &isCopy);
     buffSz = (*jenv)->GetArrayLength(jenv, in);
 
     if (buff != NULL && buffSz > 0) {
         ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, buffSz, format);
     }
 
+    /* Only zero if JVM made a copy */
+    if (buff != NULL && isCopy == JNI_TRUE) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(buff, buffSz);
+    #else
+        XMEMSET(buff, 0, buffSz);
+    #endif
+    }
     (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
 
     return (jint)ret;
