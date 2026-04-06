@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #include "com_wolfssl_WolfCryptEccKey.h"
 
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPublicKeyToDer
@@ -128,6 +129,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToDer
 
     ret = wc_EccPrivateKeyToDer(key, result, resultSz);
     if (ret <= 0) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, sizeof(result));
+    #else
+        XMEMSET(result, 0, sizeof(result));
+    #endif
         (*jenv)->ThrowNew(jenv, excClass,
                 "Native call to wc_EccPrivateKeyToDer failed");
         return NULL;
@@ -137,12 +144,24 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToDer
     /* create byte array to return */
     resultArray = (*jenv)->NewByteArray(jenv, resultSz);
     if (!resultArray) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, sizeof(result));
+    #else
+        XMEMSET(result, 0, sizeof(result));
+    #endif
         (*jenv)->ThrowNew(jenv, excClass,
                 "Failed to create new byte array in native EccPrivateKeyToDer");
         return NULL;
     }
 
     (*jenv)->SetByteArrayRegion(jenv, resultArray, 0, resultSz, (jbyte*)result);
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, sizeof(result));
+    #else
+        XMEMSET(result, 0, sizeof(result));
+    #endif
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
@@ -207,9 +226,15 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToPKC
 
     ret = wc_EccPrivateKeyToPKCS8(key, result, &resultSz);
     if (ret <= 0) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, resultSz);
+    #else
+        XMEMSET(result, 0, resultSz);
+    #endif
         XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         (*jenv)->ThrowNew(jenv, excClass,
-                "Native call to wc_EccPrivateKeyToDer failed");
+                "Native call to wc_EccPrivateKeyToPKCS8 failed");
         return NULL;
     }
     resultSz = ret;
@@ -217,21 +242,35 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfCryptEccKey_EccPrivateKeyToPKC
     /* create byte array to return */
     resultArray = (*jenv)->NewByteArray(jenv, resultSz);
     if (!resultArray) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, resultSz);
+    #else
+        XMEMSET(result, 0, resultSz);
+    #endif
         XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to create new byte array in native EccPrivateKeyToPKCS8");
+                "Failed to create new byte array in native "
+                "EccPrivateKeyToPKCS8");
         return NULL;
     }
 
     (*jenv)->SetByteArrayRegion(jenv, resultArray, 0, resultSz, (jbyte*)result);
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(result, resultSz);
+    #else
+        XMEMSET(result, 0, resultSz);
+    #endif
+
+    XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
-    XFREE(result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return resultArray;
 
 #else
