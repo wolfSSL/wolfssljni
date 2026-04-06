@@ -1725,6 +1725,7 @@ public class WolfSSLEngine extends SSLEngine {
                             if (ret <= 0 &&
                                 err == WolfSSL.SSL_ERROR_WANT_READ &&
                                 in.remaining() == 0 &&
+                                inRemaining == 0 &&
                                 (this.internalIOSendBufOffset == 0) &&
                                 (prevSessionTicketCount ==
                                     this.sessionTicketCount)) {
