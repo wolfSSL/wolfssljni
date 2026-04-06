@@ -1574,7 +1574,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
         }
 
         size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
-            maxOutputSz, (int)timeout);
+            outSz, (int)timeout);
 
         /* Release array elements if using array-backed buffer.
          * Note: DirectByteBuffer doesn't need releasing data */
