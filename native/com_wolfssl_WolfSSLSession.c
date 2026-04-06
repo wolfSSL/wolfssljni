@@ -5957,7 +5957,11 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         }
     }
 
-   return ret;
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return ret;
 }
 
 #endif /* HAVE_ALPN */
