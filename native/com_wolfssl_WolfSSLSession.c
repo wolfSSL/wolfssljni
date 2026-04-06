@@ -5209,8 +5209,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
         return BAD_FUNC_ARG;
     }
 
-    dataBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
     dataSz = (*jenv)->GetArrayLength(jenv, data);
+    if (dataSz > WOLFSSL_MAX_16BIT) {
+        return BAD_FUNC_ARG;
+    }
+
+    dataBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
 
     if (dataBuf != NULL && dataSz > 0) {
         ret = wolfSSL_UseSNI(ssl, (byte)type, dataBuf, (word16)dataSz);
