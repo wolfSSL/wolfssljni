@@ -32,6 +32,7 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
@@ -1995,13 +1996,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getPkcs8TraditionalOffset
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-    	XFREE(inBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(inBuf, (long)sz);
+    #else
+        XMEMSET(inBuf, 0, (long)sz);
+    #endif
+        XFREE(inBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
 
     inOutIdx = (word32)idx;
     ret = wc_GetPkcs8TraditionalOffset(inBuf, &inOutIdx, (word32)sz);
 
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(inBuf, (long)sz);
+    #else
+        XMEMSET(inBuf, 0, (long)sz);
+    #endif
     XFREE(inBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret < 0)

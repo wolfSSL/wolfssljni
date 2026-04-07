@@ -1574,7 +1574,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__JLjava_nio_ByteBuff
         }
 
         size = SSLReadNonblockingWithSelectPoll(ssl, data + position,
-            maxOutputSz, (int)timeout);
+            outSz, (int)timeout);
 
         /* Release array elements if using array-backed buffer.
          * Note: DirectByteBuffer doesn't need releasing data */
@@ -5209,8 +5209,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
         return BAD_FUNC_ARG;
     }
 
-    dataBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
     dataSz = (*jenv)->GetArrayLength(jenv, data);
+    if (dataSz > WOLFSSL_MAX_16BIT) {
+        return BAD_FUNC_ARG;
+    }
+
+    dataBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, data, NULL);
 
     if (dataBuf != NULL && dataSz > 0) {
         ret = wolfSSL_UseSNI(ssl, (byte)type, dataBuf, (word16)dataSz);
@@ -5957,7 +5961,11 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
         }
     }
 
-   return ret;
+    if (needsDetach) {
+        (*g_vm)->DetachCurrentThread(g_vm);
+    }
+
+    return ret;
 }
 
 #endif /* HAVE_ALPN */
