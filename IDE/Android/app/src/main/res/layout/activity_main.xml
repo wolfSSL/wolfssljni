@@ -10,7 +10,7 @@
         android:id="@+id/button"
         android:layout_width="320dp"
         android:layout_height="wrap_content"
-        android:text="Test Provider Lookup"
+        android:text="TLS Connection Test"
         app:layout_constraintBottom_toTopOf="@+id/sample_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
