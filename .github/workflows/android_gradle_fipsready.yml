@@ -1,0 +1,211 @@
+name: Android FIPS Ready Gradle Build and Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ 'master' ]
+
+concurrency:
+  group: android-fips-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_wolfssljni_fipsready:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone wolfssljni
+        uses: actions/checkout@v4
+
+      # Free up disk space to prevent emulator from failing
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h
+
+      # Get latest stable wolfSSL version for FIPS Ready download
+      - name: Get latest wolfSSL stable version
+        id: wolfssl-version
+        run: |
+          LATEST=$(curl -s -H "Authorization: token ${{ github.token }}" \
+            "https://api.github.com/repos/wolfSSL/wolfssl/tags?per_page=100" | \
+            jq -r '.[].name | select(endswith("-stable"))' | \
+            sort -V | tail -1 | sed 's/^v//;s/-stable$//')
+          if [ -z "$LATEST" ]; then
+            echo "Failed to determine latest wolfSSL stable version" >&2
+            exit 1
+          fi
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+          echo "wolfSSL stable version: $LATEST"
+
+      # Cache wolfSSL FIPS Ready archive
+      - name: Cache wolfSSL FIPS Ready archive
+        uses: actions/cache@v4
+        id: fips-cache
+        with:
+          path: wolfssl-fips-ready.zip
+          key: wolfssl-fips-ready-${{ steps.wolfssl-version.outputs.version }}
+
+      # Download wolfSSL FIPS Ready if not cached
+      - name: Download wolfSSL FIPS Ready
+        if: steps.fips-cache.outputs.cache-hit != 'true'
+        run: |
+          VERSION="${{ steps.wolfssl-version.outputs.version }}"
+          URL="https://www.wolfssl.com/wolfssl-${VERSION}-gplv3-fips-ready.zip"
+          echo "Downloading: $URL"
+          wget -q "$URL" -O wolfssl-fips-ready.zip
+
+      # Extract wolfSSL FIPS Ready to expected location
+      - name: Extract wolfSSL FIPS Ready
+        run: |
+          unzip -q wolfssl-fips-ready.zip -d /tmp/wolfssl-fips-extract
+          EXTRACTED_DIR=$(find /tmp/wolfssl-fips-extract -mindepth 1 -maxdepth 1 -type d | head -1)
+          echo "Extracted directory: $EXTRACTED_DIR"
+          ls "$EXTRACTED_DIR/wolfcrypt/src/" | head -5
+          mv "$EXTRACTED_DIR" IDE/Android/app/src/main/cpp/wolfssl
+
+      # Configure CMakeLists.txt for FIPS Ready build
+      - name: Configure for FIPS Ready
+        run: |
+          sed -i 's/set(WOLFSSL_PKG_TYPE "normal")/set(WOLFSSL_PKG_TYPE "fipsready")/' \
+            IDE/Android/app/src/main/cpp/CMakeLists.txt
+          grep 'WOLFSSL_PKG_TYPE' IDE/Android/app/src/main/cpp/CMakeLists.txt
+
+      # Patch MainActivity to auto-trigger WolfSSLProvider on launch,
+      # so FIPS error callback fires and prints the expected hash to logcat
+      # without needing a button press.
+      - name: Patch MainActivity for auto FIPS hash detection
+        run: |
+          sed -i 's/button.setOnClickListener(buttonListener);/button.setOnClickListener(buttonListener);\n\n        try { System.setProperty("wolfjsse.debug", "true"); Security.insertProviderAt(new WolfSSLProvider(), 1); } catch (Exception e) { e.printStackTrace(); }/' \
+            IDE/Android/app/src/main/java/com/example/wolfssl/MainActivity.java
+
+      # Setup Java with Gradle caching
+      - name: Setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+          cache: 'gradle'
+
+      # Build all targets
+      - name: Gradle Build (pass 1 - placeholder hash)
+        run: cd IDE/Android && ./gradlew --build-cache assembleDebug assembleDebugUnitTest assembleDebugAndroidTest
+
+      # Enable KVM for hardware acceleration
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Cache AVD snapshot for faster emulator boot
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-wolfssljni-fips-30-x86_64-google_apis-v1
+
+      # Create AVD and generate snapshot for caching
+      - name: Create AVD and generate snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2.37.0
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching"
+
+      # Launch app briefly to capture FIPS in-core hash from logcat.
+      # The FIPS error callback prints the expected verifyCore hash on
+      # startup if there is a mismatch.
+      - name: Capture FIPS in-core hash
+        id: fips-hash
+        uses: reactivecircus/android-emulator-runner@v2.37.0
+        timeout-minutes: 5
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            adb logcat -c
+            cd IDE/Android && ./gradlew installDebug --no-daemon --no-watch-fs
+            adb shell am start -W -n com.example.wolfssl/.MainActivity
+            for i in 1 2 3 4 5 6; do sleep 5; adb logcat -d | grep -q 'hash = [A-Fa-f0-9]\{64\}' && break; echo "Waiting for FIPS hash ($i/6)..."; done
+            adb logcat -d > /tmp/logcat_hash.txt 2>&1
+            HASH=$(grep -o 'hash = [A-Fa-f0-9]\{64\}' /tmp/logcat_hash.txt | head -1 | sed 's/hash = //'); if [ -n "$HASH" ]; then echo "Captured FIPS hash: $HASH"; echo "hash=$HASH" >> $GITHUB_OUTPUT; else echo "No FIPS hash found in logcat, assuming existing hash is correct"; echo "hash=" >> $GITHUB_OUTPUT; fi
+
+      # Update FIPS hash in CMakeLists.txt and rebuild if needed
+      - name: Rebuild with correct FIPS hash
+        if: steps.fips-hash.outputs.hash != ''
+        run: |
+          HASH="${{ steps.fips-hash.outputs.hash }}"
+          echo "Updating FIPS hash to: $HASH"
+          sed -i "s/WOLFCRYPT_FIPS_CORE_HASH_VALUE=[A-Fa-f0-9]*/WOLFCRYPT_FIPS_CORE_HASH_VALUE=$HASH/g" \
+            IDE/Android/app/src/main/cpp/CMakeLists.txt
+          cd IDE/Android && ./gradlew --build-cache assembleDebug assembleDebugUnitTest assembleDebugAndroidTest
+
+      # Download Bouncy Castle provider for BKS conversion
+      - name: Download Bouncy Castle Provider
+        run: |
+          BCPROV_JAR="bcprov-jdk18on-1.78.1.jar"
+          BCPROV_URL="https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/${BCPROV_JAR}"
+          wget -q "$BCPROV_URL" -O "/tmp/${BCPROV_JAR}"
+          wget -q "${BCPROV_URL}.sha256" -O "/tmp/${BCPROV_JAR}.sha256"
+          (cd /tmp && echo "$(cat ${BCPROV_JAR}.sha256)  ${BCPROV_JAR}" | sha256sum -c -)
+
+      # Convert JKS keystores to BKS format for Android
+      - name: Convert JKS to BKS
+        run: |
+          cd examples/provider
+          ./convert-to-bks.sh /tmp/bcprov-jdk18on-1.78.1.jar
+
+      # Run instrumented tests on Android emulator
+      - name: Run Android Instrumented Tests
+        uses: reactivecircus/android-emulator-runner@v2.37.0
+        timeout-minutes: 15
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            adb shell mkdir -p /data/local/tmp/examples/provider
+            adb shell mkdir -p /data/local/tmp/examples/certs/intermediate
+            adb push ./examples/provider/*.bks /data/local/tmp/examples/provider/
+            adb push ./examples/certs/ /data/local/tmp/examples/
+            adb logcat -c
+            cd IDE/Android && ./gradlew connectedDebugAndroidTest --no-daemon --no-watch-fs || { adb logcat -d > /tmp/logcat.txt 2>&1; echo "=== LOGCAT (errors) ==="; grep -i "exception\|error\|fatal" /tmp/logcat.txt || true; exit 1; }
+            adb logcat -d > /tmp/logcat.txt 2>&1 || true
+            pgrep -f '[q]emu-system' | xargs -r kill -9 2>/dev/null || true
+            pgrep -f '[c]rashpad' | xargs -r kill -9 2>/dev/null || true
+            sleep 2
+
+      # Upload test reports even on failure
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: android-fips-ready-test-reports
+          path: |
+            IDE/Android/app/build/reports/androidTests/
+            /tmp/logcat.txt
+            /tmp/logcat_hash.txt
+          retention-days: 14
