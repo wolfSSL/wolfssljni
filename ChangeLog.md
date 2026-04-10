@@ -1,3 +1,89 @@
+### wolfSSL JNI Release 1.17.0 (04/20/2026)
+
+Release 1.17.0 has bug fixes and new features including:
+
+**New JSSE Functionality:**
+* Add JSSE-level Pre-Shared Key (PSK) support via `WolfSSLParameters` for `SSLSocket`/`SSLEngine` (PR 340)
+* Add Java 9+ module support (JPMS) with conditional `module-info.java` compilation for `jlink` compatibility (PR 324)
+* Add `CertPathTrustManagerParameters` and `KeyStoreBuilderParameters` support in `WolfSSLTrustManager` (PR 310)
+
+**New JNI Functionality:**
+* Add `WolfSSL.getSNIFromBuffer()` wrapping `wolfSSL_SNI_GetFromBuffer()` for SNI extraction from raw ClientHello (PR 339)
+* Add RSA-PSS sign/verify and RSA sign check PK callback support (PR 338)
+* Add `pathLen` parameter to `WolfSSLCertificate/WolfSSLCertRequest.addExtension()` for Basic Constraints (PR 341)
+* Add CRL generation wrappers in `WolfSSLCRL` (PR 315)
+* Add CRL decode wrappers in `WolfSSLCRL` for parsing and inspecting existing CRL data (PR 333)
+* Add SKID, AKID, CRL Dist Points, and Netscape Cert Type extension support in `WolfSSLCertificate` (PR 317)
+* Add X.509 Name Constraints extension support with `WolfSSLNameConstraints`/`WolfSSLGeneralName` (PR 316)
+* Add extended AIA interface to retrieve OCSP and CA Issuer URLs separately from certs (PR 323)
+* Add `WolfSSLAltName` class for extended SAN parsing including `otherName` (MS AD UPN), `iPAddress`, and `directoryName` GeneralName types (PR 313)
+
+**New Property Support:**
+* Add `wolfjsse.skipFIPSCAST` Security property to skip automatic FIPS CAST execution during wolfJSSE init (PR 342)
+* Add `wolfssl.skipLibraryLoad` System property to skip automatic `System.loadLibrary()` calls (PR 325)
+
+**JNI and JSSE Changes:**
+* Limit `SSLSocket` write chunk size to 16384 (2^14) bytes (PR 308)
+* Fix `SSLEngine` `BUFFER_UNDERFLOW` handling for partial TLS records where only header was available (PR 334)
+* Fix `SSLEngine` `BUFFER_OVERFLOW` handling to stash decrypted application data and retry instead of losing data (PR 334)
+* Fix `SSLEngine` close/shutdown state transitions and `close_notify` handshake status reporting (PR 334, 354)
+* Fix `SSLSocket.close()` throwing duplicate exception when the initial connection had already failed (PR 330, 354)
+* Fix `SSLEngine.unwrap()` incorrectly returning `BUFFER_UNDERFLOW` when all bytes were consumed but more ciphertext needed (PR 351)
+* Throw `SSLHandshakeException` instead of `SSLException` on handshake errors for Spring Boot compatibility (PR 310)
+* Throw `SSLPeerUnverifiedException` from `getPeerCertificates()` on server side when no client auth requested (PR 310)
+* Improve `SSLEngine` SNI handling: prefer configured SNI for hostname verification, enforce server-side `SNIMatcher` after handshake, enable auto-SNI for `SSLEngine(host, port)`, fix stale SNI cache on session resumption (PR 334, 349)
+* Support `SSLEngine(host, -1)` unknown-port hints for Netty compatibility (PR 334)
+* Fix session timeout boundary behavior and filter invalid/expired sessions from `SSLSessionContext` enumeration (PR 334)
+* Return `X500Principal` from `getPeerPrincipal()` and `getLocalPrincipal()` for proper Java X.509 principal compatibility (PR 334)
+* Add `equals()` and `hashCode()` to `WolfSSLX509` for comparison compatibility with frameworks that check cert equality (PR 334)
+* Return non-null signature algorithm arrays from `ExtendedSSLSession` methods (PR 334)
+* Fix `WolfSSLTrustX509.getAcceptedIssuers()` operator precedence returning incorrect trusted issuers (PR 334)
+* Fix OCSP chain issuer handling to correctly use provided certificate chain entries (PR 334)
+* Skip certificate-only trust entries without private keys in `chooseClientAlias()` key selection (PR 310)
+* Filter anon suites from default enabled cipher suite list, matching `jdk.tls.disabledAlgorithms` behavior (PR 343)
+* Filter available cipher suites based on configured TLS version in `getAvailableCipherSuitesIana()` (PR 318)
+* Fix `WolfSSLSession.read()` ByteBuffer reading more bytes than requested (PR 353)
+* Fix PSK client identity copy / key length validation against max buffer sizes (PR 346)
+* Fix `x509_getDer()` potential crash due to missing `jbyteArray` allocation before `SetByteArrayRegion` (PR 347)
+* Fix possible null dereference in `WolfSSLSession.setServerID()` before `id.length` access (PR 344)
+* Fix possible null crash in `CertManagerLoadCA()` when null certFile or certPath passed from Java (PR 345)
+* Fix possible null dereference in `WolfSSLTrustManager.LoadAndroidSystemCertsManually()` on Android (PR 344)
+- Fix SHA-224 signature type string typo where `SHA244` was used instead of `SHA224` (PR 345)
+- Fix `FD_SETSIZE` bounds check in `socketSelect()` before `FD_SET` calls to prevent undefined behavior with high file descriptors (PR 345)
+- Fix potential I/O stall from stale `pollRx`/`pollTx` flags not being reset between I/O loop iterations (PR 345)
+- Fix JVM thread leaks from missing `DetachCurrentThread` in ALPN, verify, and CRL native callbacks (PR 346, 347, 353)
+- Fix memory leak of `internCtx` on `NewGlobalRef` failure in PK callback setup functions (PR 356)
+- Fix thread-safety issue in native PK callbacks when multiple SSL sessions active (PR 345)
+- Deregister native FIPS error callback on library cleanup to prevent callbacks into garbage-collected Java objects (PR 337)
+
+**Example Changes:**
+- Add PSK example applications for `SSLSocket` and `SSLEngine` client/server (PR 340)
+- Add `DualProviderFIPSTest` example for wolfJSSE and wolfJCE dual provider FIPS usage (PR 342)
+- Update Android example app to perform TLS connection using wolfJSSE `SSLSocket`, add FIPS error callback for hash development workflow (PR 355)
+
+**Testing Changes:**
+- Add SpotBugs static analysis build target, exclusion filter, and GitHub Actions workflow (PR 344)
+- Add GitHub Actions workflow for Android FIPS Ready testing with automated hash capture via emulator (PR 355)
+- Add GitHub Actions workflow for FIPS Ready dual provider testing with wolfJSSE and wolfJCE (PR 342)
+- Add GitHub Actions workflow for UndefinedBehaviorSanitizer (UBSan) testing (PR 321)
+- Add GitHub Actions workflow for Linux 32-bit testing with Java 17 (PR 320)
+- Add GitHub Actions workflow for Java Module (JPMS) testing (PR 324)
+- Add GitHub Actions workflow for checking source file list consistency (PR 331)
+- Add `make` target and GitHub Actions workflow for building with all wolfSSL patches enabled (PR 322, 326)
+- Add Java 24 and 25 to GitHub Actions test matrix (PR 319)
+- Update line length check script for correct line numbers and local use (PR 328)
+- Guard JaCoCo `taskdef` behind availability check to prevent build failures when JAR is absent (PR 353)
+
+**Misc Changes:**
+- Update `Makefile` to generate dependency files, support verbose mode, and enable `-Wextra`/`-Werror` compiler flags (PR 332)
+- Add Gradle distribution SHA-256 hash verification in Android build (PR 350)
+- Replace deprecated `jcenter()` with `mavenCentral()` in Android Gradle build (PR 350)
+- Update Android `CMakeLists.txt` to exclude newly-added wolfSSL source files fixing build failures (PR 326, 346)
+
+The wolfSSL JNI/JSSE Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni/. For build
+instructions and more details, please check the manual.
+
 ### wolfSSL JNI Release 1.16.0 (12/31/2025)
 
 Release 1.16.0 has bug fixes and new features including:
