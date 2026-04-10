@@ -962,6 +962,7 @@ public class WolfSSLEngine extends SSLEngine {
                  * since we won't be sending anything after the alert went
                  * out. */
                 this.outBoundOpen = false;
+                this.closed = true;
             }
             else if (produced == 0) {
                 /* continue handshake or application data */
@@ -1671,6 +1672,7 @@ public class WolfSSLEngine extends SSLEngine {
                                  * close outbound since we won't be receiving
                                  * any more data */
                                 this.outBoundOpen = false;
+                                this.closed = true;
                             }
                             /* Throw SSLHandshakeException if handshake not
                              * finished, otherwise throw SSLException for
