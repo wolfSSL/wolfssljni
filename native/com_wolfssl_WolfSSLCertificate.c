@@ -893,7 +893,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1sign
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || fileBytes == NULL ||
+        digestAlg == NULL) {
         return WOLFSSL_FAILURE;
     }
 
