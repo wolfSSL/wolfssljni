@@ -551,7 +551,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || serialBytes == NULL) {
         return WOLFSSL_FAILURE;
     }
 
