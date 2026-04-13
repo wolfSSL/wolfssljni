@@ -190,7 +190,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1pubkey_1na
     (void)jcl;
     (void)keyType;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || fileBytes == NULL) {
         return WOLFSSL_FAILURE;
     }
 
@@ -289,7 +289,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1altname
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || altName == NULL) {
         return WOLFSSL_FAILURE;
     }
 
@@ -325,7 +325,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1add_1ext_1via_1
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || extValue == NULL) {
         return WOLFSSL_FAILURE;
     }
 
@@ -551,7 +551,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1serialNumb
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || serialBytes == NULL) {
         return WOLFSSL_FAILURE;
     }
 
@@ -893,7 +893,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1sign
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || fileBytes == NULL ||
+        digestAlg == NULL) {
         return WOLFSSL_FAILURE;
     }
 
@@ -2357,7 +2358,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || oidIn == NULL) {
         return 0;
     }
 

@@ -4507,6 +4507,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setEccSignCtx
     if (!myCtx->obj) {
         throwWolfSSLException(jenv,
                "Unable to store WolfSSLSession object as global reference");
+        XFREE(myCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return;
     }
 
