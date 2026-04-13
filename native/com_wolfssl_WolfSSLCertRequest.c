@@ -380,7 +380,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1set_1pubke
     (void)jcl;
     (void)keyType;
 
-    if (jenv == NULL || x509 == NULL) {
+    if (jenv == NULL || x509 == NULL || fileBytes == NULL) {
         return WOLFSSL_FAILURE;
     }
 
