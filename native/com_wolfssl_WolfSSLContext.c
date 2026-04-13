@@ -4165,6 +4165,7 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         (*jenv)->DeleteLocalRef(jenv, j_outSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
     }
 
     if (retval == 0) {
