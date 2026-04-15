@@ -110,6 +110,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* session stored (WOLFSSL_SESSION), relevant on client side */
     private boolean sessionStored = false;
+    /* Skip record header peek in next unwrap, continue same TLS record */
     private boolean contPartialRecord = false;
 
     /* TLS 1.3 session ticket received (on client side) */
