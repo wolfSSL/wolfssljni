@@ -110,6 +110,7 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* session stored (WOLFSSL_SESSION), relevant on client side */
     private boolean sessionStored = false;
+    private boolean contPartialRecord = false;
 
     /* TLS 1.3 session ticket received (on client side) */
     private boolean sessionTicketReceived = false;
@@ -141,11 +142,6 @@ public class WolfSSLEngine extends SSLEngine {
     /* Scratch buffer for ssl.read() plaintext. Reused across unwrap() calls
      * and expanded only when a larger output window requires it. */
     private byte[] recvAppDataBuf = new byte[WolfSSL.MAX_RECORD_SIZE];
-
-    /* TLS record header is: type(1) + version(2) + length(2) */
-    private static final int TLS_RECORD_HEADER_LEN = 5;
-    private static final int TLS_RECORD_LEN_HI_OFF = 3;
-    private static final int TLS_RECORD_LEN_LO_OFF = 4;
 
     /* Default size of internalIOSendBuf, 16k to match TLS record size.
      * TODO - add upper bound on I/O send buf resize allocations. */
@@ -365,7 +361,7 @@ public class WolfSSLEngine extends SSLEngine {
 
         synchronized (netDataLock) {
             if (this.netData == null ||
-                this.netData.remaining() < TLS_RECORD_HEADER_LEN) {
+                this.netData.remaining() < WolfSSL.TLS_RECORD_HEADER_LEN) {
                 return null;
             }
             in = this.netData.asReadOnlyBuffer();
@@ -1289,6 +1285,70 @@ public class WolfSSLEngine extends SSLEngine {
         return this.recvAppDataBuf;
     }
 
+    /**
+     * Peek at the record header and return BUFFER_UNDERFLOW before calling
+     * into JNI when the full record is not yet present. Without this, native
+     * wolfSSL consumes partial record bytes via the I/O callback, violating
+     * the JSSE contract that BUFFER_UNDERFLOW must report
+     * bytesConsumed() == 0.
+     *
+     * Skipped if using DTLS.
+     *
+     * @param in input buffer.
+     * @param inRemaining bytes remaining in input buffer.
+     *
+     * @return true if buffer underflow detected, false otherwise.
+     */
+    private boolean peekTlsRecordHeader(ByteBuffer in, int inRemaining) {
+        boolean bufferUnderflow = false;
+        /* DTLS still relies on the native WANT_READ path. */
+        if (inRemaining > 0 && (this.ssl.dtls() == 0)) {
+            int pos = in.position();
+            if (inRemaining < WolfSSL.TLS_RECORD_HEADER_LEN) {
+                /* Not enough for TLS record header */
+                bufferUnderflow = true;
+            }
+            else {
+                /* Check if header is plausible. Content type between
+                 * change_cipher_spec and heartbeat and
+                 * version major corresponds to TLS. */
+                byte headerByte = in.get(pos);
+                if ((headerByte & 0xFF) >= WolfSSL.TLS_RECORD_CT_MIN &&
+                    (headerByte & 0xFF) <= WolfSSL.TLS_RECORD_CT_MAX &&
+                    (in.get(pos + WolfSSL.TLS_RECORD_VERS_OFF)
+                                    & 0xFF) == WolfSSL.TLS_RECORD_VERS_MAJOR) {
+                    /* Peek at record length from header
+                     * bytes 3-4 (big-endian). */
+                    int recLen =
+                        ((in.get(pos + WolfSSL.TLS_RECORD_LEN_HI_OFF)
+                            & 0xFF) << 8) |
+                        (in.get(pos + WolfSSL.TLS_RECORD_LEN_LO_OFF)
+                            & 0xFF);
+                    /* Fall through if recLen exceeds max packet buffer size
+                     * or inRemaining is less than reported record length */
+                    int packetBufSz = this.getSession().getPacketBufferSize();
+                    if (recLen <= packetBufSz &&
+                        inRemaining < WolfSSL.TLS_RECORD_HEADER_LEN + recLen) {
+                        bufferUnderflow = true;
+                    }
+                    else if (recLen > packetBufSz) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                        () -> "recLen: " + recLen +
+                                        " exceeds max packet buffer size, " +
+                                        "skipping underflow check.");
+                    }
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                    () -> "Peeked content-type or version " +
+                                    "major outside TLS range, skipping " +
+                                    "underflow check");
+                }
+            }
+        }
+        return bufferUnderflow;
+    }
+
     @Override
     public synchronized SSLEngineResult unwrap(ByteBuffer in, ByteBuffer out)
             throws SSLException {
@@ -1313,6 +1373,7 @@ public class WolfSSLEngine extends SSLEngine {
         long dtlsPrevDropCount = 0;
         long dtlsCurrDropCount = 0;
         int prevSessionTicketCount = 0;
+        boolean bufferUnderflow = false;
         final int tmpRet;
 
         /* Set initial status for SSLEngineResult return */
@@ -1463,38 +1524,26 @@ public class WolfSSLEngine extends SSLEngine {
                     if (this.handshakeFinished == false) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                             () -> "starting or continuing handshake");
-                        ret = DoHandshake(false);
+                        if (!this.contPartialRecord) {
+                            /* Client only: TLS 1.3 ssl_accept() I/O callback
+                             * patterns conflict with the pre-peek
+                             * mid-handshake. Post-handshake server unwrap
+                             * always applies peek. */
+                            bufferUnderflow =
+                                this.getUseClientMode() &&
+                                peekTlsRecordHeader(in, inRemaining);
+                        }
+                        if (bufferUnderflow) {
+                            status = SSLEngineResult.Status.BUFFER_UNDERFLOW;
+                        }
+                        else {
+                            ret = DoHandshake(false);
+                        }
                     }
                     else {
-                        /* TLS-only: peek at the record header and
-                         * return BUFFER_UNDERFLOW before calling into
-                         * JNI when the full record is not yet present.
-                         * Without this, native wolfSSL consumes partial
-                         * record bytes via the I/O callback, violating
-                         * the JSSE contract that BUFFER_UNDERFLOW must
-                         * report bytesConsumed() == 0. DTLS still
-                         * relies on the native WANT_READ path. */
-                        boolean bufferUnderflow = false;
-                        if (inRemaining > 0 && (this.ssl.dtls() == 0)) {
-                            synchronized (netDataLock) {
-                                int pos = in.position();
-                                if (inRemaining < TLS_RECORD_HEADER_LEN) {
-                                    /* Not enough for TLS record header */
-                                    bufferUnderflow = true;
-                                } else {
-                                    /* Peek at record length from header
-                                     * bytes 3-4 (big-endian) */
-                                    int recLen =
-                                        ((in.get(pos + TLS_RECORD_LEN_HI_OFF)
-                                            & 0xFF) << 8) |
-                                        (in.get(pos + TLS_RECORD_LEN_LO_OFF)
-                                            & 0xFF);
-                                    if (inRemaining <
-                                        TLS_RECORD_HEADER_LEN + recLen) {
-                                        bufferUnderflow = true;
-                                    }
-                                }
-                            }
+                        if (!this.contPartialRecord) {
+                            bufferUnderflow =
+                                    peekTlsRecordHeader(in, inRemaining);
                         }
 
                         /* Serve stashed data from previous
@@ -1697,7 +1746,8 @@ public class WolfSSLEngine extends SSLEngine {
                         }
                     }
                     else if (!this.handshakeFinished && (ret == 0) &&
-                        (err == 0 || err == WolfSSL.SSL_ERROR_ZERO_RETURN)) {
+                        (err == 0 || err == WolfSSL.SSL_ERROR_ZERO_RETURN)
+                         && !bufferUnderflow) {
 
                         boolean gotCloseNotify = false;
                         synchronized (ioLock) {
@@ -2650,6 +2700,11 @@ public class WolfSSLEngine extends SSLEngine {
                 if (this.ssl.dtls() == 1 && this.handshakeFinished) {
                     this.nativeWantsToRead = 1;
                 }
+                /* Buffer exhausted mid-record: skip the header peek on the
+                 * next unwrap() to pass continuation bytes to DoHandshake. */
+                if (this.netData != null && this.netData.remaining() == 0) {
+                    this.contPartialRecord = true;
+                }
                 return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
             }
 
@@ -2675,6 +2730,10 @@ public class WolfSSLEngine extends SSLEngine {
                 /* Restore position */
                 toRead.position(toReadPos);
             }
+
+            /* Reset to false when all requested bytes were delivered;
+             * set to true when the buffer was exhausted mid-record. */
+            this.contPartialRecord = (max < sz);
 
             return max;
         }
