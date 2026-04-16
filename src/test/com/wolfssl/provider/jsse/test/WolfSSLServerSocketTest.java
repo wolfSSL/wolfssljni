@@ -36,6 +36,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.FileNotFoundException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
@@ -233,7 +234,8 @@ public class WolfSSLServerSocketTest {
 
         /* test that connected socket has the same SSLParameters */
         SSLSocket cs = (SSLSocket) ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket) ss.accept();
         p = server.getSSLParameters();
@@ -473,7 +475,8 @@ public class WolfSSLServerSocketTest {
             .createServerSocket(0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         /* test getter/setter on server socket */
         assertEquals(ss.getEnableSessionCreation(), true);
@@ -543,7 +546,8 @@ public class WolfSSLServerSocketTest {
         assertTrue(ss.getNeedClientAuth());
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 
@@ -589,7 +593,8 @@ public class WolfSSLServerSocketTest {
         ss.setNeedClientAuth(true);
 
         cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss.accept();
 
@@ -650,7 +655,8 @@ public class WolfSSLServerSocketTest {
         ss.setNeedClientAuth(false);
 
         cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server3 = (SSLSocket)ss.accept();
 
@@ -706,7 +712,8 @@ public class WolfSSLServerSocketTest {
         ss.setUseClientMode(false);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 
@@ -783,7 +790,8 @@ public class WolfSSLServerSocketTest {
         ss.setNeedClientAuth(true);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 
@@ -853,7 +861,8 @@ public class WolfSSLServerSocketTest {
         ss.setNeedClientAuth(true);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 
