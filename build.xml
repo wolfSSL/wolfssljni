@@ -132,9 +132,9 @@
 
     <target name="cleanjni">
         <delete>
-            <fileset dir="${lib.dir}" includes="*.dylib"/>
-            <fileset dir="${lib.dir}" includes="*.so"/>
-            <fileset dir="${native.dir}" includes="*.o"/>
+            <fileset dir="${lib.dir}" includes="*.dylib" erroronmissingdir="false"/>
+            <fileset dir="${lib.dir}" includes="*.so" erroronmissingdir="false"/>
+            <fileset dir="${native.dir}" includes="*.o" erroronmissingdir="false"/>
         </delete>
     </target>
 
