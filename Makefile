@@ -1,6 +1,6 @@
 NAME = wolfssl-jni-jsse
 VERSION = $(shell grep 'name="implementation.version"' build.xml | sed -re 's/.*value="(.+)".*/\1/')
-DIST_FILES = build.xml  COPYING  docs  examples  IDE  java.sh  lib  LICENSING  Makefile  native  platform \
+DIST_FILES = build.xml  COPYING  examples  IDE  java.sh  LICENSING  Makefile  native  platform \
 	     README.md  rpm  src
 
 ifneq ($(PREFIX),)
