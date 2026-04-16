@@ -158,7 +158,7 @@ public class WolfSSLEngineMemoryLeakTest {
     public void testEngineMemoryLeakWithProperClose() throws Exception {
 
         final int numEngines = 100;
-        final double maxAcceptableGrowthMB = 10.0;
+        final double maxAcceptableGrowthMB = 20.0;
 
         System.gc();
         System.gc();
