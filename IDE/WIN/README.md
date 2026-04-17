@@ -249,7 +249,18 @@ and set the values for `HAVE_FIPS`, `HAVE_FIPS_VERSION`, and
 #define SESSION_CERTS
 #define WOLFSSL_ALT_CERT_CHAINS
 #define WOLFSSL_ALWAYS_VERIFY_CB
+#define WOLFSSL_TLS13
+#define HAVE_FFDHE_2048
 ```
+
+Note: the bundle's `user_settings.h` template only enables
+`WOLFSSL_TLS13` for FIPS v5+ builds, so it must be added explicitly
+here for FIPS v2 to match the TLS 1.3 support that `./configure
+--enable-fips=v2 --enable-jni` gives on Linux/macOS. Without it the
+wolfJSSE provider will not register the `TLSv1.3` algorithm.
+`HAVE_FFDHE_2048` is required alongside `WOLFSSL_TLS13` to configure
+the TLS 1.3 DH key size (otherwise `src/tls.c` fails to compile with
+an `#error` asking for one of the `HAVE_FFDHE_*` defines).
 
 6. Build the `wolfssl-fips` project, which will create a DLL in one of the
 following locations:
