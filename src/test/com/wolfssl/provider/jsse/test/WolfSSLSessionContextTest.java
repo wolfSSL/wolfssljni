@@ -612,7 +612,7 @@ public class WolfSSLSessionContextTest {
 
         /* Regression: session must expire at exactly the
          * timeout boundary (diff >= timeout, not diff > timeout) */
-        System.out.print("\tTesting session timeout boundary");
+        System.out.print("\tSession timeout boundary");
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");
@@ -717,7 +717,7 @@ public class WolfSSLSessionContextTest {
 
         /* Regression: invalidated sessions must be filtered
          * from getIds() and getSession(). */
-        System.out.print("\tTesting invalidation filtered from getIds");
+        System.out.print("\tInvalidation filtered getIds");
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");

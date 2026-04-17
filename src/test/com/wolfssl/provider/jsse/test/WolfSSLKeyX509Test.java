@@ -1118,7 +1118,7 @@ public class WolfSSLKeyX509Test {
                KeyManagementException, CertificateException, IOException,
                NoSuchProviderException, UnrecoverableKeyException {
 
-        System.out.print("\tTesting chooseAlias skips cert-only");
+        System.out.print("\tchooseAlias skips cert-only");
 
         KeyManager[] km = tf.createKeyManager("SunX509", tf.allJKS, provider);
         X509ExtendedKeyManager x509km = (X509ExtendedKeyManager) km[0];

@@ -724,7 +724,7 @@ public class WolfSSLCertificateTest {
         String ca2 = "https://www.wolfssl.com/ca2.pem";
         WolfSSLCertificate tmp = null;
 
-        System.out.print("\t\tgetOcspUris/getCaIssuerUris");
+        System.out.print("\t\tgetOcsp/getCaIssuerUris");
 
         try {
             if (WolfSSL.FileSystemEnabled() == true) {
@@ -906,7 +906,7 @@ public class WolfSSLCertificateTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.println("WolfSSLCertificate extension setters");
+        System.out.print("\textension setters");
 
         if (WolfSSL.FileSystemEnabled() == false) {
             System.out.println("\tfilesystem disabled, skipping");
@@ -1012,8 +1012,6 @@ public class WolfSSLCertificateTest {
             runOrAllowNotCompiled(
                 () -> x509.setCrlDistPoints(crlDpDer),
                 "setCrlDistPoints");
-        } else {
-            System.out.println("\t\tsetCrlDistPoints ... no DER available");
         }
 
         runOrAllowNotCompiled(

@@ -4366,7 +4366,7 @@ public class WolfSSLSocketTest {
         }
 
         if (anonSuite == null) {
-            System.out.println("\t... skipped (no anon suites)");
+            System.out.println("\t... skipped");
             return;
         }
 
@@ -4426,7 +4426,7 @@ public class WolfSSLSocketTest {
                UnrecoverableKeyException, InterruptedException,
                java.util.concurrent.ExecutionException {
 
-        System.out.print("\tSSLHandshakeException cause chain");
+        System.out.print("\tSSLHandshakeException cause");
 
         /* Create server context with valid certs */
         SSLContext srvCtx = tf.createSSLContext("TLS", ctxProvider);

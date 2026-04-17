@@ -918,7 +918,7 @@ public class WolfSSLServerSocketTest {
         }
 
         if (anonSuite == null) {
-            System.out.println("\t\t... skipped (no anon suites)");
+            System.out.println("\t\t... skipped");
             return;
         }
 

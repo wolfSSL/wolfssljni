@@ -104,8 +104,7 @@ public class WolfSSLEngineMemoryLeakTest {
         final double maxAcceptableGrowthMB = 80.0;
 
         String javaVersion = System.getProperty("java.version");
-        System.out.print("\tmem leak test with " + numEngines +
-                         " engines (JDK " + javaVersion + ")");
+        System.out.print("\tmem leak test with " + numEngines + " engines");
 
         /* Measure baseline memory - use aggressive GC */
         for (int i = 0; i < 3; i++) {

@@ -267,7 +267,7 @@ public class WolfSSLServerSocketFactoryTest {
         }
 
         if (!haveAnon) {
-            System.out.println("\t\t\t... skipped (no anon suites)");
+            System.out.println("\t\t\t... skipped");
             return;
         }
 

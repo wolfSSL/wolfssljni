@@ -1038,7 +1038,7 @@ public class WolfSSLContextTest {
         }
 
         if (!haveAnon) {
-            System.out.println("\t... skipped (no anon suites)");
+            System.out.println("\t... skipped");
             return;
         }
 

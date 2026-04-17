@@ -2701,7 +2701,7 @@ public class WolfSSLEngineTest {
         }
 
         if (anonSuite == null) {
-            pass("\t... skipped (no anon suites)");
+            pass("\t... skipped");
             return;
         }
 
@@ -2760,7 +2760,7 @@ public class WolfSSLEngineTest {
                KeyManagementException, KeyStoreException,
                CertificateException, IOException, UnrecoverableKeyException {
 
-        System.out.print("\tSSLEngine SSLHandshakeException cause chain");
+        System.out.print("\tSSLHandshakeException cause");
 
         final String rejectMsg = "Intentional engine test rejection";
         TrustManager[] rejectingTMs = { new X509TrustManager() {
@@ -2880,7 +2880,7 @@ public class WolfSSLEngineTest {
 
         /* TLS 1.3 close_notify should return NOT_HANDSHAKING,
          * not NEED_WRAP (RFC 8446 Section 6.1). */
-        System.out.print("\tTesting TLS 1.3 close_notify status");
+        System.out.print("\tTLS 1.3 close_notify status");
 
         String[] proto = {"TLSv1.3"};
         this.ctx = tf.createSSLContext("TLSv1.3", engineProvider);
@@ -2977,7 +2977,7 @@ public class WolfSSLEngineTest {
 
         /* Test that unwrap() returns BUFFER_UNDERFLOW with 0 bytes
          * consumed when given a partial TLS record. */
-        System.out.print("\tTesting BUFFER_UNDERFLOW partial record");
+        System.out.print("\tUnderflow partial record");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         SSLEngine server = this.ctx.createSSLEngine();
@@ -3431,7 +3431,7 @@ public class WolfSSLEngineTest {
 
         /* Test BUFFER_OVERFLOW with small output, then retry
          * with larger buffer. */
-        System.out.print("\tTesting BUFFER_OVERFLOW small output");
+        System.out.print("\tOverflow small output");
 
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         SSLEngine server = this.ctx.createSSLEngine();
