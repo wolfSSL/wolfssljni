@@ -50,10 +50,13 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 public class WolfSSLEngineMemoryLeakTest {
 
     /**
-     * Global timeout for all tests in this class.
+     * Global timeout for all tests in this class. The 500-engine test
+     * plus multiple GC/finalization rounds can run 60+ seconds on slower
+     * platforms (notably Windows with FIPS enabled), so 180s leaves
+     * comfortable headroom while still catching genuine hangs.
      */
     @Rule
-    public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
+    public Timeout globalTimeout = new Timeout(180, TimeUnit.SECONDS);
 
     @BeforeClass
     public static void setupProvider() {
