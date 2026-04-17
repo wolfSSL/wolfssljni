@@ -2323,14 +2323,14 @@ public class WolfSSLEngineTest {
             if (!isClient) {
                 ssc = ServerSocketChannel.open();
                 ssc.socket().bind(new InetSocketAddress(
-                    InetAddress.getLocalHost(), 0));
+                    InetAddress.getLoopbackAddress(), 0));
                 serverPort[0] = ssc.socket().getLocalPort();
                 serverReady[0] = true;
                 sc = ssc.accept();
             } else {
                 sc = SocketChannel.open();
                 sc.connect(new InetSocketAddress(
-                    InetAddress.getLocalHost(), serverPort[0]));
+                    InetAddress.getLoopbackAddress(), serverPort[0]));
                 engine.setEnabledProtocols(new String[] { protocol });
             }
 

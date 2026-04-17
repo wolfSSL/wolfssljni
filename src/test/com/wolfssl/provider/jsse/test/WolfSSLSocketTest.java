@@ -1003,6 +1003,7 @@ public class WolfSSLSocketTest {
     protected class InternalMultiThreadedSSLSocketServer extends Thread
     {
         private int serverPort;
+        private volatile int boundPort = -1;
         private CountDownLatch serverOpenLatch = null;
         private int clientConnections = 1;
 
@@ -1013,12 +1014,18 @@ public class WolfSSLSocketTest {
             this.clientConnections = clientConnections;
         }
 
+        public int getBoundPort() {
+            return boundPort;
+        }
+
         @Override
         public void run() {
             try {
                 SSLContext ctx = tf.createSSLContext("TLS", ctxProvider);
                 SSLServerSocket ss = (SSLServerSocket)ctx
                     .getServerSocketFactory().createServerSocket(serverPort);
+
+                boundPort = ss.getLocalPort();
 
                 while (clientConnections > 0) {
                     serverOpenLatch.countDown();
@@ -1030,6 +1037,10 @@ public class WolfSSLSocketTest {
 
             } catch (Exception e) {
                 e.printStackTrace();
+                /* Ensure awaiting main thread doesn't hang on bind failure. */
+                if (serverOpenLatch != null) {
+                    serverOpenLatch.countDown();
+                }
             }
         }
 
@@ -1139,10 +1150,11 @@ public class WolfSSLSocketTest {
         /* Number of SSLSocket client threads to start up */
         int numThreads = 50;
 
-        /* Port of internal HTTPS server. Using 11120 since SSLEngine
-         * extended threading test uses 11119. If both tests end up running
-         * concurrently by JUnit ports could conflict. */
-        final int svrPort = 11120;
+        /* Bind server on an ephemeral port (0) so multiple JVMs running
+         * this test concurrently don't collide on a single hardcoded
+         * port. The actual bound port is retrieved after the server
+         * thread signals it's up. */
+        final int svrPort = 0;
 
         /* Create ExecutorService to launch client SSLSocket threads */
         ExecutorService service = Executors.newFixedThreadPool(numThreads);
@@ -1179,12 +1191,21 @@ public class WolfSSLSocketTest {
         /* Wait for server thread to start up before connecting clients */
         serverOpenLatch.await();
 
+        /* Retrieve the actual bound port. Non-positive means the server
+         * failed to bind; fail fast instead of letting each client thread
+         * throw IllegalArgumentException on an invalid port. */
+        final int actualPort = server.getBoundPort();
+        if (actualPort <= 0) {
+            fail("Server failed to bind to a valid port, got: " +
+                actualPort);
+        }
+
         /* Start up client threads */
         for (int i = 0; i < numThreads; i++) {
             service.submit(new Runnable() {
                 @Override public void run() {
                     SSLSocketClient client =
-                        new SSLSocketClient(localCtx, "localhost", svrPort);
+                        new SSLSocketClient(localCtx, "localhost", actualPort);
                     try {
                         client.connect();
                         success.incrementAndGet(0);
@@ -2359,7 +2380,7 @@ public class WolfSSLSocketTest {
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
             SSLSocket cs = (SSLSocket)cliFactory.createSocket();
-            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
                                              ss.getLocalPort()));
 
             /* start server */
@@ -2390,8 +2411,8 @@ public class WolfSSLSocketTest {
 
                 /* connection #2, should resume */
                 cs = (SSLSocket)cliFactory.createSocket();
-                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                                 ss.getLocalPort()));
+                cs.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), ss.getLocalPort()));
                 cs.startHandshake();
                 sessionID2 = cs.getSession().getId();
                 cs.close();
@@ -2462,7 +2483,7 @@ public class WolfSSLSocketTest {
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
             SSLSocket cs = (SSLSocket)cliFactory.createSocket();
-            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
                                              ss.getLocalPort()));
 
             /* Start server */
@@ -2493,8 +2514,8 @@ public class WolfSSLSocketTest {
 
                 /* connection #2, should NOT resume */
                 cs = (SSLSocket)cliFactory.createSocket();
-                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                                 ss.getLocalPort()));
+                cs.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), ss.getLocalPort()));
                 cs.startHandshake();
                 sessionID2 = cs.getSession().getId();
                 cs.close();
@@ -2576,7 +2597,7 @@ public class WolfSSLSocketTest {
 
             WolfSSLSocket cs = (WolfSSLSocket)cliFactory.createSocket();
             cs.setUseSessionTickets(true);
-            cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
                                              ss.getLocalPort()));
 
             /* start server */
@@ -2608,8 +2629,8 @@ public class WolfSSLSocketTest {
                 /* connection #2, should resume */
                 cs = (WolfSSLSocket)cliFactory.createSocket();
                 cs.setUseSessionTickets(true);
-                cs.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-                                                 ss.getLocalPort()));
+                cs.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), ss.getLocalPort()));
                 cs.startHandshake();
                 sessionID2 = cs.getSession().getId();
                 cs.close();
@@ -4440,7 +4461,7 @@ public class WolfSSLSocketTest {
 
         SSLSocket cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
         cs.connect(new InetSocketAddress(
-            InetAddress.getLocalHost(), ss.getLocalPort()));
+            InetAddress.getLoopbackAddress(), ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 

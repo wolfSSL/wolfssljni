@@ -1550,7 +1550,7 @@ public class WolfSSLSessionTest {
 
             /* Client connection */
             try {
-                cliSock = new Socket(InetAddress.getLocalHost(),
+                cliSock = new Socket(InetAddress.getLoopbackAddress(),
                     srvSocket.getLocalPort());
 
                 cliSes = new WolfSSLSession(cliCtx);
@@ -1750,7 +1750,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #1 */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -1810,7 +1810,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #2, set session and try resumption */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
@@ -1997,7 +1997,7 @@ public class WolfSSLSessionTest {
             /* ------------------------------------------------------ */
             /* Client connection #1 */
             /* ------------------------------------------------------ */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2059,7 +2059,7 @@ public class WolfSSLSessionTest {
             /* ------------------------------------------------------ */
             /* Client connection #2, set session and try resumption */
             /* ------------------------------------------------------ */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
@@ -2573,7 +2573,7 @@ public class WolfSSLSessionTest {
 
         try {
             /* Client connection */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2770,7 +2770,7 @@ public class WolfSSLSessionTest {
 
         try {
             /* Client connection */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2948,7 +2948,7 @@ public class WolfSSLSessionTest {
 
             try {
                 /* Client connection */
-                cliSock = new Socket(InetAddress.getLocalHost(),
+                cliSock = new Socket(InetAddress.getLoopbackAddress(),
                     srvSocket.getLocalPort());
 
                 cliSes = new WolfSSLSession(cliCtx);
@@ -3117,7 +3117,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #1 - get session and serialize it */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -3161,7 +3161,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #2 - deserialize session and resume */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
