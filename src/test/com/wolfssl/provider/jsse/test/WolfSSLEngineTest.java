@@ -3047,13 +3047,13 @@ public class WolfSSLEngineTest {
     }
 
     @Test
-    public void testHandshakeUnwrapConsumedNotBufferUnderflow()
+    public void testHandshakeUnwrapIncrementalStatus()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException,
                CertificateException, IOException,
                UnrecoverableKeyException {
 
-        System.out.print("\tTest unwrap consumed != BUFFER_UNDERFLOW");
+        System.out.print("\tTest unwrap incremental status");
 
         if (!enabledProtocols.contains("TLSv1.3")) {
             System.out.println("\t... skipped");
@@ -3127,42 +3127,297 @@ public class WolfSSLEngineTest {
         srvFlight.flip();
 
         int total = srvFlight.remaining();
-        if (total < 2) {
+        /* Parse first TLS record header to find exact boundary:
+         * type[1] + version[2] + length[2] = 5 bytes. */
+        if (total < 5) {
             error("\t... failed");
-            fail("server flight too small to split: " + total);
+            fail("server flight too small: " + total);
+        }
+        int firstRecPayload =
+            ((srvFlight.get(srvFlight.position() + 3) & 0xFF) << 8)
+            | (srvFlight.get(srvFlight.position() + 4) & 0xFF);
+        int firstRecordLen = 5 + firstRecPayload;
+        if (total < firstRecordLen) {
+            error("\t... failed");
+            fail("first TLS record extends beyond server flight");
         }
 
-        /* Feed the first half of the server flight to
-         * client.unwrap(). wolfSSL will consume these bytes through
-         * the I/O callback, exhaust the buffer, and return
-         * SSL_ERROR_WANT_READ. With the fix, BUFFER_UNDERFLOW must
-         * NOT be set because inRemaining > 0 (data was provided). */
-        int half = total / 2;
-        byte[] halfBytes = new byte[half];
-        srvFlight.get(halfBytes);
-        ByteBuffer firstHalf = ByteBuffer.wrap(halfBytes);
+        /* Feed exactly the first TLS record to client.unwrap().
+         * Peek confirms it is complete, DoHandshake() runs,
+         * wolfSSL consumes all bytes and returns WANT_READ. */
+        byte[] firstRecBytes = new byte[firstRecordLen];
+        srvFlight.get(firstRecBytes);
+        ByteBuffer firstRecord = ByteBuffer.wrap(firstRecBytes);
 
         ByteBuffer cliAppBuf =
             ByteBuffer.allocateDirect(appBufSize);
-        result = client.unwrap(firstHalf, cliAppBuf);
+        result = client.unwrap(firstRecord, cliAppBuf);
 
-        /* BUFFER_UNDERFLOW must not be returned when input was
-         * consumed - regression for inRemaining == 0 guard fix */
-        if (result.getStatus() ==
-                SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+        /* wolfSSL processed first record but needs more data:
+         * status must be OK, not BUFFER_UNDERFLOW. */
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
             error("\t... failed");
-            fail("unwrap() with consumed handshake data must not " +
-                 "return BUFFER_UNDERFLOW (regression: inRemaining" +
-                 " == 0 guard), bytesConsumed=" +
+            fail("expected Status.OK, got: " +
+                 result.getStatus());
+        }
+
+        /* Handshake needs more data to continue. */
+        if (result.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP, got: " +
+                 result.getHandshakeStatus());
+        }
+
+        /* All bytes consumed via I/O callback. */
+        if (result.bytesConsumed() != firstRecordLen) {
+            error("\t... failed");
+            fail("expected " + firstRecordLen + " bytes " +
+                 "consumed, got: " + result.bytesConsumed());
+        }
+
+        /* No application data produced during handshake. */
+        if (result.bytesProduced() != 0) {
+            error("\t... failed");
+            fail("expected 0 bytes produced, got: " +
+                 result.bytesProduced());
+        }
+
+        /* Server flight must contain more than one record so we
+         * can feed continuation bytes and exercise contPartialRecord.
+         * TLSv1.3 server flight (ServerHello + EncryptedExtensions +
+         * Certificate + CertificateVerify + Finished) always spans
+         * multiple TLS records. */
+        if (srvFlight.remaining() == 0) {
+            error("\t... failed");
+            fail("server flight is a single record; cannot " +
+                 "test contPartialRecord continuation path");
+        }
+
+        /* contPartialRecord=true from first unwrap skips
+         * peek; DoHandshake() gets raw continuation bytes. */
+        int contLen = Math.min(3, srvFlight.remaining());
+        byte[] contBytes = new byte[contLen];
+        srvFlight.get(contBytes);
+        ByteBuffer contBuf = ByteBuffer.wrap(contBytes);
+        ByteBuffer cliAppBuf2 =
+            ByteBuffer.allocateDirect(appBufSize);
+        result = client.unwrap(contBuf, cliAppBuf2);
+
+        /* wolfSSL consumed continuation bytes, needs more:
+         * must be Status.OK, not BUFFER_UNDERFLOW. */
+        if (result.getStatus() !=
+                SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("expected Status.OK for continuation " +
+                 "bytes, got: " + result.getStatus());
+        }
+
+        /* Handshake still needs more data. */
+        if (result.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP for continuation " +
+                 "bytes, got: " +
+                 result.getHandshakeStatus());
+        }
+
+        /* All continuation bytes consumed. */
+        if (result.bytesConsumed() != contLen) {
+            error("\t... failed");
+            fail("expected " + contLen + " continuation " +
+                 "bytes consumed, got: " +
                  result.bytesConsumed());
         }
 
-        /* Input was non-empty so at least some bytes must have
-         * been consumed */
-        if (result.bytesConsumed() == 0) {
+        /* No application data produced. */
+        if (result.bytesProduced() != 0) {
             error("\t... failed");
-            fail("unwrap() consumed 0 bytes from a non-empty " +
-                 "handshake buffer");
+            fail("expected 0 bytes produced, got: " +
+                 result.bytesProduced());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testHandshakeUnwrapPartialHeader()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException {
+
+        /* Test that feeding <5 bytes to client.unwrap() during
+         * handshake returns BUFFER_UNDERFLOW with 0 bytes consumed.
+         * Exercises the inRemaining < TLS_RECORD_HEADER_LEN branch
+         * of peekTlsRecordHeader(). */
+        System.out.print("\tTest unwrap partial header underflow");
+
+        if (!enabledProtocols.contains("TLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        SSLContext ctx13 = tf.createSSLContext("TLSv1.3", engineProvider);
+        SSLEngine server = ctx13.createSSLEngine();
+        SSLEngine client = ctx13.createSSLEngine("localhost", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int packetBufSize = client.getSession().getPacketBufferSize();
+        int appBufSize = client.getSession().getApplicationBufferSize();
+
+        /* Wrap ClientHello to put client into NEED_UNWRAP state */
+        ByteBuffer cliToSrv =
+            ByteBuffer.allocateDirect(packetBufSize);
+        ByteBuffer emptyApp = ByteBuffer.allocate(0);
+        SSLEngineResult result = client.wrap(emptyApp, cliToSrv);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("client wrap (ClientHello) failed: " +
+                 result.getStatus());
+        }
+
+        if (client.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP after ClientHello, got: " +
+                 client.getHandshakeStatus());
+        }
+
+        /* Feed 2 bytes: less than the 5-byte TLS record header.
+         * Peek must signal BUFFER_UNDERFLOW without calling into
+         * wolfSSL, so 0 bytes are consumed. */
+        ByteBuffer partialHeader =
+            ByteBuffer.wrap(new byte[] { 0x16, 0x03 });
+        ByteBuffer cliAppBuf =
+            ByteBuffer.allocateDirect(appBufSize);
+        result = client.unwrap(partialHeader, cliAppBuf);
+
+        if (result.getStatus() !=
+                SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+            error("\t... failed");
+            fail("expected BUFFER_UNDERFLOW for partial header, " +
+                 "got: " + result.getStatus());
+        }
+
+        if (result.bytesConsumed() != 0) {
+            error("\t... failed");
+            fail("BUFFER_UNDERFLOW must consume 0 bytes, " +
+                 "consumed: " + result.bytesConsumed());
+        }
+
+        /* Engine must remain in NEED_UNWRAP after underflow. */
+        if (result.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP after underflow, got: " +
+                 result.getHandshakeStatus());
+        }
+
+        pass("\t... passed");
+    }
+
+    @Test
+    public void testHandshakeUnwrapOversizedRecord()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException {
+
+        /* Test that a partial record whose header claims
+         * recLen > MAX_RECORD_SIZE (but <= packetBufferSize - 5)
+         * returns BUFFER_UNDERFLOW with 0 bytes consumed. Prior to
+         * fixing the MAX_RECORD_SIZE cap, this range bypassed the
+         * peek entirely and wolfSSL would consume partial bytes. */
+        System.out.print("\tTest unwrap oversized record underflow");
+
+        if (!enabledProtocols.contains("TLSv1.3")) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        SSLContext ctx13 = tf.createSSLContext("TLSv1.3", engineProvider);
+        SSLEngine server = ctx13.createSSLEngine();
+        SSLEngine client = ctx13.createSSLEngine("localhost", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int packetBufSize = client.getSession().getPacketBufferSize();
+        int appBufSize = client.getSession().getApplicationBufferSize();
+
+        /* Wrap ClientHello to put client into NEED_UNWRAP state */
+        ByteBuffer cliToSrv =
+            ByteBuffer.allocateDirect(packetBufSize);
+        ByteBuffer emptyApp = ByteBuffer.allocate(0);
+        SSLEngineResult result = client.wrap(emptyApp, cliToSrv);
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            error("\t... failed");
+            fail("client wrap (ClientHello) failed: " +
+                 result.getStatus());
+        }
+
+        if (client.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP after ClientHello, got: " +
+                 client.getHandshakeStatus());
+        }
+
+        /* recLen = MAX_RECORD_SIZE + 1 must fit within
+         * packetBufferSize (header not counted). Skip if not,
+         * which would indicate an unusual build configuration. */
+        int oversizedRecLen = WolfSSL.MAX_RECORD_SIZE + 1;
+        if (oversizedRecLen > packetBufSize - 5) {
+            System.out.println("\t... skipped");
+            return;
+        }
+
+        /* Craft a 5-byte TLS record header: content type
+         * handshake(0x16), version TLS 1.2 record layer(0x0303),
+         * length = MAX_RECORD_SIZE + 1. Valid content-type and
+         * version bytes ensure the plausibility guard in
+         * peekTlsRecordHeader() does not filter the header before
+         * the length check. */
+        byte recLenHi = (byte) ((oversizedRecLen >> 8) & 0xFF);
+        byte recLenLo = (byte) (oversizedRecLen & 0xFF);
+        ByteBuffer fakeHeader = ByteBuffer.wrap(new byte[] {
+            0x16, 0x03, 0x03, recLenHi, recLenLo
+        });
+
+        ByteBuffer cliAppBuf =
+            ByteBuffer.allocateDirect(appBufSize);
+        result = client.unwrap(fakeHeader, cliAppBuf);
+
+        if (result.getStatus() !=
+                SSLEngineResult.Status.BUFFER_UNDERFLOW) {
+            error("\t... failed");
+            fail("expected BUFFER_UNDERFLOW for oversized partial " +
+                 "record, got: " + result.getStatus());
+        }
+
+        if (result.bytesConsumed() != 0) {
+            error("\t... failed");
+            fail("BUFFER_UNDERFLOW must consume 0 bytes, " +
+                 "consumed: " + result.bytesConsumed());
+        }
+
+        /* Engine must remain in NEED_UNWRAP after underflow. */
+        if (result.getHandshakeStatus() !=
+                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            error("\t... failed");
+            fail("expected NEED_UNWRAP after underflow, got: " +
+                 result.getHandshakeStatus());
         }
 
         pass("\t... passed");

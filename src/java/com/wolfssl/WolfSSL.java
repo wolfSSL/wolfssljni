@@ -349,6 +349,23 @@ public class WolfSSL {
     /** Maximum SSL record size (16KB) as defined by the protocol. */
     public static final int MAX_RECORD_SIZE = 16384;
 
+    /** TLS record header is: type(1) + version(2) + length(2) */
+    public static final int TLS_RECORD_HEADER_LEN = 5;
+    /** TLS record header length high byte offset */
+    public static final int TLS_RECORD_LEN_HI_OFF = 3;
+    /** TLS record header length lower byte offset */
+    public static final int TLS_RECORD_LEN_LO_OFF = 4;
+    /** TLS record header protocol version offset */
+    public static final int TLS_RECORD_VERS_OFF = 1;
+    /** TLS record header protocol version major */
+    public static final int TLS_RECORD_VERS_MAJOR = 0x03;
+    /** TLS record header valid content type
+     *  (RFC 8446 B.1, RFC 6520), (change_cipher_spec) */
+    public static final int TLS_RECORD_CT_MIN = 20;
+    /** TLS record header valid content type
+     *  (RFC 8446 B.1, RFC 6520), (heartbeat) */
+    public static final int TLS_RECORD_CT_MAX = 24;
+
     /* ------------------ TLS extension specific  ------------------------ */
     /** SNI Host name type, for UseSNI() */
     public static final int WOLFSSL_SNI_HOST_NAME = 0;

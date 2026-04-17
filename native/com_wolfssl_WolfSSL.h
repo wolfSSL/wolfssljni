@@ -187,6 +187,20 @@ extern "C" {
 #define com_wolfssl_WolfSSL_CACHE_MATCH_ERROR -280L
 #undef com_wolfssl_WolfSSL_MAX_RECORD_SIZE
 #define com_wolfssl_WolfSSL_MAX_RECORD_SIZE 16384L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_HEADER_LEN
+#define com_wolfssl_WolfSSL_TLS_RECORD_HEADER_LEN 5L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_LEN_HI_OFF
+#define com_wolfssl_WolfSSL_TLS_RECORD_LEN_HI_OFF 3L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_LEN_LO_OFF
+#define com_wolfssl_WolfSSL_TLS_RECORD_LEN_LO_OFF 4L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_VERS_OFF
+#define com_wolfssl_WolfSSL_TLS_RECORD_VERS_OFF 1L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_VERS_MAJOR
+#define com_wolfssl_WolfSSL_TLS_RECORD_VERS_MAJOR 3L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_CT_MIN
+#define com_wolfssl_WolfSSL_TLS_RECORD_CT_MIN 20L
+#undef com_wolfssl_WolfSSL_TLS_RECORD_CT_MAX
+#define com_wolfssl_WolfSSL_TLS_RECORD_CT_MAX 24L
 #undef com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME
 #define com_wolfssl_WolfSSL_WOLFSSL_SNI_HOST_NAME 0L
 #undef com_wolfssl_WolfSSL_SSL_TLSEXT_ERR_OK
