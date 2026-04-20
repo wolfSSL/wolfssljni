@@ -1550,7 +1550,7 @@ public class WolfSSLSessionTest {
 
             /* Client connection */
             try {
-                cliSock = new Socket(InetAddress.getLocalHost(),
+                cliSock = new Socket(InetAddress.getLoopbackAddress(),
                     srvSocket.getLocalPort());
 
                 cliSes = new WolfSSLSession(cliCtx);
@@ -1750,7 +1750,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #1 */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -1810,7 +1810,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #2, set session and try resumption */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
@@ -1997,7 +1997,7 @@ public class WolfSSLSessionTest {
             /* ------------------------------------------------------ */
             /* Client connection #1 */
             /* ------------------------------------------------------ */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2059,7 +2059,7 @@ public class WolfSSLSessionTest {
             /* ------------------------------------------------------ */
             /* Client connection #2, set session and try resumption */
             /* ------------------------------------------------------ */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
@@ -2573,7 +2573,7 @@ public class WolfSSLSessionTest {
 
         try {
             /* Client connection */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2770,7 +2770,7 @@ public class WolfSSLSessionTest {
 
         try {
             /* Client connection */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -2948,7 +2948,7 @@ public class WolfSSLSessionTest {
 
             try {
                 /* Client connection */
-                cliSock = new Socket(InetAddress.getLocalHost(),
+                cliSock = new Socket(InetAddress.getLoopbackAddress(),
                     srvSocket.getLocalPort());
 
                 cliSes = new WolfSSLSession(cliCtx);
@@ -3117,7 +3117,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #1 - get session and serialize it */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
 
             cliSes = new WolfSSLSession(cliCtx);
@@ -3161,7 +3161,7 @@ public class WolfSSLSessionTest {
             /* -------------------------------------------------------------- */
             /* Client connection #2 - deserialize session and resume */
             /* -------------------------------------------------------------- */
-            cliSock = new Socket(InetAddress.getLocalHost(),
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
                 srvSocket.getLocalPort());
             cliSes = new WolfSSLSession(cliCtx);
 
@@ -3432,8 +3432,7 @@ public class WolfSSLSessionTest {
             /* Test dtlsCidUse() - may return NOT_COMPILED_IN */
             int ret = server.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t\t... skipped");
                 return;
             }
             assertTrue("Server dtlsCidUse() should succeed",
@@ -3576,8 +3575,7 @@ public class WolfSSLSessionTest {
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t\t... skipped");
                 return;
             }
 
@@ -3699,8 +3697,7 @@ public class WolfSSLSessionTest {
             /* Enable CID on both sessions */
             int ret1 = server1.dtlsCidUse();
             if (ret1 == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t... skipped");
                 return;
             }
 
@@ -3813,8 +3810,7 @@ public class WolfSSLSessionTest {
             /* Enable CID */
             int ret = sess.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t\t... skipped");
                 return;
             }
 
@@ -3925,8 +3921,7 @@ public class WolfSSLSessionTest {
             /* Enable CID */
             int ret = sess.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t... skipped");
                 return;
             }
 
@@ -4018,7 +4013,7 @@ public class WolfSSLSessionTest {
         }
 
         if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            System.out.println("\t... skipped");
             return;
         }
 
@@ -4030,8 +4025,7 @@ public class WolfSSLSessionTest {
             /* Enable CID */
             int ret = sess.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t... skipped");
                 return;
             }
 
@@ -4039,7 +4033,7 @@ public class WolfSSLSessionTest {
             byte[] testCid = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05};
             ret = sess.dtlsCidSet(testCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (dtlsCidSet failed)");
+                System.out.println("\t... skipped");
                 return;
             }
 
@@ -4129,7 +4123,7 @@ public class WolfSSLSessionTest {
         }
 
         if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
+            System.out.println("\t... skipped (DTLSv1.3 not enabled)");
             return;
         }
 
@@ -4159,14 +4153,13 @@ public class WolfSSLSessionTest {
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t... skipped");
                 return;
             }
 
             ret = client.dtlsCidUse();
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client CID " +
+                System.out.println("\t... skipped (Client CID " +
                                    "enable failed: " + ret + ")");
                 return;
             }
@@ -4177,14 +4170,14 @@ public class WolfSSLSessionTest {
 
             ret = server.dtlsCidSet(serverCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Server " +
+                System.out.println("\t... skipped (Server " +
                                    "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
             ret = client.dtlsCidSet(clientCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client " +
+                System.out.println("\t... skipped (Client " +
                                    "dtlsCidSet failed: " + ret + ")");
                 return;
             }
@@ -4397,8 +4390,7 @@ public class WolfSSLSessionTest {
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
             if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped (DTLS CID not " +
-                                   "compiled in)");
+                System.out.println("\t\t... skipped");
                 return;
             }
 

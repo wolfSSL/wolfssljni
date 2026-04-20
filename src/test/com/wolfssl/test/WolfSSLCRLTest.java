@@ -436,11 +436,11 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddRevokedCert(WolfSSLCertificate)");
+        System.out.print("\taddRevokedCert(cert)");
 
         if (!WolfSSL.CrlGenerationEnabled()) {
             /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t... skipped");
+            System.out.println("\t\t... skipped");
             return;
         }
 
@@ -466,7 +466,7 @@ public class WolfSSLCRLTest {
         /* Test null certificate */
         try {
             crl.addRevokedCert((WolfSSLCertificate)null, new Date());
-            System.out.println("\t... failed");
+            System.out.println("\t\t... failed");
             fail("null certificate should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -476,7 +476,7 @@ public class WolfSSLCRLTest {
         cert.free();
         cert2.free();
         crl.free();
-        System.out.println("\t... passed");
+        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -547,7 +547,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, ReflectiveOperationException {
 
-        System.out.print("\tsign(native PEM key bytes regression)");
+        System.out.print("\tsign(native PEM key bytes)");
 
         if (!WolfSSL.CrlGenerationEnabled()) {
             /* CRL generation not enabled in wolfSSL */
@@ -1275,7 +1275,7 @@ public class WolfSSLCRLTest {
 
         if (!WolfSSL.CrlGenerationEnabled()) {
             /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
+            System.out.println("\t\t\t\t... skipped");
             return;
         }
 
@@ -1288,7 +1288,7 @@ public class WolfSSLCRLTest {
         /* Operations after free should throw IllegalStateException */
         try {
             crl.setVersion(1);
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t\t\t... failed");
             fail("setVersion after free should throw exception");
         } catch (IllegalStateException e) {
             /* expected */
@@ -1296,7 +1296,7 @@ public class WolfSSLCRLTest {
 
         try {
             crl.getVersion();
-            System.out.println("\t\t\t... failed");
+            System.out.println("\t\t\t\t... failed");
             fail("getVersion after free should throw exception");
         } catch (IllegalStateException e) {
             /* expected */
@@ -1305,6 +1305,6 @@ public class WolfSSLCRLTest {
         /* Multiple free() calls should be safe */
         crl.free();
 
-        System.out.println("\t\t\t... passed");
+        System.out.println("\t\t\t\t... passed");
     }
 }

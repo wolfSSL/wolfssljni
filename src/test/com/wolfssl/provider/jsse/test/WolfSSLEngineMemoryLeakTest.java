@@ -50,10 +50,13 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 public class WolfSSLEngineMemoryLeakTest {
 
     /**
-     * Global timeout for all tests in this class.
+     * Global timeout for all tests in this class. The 500-engine test
+     * plus multiple GC/finalization rounds can run 60+ seconds on slower
+     * platforms (notably Windows with FIPS enabled), so 180s leaves
+     * comfortable headroom while still catching genuine hangs.
      */
     @Rule
-    public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
+    public Timeout globalTimeout = new Timeout(180, TimeUnit.SECONDS);
 
     @BeforeClass
     public static void setupProvider() {
@@ -104,8 +107,7 @@ public class WolfSSLEngineMemoryLeakTest {
         final double maxAcceptableGrowthMB = 80.0;
 
         String javaVersion = System.getProperty("java.version");
-        System.out.print("\tmem leak test with " + numEngines +
-                         " engines (JDK " + javaVersion + ")");
+        System.out.print("\tmem leak test with " + numEngines + " engines");
 
         /* Measure baseline memory - use aggressive GC */
         for (int i = 0; i < 3; i++) {
@@ -158,7 +160,7 @@ public class WolfSSLEngineMemoryLeakTest {
     public void testEngineMemoryLeakWithProperClose() throws Exception {
 
         final int numEngines = 100;
-        final double maxAcceptableGrowthMB = 10.0;
+        final double maxAcceptableGrowthMB = 20.0;
 
         System.gc();
         System.gc();

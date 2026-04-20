@@ -3490,7 +3490,7 @@ public class WolfSSLTrustX509Test {
                KeyStoreException, IOException, CertificateException,
                InvalidAlgorithmParameterException {
 
-        System.out.print("\tTesting init(CertPathTrustManagerParameters)");
+        System.out.print("\tinit(CPTrustManagerParameters)");
 
         /* Load CA certs and create TrustAnchors manually */
         KeyStore caStore = KeyStore.getInstance(
@@ -3543,7 +3543,7 @@ public class WolfSSLTrustX509Test {
                KeyStoreException, IOException, CertificateException,
                InvalidAlgorithmParameterException {
 
-        System.out.print("\tTesting init(KeyStoreBuilderParameters)");
+        System.out.print("\tinit(KeyStoreBuilderParameters)");
 
         KeyStore.Builder ksBuilder = KeyStore.Builder.newInstance(
             WolfSSLTestFactory.isAndroid() ? "BKS" : "JKS",

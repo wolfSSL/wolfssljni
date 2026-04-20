@@ -222,7 +222,9 @@ static void writeToInterruptPipe(SSLAppData* appData)
 {
     if (appData != NULL) {
         if (appData->interruptFds[1] != -1) {
-            write(appData->interruptFds[1], "1", 1);
+            if (write(appData->interruptFds[1], "1", 1) < 0) {
+                /* Interrupt pipe wakeup is best-effort; ignore failure. */
+            }
         }
     }
 }
@@ -896,9 +898,10 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
                  * an error if not there. Another read/write() may have
                  * already read it off. We just want to be interrupted,
                  * byte value does not matter. */
+                ssize_t rd;
                 do {
-                    read(appData->interruptFds[0], tmpBuf, 1);
-                } while (errno == EINTR);
+                    rd = read(appData->interruptFds[0], tmpBuf, 1);
+                } while (rd < 0 && errno == EINTR);
 
                 return WOLFJNI_IO_EVENT_FD_CLOSED;
             }
@@ -1000,9 +1003,10 @@ static int socketPoll(SSLAppData* appData, int sockfd, int timeout_ms,
                 (fds[1].revents & POLLIN)) {
                 /* received data on interrupt pipe, read and return
                  * that descriptor is closed (closing) */
+                ssize_t rd;
                 do {
-                    read(appData->interruptFds[0], tmpBuf, 1);
-                } while (errno == EINTR);
+                    rd = read(appData->interruptFds[0], tmpBuf, 1);
+                } while (rd < 0 && errno == EINTR);
 
                 return WOLFJNI_IO_EVENT_FD_CLOSED;
             }
