@@ -274,7 +274,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1pubkey_1na
     (void)jcl;
     (void)x509Ptr;
     (void)keyType;
-    (void)filePath;
+    (void)fileBytes;
     (void)fileFormat;
     return (jint)NOT_COMPILED_IN;
 #endif
