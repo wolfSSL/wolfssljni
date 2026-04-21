@@ -24,6 +24,8 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
 
 import java.security.Provider;
 import java.security.Security;
@@ -32,6 +34,7 @@ import java.util.ServiceLoader;
 import javax.net.ssl.SSLContext;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.test.TimedTestWatcher;
 import org.junit.Assume;
 
 /**
@@ -46,6 +49,9 @@ import org.junit.Assume;
  * Android apps register providers directly.
  */
 public class WolfSSLServiceLoaderTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     @BeforeClass
     public static void setUpClass() {
@@ -75,8 +81,7 @@ public class WolfSSLServiceLoaderTest {
             String className = provider.getClass().getName();
 
             /* Check if we found WolfSSLProvider */
-            if (className.equals(
-                "com.wolfssl.provider.jsse.WolfSSLProvider")) {
+            if (className.equals("com.wolfssl.provider.jsse.WolfSSLProvider")) {
                 foundWolfSSL = true;
 
                 /* Verify provider name is correct */
@@ -84,16 +89,15 @@ public class WolfSSLServiceLoaderTest {
                     "wolfJSSE", provider.getName());
 
                 /* Verify it's the right class */
-                assertTrue("Provider should be instance of " +
-                    "WolfSSLProvider",
+                assertTrue("Provider should be instance of WolfSSLProvider",
                     provider instanceof WolfSSLProvider);
 
                 break;
             }
         }
 
-        assertTrue("WolfSSLProvider should be discoverable via " +
-            "ServiceLoader", foundWolfSSL);
+        assertTrue("WolfSSLProvider should be discoverable via ServiceLoader",
+            foundWolfSSL);
     }
 
     /**

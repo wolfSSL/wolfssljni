@@ -21,8 +21,11 @@
 
 package com.wolfssl.test;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
@@ -80,6 +83,9 @@ public class WolfSSLSessionTest {
      * Security property use in this test class */
     private static final Object byteBufferPoolPropertyLock = new Object();
 
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     @BeforeClass
     public static void loadLibrary()
         throws WolfSSLException{
@@ -109,13 +115,10 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession sess = null;
 
-        System.out.print("\tWolfSSLSession()");
-
         try {
             sess = new WolfSSLSession(ctx);
 
         } catch (WolfSSLException we) {
-            System.out.println("\t... failed");
             fail("failed to create WolfSSLSession object");
 
         } finally {
@@ -123,15 +126,11 @@ public class WolfSSLSessionTest {
                 sess.freeSSL();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_useCertificateFile()
         throws WolfSSLJNIException, WolfSSLException {
-
-        System.out.print("\tuseCertificateFile()");
 
         WolfSSLSession ssl = new WolfSSLSession(ctx);
 
@@ -143,26 +142,20 @@ public class WolfSSLSessionTest {
                  "useCertificateFile(ssl, bogusFile, SSL_FILETYPE_PEM)");
 
         test_ucf("useCertificateFile", ssl, cliCert, 9999,
-                 WolfSSL.SSL_FAILURE,
-                 "useCertificateFile(ssl, cliCert, 9999)");
+                 WolfSSL.SSL_FAILURE, "useCertificateFile(ssl, cliCert, 9999)");
 
         test_ucf("useCertificateFile", ssl, cliCert,
-                 WolfSSL.SSL_FILETYPE_PEM,
-                 WolfSSL.SSL_SUCCESS,
+                 WolfSSL.SSL_FILETYPE_PEM, WolfSSL.SSL_SUCCESS,
                  "useCertificateFile(ssl, cliCert, SSL_FILETYPE_PEM)");
 
         if (ssl != null) {
             ssl.freeSSL();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_useCertificateChainFile()
         throws WolfSSLJNIException, WolfSSLException {
-
-        System.out.print("\tuseCertificateChainFile()");
 
         WolfSSLSession ssl = new WolfSSLSession(ctx);
 
@@ -181,8 +174,6 @@ public class WolfSSLSessionTest {
         if (ssl != null) {
             ssl.freeSSL();
         }
-
-        System.out.println("\t... passed");
     }
 
     /* helper for testing WolfSSLSession.useCertificateFile() */
@@ -201,13 +192,7 @@ public class WolfSSLSessionTest {
                 fail(name + " failed");
             }
 
-            if ((result != cond) && (result != WolfSSL.NOT_COMPILED_IN))
-            {
-                if (func.equals("useCertificateFile")) {
-                    System.out.println("\t\t... failed");
-                } else {
-                    System.out.println("\t... failed");
-                }
+            if ((result != cond) && (result != WolfSSL.NOT_COMPILED_IN)) {
                 fail(name + " failed");
             }
 
@@ -225,8 +210,6 @@ public class WolfSSLSessionTest {
     @Test
     public void test_WolfSSLSession_usePrivateKeyFile()
         throws WolfSSLJNIException, WolfSSLException {
-
-        System.out.print("\tusePrivateKeyFile()");
 
         WolfSSLSession ssl = new WolfSSLSession(ctx);
 
@@ -246,8 +229,6 @@ public class WolfSSLSessionTest {
         if (ssl != null) {
             ssl.freeSSL();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     /* helper for testing WolfSSLSession.usePrivateKeyFile() */
@@ -259,9 +240,7 @@ public class WolfSSLSessionTest {
         try {
 
             result = ssl.usePrivateKeyFile(filePath, type);
-            if ((result != cond) && (result != WolfSSL.NOT_COMPILED_IN))
-            {
-                System.out.println("\t\t... failed");
+            if ((result != cond) && (result != WolfSSL.NOT_COMPILED_IN)) {
                 fail(name + " failed");
             }
 
@@ -283,8 +262,9 @@ public class WolfSSLSessionTest {
                 long keyMaxLen) {
 
             /* set the client identity */
-            if (identity.length() != 0)
+            if (identity.length() != 0) {
                 return 0;
+            }
             identity.append("Client_identity");
 
             /* set the client key, max key size is key.length */
@@ -304,33 +284,25 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\tsetPskClientCb()");
-
         try {
             TestPskClientCb pskClientCb = new TestPskClientCb();
             ssl = new WolfSSLSession(ctx);
             ssl.setPskClientCb(pskClientCb);
 
         } catch (Exception e) {
-            if (e.getMessage().equals("wolfSSL not compiled with PSK " +
-                "support")) {
-                /* Not compiled in, skip */
-                System.out.println("\t\t... skipped");
-                return;
+            String msg = e.getMessage();
+            if (msg != null &&
+                msg.equals("wolfSSL not compiled with PSK support")) {
+                Assume.assumeNoException("PSK not compiled in", e);
             }
-            else {
-                System.out.println("\t\t... failed");
-                fail("Failed setPskClientCb test");
-                e.printStackTrace();
-            }
+            e.printStackTrace();
+            fail("Failed setPskClientCb test: " + msg);
 
         } finally {
             if (ssl != null) {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     class TestPskServerCb implements WolfSSLPskServerCallback
@@ -339,8 +311,9 @@ public class WolfSSLSessionTest {
                 byte[] key, long keyMaxLen) {
 
             /* check the client identity */
-            if (!identity.equals("Client_identity"))
+            if (!identity.equals("Client_identity")) {
                 return 0;
+            }
 
             /* set the server key, max key size is key.length */
             key[0] = 26;
@@ -359,33 +332,25 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\tsetPskServerCb()");
-
         try {
             TestPskServerCb pskServerCb = new TestPskServerCb();
             ssl = new WolfSSLSession(ctx);
             ssl.setPskServerCb(pskServerCb);
 
         } catch (Exception e) {
-            if (e.getMessage().equals("wolfSSL not compiled with PSK " +
-                "support")) {
-                /* Not compiled in, skip */
-                System.out.println("\t\t... skipped");
-                return;
+            String msg = e.getMessage();
+            if (msg != null &&
+                msg.equals("wolfSSL not compiled with PSK support")) {
+                Assume.assumeNoException("PSK not compiled in", e);
             }
-            else {
-                System.out.println("\t\t... failed");
-                fail("Failed setPskServerCb test");
-                e.printStackTrace();
-            }
+            e.printStackTrace();
+            fail("Failed setPskServerCb test: " + msg);
 
         } finally {
             if (ssl != null) {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -396,8 +361,6 @@ public class WolfSSLSessionTest {
         String hint = null;
         WolfSSLSession ssl = null;
 
-        System.out.print("\tuse/getPskIdentityHint()");
-
         ssl = new WolfSSLSession(ctx);
 
         try {
@@ -405,19 +368,16 @@ public class WolfSSLSessionTest {
             ret = ssl.usePskIdentityHint("wolfssl hint");
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... failed");
                 fail("usePskIdentityHint failed");
             }
 
             /* Get PSK identity hint */
             hint = ssl.getPskIdentityHint();
             if (hint != null && !hint.equals("wolfssl hint")) {
-                System.out.println("\t... failed");
                 fail("getPskIdentityHint failed");
             }
 
         } catch (IllegalStateException e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail("Failed use/getPskIdentityHint test");
 
@@ -426,8 +386,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -437,29 +395,24 @@ public class WolfSSLSessionTest {
         int ret = 0;
         WolfSSLSession ssl = null;
 
-        System.out.print("\tuseSessionTicket()");
-
         try {
             ssl = new WolfSSLSession(ctx);
 
             ret = ssl.useSessionTicket();
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... failed");
                 fail("useSessionTicket failed");
             }
 
         } catch (IllegalStateException e) {
-            System.out.println("\t\t... failed");
             e.printStackTrace();
+            fail("Failed useSessionTicket test: " + e.getMessage());
 
         } finally {
             if (ssl != null) {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -471,15 +424,12 @@ public class WolfSSLSessionTest {
         byte[] ticket = null;
         byte[] retrievedTicket = null;
 
-        System.out.print("\t(get/set)SessionTicket()");
-
         try {
             ssl = new WolfSSLSession(ctx);
 
             ret = ssl.useSessionTicket();
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... failed");
                 fail("useSessionTicket failed");
             }
 
@@ -489,35 +439,30 @@ public class WolfSSLSessionTest {
             ret = ssl.setSessionTicket(ticket);
             if (ret != WolfSSL.SSL_SUCCESS &&
                 ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... failed");
                 fail("setSessionTicket failed");
             }
 
             retrievedTicket = ssl.getSessionTicket();
 
             if (retrievedTicket == null) {
-                System.out.println("\t... failed" );
                 fail("getSessionTicket failed");
             }
 
             for (int i = 0; i < ticket.length; i++) {
                 if (ticket[i] != retrievedTicket[i]) {
-                    System.out.println("\t... failed");
                     fail("getSessionTicket failed");
                 }
             }
 
         } catch (IllegalStateException e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
+            fail("Failed getSetSessionTickets test: " + e.getMessage());
 
         } finally {
             if (ssl != null) {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     public void test_WolfSSLSession_resumeWithSessionTickets()
@@ -532,8 +477,6 @@ public class WolfSSLSessionTest {
          * must be final since used inside inner class. */
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
-
-        System.out.println("\tresumeWithSessionTickets()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
@@ -600,7 +543,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -686,8 +628,6 @@ public class WolfSSLSessionTest {
                 srvCtx.free();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -696,15 +636,12 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\tgetPskIdentity()");
-
         try {
             ssl = new WolfSSLSession(ctx);
             /* Not checking return, just that we don't throw an exception */
             ssl.getPskIdentity();
 
         } catch (IllegalStateException e) {
-            System.out.println("\t\t... failed");
             fail("Failed getPskIdentity test");
             e.printStackTrace();
 
@@ -713,8 +650,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -723,14 +658,11 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\ttimeout()");
-
         ssl = new WolfSSLSession(ctx);
 
         try {
             ssl.setTimeout(5);
             if (ssl.getTimeout() != 5) {
-                System.out.println("\t\t\t... failed");
                 fail("Failed timeout test");
             }
 
@@ -739,8 +671,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -749,13 +679,10 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\tstatus()");
-
         ssl = new WolfSSLSession(ctx);
 
         try {
             if (ssl.handshakeDone() == true) {
-                System.out.println("\t\t\t... failed");
                 fail("Failed status test");
             }
 
@@ -764,8 +691,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -776,17 +701,12 @@ public class WolfSSLSessionTest {
         String sniHostName = "www.example.com";
         WolfSSLSession ssl = null;
 
-        System.out.print("\tuseSNI()");
-
         ssl = new WolfSSLSession(ctx);
 
         try {
             ret = ssl.useSNI((byte)0, sniHostName.getBytes());
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t\t... skipped");
-                return;
-            } else if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t\t... failed");
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 fail("Failed useSNI test");
             }
 
@@ -795,8 +715,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -811,8 +729,6 @@ public class WolfSSLSessionTest {
         byte[] alpnProtoBytes = http11Alpn.getBytes();
         byte[] alpnProtoBytesPacked = new byte[1 + alpnProtoBytes.length];
         WolfSSLSession ssl = null;
-
-        System.out.print("\tuseALPN()");
 
         ssl = new WolfSSLSession(ctx);
 
@@ -869,12 +785,8 @@ public class WolfSSLSessionTest {
                 }
             }
 
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t\t... skipped");
-                return;
-
-            } else if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t\t... failed");
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 fail("Failed useALPN test");
             }
 
@@ -883,8 +795,6 @@ public class WolfSSLSessionTest {
                 ssl.freeSSL();
             }
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     /**
@@ -913,8 +823,6 @@ public class WolfSSLSessionTest {
             (byte)0xCA, (byte)0xDA, (byte)0xEA, (byte)0xFA
         };
 
-        System.out.print("\tuseALPN() GREASE");
-
         /* Create String from bytes using ISO-8859-1 to preserve byte values */
         greaseString = new String(greaseBytes, StandardCharsets.ISO_8859_1);
         alpnProtos = new String[] { greaseString };
@@ -925,20 +833,14 @@ public class WolfSSLSessionTest {
             ret = ssl.useALPN(alpnProtos,
                 WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
 
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped");
-                return;
-
-            } else if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... failed");
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 fail("Failed useALPN GREASE test, ret = " + ret);
             }
 
         } finally {
             ssl.freeSSL();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -947,21 +849,16 @@ public class WolfSSLSessionTest {
 
         WolfSSLSession ssl = null;
 
-        System.out.print("\tfreeSSL()");
-
         ssl = new WolfSSLSession(ctx);
 
         try {
             ssl.freeSSL();
 
         } catch (WolfSSLJNIException e) {
-            System.out.println("\t\t\t... failed");
             fail("Failed freeSSL test");
             e.printStackTrace();
 
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -975,8 +872,6 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx = null;
         ServerSocket srvSocket = null;
         ExecutorService es = null;
-
-        System.out.print("\tTesting use after free");
 
         try {
             /* Create ServerSocket first to get ephemeral port,
@@ -1084,7 +979,6 @@ public class WolfSSLSessionTest {
             /* Don't set ssl to null - we need to test use-after-free below */
 
         } catch (Exception e) {
-            System.out.println("\t\t... failed");
             fail("Failed UseAfterFree test: " + e.getMessage());
             e.printStackTrace();
             return;
@@ -1113,11 +1007,9 @@ public class WolfSSLSessionTest {
             ret = ssl.connect();
 
         } catch (IllegalStateException ise) {
-            System.out.println("\t\t... passed");
             return;
 
         } catch (SocketTimeoutException | SocketException e) {
-            System.out.println("\t\t... failed");
             fail("Failed UseAfterFree test");
             e.printStackTrace();
             return;
@@ -1125,7 +1017,6 @@ public class WolfSSLSessionTest {
 
         /* fail here means WolfSSLSession was used after free without
          * exception thrown */
-        System.out.println("\t\t... failed");
         fail("WolfSSLSession was able to be used after freed");
     }
 
@@ -1141,8 +1032,6 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx = null;
         ServerSocket srvSocket = null;
         ExecutorService es = null;
-
-        System.out.print("\tTesting getSessionID()");
 
         try {
             /* Create ServerSocket first to get ephemeral port, set
@@ -1266,7 +1155,6 @@ public class WolfSSLSessionTest {
             ssl.shutdownSSL();
 
         } catch (Exception e) {
-            System.out.println("\t\t... failed");
             fail("Failed getSessionID test: " + e.getMessage());
             e.printStackTrace();
             return;
@@ -1292,8 +1180,6 @@ public class WolfSSLSessionTest {
                 } catch (Exception e) { }
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1304,8 +1190,6 @@ public class WolfSSLSessionTest {
         WolfSSL sslLib = null;
         WolfSSLContext sslCtx = null;
         WolfSSLSession ssl = null;
-
-        System.out.print("\tTesting useSecureRenegotiation()");
 
         try {
 
@@ -1319,13 +1203,11 @@ public class WolfSSLSessionTest {
             /* test if enable call succeeds */
             ret = ssl.useSecureRenegotiation();
             if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("... failed");
                 fail("Failed useSecureRenegotiation test");
                 return;
             }
 
         } catch (Exception e) {
-            System.out.println("... failed");
             fail("Failed useSecureRenegotiation test");
             e.printStackTrace();
             return;
@@ -1338,8 +1220,6 @@ public class WolfSSLSessionTest {
                 sslCtx.free();
             }
         }
-
-        System.out.println("... passed");
     }
 
     class TestTls13SecretCb implements WolfSSLTls13SecretCallback
@@ -1360,12 +1240,7 @@ public class WolfSSLSessionTest {
         WolfSSLSession ssl = null;
         TestTls13SecretCb cb = null;
 
-        System.out.print("\tTesting setTls13SecretCb()");
-
-        if (!WolfSSL.secretCallbackEnabled()) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.secretCallbackEnabled());
 
         try {
 
@@ -1384,7 +1259,6 @@ public class WolfSSLSessionTest {
             ssl.setTls13SecretCb(cb, null);
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail("failed setTls13SecretCb() test");
             return;
@@ -1397,8 +1271,6 @@ public class WolfSSLSessionTest {
                 sslCtx.free();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1463,8 +1335,6 @@ public class WolfSSLSessionTest {
          * test shuts down. Otherwise, we will sometimes miss debug
          * messages from the server side. */
         final CountDownLatch latch = new CountDownLatch(1);
-
-        System.out.print("\tTesting wolfssljni.debug");
 
         /* Save original property value, then enable debug. Make sure
          * connection still works with debug enabled. */
@@ -1543,7 +1413,6 @@ public class WolfSSLSessionTest {
                 });
 
             } catch (Exception e) {
-                System.out.println("\t... failed");
                 e.printStackTrace();
                 fail();
             }
@@ -1580,7 +1449,6 @@ public class WolfSSLSessionTest {
                 cliSock = null;
 
             } catch (Exception e) {
-                System.out.println("\t... failed");
                 e.printStackTrace();
                 fail();
 
@@ -1621,28 +1489,22 @@ public class WolfSSLSessionTest {
 
             /* Verify we have debug output and some expected strings */
             if (outStream == null) {
-                System.out.println("\t... failed");
                 fail("outStream is null but should not be");
             }
 
             String debugOutput = outStream.toString();
             if (debugOutput == null || debugOutput.isEmpty()) {
-                System.out.println("\t... failed");
                 fail("Debug output was null or empty, but expected");
             }
             if (!debugOutput.contains("connect() ret: 1")) {
-                System.out.println("\t... failed");
                 fail("Debug output did not contain connect() success:\n" +
                      debugOutput);
             }
             if (!debugOutput.contains("accept() ret: 1")) {
-                System.out.println("\t... failed");
                 fail("Debug output did not contain accept() success:\n" +
                      debugOutput);
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -1661,8 +1523,6 @@ public class WolfSSLSessionTest {
          * must be final since used inside inner class. */
         WolfSSLContext srvCtx = null;
         WolfSSLContext cliCtx = null;
-
-        System.out.print("\tTesting get/setSession()");
 
         try {
             /* Create ServerSocket first to get ephemeral port, set 10 sec
@@ -1835,8 +1695,7 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "WolfSSLSession.connect() failed: " + err);
+                throw new Exception("WolfSSLSession.connect() failed: " + err);
             }
 
             /* Get WOLFSSL_SESSION pointer, free original one first */
@@ -1853,8 +1712,7 @@ public class WolfSSLSessionTest {
 
             /* Session should be marked as resumed */
             if (cliSes.sessionReused() == 0) {
-                throw new Exception(
-                    "Second connection not resumed");
+                throw new Exception("Second connection not resumed");
             }
 
             cliSes.shutdownSSL();
@@ -1864,7 +1722,6 @@ public class WolfSSLSessionTest {
             cliSock = null;
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
 
@@ -1898,8 +1755,6 @@ public class WolfSSLSessionTest {
                 } catch (Exception e) { }
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1952,8 +1807,7 @@ public class WolfSSLSessionTest {
                             ret = srvSes.setFd(server);
                             if (ret != WolfSSL.SSL_SUCCESS) {
                                 throw new Exception(
-                                    "WolfSSLSession.setFd() failed: " +
-                                    ret);
+                                    "WolfSSLSession.setFd() failed: " + ret);
                             }
 
                             do {
@@ -1965,8 +1819,7 @@ public class WolfSSLSessionTest {
 
                             if (ret != WolfSSL.SSL_SUCCESS) {
                                 throw new Exception(
-                                    "WolfSSLSession.accept() failed: " +
-                                    ret);
+                                    "WolfSSLSession.accept() failed: " + ret);
                             }
 
                             srvSes.shutdownSSL();
@@ -1988,7 +1841,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -2016,8 +1868,7 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "WolfSSLSession.connect() failed: " + err);
+                throw new Exception("WolfSSLSession.connect() failed: " + err);
             }
 
             /* Get WOLFSSL_SESSION pointer */
@@ -2032,8 +1883,7 @@ public class WolfSSLSessionTest {
             ret = WolfSSLSession.sessionIsSetup(sessionPtr);
             if ((ret != 1) && (ret != WolfSSL.NOT_COMPILED_IN)) {
                 throw new Exception(
-                    "WolfSSLSession.sessionIsSetup() did not " +
-                    "return 1: " + ret);
+                    "WolfSSLSession.sessionIsSetup() did not return 1: " + ret);
             }
 
             /* Test duplicateSession(), wraps wolfSSL_SESSION_dup() */
@@ -2044,8 +1894,7 @@ public class WolfSSLSessionTest {
             }
             if (sesDup == sessionPtr) {
                 throw new Exception(
-                    "WolfSSLSession.duplicateSession() returned " +
-                    "same pointer");
+                    "WolfSSLSession.duplicateSession() returned same pointer");
             }
             WolfSSLSession.freeSession(sesDup);
             sesDup = 0;
@@ -2084,8 +1933,7 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "WolfSSLSession.connect() failed: " + err);
+                throw new Exception("WolfSSLSession.connect() failed: " + err);
             }
 
             /* Get WOLFSSL_SESSION pointer, free original one first */
@@ -2102,8 +1950,7 @@ public class WolfSSLSessionTest {
 
             /* Session should be marked as resumed */
             if (cliSes.sessionReused() == 0) {
-                throw new Exception(
-                    "Second connection not resumed");
+                throw new Exception("Second connection not resumed");
             }
 
             cliSes.shutdownSSL();
@@ -2113,7 +1960,6 @@ public class WolfSSLSessionTest {
             cliSock = null;
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
 
@@ -2143,12 +1989,10 @@ public class WolfSSLSessionTest {
     @Test
     public void test_WolfSSLSession_disableByteBufferPool() throws Exception {
 
-        System.out.print("\tByteBuffer pool disabled");
-
         synchronized (byteBufferPoolPropertyLock) {
 
-            String originalProp =
-                Security.getProperty("wolfssl.readWriteByteBufferPool.disabled");
+            String originalProp = Security.getProperty(
+                "wolfssl.readWriteByteBufferPool.disabled");
 
             try {
                 /* Disable WolfSSLSession internal direct ByteBuffer pool
@@ -2167,14 +2011,10 @@ public class WolfSSLSessionTest {
                     originalProp);
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_byteBufferPoolSize() throws Exception {
-
-        System.out.print("\tByteBuffer pool size changes");
 
         synchronized (byteBufferPoolPropertyLock) {
 
@@ -2207,14 +2047,10 @@ public class WolfSSLSessionTest {
                     originalProp);
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_byteBufferPoolBufferSize() throws Exception {
-
-        System.out.print("\tByteBuffer pool buffer sizes");
 
         synchronized (byteBufferPoolPropertyLock) {
 
@@ -2248,8 +2084,6 @@ public class WolfSSLSessionTest {
                     "wolfssl.readWriteByteBufferPool.bufferSize", originalProp);
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -2465,8 +2299,6 @@ public class WolfSSLSessionTest {
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
 
-        System.out.print("\tTesting I/O CB with ByteBuffers");
-
         /* Initialize library */
         WolfSSL lib = new WolfSSL();
         assertNotNull(lib);
@@ -2516,8 +2348,7 @@ public class WolfSSLSessionTest {
                                 err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
                         if (ret != WolfSSL.SSL_SUCCESS) {
-                            throw new Exception(
-                                "Server accept failed: " + err);
+                            throw new Exception("Server accept failed: " + err);
                         }
 
                         /* Read data from client */
@@ -2566,7 +2397,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -2593,8 +2423,7 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "Client connect failed: " + err);
+                throw new Exception("Client connect failed: " + err);
             }
 
             /* Send test data */
@@ -2606,8 +2435,7 @@ public class WolfSSLSessionTest {
                       err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != testData.length) {
-                throw new Exception(
-                    "Client write failed: " + ret);
+                throw new Exception("Client write failed: " + ret);
             }
 
             /* Read response */
@@ -2619,8 +2447,7 @@ public class WolfSSLSessionTest {
                       err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (bytesRead != testData.length) {
-                throw new Exception(
-                    "Client read failed: " + bytesRead);
+                throw new Exception("Client read failed: " + bytesRead);
             }
 
             /* Verify received data matches sent data using Java 8 compatible
@@ -2647,7 +2474,6 @@ public class WolfSSLSessionTest {
             cliSock = null;
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
 
@@ -2667,8 +2493,6 @@ public class WolfSSLSessionTest {
             }
             es.shutdown();
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -2684,8 +2508,6 @@ public class WolfSSLSessionTest {
         /* Create client/server WolfSSLContext objects */
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
-
-        System.out.print("\tTesting ByteBuffer read()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
@@ -2763,7 +2585,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -2833,7 +2654,6 @@ public class WolfSSLSessionTest {
             cliSock = null;
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
 
@@ -2853,8 +2673,6 @@ public class WolfSSLSessionTest {
             }
             es.shutdown();
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -2868,8 +2686,6 @@ public class WolfSSLSessionTest {
         /* Create client/server WolfSSLContext objects */
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
-
-        System.out.print("\tTesting read/write bounds check");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
@@ -2933,7 +2749,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -2995,7 +2810,6 @@ public class WolfSSLSessionTest {
                 cliSock = null;
 
             } catch (Exception e) {
-                System.out.println("\t... failed");
                 e.printStackTrace();
                 fail();
 
@@ -3023,8 +2837,6 @@ public class WolfSSLSessionTest {
                 es.shutdown();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -3041,8 +2853,6 @@ public class WolfSSLSessionTest {
          * must be final since used inside inner class. */
         final WolfSSLContext srvCtx;
         WolfSSLContext cliCtx;
-
-        System.out.print("\tsessionToDer/sessionFromDer()");
 
         /* Create ServerSocket first to get ephemeral port */
         final ServerSocket srvSocket = new ServerSocket(0);
@@ -3108,7 +2918,6 @@ public class WolfSSLSessionTest {
             });
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
@@ -3136,17 +2945,13 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "WolfSSLSession.connect() failed: " + err);
+                throw new Exception("WolfSSLSession.connect() failed: " + err);
             }
 
             /* Convert session to DER format */
             serializedSession = cliSes.sessionToDer();
-            if (serializedSession == null) {
-                /* Feature not compiled in, skip test */
-                System.out.println("\t... skipped");
-                return;
-            }
+            /* null return indicates feature not compiled in, skip test */
+            Assume.assumeNotNull(serializedSession);
 
             if (serializedSession.length == 0) {
                 throw new Exception("DER session has zero length");
@@ -3194,14 +2999,12 @@ public class WolfSSLSessionTest {
                     err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                throw new Exception(
-                    "WolfSSLSession.connect() failed: " + err);
+                throw new Exception("WolfSSLSession.connect() failed: " + err);
             }
 
             /* Check if session was resumed */
             if (cliSes.sessionReused() == 0) {
-                throw new Exception(
-                    "Session was not resumed");
+                throw new Exception("Session was not resumed");
             }
 
             cliSes.shutdownSSL();
@@ -3211,7 +3014,6 @@ public class WolfSSLSessionTest {
             cliSock = null;
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
 
@@ -3232,15 +3034,11 @@ public class WolfSSLSessionTest {
                 srvCtx.free();
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_dtlsCidMaxSize()
         throws WolfSSLJNIException {
-
-        System.out.print("\tdtlsCidMaxSize()");
 
         /* This is a static method, should work even without wolfSSL compiled
          * with DTLS CID support - may return NOT_COMPILED_IN */
@@ -3251,15 +3049,11 @@ public class WolfSSLSessionTest {
         assertTrue("dtlsCidMaxSize() should return positive value or " +
                    "NOT_COMPILED_IN",
                    maxSize > 0 || maxSize == WolfSSL.NOT_COMPILED_IN);
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_dtlsCidParse()
         throws WolfSSLJNIException {
-
-        System.out.print("\tdtlsCidParse()");
 
         /* Test with null message - should return null */
         byte[] result = WolfSSLSession.dtlsCidParse(null, 0);
@@ -3275,8 +3069,6 @@ public class WolfSSLSessionTest {
          * compiled in or message doesn't contain valid CID) */
         result = WolfSSLSession.dtlsCidParse(testMsg, 5);
         /* Result can be null if not compiled in or no valid CID found */
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -3287,8 +3079,6 @@ public class WolfSSLSessionTest {
         WolfSSLSession sess = null;
         int ret;
 
-        System.out.print("\tDTLS CID functions");
-
         /* Skip if DTLS not supported */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtlsSupported = false;
@@ -3298,10 +3088,7 @@ public class WolfSSLSessionTest {
                 break;
             }
         }
-        if (!dtlsSupported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtlsSupported);
 
         try {
             /* Create DTLS context for CID testing */
@@ -3371,8 +3158,6 @@ public class WolfSSLSessionTest {
         } catch (WolfSSLException we) {
             /* Some methods may throw exceptions if DTLS CID not supported
              * or session not properly configured */
-            System.out.println("\t\t... expected exception: " +
-                               we.getMessage());
 
         } finally {
             if (sess != null) {
@@ -3382,15 +3167,11 @@ public class WolfSSLSessionTest {
                 dtlsCtx.free();
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void test_WolfSSLSession_dtlsCidClientServer()
         throws WolfSSLJNIException, WolfSSLException {
-
-        System.out.print("\tDTLS CID connection");
 
         /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
         String[] protocols = WolfSSL.getProtocols();
@@ -3401,10 +3182,7 @@ public class WolfSSLSessionTest {
                 break;
             }
         }
-        if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
@@ -3431,10 +3209,7 @@ public class WolfSSLSessionTest {
 
             /* Test dtlsCidUse() - may return NOT_COMPILED_IN */
             int ret = server.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
             assertTrue("Server dtlsCidUse() should succeed",
                        ret == WolfSSL.SSL_SUCCESS);
 
@@ -3444,12 +3219,10 @@ public class WolfSSLSessionTest {
 
             /* Test dtlsCidIsEnabled() */
             ret = server.dtlsCidIsEnabled();
-            assertTrue("Server CID should be enabled",
-                       ret == 1);
+            assertTrue("Server CID should be enabled", ret == 1);
 
             ret = client.dtlsCidIsEnabled();
-            assertTrue("Client CID should be enabled",
-                       ret == 1);
+            assertTrue("Client CID should be enabled", ret == 1);
 
             /* Set Connection IDs */
             byte[] serverCid = {0x01, 0x02, 0x03, 0x04, 0x05};
@@ -3457,15 +3230,11 @@ public class WolfSSLSessionTest {
 
             ret = server.dtlsCidSet(serverCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Server " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
             ret = client.dtlsCidSet(clientCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
@@ -3510,11 +3279,7 @@ public class WolfSSLSessionTest {
             assertTrue("Client TX CID size should be 0 (no handshake)",
                        clientTxSize == 0);
 
-            System.out.println("\t\t... passed");
-
         } catch (Exception e) {
-            System.out.println("\t\t... failed with exception: " +
-                               e.getMessage());
             throw e;
 
         } finally {
@@ -3537,8 +3302,6 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_dtlsCidDataExchange()
         throws WolfSSLJNIException, WolfSSLException {
 
-        System.out.print("\tDTLS CID data exchange");
-
         /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -3548,10 +3311,7 @@ public class WolfSSLSessionTest {
                 break;
             }
         }
-        if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
@@ -3574,10 +3334,7 @@ public class WolfSSLSessionTest {
 
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             ret = client.dtlsCidUse();
             assertTrue("Client CID enable should succeed",
@@ -3589,15 +3346,11 @@ public class WolfSSLSessionTest {
 
             ret = server.dtlsCidSet(serverToClientCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Server " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
             ret = client.dtlsCidSet(clientToServerCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
@@ -3606,7 +3359,6 @@ public class WolfSSLSessionTest {
             byte[] clientRx = client.dtlsCidGetRx();
 
             if (serverRx == null || clientRx == null) {
-                System.out.println("\t\t... skipped (CID retrieval failed)");
                 return;
             }
 
@@ -3636,11 +3388,7 @@ public class WolfSSLSessionTest {
             /* parsedCid may be null - depends on DTLS message format */
             /* This tests the API works, actual parsing depends on wolfSSL */
 
-            System.out.println("\t\t... passed");
-
         } catch (Exception e) {
-            System.out.println("\t\t... failed with exception: " +
-                               e.getMessage());
             throw e;
 
         } finally {
@@ -3663,8 +3411,6 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_dtlsCidConnectionMigration()
         throws WolfSSLJNIException, WolfSSLException {
 
-        System.out.print("\tDTLS CID connection migration");
-
         /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -3674,10 +3420,7 @@ public class WolfSSLSessionTest {
                 break;
             }
         }
-        if (!dtls13Supported) {
-            System.out.println("\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         WolfSSLContext serverCtx = null;
         WolfSSLSession server1 = null;
@@ -3696,10 +3439,7 @@ public class WolfSSLSessionTest {
 
             /* Enable CID on both sessions */
             int ret1 = server1.dtlsCidUse();
-            if (ret1 == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret1 != WolfSSL.NOT_COMPILED_IN);
 
             int ret2 = server2.dtlsCidUse();
             assertTrue("Both servers should enable CID successfully",
@@ -3715,8 +3455,6 @@ public class WolfSSLSessionTest {
             ret2 = server2.dtlsCidSet(migrationCid);
 
             if (ret1 != WolfSSL.SSL_SUCCESS || ret2 != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... skipped (dtlsCidSet failed: " +
-                                   ret1 + ", " + ret2 + ")");
                 return;
             }
 
@@ -3725,7 +3463,6 @@ public class WolfSSLSessionTest {
             byte[] server2Rx = server2.dtlsCidGetRx();
 
             if (server1Rx == null || server2Rx == null) {
-                System.out.println("\t... skipped (CID retrieval failed)");
                 return;
             }
 
@@ -3758,11 +3495,7 @@ public class WolfSSLSessionTest {
             assertTrue("TX CID size should be 0 without handshake",
                        txSize1 == 0 && txSize2 == 0);
 
-            System.out.println("\t... passed");
-
         } catch (Exception e) {
-            System.out.println("\t... failed with exception: " +
-                               e.getMessage());
             throw e;
 
         } finally {
@@ -3785,8 +3518,6 @@ public class WolfSSLSessionTest {
         WolfSSLContext dtlsCtx = null;
         WolfSSLSession sess = null;
 
-        System.out.print("\tDTLS CID boundary sizes");
-
         /* Skip if DTLSv1.3 not supported */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -3797,10 +3528,7 @@ public class WolfSSLSessionTest {
             }
         }
 
-        if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         try {
             /* Create DTLS context for CID testing */
@@ -3809,10 +3537,7 @@ public class WolfSSLSessionTest {
 
             /* Enable CID */
             int ret = sess.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             /* Test empty CID (0 bytes) */
             byte[] emptyCid = new byte[0];
@@ -3877,8 +3602,6 @@ public class WolfSSLSessionTest {
                              (byte)0xAA, retrieved[0]);
             }
 
-            System.out.println("\t\t... passed");
-
         } finally {
             if (sess != null) {
                 sess.freeSSL();
@@ -3896,8 +3619,6 @@ public class WolfSSLSessionTest {
         WolfSSLContext dtlsCtx = null;
         WolfSSLSession sess = null;
 
-        System.out.print("\tDTLS CID error conditions");
-
         /* Skip if DTLSv1.3 not supported */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -3908,10 +3629,7 @@ public class WolfSSLSessionTest {
             }
         }
 
-        if (!dtls13Supported) {
-            System.out.println("\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         try {
             /* Create DTLS context for CID testing */
@@ -3920,10 +3638,7 @@ public class WolfSSLSessionTest {
 
             /* Enable CID */
             int ret = sess.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             /* Test null CID - should return BAD_FUNC_ARG */
             ret = sess.dtlsCidSet(null);
@@ -3981,8 +3696,6 @@ public class WolfSSLSessionTest {
                 sess2.freeSSL();
             }
 
-            System.out.println("\t... passed");
-
         } finally {
             if (sess != null) {
                 sess.freeSSL();
@@ -4000,8 +3713,6 @@ public class WolfSSLSessionTest {
         WolfSSLContext dtlsCtx = null;
         WolfSSLSession sess = null;
 
-        System.out.print("\tDTLS CID get0 vs regular get");
-
         /* Skip if DTLSv1.3 not supported */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -4012,10 +3723,7 @@ public class WolfSSLSessionTest {
             }
         }
 
-        if (!dtls13Supported) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         try {
             /* Create DTLS context for CID testing */
@@ -4024,16 +3732,12 @@ public class WolfSSLSessionTest {
 
             /* Enable CID */
             int ret = sess.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             /* Set a test CID */
             byte[] testCid = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05};
             ret = sess.dtlsCidSet(testCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... skipped");
                 return;
             }
 
@@ -4070,16 +3774,12 @@ public class WolfSSLSessionTest {
             byte[] rxCid0Again = sess.dtlsCidGet0Rx();
 
             /* Should still have original value */
-            assertNotNull("Re-fetched CID should not be null",
-                          rxCidAgain);
-            assertNotNull("Re-fetched CID0 should not be null",
-                          rxCid0Again);
+            assertNotNull("Re-fetched CID should not be null", rxCidAgain);
+            assertNotNull("Re-fetched CID0 should not be null", rxCid0Again);
             assertEquals("Internal CID should not be modified by " +
-                         "external changes",
-                         originalFirstByte, rxCidAgain[0]);
+                         "external changes", originalFirstByte, rxCidAgain[0]);
             assertEquals("Internal CID should not be modified by " +
-                         "external changes",
-                         originalFirstByte, rxCid0Again[0]);
+                         "external changes", originalFirstByte, rxCid0Again[0]);
 
             /* Test TX side (before handshake, should return null or
              * empty) */
@@ -4093,8 +3793,6 @@ public class WolfSSLSessionTest {
             assertTrue("TX CID0 should be null or empty before " +
                        "handshake",
                        txCid0 == null || txCid0.length == 0);
-
-            System.out.println("\t... passed");
 
         } finally {
             if (sess != null) {
@@ -4110,8 +3808,6 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_dtlsCidHandshakeComplete()
         throws Exception {
 
-        System.out.print("\tDTLS CID handshake complete");
-
         /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -4122,10 +3818,7 @@ public class WolfSSLSessionTest {
             }
         }
 
-        if (!dtls13Supported) {
-            System.out.println("\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
@@ -4134,16 +3827,12 @@ public class WolfSSLSessionTest {
 
         try {
             /* Create server and client contexts */
-            serverCtx = new WolfSSLContext(
-                WolfSSL.DTLSv1_3_ServerMethod());
-            clientCtx = new WolfSSLContext(
-                WolfSSL.DTLSv1_3_ClientMethod());
+            serverCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
 
             /* Load certificates */
-            serverCtx.useCertificateFile(srvCert,
-                                         WolfSSL.SSL_FILETYPE_PEM);
-            serverCtx.usePrivateKeyFile(srvKey,
-                                        WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.useCertificateFile(srvCert, WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(srvKey, WolfSSL.SSL_FILETYPE_PEM);
             clientCtx.loadVerifyLocations(caCert, null);
 
             /* Create sessions */
@@ -4152,15 +3841,10 @@ public class WolfSSLSessionTest {
 
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             ret = client.dtlsCidUse();
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... skipped (Client CID " +
-                                   "enable failed: " + ret + ")");
                 return;
             }
 
@@ -4170,15 +3854,11 @@ public class WolfSSLSessionTest {
 
             ret = server.dtlsCidSet(serverCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... skipped (Server " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
             ret = client.dtlsCidSet(clientCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... skipped (Client " +
-                                   "dtlsCidSet failed: " + ret + ")");
                 return;
             }
 
@@ -4292,10 +3972,8 @@ public class WolfSSLSessionTest {
                 byte[] serverTx = server.dtlsCidGetTx();
                 byte[] clientTx = client.dtlsCidGetTx();
 
-                assertNotNull("Server TX CID should not be null",
-                              serverTx);
-                assertNotNull("Client TX CID should not be null",
-                              clientTx);
+                assertNotNull("Server TX CID should not be null", serverTx);
+                assertNotNull("Client TX CID should not be null", clientTx);
 
                 /* Server's TX CID should match client's RX CID */
                 assertArrayEquals("Server TX should match client RX",
@@ -4309,22 +3987,14 @@ public class WolfSSLSessionTest {
                 byte[] serverTx0 = server.dtlsCidGet0Tx();
                 byte[] clientTx0 = client.dtlsCidGet0Tx();
 
-                assertNotNull("Server TX CID0 should not be null",
-                              serverTx0);
-                assertNotNull("Client TX CID0 should not be null",
-                              clientTx0);
+                assertNotNull("Server TX CID0 should not be null", serverTx0);
+                assertNotNull("Client TX CID0 should not be null", clientTx0);
 
                 assertArrayEquals("Server TX0 should match TX",
                                   serverTx, serverTx0);
                 assertArrayEquals("Client TX0 should match TX",
                                   clientTx, clientTx0);
 
-                System.out.println("\t... passed");
-
-            } else {
-                System.out.println("\t... skipped (handshake failed: " +
-                                   "client=" + ret + ", server=" +
-                                   serverRet + ")");
             }
 
         } finally {
@@ -4347,8 +4017,6 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_dtlsCidDataExchangeAfterHandshake()
         throws Exception {
 
-        System.out.print("\tDTLS CID data exchange");
-
         /* Skip if DTLSv1.3 not supported - CID requires DTLSv1.3 */
         String[] protocols = WolfSSL.getProtocols();
         boolean dtls13Supported = false;
@@ -4359,10 +4027,7 @@ public class WolfSSLSessionTest {
             }
         }
 
-        if (!dtls13Supported) {
-            System.out.println("\t\t... skipped (DTLSv1.3 not enabled)");
-            return;
-        }
+        Assume.assumeTrue(dtls13Supported);
 
         WolfSSLContext serverCtx = null;
         WolfSSLContext clientCtx = null;
@@ -4371,16 +4036,12 @@ public class WolfSSLSessionTest {
 
         try {
             /* Create server and client contexts */
-            serverCtx = new WolfSSLContext(
-                WolfSSL.DTLSv1_3_ServerMethod());
-            clientCtx = new WolfSSLContext(
-                WolfSSL.DTLSv1_3_ClientMethod());
+            serverCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ServerMethod());
+            clientCtx = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
 
             /* Load certificates */
-            serverCtx.useCertificateFile(srvCert,
-                                         WolfSSL.SSL_FILETYPE_PEM);
-            serverCtx.usePrivateKeyFile(srvKey,
-                                        WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.useCertificateFile(srvCert, WolfSSL.SSL_FILETYPE_PEM);
+            serverCtx.usePrivateKeyFile(srvKey, WolfSSL.SSL_FILETYPE_PEM);
             clientCtx.loadVerifyLocations(caCert, null);
 
             /* Create sessions */
@@ -4389,15 +4050,10 @@ public class WolfSSLSessionTest {
 
             /* Enable CID on both sides */
             int ret = server.dtlsCidUse();
-            if (ret == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
             ret = client.dtlsCidUse();
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client CID " +
-                                   "enable failed: " + ret + ")");
                 return;
             }
 
@@ -4407,15 +4063,11 @@ public class WolfSSLSessionTest {
 
             ret = server.dtlsCidSet(serverCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Server " +
-                                   "dtlsCidSet failed)");
                 return;
             }
 
             ret = client.dtlsCidSet(clientCid);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... skipped (Client " +
-                                   "dtlsCidSet failed)");
                 return;
             }
 
@@ -4534,24 +4186,13 @@ public class WolfSSLSessionTest {
                 byte[] serverTx = server.dtlsCidGetTx();
                 byte[] clientTx = client.dtlsCidGetTx();
 
-                assertNotNull("Server TX CID should still be set",
-                              serverTx);
-                assertNotNull("Client TX CID should still be set",
-                              clientTx);
+                assertNotNull("Server TX CID should still be set", serverTx);
+                assertNotNull("Client TX CID should still be set", clientTx);
 
-                assertArrayEquals("Server TX should still match " +
-                                  "client RX",
+                assertArrayEquals("Server TX should still match client RX",
                                   clientCid, serverTx);
-                assertArrayEquals("Client TX should still match " +
-                                  "server RX",
+                assertArrayEquals("Client TX should still match server RX",
                                   serverCid, clientTx);
-
-                System.out.println("\t\t... passed");
-
-            } else {
-                System.out.println("\t\t... skipped (handshake " +
-                                   "failed: client=" + ret +
-                                   ", server=" + serverRet + ")");
             }
 
         } finally {
@@ -4569,6 +4210,5 @@ public class WolfSSLSessionTest {
             }
         }
     }
-
 }
 

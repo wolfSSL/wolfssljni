@@ -21,28 +21,27 @@
 
 package com.wolfssl.test;
 
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import static org.junit.Assert.assertNotNull;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfCryptECC;
 
 public class WolfCryptECCTest {
 
-    WolfCryptECC ecc;
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
+    @BeforeClass
+    public static void beforeClass() {
+        System.out.println("WolfCryptECC Class");
+    }
 
     @Test
-    public void testECC() throws WolfSSLException {
-
-        System.out.println("WolfCryptECC Class");
-
-        test_ECC_new();
-    }
-
-    public void test_ECC_new() {
-
-        System.out.print("\tWolfCryptECC()");
-        ecc = new WolfCryptECC();
-        System.out.println("\t\t\t... passed");
+    public void testECCNew() throws WolfSSLException {
+        assertNotNull(new WolfCryptECC());
     }
 }
-

@@ -25,8 +25,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
@@ -40,6 +43,9 @@ import com.wolfssl.WolfSSLException;
  * @author wolfSSL
  */
 public class WolfSSLCertManagerTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     private static String ocspRootCaCert =
         "examples/certs/ocsp-root-ca-cert.pem";
@@ -530,15 +536,12 @@ public class WolfSSLCertManagerTest {
         int ret = 0;
         WolfSSLCertManager cm = null;
 
-        System.out.print("\tCertManagerLoadCA()");
-
         try {
             cm = new WolfSSLCertManager();
 
             /* Test loading CA cert by file only (null path) */
             ret = cm.CertManagerLoadCA(ocspRootCaCert, null);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... failed");
                 fail("CertManagerLoadCA(file, null) failed, ret = " + ret);
             }
 
@@ -546,13 +549,11 @@ public class WolfSSLCertManagerTest {
              * return error */
             ret = cm.CertManagerLoadCA(null, null);
             if (ret == WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t\t... failed");
                 fail("CertManagerLoadCA(null, null) should " +
                     "have failed but returned success");
             }
 
         } catch (WolfSSLException e) {
-            System.out.println("\t\t... failed");
             fail("CertManagerLoadCA test failed: " + e.getMessage());
 
         } finally {
@@ -561,8 +562,6 @@ public class WolfSSLCertManagerTest {
                 cm = null;
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -577,8 +576,6 @@ public class WolfSSLCertManagerTest {
         WolfSSLCertManager cm = null;
         WolfSSLCertificate cert = null;
 
-        System.out.print("\tOCSP response cert validation");
-
         try {
             cm = new WolfSSLCertManager();
 
@@ -589,7 +586,6 @@ public class WolfSSLCertManagerTest {
                 caCertPem, caCertPem.length, WolfSSL.SSL_FILETYPE_PEM);
 
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... failed");
                 fail("Failed to load OCSP root CA, ret = " + ret);
             }
 
@@ -611,7 +607,6 @@ public class WolfSSLCertManagerTest {
             ret = cm.CertManagerCheckOCSPResponse(
                 validOcspResponse, certToCheckDer, caCertDer);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... failed");
                 fail("CertManagerCheckOCSPResponse failed with valid " +
                     "OCSP and matching cert, ret = " + ret);
             }
@@ -628,7 +623,6 @@ public class WolfSSLCertManagerTest {
             ret = cm.CertManagerCheckOCSPResponse(
                 validOcspResponse, wrongCertDer, null);
             if (ret == WolfSSL.SSL_SUCCESS) {
-                System.out.println("\t... failed");
                 fail("CertManagerCheckOCSPResponse should have failed " +
                     "with mismatched certificate, but returned success");
             }
@@ -638,7 +632,6 @@ public class WolfSSLCertManagerTest {
             try {
                 cm.CertManagerCheckOCSPResponse(
                     validOcspResponse, null, null);
-                System.out.println("\t... failed");
                 fail("Expected IllegalArgumentException for null cert");
             } catch (IllegalArgumentException e) {
                 /* Expected */
@@ -648,16 +641,14 @@ public class WolfSSLCertManagerTest {
             if (e.getMessage() != null &&
                 e.getMessage().contains("not compiled")) {
                 /* OCSP not compiled in, skip test */
-                System.out.println("\t... skipped (OCSP not compiled in)");
+                Assume.assumeNoException("OCSP not compiled in", e);
                 return;
             }
 
-            System.out.println("\t... failed");
             fail("CertManagerCheckOCSPResponse test failed: " +
                 e.getMessage());
 
         } catch (Exception e) {
-            System.out.println("\t... failed");
             fail("CertManagerCheckOCSPResponse test failed: " +
                 e.getMessage());
 
@@ -667,8 +658,6 @@ public class WolfSSLCertManagerTest {
                 cm = null;
             }
         }
-
-        System.out.println("\t... passed");
     }
 }
 

@@ -555,42 +555,6 @@ class WolfSSLTestFactory {
     }
 
     /**
-     * Red coloring to fail message
-     * @param msg
-     */
-    static void fail(String msg) {
-        System.out.println(msg);
-        /* commented out because of portability concerns
-        if (System.getProperty("os.name").contains("Windows")) {
-            System.out.println(msg);
-        }
-        else {
-            String red = "\u001B[31m";
-            String reset = "\u001B[0m";
-            System.out.println(red + msg + reset);
-        }
-        */
-    }
-
-    /**
-     * Green coloring to pass message
-     * @param msg
-     */
-    static void pass(String msg) {
-        System.out.println(msg);
-        /* commented out because of portability concerns
-        if (System.getProperty("os.name").contains("Windows")) {
-            System.out.println(msg);
-        }
-        else {
-            String green = "\u001B[32m";
-            String reset = "\u001B[0m";
-            System.out.println(green + msg + reset);
-        }
-        */
-    }
-
-    /**
      * Run SSLEngine delegated tasks.
      *
      * wolfJSSE doesn't use delegated tasks, but we use this for

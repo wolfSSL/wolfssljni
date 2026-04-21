@@ -21,8 +21,12 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import org.junit.Assume;
+import org.junit.AssumptionViolatedException;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.util.Arrays;
@@ -44,9 +48,14 @@ import java.security.cert.CertificateException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.test.TimedTestWatcher;
 
 
 public class WolfSSLSessionContextTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     public final static String engineProvider = "wolfJSSE";
     private static WolfSSLTestFactory tf;
@@ -79,18 +88,13 @@ public class WolfSSLSessionContextTest {
         int ret;
         SSLSessionContext sesCtx;
 
-        /* create new SSLEngine */
-        System.out.print("\tTesting getSessionTimeout");
-
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         if (this.ctx == null) {
-            error("\t... failed");
             fail("unable to make a context");
         }
 
         server = this.ctx.createSSLEngine();
         if (server == null)     {
-            error("\t... failed");
             fail("failed to create an engine");
         }
 
@@ -98,35 +102,32 @@ public class WolfSSLSessionContextTest {
         server.setNeedClientAuth(false);
         sesCtx = server.getSession().getSessionContext();
         if (sesCtx != null)     {
-            error("\t... failed");
             fail("session context should be null before connection is made");
         }
 
-        client = this.ctx.createSSLEngine("wolfSSL begin handshake test", 11111);
+        client = this.ctx.createSSLEngine(
+            "wolfSSL begin handshake test", 11111);
         client.setUseClientMode(true);
 
         try {
             server.beginHandshake();
             client.beginHandshake();
         } catch (SSLException e) {
-            error("\t... failed");
             fail("failed to begin handshake");
         }
 
-        ret = tf.testConnection(server, client, null, null, "Test in/out bound");
+        ret = tf.testConnection(server, client, null, null,
+            "Test in/out bound");
         if (ret != 0) {
-            error("\t... failed");
             fail("failed to create engine");
         }
         sesCtx = server.getSession().getSessionContext();
         if (sesCtx == null)     {
-            error("\t... failed");
             fail("session context was null after connection");
         }
 
         /* default should be default of 86400 */
         if (sesCtx.getSessionTimeout() != 86400) {
-            error("\t... failed");
             fail("failed to get session timeout");
         }
 
@@ -134,11 +135,8 @@ public class WolfSSLSessionContextTest {
             tf.CloseConnection(server, client, false);
         } catch (SSLException e1) {
             e1.printStackTrace();
-            error("\t\t... failed");
             fail("session close failed");
         }
-
-        pass("\t... passed");
     }
 
 
@@ -154,9 +152,6 @@ public class WolfSSLSessionContextTest {
         SSLSessionContext sesCtx;
         SSLSession ses;
 
-        /* create new SSLEngine */
-        System.out.print("\tTesting setSessionTimeout");
-
         this.ctx = tf.createSSLContext("TLS", engineProvider);
         server = this.ctx.createSSLEngine();
         client =
@@ -169,7 +164,6 @@ public class WolfSSLSessionContextTest {
         /* get a copy of session before connection */
         ses = server.getSession();
         if (ses == null) {
-            error("\t... failed");
             fail("failed get session from created engine");
         }
 
@@ -177,26 +171,22 @@ public class WolfSSLSessionContextTest {
             server.beginHandshake();
             client.beginHandshake();
         } catch (SSLException e) {
-            error("\t... failed");
             fail("failed to begin handshake");
         }
 
         ret = tf.testConnection(server, client, null, null,
             "Test in/out bound");
         if (ret != 0) {
-            error("\t... failed");
             fail("failed to create engine");
         }
 
         /* check old session copy is not valid */
         if (ses.isValid() != false) {
-            error("\t... failed");
             fail("old session not valid");
         }
 
         ses = server.getSession(); /* get a new copy of session */
         if (ses.isValid() == false) {
-            error("\t... failed");
             fail("session not valid");
         }
 
@@ -214,7 +204,6 @@ public class WolfSSLSessionContextTest {
         /* client timeout should still be default */
         if (client.getSession().getSessionContext()
                 .getSessionTimeout() != 86400) {
-            error("\t... failed");
             fail("client session timout should still be default value");
         }
 
@@ -222,45 +211,34 @@ public class WolfSSLSessionContextTest {
             tf.CloseConnection(server, client, false);
         } catch (SSLException e1) {
             e1.printStackTrace();
-            error("\t... failed");
             fail("session close failed");
         }
-
-        pass("\t... passed");
     }
 
     private void testSetCacheSize(SSLSession ses) {
-        System.out.print("\tTesting SettingCache");
         /* these are wolfJSSE default values,
          * make sure wolfJSSE is the provider */
-        if (ctx.getProvider() == Security.getProvider("wolfJSSE")) {
-            SSLSessionContext sesCtx = ses.getSessionContext();
+        assertSame("ctx provider must be wolfJSSE",
+            Security.getProvider("wolfJSSE"), ctx.getProvider());
 
-            if (sesCtx.getSessionCacheSize() != 33) {
-                error("\t\t... failed");
-                fail("session default cache size wrong");
-            }
+        SSLSessionContext sesCtx = ses.getSessionContext();
 
-            sesCtx.setSessionCacheSize(1000);
-            if (sesCtx.getSessionCacheSize() != 1000) {
-                error("\t\t... failed");
-                fail("session set cache size failed");
-            }
+        if (sesCtx.getSessionCacheSize() != 33) {
+            fail("session default cache size wrong");
         }
-        pass("\t\t... passed");
+
+        sesCtx.setSessionCacheSize(1000);
+        if (sesCtx.getSessionCacheSize() != 1000) {
+            fail("session set cache size failed");
+        }
     }
 
     private void testResizeCache(SSLSession ses) {
-        System.out.print("\tTesting ResizeCache");
-
-        if (ctx.getProvider() != Security.getProvider("wolfJSSE")) {
-            pass("\t\t... skipped");
-            return;
-        }
+        assertSame("ctx provider must be wolfJSSE",
+            Security.getProvider("wolfJSSE"), ctx.getProvider());
 
         SSLSessionContext sesCtx = ses.getSessionContext();
         if (sesCtx == null) {
-            error("\t\t... failed");
             fail("session context was null");
         }
 
@@ -279,7 +257,6 @@ public class WolfSSLSessionContextTest {
         }
 
         if (countBefore == 0 || firstId == null) {
-            error("\t\t... failed");
             fail("no sessions in cache before resize");
         }
 
@@ -298,20 +275,16 @@ public class WolfSSLSessionContextTest {
         }
 
         if (countAfter != countBefore) {
-            error("\t\t... failed");
             fail("resize-up lost sessions: before=" +
                 countBefore + " after=" + countAfter);
         }
 
         if (!found) {
-            error("\t\t... failed");
             fail("original session ID not found after resize");
         }
 
         /* restore original cache size */
         sesCtx.setSessionCacheSize(originalSize);
-
-        pass("\t\t... passed");
     }
 
     @Test
@@ -328,9 +301,6 @@ public class WolfSSLSessionContextTest {
         boolean found;
         byte id[];
         Enumeration<byte[]> allIds;
-
-        /* create new SSLEngine */
-        System.out.print("\tTesting SessionIDs with TLSv1.3");
 
         /* wolfjsse.clientSessionCache.disabled could be set in users
          * java.security file which would cause this test to not work
@@ -352,42 +322,38 @@ public class WolfSSLSessionContextTest {
 
             try {
                 String s[] = server.getEnabledProtocols();
-                if (Arrays.asList(s).contains("TLSv1.3") == false) {
-                    pass("\t... skipped");
-                    return;
-                }
+                Assume.assumeTrue("TLSv1.3 not enabled",
+                    Arrays.asList(s).contains("TLSv1.3"));
 
                 server.setEnabledProtocols(proto);
                 client.setEnabledProtocols(proto);
+            } catch (AssumptionViolatedException ave) {
+                throw ave;
             } catch (Exception e) {
                 e.printStackTrace();
-                error("\t... failed");
+                fail("failed to check or set enabled protocols: " + e);
             }
 
             try {
                 server.beginHandshake();
                 client.beginHandshake();
             } catch (SSLException e) {
-                error("\t... failed");
                 fail("failed to begin handshake");
             }
 
             ret = tf.testConnection(
                 server, client, null, null, "Test in/out bound");
             if (ret != 0) {
-                error("\t... failed");
                 fail("failed to create engine");
             }
 
             ses = server.getSession(); /* get a new copy of session */
             if (ses == null) {
-                error("\t... failed");
                 fail("unable to get session after handshake");
             }
 
             id = ses.getId();
             if (id == null) {
-                error("\t... failed");
                 fail("session had no id....");
             }
             found = false;
@@ -402,25 +368,21 @@ public class WolfSSLSessionContextTest {
             }
 
             if (!found) {
-                error("\t... failed");
                 fail("did not find session id in global context list");
             }
 
             if (ses.isValid() == false) {
-                error("\t... failed");
                 fail("session not valid");
             }
 
             /* now test finding client session by ID */
             ses = client.getSession(); /* get a new copy of session */
             if (ses == null) {
-                error("\t... failed");
                 fail("unable to get session after handshake");
             }
 
             id = ses.getId();
             if (id == null) {
-                error("\t... failed");
                 fail("client session had no id....");
             }
             found = false;
@@ -435,7 +397,6 @@ public class WolfSSLSessionContextTest {
             }
 
             if (!found) {
-                error("\t... failed");
                 fail("did not find client session id in global context list");
             }
 
@@ -443,10 +404,8 @@ public class WolfSSLSessionContextTest {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
                 e1.printStackTrace();
-                error("\t... failed");
                 fail("session close failed");
             }
-            pass("\t... passed");
 
         } finally {
             restoreClientSessionCacheProperty(originalProp);
@@ -468,9 +427,6 @@ public class WolfSSLSessionContextTest {
         byte id[];
         Enumeration<byte[]> allIds;
 
-        /* create new SSLEngine */
-        System.out.print("\tTesting SessionIDs with TLSv1.2");
-
         /* wolfjsse.clientSessionCache.disabled could be set in users
          * java.security file which would cause this test to not work
          * properly. Save their setting here, and re-enable session
@@ -491,42 +447,38 @@ public class WolfSSLSessionContextTest {
 
             try {
                 String s[] = server.getEnabledProtocols();
-                if (Arrays.asList(s).contains("TLSv1.2") == false) {
-                    pass("\t... skipped");
-                    return;
-                }
+                Assume.assumeTrue("TLSv1.2 not enabled",
+                    Arrays.asList(s).contains("TLSv1.2"));
 
                 server.setEnabledProtocols(proto);
                 client.setEnabledProtocols(proto);
+            } catch (AssumptionViolatedException ave) {
+                throw ave;
             } catch (Exception e) {
                 e.printStackTrace();
-                error("\t... failed");
+                fail("failed to check or set enabled protocols: " + e);
             }
 
             try {
                 server.beginHandshake();
                 client.beginHandshake();
             } catch (SSLException e) {
-                error("\t... failed");
                 fail("failed to begin handshake");
             }
 
             ret = tf.testConnection(
                 server, client, null, null, "Test in/out bound");
             if (ret != 0) {
-                error("\t... failed");
                 fail("failed to create engine");
             }
 
             ses = server.getSession(); /* get a new copy of session */
             if (ses == null) {
-                error("\t... failed");
                 fail("unable to get session after handshake");
             }
 
             id = ses.getId();
             if (id == null) {
-                error("\t... failed");
                 fail("session had no id....");
             }
             found = false;
@@ -541,25 +493,21 @@ public class WolfSSLSessionContextTest {
             }
 
             if (!found) {
-                error("\t... failed");
                 fail("did not find session id in global context list");
             }
 
             if (ses.isValid() == false) {
-                error("\t... failed");
                 fail("session not valid");
             }
 
             /* now test finding client session by ID */
             ses = client.getSession(); /* get a new copy of session */
             if (ses == null) {
-                error("\t... failed");
                 fail("unable to get session after handshake");
             }
 
             id = ses.getId();
             if (id == null) {
-                error("\t... failed");
                 fail("client session had no id....");
             }
             found = false;
@@ -574,11 +522,8 @@ public class WolfSSLSessionContextTest {
             }
 
             if (!found) {
-                error("\t... failed");
                 fail("did not find client session id in global context list");
             }
-
-            pass("\t... passed");
 
             /* additional tests on the engines and sessions while open */
             testSetCacheSize(ses);
@@ -589,7 +534,6 @@ public class WolfSSLSessionContextTest {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
                 e1.printStackTrace();
-                error("\t\t... failed");
                 fail("session close failed");
             }
 
@@ -612,7 +556,6 @@ public class WolfSSLSessionContextTest {
 
         /* Regression: session must expire at exactly the
          * timeout boundary (diff >= timeout, not diff > timeout) */
-        System.out.print("\tSession timeout boundary");
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");
@@ -631,20 +574,17 @@ public class WolfSSLSessionContextTest {
                 server.beginHandshake();
                 client.beginHandshake();
             } catch (SSLException e) {
-                error("\t... failed");
                 fail("failed to begin handshake");
             }
 
             ret = tf.testConnection(server, client, null, null,
                 "timeout boundary test");
             if (ret != 0) {
-                error("\t... failed");
                 fail("failed to create connection");
             }
 
             ses = server.getSession();
             if (ses == null || !ses.isValid()) {
-                error("\t... failed");
                 fail("session should be valid after handshake");
             }
 
@@ -677,14 +617,12 @@ public class WolfSSLSessionContextTest {
                 }
             }
             if (found) {
-                error("\t... failed");
                 fail("expired session should not appear in getIds()");
             }
 
             /* After updateTimeouts ran via getIds(), session should
              * also report as invalid */
             if (ses.isValid()) {
-                error("\t... failed");
                 fail("session should be invalid after timeout");
             }
 
@@ -692,11 +630,8 @@ public class WolfSSLSessionContextTest {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
                 e1.printStackTrace();
-                error("\t... failed");
                 fail("session close failed");
             }
-
-            pass("\t... passed");
 
         } finally {
             restoreClientSessionCacheProperty(originalProp);
@@ -717,7 +652,6 @@ public class WolfSSLSessionContextTest {
 
         /* Regression: invalidated sessions must be filtered
          * from getIds() and getSession(). */
-        System.out.print("\tInvalidation filtered getIds");
 
         String originalProp = Security.getProperty(
             "wolfjsse.clientSessionCache.disabled");
@@ -737,20 +671,17 @@ public class WolfSSLSessionContextTest {
                 server.beginHandshake();
                 client.beginHandshake();
             } catch (SSLException e) {
-                error("\t... failed");
                 fail("failed to begin handshake");
             }
 
             ret = tf.testConnection(server, client, null, null,
                 "invalidation test");
             if (ret != 0) {
-                error("\t... failed");
                 fail("failed to create connection");
             }
 
             ses = server.getSession();
             if (ses == null || !ses.isValid()) {
-                error("\t... failed");
                 fail("session should be valid after handshake");
             }
 
@@ -768,7 +699,6 @@ public class WolfSSLSessionContextTest {
                 }
             }
             if (!foundBefore) {
-                error("\t... failed");
                 fail("session should be in getIds() before invalidation");
             }
 
@@ -776,7 +706,6 @@ public class WolfSSLSessionContextTest {
             ses.invalidate();
 
             if (ses.isValid()) {
-                error("\t... failed");
                 fail("session should not be valid after invalidation");
             }
 
@@ -791,7 +720,6 @@ public class WolfSSLSessionContextTest {
                 }
             }
             if (foundAfter) {
-                error("\t... failed");
                 fail("invalidated session should not appear in getIds()");
             }
 
@@ -799,7 +727,6 @@ public class WolfSSLSessionContextTest {
              * invalidated session */
             SSLSession retrieved = sesCtx.getSession(sessionId);
             if (retrieved != null && retrieved.isValid()) {
-                error("\t... failed");
                 fail("getSession() should not return valid " +
                      "invalidated session");
             }
@@ -808,11 +735,8 @@ public class WolfSSLSessionContextTest {
                 tf.CloseConnection(server, client, false);
             } catch (SSLException e1) {
                 e1.printStackTrace();
-                error("\t... failed");
                 fail("session close failed");
             }
-
-            pass("\t... passed");
 
         } finally {
             restoreClientSessionCacheProperty(originalProp);
@@ -830,13 +754,5 @@ public class WolfSSLSessionContextTest {
             Security.setProperty("wolfjsse.clientSessionCache.disabled", "");
         }
     }
-
-    private void pass(String msg) {
-        WolfSSLTestFactory.pass(msg);
-    }
-
-    private void error(String msg) {
-        WolfSSLTestFactory.fail(msg);
-    }
-
 }
+

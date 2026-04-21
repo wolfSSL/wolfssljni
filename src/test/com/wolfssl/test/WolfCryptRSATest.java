@@ -21,29 +21,27 @@
 
 package com.wolfssl.test;
 
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import static org.junit.Assert.assertNotNull;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfCryptRSA;
 
 public class WolfCryptRSATest {
 
-    WolfCryptRSA rsa;
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
+    @BeforeClass
+    public static void beforeClass() {
+        System.out.println("WolfCryptRSA Class");
+    }
 
     @Test
-    public void testRSA() throws WolfSSLException {
-
-        System.out.println("WolfCryptRSA Class");
-
-        test_RSA_new();
-    }
-
-    public void test_RSA_new() {
-
-        System.out.print("\tWolfCryptRSA()");
-        rsa = new WolfCryptRSA();
-        System.out.println("\t\t\t... passed");
+    public void testRSANew() throws WolfSSLException {
+        assertNotNull(new WolfCryptRSA());
     }
 }
-
-

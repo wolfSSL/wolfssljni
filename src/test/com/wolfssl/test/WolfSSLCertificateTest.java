@@ -29,8 +29,6 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.time.Instant;
 import java.time.Duration;
 import java.security.cert.CertificateException;
@@ -48,8 +46,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.Assume;
+import org.junit.AssumptionViolatedException;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
@@ -107,23 +109,26 @@ public class WolfSSLCertificateTest {
                msg.contains("NOT_COMPILED_IN");
     }
 
-    private void runOrAllowNotCompiled(ThrowingRunnable r, String label)
+    private void runOrAllowNotCompiled(ThrowingRunnable r)
         throws WolfSSLException, WolfSSLJNIException, IOException {
 
         try {
             r.run();
         } catch (WolfSSLException e) {
             if (isNotCompiledIn(e)) {
-                System.out.println("\t\t" + label +
-                    " ... NOT_COMPILED_IN (skipping)");
                 return;
             }
             throw e;
         }
     }
 
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     @BeforeClass
     public static void setCertPaths() throws WolfSSLException {
+
+        System.out.println("WolfSSLCertificate Class");
 
         try {
             WolfSSL.loadLibrary();
@@ -156,27 +161,29 @@ public class WolfSSLCertificateTest {
 
 
     @Test
-    public void testWolfSSLCertificate() throws WolfSSLException {
-
-        System.out.println("WolfSSLCertificate Class");
-
-        /* WolfSSLCertificate(byte[] der) */
+    public void testCertFromDerArray() throws WolfSSLException {
         test_WolfSSLCertificate_new_derArray();
         test_runCertTestsAfterConstructor();
+    }
 
-        /* WolfSSLCertificate(String der) */
+    @Test
+    public void testCertFromPemArray() throws WolfSSLException {
         test_WolfSSLCertificate_new_pemArray();
         test_runCertTestsAfterConstructor();
+    }
 
-        if (WolfSSL.FileSystemEnabled() == true) {
-            /* WolfSSLCertificate(byte[] pem) */
-            test_WolfSSLCertificate_new_derFile();
-            test_runCertTestsAfterConstructor();
+    @Test
+    public void testCertFromDerFile() throws WolfSSLException {
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        test_WolfSSLCertificate_new_derFile();
+        test_runCertTestsAfterConstructor();
+    }
 
-            /* WolfSSLCertificate(String pem) */
-            test_WolfSSLCertificate_new_pemFile();
-            test_runCertTestsAfterConstructor();
-        }
+    @Test
+    public void testCertFromPemFile() throws WolfSSLException {
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        test_WolfSSLCertificate_new_pemFile();
+        test_runCertTestsAfterConstructor();
     }
 
     public void test_runCertTestsAfterConstructor() {
@@ -200,8 +207,6 @@ public class WolfSSLCertificateTest {
             test_getKeyUsage();
             test_getExtendedKeyUsage();
         }
-        test_getAiaMulti();
-        test_getAiaOverflow();
         test_getExtensionSet();
         test_toString();
         test_free();
@@ -212,45 +217,30 @@ public class WolfSSLCertificateTest {
         File f = new File(cliCertDer);
         byte[] der = null;
 
-        System.out.print("\tnew(byte[] der)");
-
         try {
             InputStream stream = new FileInputStream(f);
             der = new byte[(int) f.length()];
             stream.read(der, 0, der.length);
             stream.close();
         } catch (IOException ex) {
-            System.out.println("\t\t\t... failed");
             fail("Unable to read file " + cliCertDer);
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
 
         try {
             this.cert = new WolfSSLCertificate(der);
         } catch (WolfSSLException ex) {
-            System.out.println("\t\t\t... failed");
             fail("Unable to initialize class");
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
-        System.out.println("\t\t\t... passed");
     }
 
 
     public void test_WolfSSLCertificate_new_derFile() {
-        System.out.print("\tnew(String der, int format)");
-
         try {
             this.cert = new WolfSSLCertificate(cliCertDer,
                                 WolfSSL.SSL_FILETYPE_ASN1);
         } catch (WolfSSLException ex) {
-            System.out.println("\t... failed");
             fail("Unable to initialize class");
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
-        System.out.println("\t... passed");
     }
 
 
@@ -258,45 +248,30 @@ public class WolfSSLCertificateTest {
         File f = new File(cliCertPem);
         byte[] pem = null;
 
-        System.out.print("\tnew(byte[] in, int format)");
-
         try {
             InputStream stream = new FileInputStream(f);
             pem = new byte[(int) f.length()];
             stream.read(pem, 0, pem.length);
             stream.close();
         } catch (IOException ex) {
-            System.out.println("\t... failed");
             fail("Unable to read file " + cliCertPem);
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
 
         try {
             this.cert = new WolfSSLCertificate(pem, WolfSSL.SSL_FILETYPE_PEM);
         } catch (WolfSSLException ex) {
-            System.out.println("\t... failed");
             fail("Unable to initialize class");
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
-        System.out.println("\t... passed");
     }
 
 
     public void test_WolfSSLCertificate_new_pemFile() {
-        System.out.print("\tnew(String pem, int format)");
-
         try {
             this.cert = new WolfSSLCertificate(cliCertPem,
                                 WolfSSL.SSL_FILETYPE_PEM);
         } catch (WolfSSLException ex) {
-            System.out.println("\t... failed");
             fail("Unable to initialize class");
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
         }
-        System.out.println("\t... passed");
     }
 
     private byte[] fileToByteArray(String filePath)
@@ -324,27 +299,21 @@ public class WolfSSLCertificateTest {
         int i;
         BigInteger bigi = cert.getSerial();
 
-        System.out.print("\t\tgetSerial");
         serial = bigi.toByteArray();
         for (i = 0; i < serial.length && i < expected.length; i++) {
             if (serial[i] != expected[i]) {
-                System.out.println("\t\t... failed");
                 fail("Unexpected serial number");
             }
         }
-        System.out.println("\t\t... passed");
     }
 
     @SuppressWarnings("deprecation")
     public void test_notBefore() {
         Date date = cert.notBefore();
         Date expected = new Date("Dec 13 22:19:28 2023 GMT");
-        System.out.print("\t\tnotBefore");
         if (date.compareTo(expected) != 0) {
-            System.out.println("\t\t... failed");
             fail("Unexpected not before date");
         }
-        System.out.println("\t\t... passed");
     }
 
 
@@ -352,23 +321,17 @@ public class WolfSSLCertificateTest {
     public void test_notAfter() {
         Date date = cert.notAfter();
         Date expected = new Date("Sep  8 22:19:28 2026 GMT");
-        System.out.print("\t\tnotAfter");
         if (date.compareTo(expected) != 0) {
-            System.out.println("\t\t... failed");
             fail("Unexpected not after date");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getVersion() {
         int version = cert.getVersion();
 
-        System.out.print("\t\tgetVersion");
         if (version != 3) {
-            System.out.println("\t\t... failed");
             fail("Unexpected version number");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getSignature() {
@@ -428,45 +391,37 @@ public class WolfSSLCertificateTest {
             (byte)0x5c
         };
         int i;
-        System.out.print("\t\tgetSignature");
         for (i = 0; i < sig.length && i < expected.length; i++) {
             if (sig[i] != expected[i]) {
-                System.out.println("\t\t... failed");
                 fail("Unexpected signature");
             }
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_isCA() {
-        System.out.print("\t\tisCA");
         if (this.cert.isCA() != 1) {
-            System.out.println("\t\t\t... failed");
             fail("Expected isCA to be set");
         }
-        System.out.println("\t\t\t... passed");
     }
 
     public void test_getSubject() {
-        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048" +
+            "/OU=Programming-2048/CN=www.wolfssl.com" +
+            "/emailAddress=info@wolfssl.com";
 
-        System.out.print("\t\tgetSubject");
         if (!cert.getSubject().equals(expected)) {
-            System.out.println("\t\t... failed");
             fail("Unexpected subject");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getIssuer() {
-        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+        String expected = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048" +
+            "/OU=Programming-2048/CN=www.wolfssl.com" +
+            "/emailAddress=info@wolfssl.com";
 
-        System.out.print("\t\tgetIssuer");
         if (!cert.getIssuer().equals(expected)) {
-            System.out.println("\t\t... failed");
             fail("Unexpected issuer");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getPubkey() {
@@ -543,75 +498,54 @@ public class WolfSSLCertificateTest {
         int i;
         byte[] pub;
 
-        System.out.print("\t\tgetPubkey");
         pub = cert.getPubkey();
         for (i = 0; i < pub.length && i < expected.length; i++) {
             if (pub[i] != expected[i]) {
-                System.out.println("\t\t... failed");
                 fail("Unexpected public key value");
             }
         }
-
-        System.out.println("\t\t... passed");
     }
 
     public void test_getPubkeyType() {
         String expected = "RSA";
-        System.out.print("\t\tgetPubkeyType");
         if (!expected.equals(this.cert.getPubkeyType())) {
-                System.out.println("\t\t... failed");
-                fail("Unexpected public key type value");
+            fail("Unexpected public key type value");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getPathLen() {
         int expected = -1;
-        System.out.print("\t\tgetPathLen");
         if (this.cert.getPathLen() != expected) {
-                System.out.println("\t\t... failed");
-                fail("Unexpected path length value");
+            fail("Unexpected path length value");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getSignatureType() {
         String expected = "SHA256withRSA";
-        System.out.print("\t\tgetSignatureType");
         if (!expected.equals(this.cert.getSignatureType())) {
-                System.out.println("\t... failed");
-                fail("Unexpected signature type");
+            fail("Unexpected signature type");
         }
-        System.out.println("\t... passed");
     }
 
     public void test_verify() {
         byte[] pubkey;
 
-        System.out.print("\t\tverify");
         pubkey = this.cert.getPubkey();
         if (pubkey == null) {
-            System.out.println("\t\t\t... failed");
             fail("Could not get public key");
             return;
         }
 
         if (this.cert.verify(pubkey, pubkey.length) != true) {
-            System.out.println("\t\t\t... failed");
             fail("Verify signature failed");
         }
-        System.out.println("\t\t\t... passed");
     }
 
     public void test_getSignatureOID() {
-        System.out.print("\t\tgetSignatureOID");
-
         /* make sure is sha256WithRSAEncryption OID */
         if (!this.cert.getSignatureOID().equals("1.2.840.113549.1.1.11")) {
-            System.out.println("\t\t... failed");
             fail("Could not get public key");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getKeyUsage() {
@@ -620,9 +554,7 @@ public class WolfSSLCertificateTest {
             true, false, false, false, false, true, true, false, false
         };
 
-        System.out.print("\t\tgetKeyUsage");
         if (this.cert.getKeyUsage() != null) {
-            System.out.println("\t\t... failed");
             fail("Found key usage extension when not expecting any");
         }
 
@@ -640,25 +572,19 @@ public class WolfSSLCertificateTest {
 
             kuse = ext.getKeyUsage();
             if (kuse == null) {
-                System.out.println("\t\t... failed");
                 fail("Did not find key usage extension");
                 return;
             }
 
             for (i = 0; i < kuse.length; i++) {
                 if (kuse[i] != expected[i]) {
-                    System.out.println("\t\t... failed");
                     fail("Found wrong key usage extension");
                 }
             }
             ext.free();
         } catch (Exception ex) {
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
-            System.out.println("\t\t... failed");
             fail("Error loading external certificate");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_getExtendedKeyUsage() {
@@ -669,18 +595,14 @@ public class WolfSSLCertificateTest {
             "1.3.6.1.5.5.7.3.2"   /* TLS Web Client Authentication */
         };
 
-        System.out.print("\t\tgetExtendedKeyUsage");
-
         /* Client cert has Extended Key Usage extension with serverAuth
          * and clientAuth */
         eku = this.cert.getExtendedKeyUsage();
         if (eku == null) {
-            System.out.println("\t... failed");
             fail("getExtendedKeyUsage() returned null for client cert");
         }
 
         if (eku.length != expected.length) {
-            System.out.println("\t... failed");
             fail("Expected " + expected.length + " EKU OIDs, got: " +
                  eku.length);
         }
@@ -695,7 +617,6 @@ public class WolfSSLCertificateTest {
                 }
             }
             if (!found) {
-                System.out.println("\t... failed");
                 fail("Missing expected OID: " + expected[i]);
             }
         }
@@ -703,18 +624,15 @@ public class WolfSSLCertificateTest {
         /* Verify all OIDs are properly formatted */
         for (i = 0; i < eku.length; i++) {
             if (eku[i] == null || eku[i].isEmpty()) {
-                System.out.println("\t... failed");
                 fail("Extended key usage OID is null or empty");
             }
             if (!eku[i].matches("^[0-9]+(\\.[0-9]+)*$")) {
-                System.out.println("\t... failed");
                 fail("Invalid OID format: " + eku[i]);
             }
         }
-
-        System.out.println("\t... passed");
     }
 
+    @Test
     public void test_getAiaMulti() {
         String[] ocsp;
         String[] ca;
@@ -723,8 +641,6 @@ public class WolfSSLCertificateTest {
         String ca1 = "http://www.wolfssl.com/ca.pem";
         String ca2 = "https://www.wolfssl.com/ca2.pem";
         WolfSSLCertificate tmp = null;
-
-        System.out.print("\t\tgetOcsp/getCaIssuerUris");
 
         try {
             if (WolfSSL.FileSystemEnabled() == true) {
@@ -738,53 +654,47 @@ public class WolfSSLCertificateTest {
 
             int overflow = tmp.getAiaOverflow();
             if (overflow == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped (AIA not compiled in)");
                 tmp.free();
-                return;
+                tmp = null;
+                Assume.assumeTrue("AIA not compiled in", false);
             }
 
             ocsp = tmp.getOcspUris();
             if (ocsp == null || ocsp.length != 2) {
-                System.out.println("\t... failed");
                 fail("Expected 2 OCSP URIs, got " +
-                     ((ocsp == null) ? "null" : ocsp.length));
+                    ((ocsp == null) ? "null" : ocsp.length));
             }
             assertTrue(arrayContains(ocsp, ocsp1));
             assertTrue(arrayContains(ocsp, ocsp2));
 
             ca = tmp.getCaIssuerUris();
             if (ca == null || ca.length != 2) {
-                System.out.println("\t... failed");
                 fail("Expected 2 CA Issuer URIs, got " +
-                     ((ca == null) ? "null" : ca.length));
+                    ((ca == null) ? "null" : ca.length));
             }
             assertTrue(arrayContains(ca, ca1));
             assertTrue(arrayContains(ca, ca2));
 
             if (overflow != 0) {
-                System.out.println("\t... failed");
                 fail("Expected no AIA overflow, got " + overflow);
             }
 
             tmp.free();
+        } catch (AssumptionViolatedException ave) {
+            /* Let JUnit handle the skip; do not wrap as failure. */
+            throw ave;
         } catch (Exception ex) {
             if (tmp != null) {
                 tmp.free();
             }
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
-            System.out.println("\t... failed");
             fail("Error loading AIA multi certificate");
         }
-
-        System.out.println("\t... passed");
     }
 
+    @Test
     public void test_getAiaOverflow() {
         String[] ocsp;
         WolfSSLCertificate tmp = null;
-
-        System.out.print("\t\tgetOcspUris overflow");
 
         try {
             if (WolfSSL.FileSystemEnabled() == true) {
@@ -798,16 +708,15 @@ public class WolfSSLCertificateTest {
 
             int overflow = tmp.getAiaOverflow();
             if (overflow == WolfSSL.NOT_COMPILED_IN) {
-                System.out.println("\t... skipped (AIA not compiled in)");
                 tmp.free();
-                return;
+                tmp = null;
+                Assume.assumeTrue("AIA not compiled in", false);
             }
 
             ocsp = tmp.getOcspUris();
             if (ocsp == null || ocsp.length != 8) {
-                System.out.println("\t... failed");
                 fail("Expected 8 OCSP URIs (overflow), got " +
-                     ((ocsp == null) ? "null" : ocsp.length));
+                    ((ocsp == null) ? "null" : ocsp.length));
             }
             assertTrue(arrayContains(ocsp, "http://127.0.0.1:22220"));
             assertTrue(arrayContains(ocsp, "http://127.0.0.1:22221"));
@@ -820,22 +729,19 @@ public class WolfSSLCertificateTest {
             assertFalse(arrayContains(ocsp, "http://127.0.0.1:22228"));
 
             if (overflow != 1) {
-                System.out.println("\t... failed");
                 fail("Expected AIA overflow to be set, got " + overflow);
             }
 
             tmp.free();
+        } catch (AssumptionViolatedException ave) {
+            /* Let JUnit handle the skip; do not wrap as failure. */
+            throw ave;
         } catch (Exception ex) {
             if (tmp != null) {
                 tmp.free();
             }
-            Logger.getLogger(WolfSSLCertificateTest.class.getName()).log(
-                                Level.SEVERE, null, ex);
-            System.out.println("\t... failed");
             fail("Error loading AIA overflow certificate");
         }
-
-        System.out.println("\t... passed");
     }
 
     private boolean arrayContains(String[] list, String value) {
@@ -851,35 +757,25 @@ public class WolfSSLCertificateTest {
     }
 
     public void test_getExtensionSet() {
-        System.out.print("\t\tgetExtensionSet");
-
         if (this.cert.getExtensionSet("2.5.29.19") != 1) {
-            System.out.println("\t\t... failed");
             fail("Error with basic constraint extension");
         }
 
         if (this.cert.getExtensionSet("2.5.29.14") != 1) {
-            System.out.println("\t\t... failed");
             fail("Error with subject key ID extension");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_toString() {
         String s;
-        System.out.print("\t\ttoString");
         s =  cert.toString();
         if (s == null) {
-            System.out.println("\t\t... failed");
             fail("Error getting certificate string");
         }
-        System.out.println("\t\t... passed");
     }
 
     public void test_free() {
-        System.out.print("\t\tfree");
         this.cert.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -887,8 +783,6 @@ public class WolfSSLCertificateTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException,
                InvalidKeySpecException {
-
-        System.out.println("WolfSSLCertificate Generation");
 
         if (WolfSSL.FileSystemEnabled() == true) {
             testCertGen_SelfSigned_UsingFiles();
@@ -906,12 +800,7 @@ public class WolfSSLCertificateTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\textension setters");
-
-        if (WolfSSL.FileSystemEnabled() == false) {
-            System.out.println("\tfilesystem disabled, skipping");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -948,18 +837,10 @@ public class WolfSSLCertificateTest {
             0x1F, 0x20, 0x21, 0x22, 0x23
         };
 
-        runOrAllowNotCompiled(
-            () -> x509.setSubjectKeyId(skid),
-            "setSubjectKeyId");
-        runOrAllowNotCompiled(
-            () -> x509.setSubjectKeyIdEx(),
-            "setSubjectKeyIdEx");
-        runOrAllowNotCompiled(
-            () -> x509.setAuthorityKeyId(akid),
-            "setAuthorityKeyId");
-        runOrAllowNotCompiled(
-            () -> x509.setAuthorityKeyIdEx(issuer),
-            "setAuthorityKeyIdEx");
+        runOrAllowNotCompiled(() -> x509.setSubjectKeyId(skid));
+        runOrAllowNotCompiled(() -> x509.setSubjectKeyIdEx());
+        runOrAllowNotCompiled(() -> x509.setAuthorityKeyId(akid));
+        runOrAllowNotCompiled(() -> x509.setAuthorityKeyIdEx(issuer));
 
         /* Basic Constraints with pathLen */
         try {
@@ -968,7 +849,6 @@ public class WolfSSLCertificateTest {
             if (!isNotCompiledIn(e)) {
                 throw e;
             }
-            System.out.println("\t\t... skipped");
         }
         try {
             x509.addExtension(WolfSSL.NID_basic_constraints, true, 3, true);
@@ -976,7 +856,6 @@ public class WolfSSLCertificateTest {
             if (!isNotCompiledIn(e)) {
                 throw e;
             }
-            System.out.println("\t\t... skipped");
         }
 
         /* Invalid pathLen (< -1) should throw WolfSSLException */
@@ -1003,26 +882,19 @@ public class WolfSSLCertificateTest {
             /* expected */
         }
 
-        runOrAllowNotCompiled(
-            () -> x509.addCrlDistPoint("http://crl.example.com/ca.crl", false),
-            "addCrlDistPoint");
+        runOrAllowNotCompiled(() ->
+            x509.addCrlDistPoint("http://crl.example.com/ca.crl", false));
 
         byte[] crlDpDer = issuer.getExtension("2.5.29.31");
         if (crlDpDer != null && crlDpDer.length > 0) {
-            runOrAllowNotCompiled(
-                () -> x509.setCrlDistPoints(crlDpDer),
-                "setCrlDistPoints");
+            runOrAllowNotCompiled(() -> x509.setCrlDistPoints(crlDpDer));
         }
 
-        runOrAllowNotCompiled(
-            () -> x509.setNsCertType(0x80),
-            "setNsCertType");
+        runOrAllowNotCompiled(() -> x509.setNsCertType(0x80));
 
         subjectName.free();
         issuer.free();
         x509.free();
-
-        System.out.println("\t\t... passed");
     }
 
     /* Quick sanity check on certificate bytes. Loads cert into new
@@ -1141,8 +1013,6 @@ public class WolfSSLCertificateTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tself signed (files)");
-
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
 
@@ -1207,8 +1077,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t\t... passed");
     }
 
     /* Test CA-signed certificate generation using files for public key,
@@ -1216,8 +1084,6 @@ public class WolfSSLCertificateTest {
     private void testCertGen_CASigned_UsingFiles()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
-
-        System.out.print("\tCA signed (files)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1285,8 +1151,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t\t... passed");
     }
 
     /* Test self-signed certificate generation using buffers for public key,
@@ -1294,8 +1158,6 @@ public class WolfSSLCertificateTest {
     private void testCertGen_SelfSigned_UsingBuffers()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
-
-        System.out.print("\tself signed (buffers)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1361,8 +1223,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t\t... passed");
     }
 
     /* Test CA-signed certificate generation using buffers for public key,
@@ -1370,8 +1230,6 @@ public class WolfSSLCertificateTest {
     private void testCertGen_CASigned_UsingBuffers()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
-
-        System.out.print("\tCA signed (buffers)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1441,8 +1299,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t\t... passed");
     }
 
     /* Test self-signed certificate generation using higher-level Java classes
@@ -1450,8 +1306,6 @@ public class WolfSSLCertificateTest {
     private void testCertGen_SelfSigned_UsingJavaClasses()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
-
-        System.out.print("\tself signed (Java classes)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1519,8 +1373,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t... passed");
     }
 
     /* Test CA-signed certificate generation using higher-level Java classes
@@ -1529,8 +1381,6 @@ public class WolfSSLCertificateTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException,
                InvalidKeySpecException {
-
-        System.out.print("\tCA signed (Java classes)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1608,8 +1458,6 @@ public class WolfSSLCertificateTest {
         /* Free native memory */
         subjectName.free();
         x509.free();
-
-        System.out.println("\t... passed");
     }
 
     /* Test self-signed CA certificate generation with Basic Constraints
@@ -1618,8 +1466,6 @@ public class WolfSSLCertificateTest {
     private void testCertGen_SelfSigned_WithPathLen()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
-
-        System.out.print("\tSelf-signed CA (pathLen)");
 
         WolfSSLCertificate x509 = new WolfSSLCertificate();
         assertNotNull(x509);
@@ -1659,7 +1505,6 @@ public class WolfSSLCertificateTest {
             x509.addExtension(WolfSSL.NID_basic_constraints, true, 0, true);
         } catch (WolfSSLException e) {
             if (isNotCompiledIn(e)) {
-                System.out.println("\t... skipped");
                 subjectName.free();
                 x509.free();
                 return;
@@ -1689,8 +1534,6 @@ public class WolfSSLCertificateTest {
         reloaded.free();
         subjectName.free();
         x509.free();
-
-        System.out.println("\t... passed");
     }
 
     /* Utility method if needed for testing, print out cert array to file */
@@ -1709,8 +1552,6 @@ public class WolfSSLCertificateTest {
     public void testSubjectAltNames()
         throws WolfSSLException, WolfSSLJNIException, IOException {
 
-        System.out.println("Subject Alternative Names (SAN) Parsing");
-
         test_getSubjectAltNames_ServerCert();
         test_getSubjectAltNames_ExampleCert();
         test_getSubjectAltNamesExtended();
@@ -1727,8 +1568,6 @@ public class WolfSSLCertificateTest {
 
         boolean foundDNS = false;
         boolean foundIP = false;
-
-        System.out.print("\tgetSubjectAltNames (DNS + IP)");
 
         String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
         WolfSSLCertificate serverCert = null;
@@ -1786,7 +1625,6 @@ public class WolfSSLCertificateTest {
         assertTrue("Did not find IP SAN '127.0.0.1'", foundIP);
 
         serverCert.free();
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1795,8 +1633,6 @@ public class WolfSSLCertificateTest {
      */
     public void test_getSubjectAltNames_ExampleCert()
         throws WolfSSLException, IOException {
-
-        System.out.print("\tgetSubjectAltNames (multi DNS)");
 
         String exampleCertPath = WolfSSLTestCommon.getPath(external);
         /* external is ca-google-root.der, use example-com.der instead */
@@ -1817,7 +1653,6 @@ public class WolfSSLCertificateTest {
         }
         catch (WolfSSLException e) {
             /* Cert might not exist in test environment */
-            System.out.println("\t... skipped (cert not found)");
             return;
         }
 
@@ -1827,7 +1662,6 @@ public class WolfSSLCertificateTest {
         if (sans == null) {
             /* Native method may not be available */
             exampleCert.free();
-            System.out.println("\t... skipped (native not available)");
             return;
         }
 
@@ -1858,7 +1692,6 @@ public class WolfSSLCertificateTest {
             foundCount >= 1);
 
         exampleCert.free();
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1867,8 +1700,6 @@ public class WolfSSLCertificateTest {
      */
     public void test_getSubjectAltNamesExtended()
         throws WolfSSLException, IOException {
-
-        System.out.print("\tgetSubjectAltNamesExtended");
 
         String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
         WolfSSLCertificate serverCert = null;
@@ -1887,7 +1718,6 @@ public class WolfSSLCertificateTest {
         if (sans == null) {
             /* Native method may not be available in some builds */
             serverCert.free();
-            System.out.println("\t... skipped (native not available)");
             return;
         }
 
@@ -1918,7 +1748,6 @@ public class WolfSSLCertificateTest {
         }
 
         serverCert.free();
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1927,8 +1756,6 @@ public class WolfSSLCertificateTest {
      */
     public void test_getSubjectAltNames_CertWithNoSANs()
         throws WolfSSLException, IOException {
-
-        System.out.print("\tgetSubjectAltNames (CA cert)");
 
         /* CA cert typically doesn't have SANs */
         String caCertPath = WolfSSLTestCommon.getPath(caCertPem);
@@ -1969,15 +1796,12 @@ public class WolfSSLCertificateTest {
         }
 
         caCert.free();
-        System.out.println("\t... passed");
     }
 
     /**
      * Test that SAN type constants match expected RFC 5280 values.
      */
     public void test_getSubjectAltNames_TypeConstants() {
-
-        System.out.print("\tSAN type constants");
 
         /* Verify constants match RFC 5280 GeneralName types */
         assertEquals("ASN_OTHER_TYPE should be 0", 0, WolfSSL.ASN_OTHER_TYPE);
@@ -1986,8 +1810,6 @@ public class WolfSSLCertificateTest {
         assertEquals("ASN_DIR_TYPE should be 4", 4, WolfSSL.ASN_DIR_TYPE);
         assertEquals("ASN_URI_TYPE should be 6", 6, WolfSSL.ASN_URI_TYPE);
         assertEquals("ASN_IP_TYPE should be 7", 7, WolfSSL.ASN_IP_TYPE);
-
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2016,12 +1838,7 @@ public class WolfSSLCertificateTest {
         /* MS AD UPN OID */
         final String MS_UPN_OID = "1.3.6.1.4.1.311.20.2.3";
 
-        System.out.print("\tParsing otherName UPN");
-
-        if (WolfSSL.FileSystemEnabled() != true) {
-            System.out.println("\t... skipped (file system not enabled)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
 
         /* Test with server cert which has known SANs */
         String serverCertPath = WolfSSLTestCommon.getPath(serverCertPem);
@@ -2090,7 +1907,6 @@ public class WolfSSLCertificateTest {
         }
 
         serverCert.free();
-        System.out.println("\t\t... passed");
 
         /* Test with actual MS AD UPN certificate if available */
         test_MSADUPNMigrationPattern();
@@ -2108,15 +1924,11 @@ public class WolfSSLCertificateTest {
     private void test_MSADUPNMigrationPattern()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tMS AD UPN parsing");
-
         /* Check if UPN test cert exists */
         String upnCertPath = sanTestUpnCert;
         File upnCertFile = new File(upnCertPath);
 
         if (!upnCertFile.exists()) {
-            System.out.println(
-                "\t... skipped (run generate-san-test-certs.sh)");
             return;
         }
 
@@ -2128,7 +1940,6 @@ public class WolfSSLCertificateTest {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
 
             if (sans == null) {
-                System.out.println("\t... skipped (native not available)");
                 return;
             }
 
@@ -2214,8 +2025,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2228,8 +2037,6 @@ public class WolfSSLCertificateTest {
     @Test
     public void testSANParsingRegressionPrevention()
         throws WolfSSLException, WolfSSLJNIException, IOException {
-
-        System.out.println("SAN Parsing Regression Prevention Tests");
 
         test_SAN_OtherNameOID();
         test_SAN_OtherNameValue();
@@ -2244,13 +2051,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_OtherNameOID()
         throws WolfSSLException, IOException {
 
-        System.out.print("\totherName OID access");
-
         String certPath = sanTestUpnCert;
         File certFile = new File(certPath);
 
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -2260,7 +2064,6 @@ public class WolfSSLCertificateTest {
         try {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
             if (sans == null) {
-                System.out.println("\t\t... skipped (native not available)");
                 return;
             }
 
@@ -2279,8 +2082,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2289,13 +2090,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_OtherNameValue()
         throws WolfSSLException, IOException {
 
-        System.out.print("\totherName value bytes");
-
         String certPath = sanTestUpnCert;
         File certFile = new File(certPath);
 
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -2305,7 +2103,6 @@ public class WolfSSLCertificateTest {
         try {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
             if (sans == null) {
-                System.out.println("\t\t... skipped (native not available)");
                 return;
             }
 
@@ -2331,8 +2128,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2341,13 +2136,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_isMicrosoftUPN()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tisMicrosoftUPN() detection");
-
         String certPath = sanTestUpnCert;
         File certFile = new File(certPath);
 
         if (!certFile.exists()) {
-            System.out.println("\t... skipped");
             return;
         }
 
@@ -2357,7 +2149,6 @@ public class WolfSSLCertificateTest {
         try {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
             if (sans == null) {
-                System.out.println("\t... skipped");
                 return;
             }
 
@@ -2381,8 +2172,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -2391,13 +2180,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_AllTypesSupported()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tall SAN types supported");
-
         String certPath = sanTestAllTypesCert;
         File certFile = new File(certPath);
 
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -2407,7 +2193,6 @@ public class WolfSSLCertificateTest {
         try {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
             if (sans == null) {
-                System.out.println("\t\t... skipped (native not available)");
                 return;
             }
 
@@ -2469,8 +2254,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2480,13 +2263,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_DeprioritizedUsername()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tdeprioritized username pattern");
-
         String certPath = sanTestUpnCert;
         File certFile = new File(certPath);
 
         if (!certFile.exists()) {
-            System.out.println("\t... skipped (cert not found)");
             return;
         }
 
@@ -2496,7 +2276,6 @@ public class WolfSSLCertificateTest {
         try {
             WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
             if (sans == null) {
-                System.out.println("\t... skipped (native not available)");
                 return;
             }
 
@@ -2538,8 +2317,6 @@ public class WolfSSLCertificateTest {
         } finally {
             cert.free();
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -2550,8 +2327,6 @@ public class WolfSSLCertificateTest {
     @Test
     public void testWolfSSLAltNameClass()
         throws WolfSSLException, WolfSSLJNIException, IOException {
-
-        System.out.println("WolfSSLAltName Class Tests");
 
         test_getSubjectAltNamesArray_ServerCert();
         test_WolfSSLAltName_TypeConstants();
@@ -2569,10 +2344,7 @@ public class WolfSSLCertificateTest {
         boolean foundDNS = false;
         boolean foundIP = false;
 
-        System.out.print("\tgetSubjectAltNamesArray()");
-
         if (WolfSSL.FileSystemEnabled() != true) {
-            System.out.println("\t... skipped");
             return;
         }
 
@@ -2584,7 +2356,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = serverCert.getSubjectAltNamesArray();
         if (sans == null) {
             serverCert.free();
-            System.out.println("\t... skipped");
             return;
         }
 
@@ -2621,15 +2392,12 @@ public class WolfSSLCertificateTest {
         assertTrue("Did not find IP SAN '127.0.0.1'", foundIP);
 
         serverCert.free();
-        System.out.println("\t... passed");
     }
 
     /**
      * Test WolfSSLAltName type constants.
      */
     public void test_WolfSSLAltName_TypeConstants() {
-
-        System.out.print("\tWolfSSLAltName type constants");
 
         /* Verify constants match RFC 5280 GeneralName types */
         assertEquals("TYPE_OTHER_NAME should be 0",
@@ -2654,8 +2422,6 @@ public class WolfSSLCertificateTest {
         /* Verify MS UPN OID constant */
         assertEquals("OID_MS_UPN should be correct",
             "1.3.6.1.4.1.311.20.2.3", WolfSSLAltName.OID_MS_UPN);
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -2664,10 +2430,7 @@ public class WolfSSLCertificateTest {
     public void test_WolfSSLAltName_Methods()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tWolfSSLAltName methods");
-
         if (WolfSSL.FileSystemEnabled() != true) {
-            System.out.println("\t\t... skipped (file system not enabled)");
             return;
         }
 
@@ -2679,7 +2442,6 @@ public class WolfSSLCertificateTest {
 
         if (sans == null || sans.length == 0) {
             serverCert.free();
-            System.out.println("\t\t... skipped (no SANs)");
             return;
         }
 
@@ -2740,7 +2502,6 @@ public class WolfSSLCertificateTest {
         }
 
         serverCert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2749,10 +2510,7 @@ public class WolfSSLCertificateTest {
     public void test_WolfSSLAltName_EqualsHashCode()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tequals() and hashCode()");
-
         if (WolfSSL.FileSystemEnabled() != true) {
-            System.out.println("\t\t... skipped (file system not enabled)");
             return;
         }
 
@@ -2769,7 +2527,6 @@ public class WolfSSLCertificateTest {
         if (sans1 == null || sans2 == null || sans1.length == 0) {
             cert1.free();
             cert2.free();
-            System.out.println("\t\t... skipped (no SANs)");
             return;
         }
 
@@ -2810,7 +2567,6 @@ public class WolfSSLCertificateTest {
 
         cert1.free();
         cert2.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2819,10 +2575,7 @@ public class WolfSSLCertificateTest {
     public void test_getSubjectAltNamesArray_DefensiveCopy()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tdefensive copy test");
-
         if (WolfSSL.FileSystemEnabled() != true) {
-            System.out.println("\t\t... skipped");
             return;
         }
 
@@ -2860,7 +2613,6 @@ public class WolfSSLCertificateTest {
         assertEquals("Length should remain unchanged", origLen, sans3.length);
 
         cert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2875,15 +2627,11 @@ public class WolfSSLCertificateTest {
     public void testSANTestCertificates()
         throws WolfSSLException, WolfSSLJNIException, IOException {
 
-        if (WolfSSL.FileSystemEnabled() != true) {
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
 
         /* Check if test certs exist */
         File sanDir = new File(sanTestDir);
-        if (!sanDir.exists() || !sanDir.isDirectory()) {
-            return;
-        }
+        Assume.assumeTrue(sanDir.exists() && sanDir.isDirectory());
 
         test_SAN_DnsAndIp();
         test_SAN_EmailAndUri();
@@ -2902,12 +2650,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_DnsAndIp()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tDNS and IP SANs");
-
         String certPath = sanTestDnsIpCert;
         File certFile = new File(certPath);
         if (!certFile.exists()) {
-            System.out.println("\t\t\t... skipped");
             return;
         }
 
@@ -2918,7 +2663,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t\t\t... skipped");
             return;
         }
 
@@ -2975,7 +2719,6 @@ public class WolfSSLCertificateTest {
         assertTrue("Did not find IPv6 link-local", foundIPv6_linklocal);
 
         cert.free();
-        System.out.println("\t\t\t... passed");
     }
 
     /**
@@ -2986,12 +2729,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_EmailAndUri()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tEmail and URI SANs");
-
         String certPath = sanTestEmailUriCert;
         File certFile = new File(certPath);
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -3002,7 +2742,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t\t... skipped (native not available)");
             return;
         }
 
@@ -3041,7 +2780,6 @@ public class WolfSSLCertificateTest {
         assertTrue("Did not find LDAP URI", foundUri2);
 
         cert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -3052,12 +2790,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_OtherNameUPN()
         throws WolfSSLException, IOException {
 
-        System.out.print("\totherName UPN SANs");
-
         String certPath = sanTestUpnCert;
         File certFile = new File(certPath);
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -3068,7 +2803,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t\t... skipped (native not available)");
             return;
         }
 
@@ -3126,7 +2860,6 @@ public class WolfSSLCertificateTest {
         assertTrue("Did not find UPN 'admin@wolfssl.local'", foundUPN2);
 
         cert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -3136,12 +2869,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_DirName()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tdirectoryName SANs");
-
         String certPath = sanTestDirNameRidCert;
         File certFile = new File(certPath);
         if (!certFile.exists()) {
-            System.out.println("\t\t... skipped (cert not found)");
             return;
         }
 
@@ -3152,7 +2882,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t\t... skipped (native not available)");
             return;
         }
 
@@ -3182,7 +2911,6 @@ public class WolfSSLCertificateTest {
             dirNameCount, dirNameCount >= 2);
 
         cert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -3196,12 +2924,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_AllTypes()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tAll SAN types");
-
         String certPath = sanTestAllTypesCert;
         File certFile = new File(certPath);
         if (!certFile.exists()) {
-            System.out.println("\t\t\t... skipped (cert not found)");
             return;
         }
 
@@ -3212,7 +2937,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t\t\t... skipped (native not available)");
             return;
         }
 
@@ -3308,7 +3032,6 @@ public class WolfSSLCertificateTest {
             foundWolfSSLUri);
 
         cert.free();
-        System.out.println("\t\t\t... passed");
     }
 
     /**
@@ -3318,13 +3041,10 @@ public class WolfSSLCertificateTest {
     private void test_SAN_DerFormat()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tDER format certificates");
-
         /* Test all-types cert in DER format */
         String derPath = sanTestAllTypesDer;
         File derFile = new File(derPath);
         if (!derFile.exists()) {
-            System.out.println("\t... skipped (DER not found)");
             return;
         }
 
@@ -3335,7 +3055,6 @@ public class WolfSSLCertificateTest {
         WolfSSLAltName[] sans = cert.getSubjectAltNamesArray();
         if (sans == null) {
             cert.free();
-            System.out.println("\t... skipped (native not available)");
             return;
         }
 
@@ -3377,7 +3096,6 @@ public class WolfSSLCertificateTest {
         }
 
         cert.free();
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -3388,12 +3106,9 @@ public class WolfSSLCertificateTest {
     private void test_SAN_CaCertVerification()
         throws WolfSSLException, IOException {
 
-        System.out.print("\tCA cert verification");
-
         String caCertPath = sanTestCaCert;
         File caCertFile = new File(caCertPath);
         if (!caCertFile.exists()) {
-            System.out.println("\t\t... skipped (CA cert not found)");
             return;
         }
 
@@ -3435,6 +3150,5 @@ public class WolfSSLCertificateTest {
         }
 
         caCert.free();
-        System.out.println("\t\t... passed");
     }
 }

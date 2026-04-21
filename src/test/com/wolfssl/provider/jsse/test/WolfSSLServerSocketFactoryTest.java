@@ -23,6 +23,9 @@ package com.wolfssl.provider.jsse.test;
 
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.Assume;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.util.Arrays;
@@ -33,7 +36,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.UnknownHostException;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLContext;
@@ -51,8 +53,12 @@ import java.security.KeyStoreException;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.test.TimedTestWatcher;
 
 public class WolfSSLServerSocketFactoryTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     private final static char[] jksPass = "wolfSSL test".toCharArray();
     private static WolfSSLTestFactory tf;
@@ -108,7 +114,7 @@ public class WolfSSLServerSocketFactoryTest {
 
         try {
             /* set up KeyStore */
-                InputStream stream = new FileInputStream(tf.serverJKS);
+            InputStream stream = new FileInputStream(tf.serverJKS);
             pKey = KeyStore.getInstance(tf.keyStoreType);
             pKey.load(stream, jksPass);
             stream.close();
@@ -148,47 +154,35 @@ public class WolfSSLServerSocketFactoryTest {
     public void testGetDefaultCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetDefaultCipherSuites()");
-
         for (int i = 0; i < sockFactories.size(); i++) {
             SSLServerSocketFactory sf = sockFactories.get(i);
             String[] cipherSuites = sf.getDefaultCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLServerSocketFactory.getDefaultCipherSuites() failed");
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGetSupportedCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSupportedCipherSuites()");
-
         for (int i = 0; i < sockFactories.size(); i++) {
             SSLServerSocketFactory sf = sockFactories.get(i);
             String[] cipherSuites = sf.getSupportedCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLServerSocketFactory.getSupportedCipherSuites() " +
                      "failed");
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testCreateSocket()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                IOException {
-
-        System.out.print("\tcreateSocket()");
 
         for (int i = 0; i < sockFactories.size(); i++) {
             int port = 11118;
@@ -200,62 +194,47 @@ public class WolfSSLServerSocketFactoryTest {
                 InetAddress.getByName("www.example.com");
             } catch (UnknownHostException e) {
                 /* skip test if no Internet connection available */
-                System.out.println("\t\t\t... skipped");
+                Assume.assumeNoException("No Internet connection", e);
                 return;
             }
 
-            try {
-
-                /* no arguments */
-                s = (SSLServerSocket)sf.createServerSocket();
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLServerSocketFactory.createSocket() failed");
-                    return;
-                }
-                s.close();
-
-                /* int */
-                s = (SSLServerSocket)sf.createServerSocket(port);
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLServerSocketFactory.createSocket(i) failed");
-                    return;
-                }
-                s.close();
-
-                /* int, int */
-                s = (SSLServerSocket)sf.createServerSocket(port, backlog);
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLServerSocketFactory.createSocket(Si) failed");
-                    return;
-                }
-                s.close();
-
-                /* int, int, InetAddress */
-                s = (SSLServerSocket)sf.createServerSocket(port, backlog, null);
-                if (s == null) {
-                    System.out.println("\t\t\t... failed");
-                    fail("SSLServerSocketFactory.createSocket(SiI) failed");
-                    return;
-                }
-                s.close();
-
-            } catch (SocketException e) {
-                System.out.println("\t\t\t... failed");
-                throw e;
+            /* no arguments */
+            s = (SSLServerSocket)sf.createServerSocket();
+            if (s == null) {
+                fail("SSLServerSocketFactory.createSocket() failed");
+                return;
             }
-        }
+            s.close();
 
-        System.out.println("\t\t\t... passed");
+            /* int */
+            s = (SSLServerSocket)sf.createServerSocket(port);
+            if (s == null) {
+                fail("SSLServerSocketFactory.createSocket(i) failed");
+                return;
+            }
+            s.close();
+
+            /* int, int */
+            s = (SSLServerSocket)sf.createServerSocket(port, backlog);
+            if (s == null) {
+                fail("SSLServerSocketFactory.createSocket(Si) failed");
+                return;
+            }
+            s.close();
+
+            /* int, int, InetAddress */
+            s = (SSLServerSocket)sf.createServerSocket(port, backlog, null);
+            if (s == null) {
+                fail("SSLServerSocketFactory.createSocket(SiI) failed");
+                return;
+            }
+            s.close();
+        }
     }
 
     @Test
     public void testServerFactoryAnonCipherSuiteFiltering()
         throws Exception {
-
-        System.out.print("\tanon filtering");
 
         String[] allCiphers = WolfSSL.getCiphersIana();
         boolean haveAnon = false;
@@ -266,10 +245,7 @@ public class WolfSSLServerSocketFactoryTest {
             }
         }
 
-        if (!haveAnon) {
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue("No anon cipher suites compiled in", haveAnon);
 
         Security.setProperty("wolfjsse.enabledCipherSuites", "");
         SSLContext ctx = SSLContext.getInstance("TLS", "wolfJSSE");
@@ -303,7 +279,5 @@ public class WolfSSLServerSocketFactoryTest {
             assertTrue("Default suite not in supported: " + s,
                 suppList.contains(s));
         }
-
-        System.out.println("\t\t\t... passed");
     }
 }

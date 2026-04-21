@@ -21,9 +21,14 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
+
+import com.wolfssl.test.TimedTestWatcher;
 
 import java.util.List;
 import java.util.Arrays;
@@ -128,6 +133,9 @@ import com.wolfssl.WolfSSLException;
     public void testSSLHandshakeExceptionCauseChain();
  */
 public class WolfSSLSocketTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     private final static String ctxProvider = "wolfJSSE";
@@ -246,14 +254,11 @@ public class WolfSSLSocketTest {
     public void testGetSupportedCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSupportedCipherSuites()");
-
         for (int i = 0; i < socks.size(); i++) {
             SSLSocket s = socks.get(i);
             String[] cipherSuites = s.getSupportedCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLSocket.getSupportedCipherSuites() failed");
             }
 
@@ -261,21 +266,17 @@ public class WolfSSLSocketTest {
             assertNotSame(cipherSuites, s.getSupportedCipherSuites());
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGetSetEnabledCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tget/setEnabledCipherSuites()");
-
         for (int i = 0; i < socks.size(); i++) {
             SSLSocket s = socks.get(i);
             String[] cipherSuites = s.getEnabledCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLSocket.getEnabledCipherSuites() failed");
             }
 
@@ -285,7 +286,6 @@ public class WolfSSLSocketTest {
             /* test failure, null input */
             try {
                 s.setEnabledCipherSuites(null);
-                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledCipherSuites() failed");
             } catch (IllegalArgumentException e) {
                 /* expected */
@@ -295,7 +295,6 @@ public class WolfSSLSocketTest {
             try {
                 String[] empty = {};
                 s.setEnabledCipherSuites(empty);
-                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledCipherSuites() failed");
             } catch (IllegalArgumentException e) {
                 /* expected */
@@ -305,7 +304,6 @@ public class WolfSSLSocketTest {
             try {
                 String[] badvalue = { "badvalue" };
                 s.setEnabledCipherSuites(badvalue);
-                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledCipherSuites() failed");
             } catch (IllegalArgumentException e) {
                 /* expected */
@@ -324,18 +322,14 @@ public class WolfSSLSocketTest {
             s.setEnabledCipherSuites(oneSuite);
             String[] after = s.getEnabledCipherSuites();
             if (after.length != 1 || !after[0].equals(oneSuite[0])) {
-                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledCipherSuites() failed");
             }
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testServerUsesClientCipherSuitePreference() throws Exception {
-
-        System.out.print("\tTesting client suite preference");
 
         this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
 
@@ -374,9 +368,7 @@ public class WolfSSLSocketTest {
          * alias depending on wolfSSL configuration. */
         if (!"TLS_AES_256_GCM_SHA384".equals(chosen1) &&
             !"TLS13-AES256-GCM-SHA384".equals(chosen1)) {
-            System.out.println("\t... failed");
-            fail("Expected server preference cipher (AES_256), got "
-                  + chosen1);
+            fail("Expected server preference cipher (AES_256), got " + chosen1);
         }
 
         cs1.close();
@@ -412,9 +404,7 @@ public class WolfSSLSocketTest {
          * alias depending on wolfSSL configuration. */
         if (!"TLS_AES_128_GCM_SHA256".equals(chosen2) &&
             !"TLS13-AES128-GCM-SHA256".equals(chosen2)) {
-            System.out.println("\t... failed");
-            fail("Expected client preference cipher (AES_128), got "
-                 + chosen2);
+            fail("Expected client preference cipher (AES_128), got " + chosen2);
         }
 
         cs2.close();
@@ -422,21 +412,17 @@ public class WolfSSLSocketTest {
         ss2.close();
         es.shutdown();
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGetSupportedProtocols()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSupportedProtocols()");
-
         for (int i = 0; i < socks.size(); i++) {
             SSLSocket s = socks.get(i);
             String[] protocols = s.getSupportedProtocols();
 
             if (protocols == null) {
-                System.out.println("\t\t... failed");
                 fail("SSLSocket.getSupportedProtocols() failed");
             }
 
@@ -444,21 +430,17 @@ public class WolfSSLSocketTest {
             assertNotSame(protocols, s.getSupportedProtocols());
         }
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testGetSetEnabledProtocols()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tget/setEnabledProtocols()");
-
         for (int i = 0; i < socks.size(); i++) {
             SSLSocket s = socks.get(i);
             String[] protocols = s.getEnabledProtocols();
 
             if (protocols == null) {
-                System.out.println("\t... failed");
                 fail("SSLSocket.getEnabledProtocols() failed");
             }
 
@@ -468,7 +450,6 @@ public class WolfSSLSocketTest {
             /* test failure, null input */
             try {
                 s.setEnabledProtocols(null);
-                System.out.println("\t\t... failed");
                 fail("SSLSocket.setEnabledProtocols() failed");
             } catch (IllegalArgumentException e) {
                 /* expected */
@@ -481,7 +462,6 @@ public class WolfSSLSocketTest {
                 String[] empty = {};
                 s.setEnabledProtocols(empty);
             } catch (IllegalArgumentException e) {
-                System.out.println("\t\t... failed");
                 fail("SSLSocket.setEnabledProtocols() should accept empty");
             }
 
@@ -491,7 +471,6 @@ public class WolfSSLSocketTest {
             try {
                 String[] badvalue = { "badvalue" };
                 s.setEnabledProtocols(badvalue);
-                System.out.println("\t\t... failed");
                 fail("SSLSocket.setEnabledProtocols() failed");
             } catch (IllegalArgumentException e) {
                 /* expected */
@@ -510,7 +489,6 @@ public class WolfSSLSocketTest {
             s.setEnabledProtocols(oneProto);
             String[] after = s.getEnabledProtocols();
             if (after.length != 1 || !after[0].equals(oneProto[0])) {
-                System.out.println("\t... failed");
                 fail("SSLSocket.setEnabledProtocols() failed");
             }
 
@@ -524,7 +502,6 @@ public class WolfSSLSocketTest {
                     Security.setProperty(
                         "jdk.tls.disabledAlgorithms", "TLSv1");
                     s.setEnabledProtocols(new String[] {"TLSv1"});
-                    System.out.println("\t\t... failed");
                     fail("SSLSocket.setEnabledProtocols() failed");
                 } catch (IllegalArgumentException e) {
                     /* expected */
@@ -534,7 +511,6 @@ public class WolfSSLSocketTest {
                     Security.setProperty(
                         "jdk.tls.disabledAlgorithms", "TLSv1.1");
                     s.setEnabledProtocols(new String[] {"TLSv1.1"});
-                    System.out.println("\t\t... failed");
                     fail("SSLSocket.setEnabledProtocols() failed");
                 } catch (IllegalArgumentException e) {
                     /* expected */
@@ -544,7 +520,6 @@ public class WolfSSLSocketTest {
                     Security.setProperty(
                         "jdk.tls.disabledAlgorithms", "TLSv1.2");
                     s.setEnabledProtocols(new String[] {"TLSv1.2"});
-                    System.out.println("\t\t... failed");
                     fail("SSLSocket.setEnabledProtocols() failed");
                 } catch (IllegalArgumentException e) {
                     /* expected */
@@ -554,7 +529,6 @@ public class WolfSSLSocketTest {
                     Security.setProperty(
                         "jdk.tls.disabledAlgorithms", "TLSv1.3");
                     s.setEnabledProtocols(new String[] {"TLSv1.3"});
-                    System.out.println("\t\t... failed");
                     fail("SSLSocket.setEnabledProtocols() failed");
                 } catch (IllegalArgumentException e) {
                     /* expected */
@@ -566,7 +540,6 @@ public class WolfSSLSocketTest {
             }
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -579,8 +552,6 @@ public class WolfSSLSocketTest {
         Exception cliException = null;
         CountDownLatch sDoneLatch = null;
         CountDownLatch cDoneLatch = null;
-
-        System.out.print("\twolfjsse.enabledSupportedCurves");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -776,7 +747,6 @@ public class WolfSSLSocketTest {
             }
         }
 
-
         /* restore original property value */
         if (originalProperty == null) {
             /* set property to empty if original was not set */
@@ -786,7 +756,6 @@ public class WolfSSLSocketTest {
                 originalProperty);
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -794,8 +763,6 @@ public class WolfSSLSocketTest {
 
         CountDownLatch sDoneLatch = null;
         CountDownLatch cDoneLatch = null;
-
-        System.out.print("\tTesting basic client/server");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -839,7 +806,6 @@ public class WolfSSLSocketTest {
             fail("Threaded client/server test failed");
         }
 
-        System.out.println("\t... passed");
     }
 
     public void alpnClientServerRunner(TestArgs sArgs, TestArgs cArgs,
@@ -908,13 +874,8 @@ public class WolfSSLSocketTest {
         TestArgs sArgs = null;
         TestArgs cArgs = null;
 
-        System.out.print("\tTesting ALPN select callback");
-
         /* wolfSSL_set_alpn_select_cb() added in wolfSSL 5.6.6 */
-        if (WolfSSL.getLibVersionHex() < 0x05006006) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() >= 0x05006006);
 
         /* Successful test:
          * Sanity check, no ALPN */
@@ -992,7 +953,6 @@ public class WolfSSLSocketTest {
         cArgs.setExpectedAlpn(greaseString);
         alpnClientServerRunner(sArgs, cArgs, false);
 
-        System.out.println("\t... passed");
     }
 
     /**
@@ -1171,15 +1131,10 @@ public class WolfSSLSocketTest {
         failures.set(0, 0);
         success.set(0, 0);
 
-        System.out.print("\tTesting ExtendedThreadingUse");
-
         /* This test hangs on Android, marking TODO for later investigation.
          * Seems to be something specific to the test code, not library
          * proper. */
-        if (WolfSSLTestFactory.isAndroid()) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         /* Start up simple TLS test server */
         CountDownLatch serverOpenLatch = new CountDownLatch(1);
@@ -1224,9 +1179,7 @@ public class WolfSSLSocketTest {
         server.join(1000);
 
         /* check failure count and success count against thread count */
-        if (failures.get(0) == 0 && success.get(0) == numThreads) {
-            System.out.println("\t... passed");
-        } else {
+        if (failures.get(0) != 0 || success.get(0) != numThreads) {
             if (returnWithoutTimeout == true) {
                 fail("SSLSocket threading error: " +
                      failures.get(0) + " failures, " +
@@ -1240,8 +1193,6 @@ public class WolfSSLSocketTest {
 
     @Test
     public void testPreConsumedSocket() throws Exception {
-
-        System.out.print("\tTesting consumed InputStream");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -1288,13 +1239,10 @@ public class WolfSSLSocketTest {
                     server.close();
 
                     if (!Arrays.equals(outBytes, inBytes)) {
-                        System.out.println("\t... failed");
                         fail();
                     }
 
-
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -1314,12 +1262,10 @@ public class WolfSSLSocketTest {
             cs.close();
 
             if (!Arrays.equals(outBytes2, inBytes2)) {
-                System.out.println("\t... failed");
                 fail();
             }
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1327,13 +1273,10 @@ public class WolfSSLSocketTest {
         serverFuture.get();
         serverSock.close();
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testCreateSocketNullHost() throws Exception {
-
-        System.out.print("\tcreateSocket(null host)");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -1351,20 +1294,17 @@ public class WolfSSLSocketTest {
         /* Try to convert client Socket to SSLSocket, with null hostname.
          * This should not throw any Exceptions, null host is ok. */
         SSLSocket ssc = (SSLSocket)ctx.getSocketFactory().createSocket(
-                cs, null, cs.getPort(), false);
+            cs, null, cs.getPort(), false);
 
         ssc.close();
         cs.close();
         socket.close();
         ss.close();
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testEnableSessionCreation() throws Exception {
-
-        System.out.print("\tget/setEnableSessionCreation()");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -1399,7 +1339,6 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
-                    System.out.println("\t... failed");
                     fail();
                 } catch (SSLException e) {
                     /* expected, SSLSocket not allowed to make new sessions */
@@ -1410,7 +1349,6 @@ public class WolfSSLSocketTest {
 
         try {
             cs.startHandshake();
-            System.out.println("\t... failed");
             fail();
 
         } catch (SSLHandshakeException e) {
@@ -1423,13 +1361,10 @@ public class WolfSSLSocketTest {
         server.close();
         ss.close();
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testSetUseClientMode() throws Exception {
-
-        System.out.print("\tget/setUseClientMode()");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
@@ -1464,7 +1399,6 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
-                    System.out.println("\t\t... failed");
                     fail();
                 } catch (SSLHandshakeException e) {
                     /* expected: Out of order message, fatal */
@@ -1475,7 +1409,6 @@ public class WolfSSLSocketTest {
 
         try {
             cs.startHandshake();
-            System.out.println("\t\t... failed");
             fail();
 
         } catch (SSLHandshakeException e) {
@@ -1504,7 +1437,6 @@ public class WolfSSLSocketTest {
                 try {
                     server2.startHandshake();
                     server2.setUseClientMode(true);
-                    System.out.println("\t\t... failed");
                     fail();
                 } catch (IllegalArgumentException e) {
                     /* expected */
@@ -1517,7 +1449,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t... failed");
             fail();
         }
 
@@ -1527,13 +1458,10 @@ public class WolfSSLSocketTest {
         server2.close();
         ss.close();
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testGetSSLParameters() throws Exception {
-
-        System.out.print("\tget/setSSLParameters()");
 
         /* create new CTX, SSLSocket */
         this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
@@ -1582,13 +1510,10 @@ public class WolfSSLSocketTest {
 
         s.close();
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testAddHandshakeCompletedListener() throws Exception {
-
-        System.out.print("\taddHandshakeCompletedListener()");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -1614,7 +1539,6 @@ public class WolfSSLSocketTest {
         /* test failure on null argument */
         try {
             cs.addHandshakeCompletedListener(null);
-            System.out.println("\t... failed");
             fail();
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -1624,7 +1548,6 @@ public class WolfSSLSocketTest {
         try {
             cs.addHandshakeCompletedListener(clientListener);
         } catch (IllegalArgumentException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1642,7 +1565,6 @@ public class WolfSSLSocketTest {
         /* test failure on null argument */
         try {
             server.addHandshakeCompletedListener(null);
-            System.out.println("\t... failed");
             fail();
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -1652,7 +1574,6 @@ public class WolfSSLSocketTest {
         try {
             server.addHandshakeCompletedListener(serverListener);
         } catch (IllegalArgumentException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1662,9 +1583,7 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
-
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -1675,7 +1594,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1687,7 +1605,6 @@ public class WolfSSLSocketTest {
 
         /* verify that handshake listeners were called */
         if (clientFlag != true || serverFlag != true) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1695,21 +1612,18 @@ public class WolfSSLSocketTest {
         try {
             server.removeHandshakeCompletedListener(serverListener);
         } catch (IllegalArgumentException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
         try {
             cs.removeHandshakeCompletedListener(clientListener);
         } catch (IllegalArgumentException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
         /* should throw exception if we remove one not registered */
         try {
             server.removeHandshakeCompletedListener(serverListener);
-            System.out.println("\t... failed");
             fail();
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -1718,19 +1632,15 @@ public class WolfSSLSocketTest {
         /* should throw exception if we use null argument */
         try {
             server.removeHandshakeCompletedListener(null);
-            System.out.println("\t... failed");
             fail();
         } catch (IllegalArgumentException e) {
             /* expected */
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGetSession() throws Exception {
-
-        System.out.print("\tgetSession()");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -1758,7 +1668,6 @@ public class WolfSSLSocketTest {
                     server.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t\t\t... failed");
                     fail();
                 }
                 return null;
@@ -1775,7 +1684,6 @@ public class WolfSSLSocketTest {
             cs.close();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t\t... failed");
             fail();
         }
 
@@ -1813,7 +1721,6 @@ public class WolfSSLSocketTest {
                     server2.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t\t\t... failed");
                     fail();
                 }
                 return null;
@@ -1829,14 +1736,12 @@ public class WolfSSLSocketTest {
             Certificate[] certs = cliSess.getPeerCertificates();
             assertNotNull(certs);
             if (certs.length == 0) {
-                System.out.println("\t\t\t... failed");
                 fail();
             }
 
             cs.close();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t\t... failed");
             fail();
         }
 
@@ -1844,13 +1749,10 @@ public class WolfSSLSocketTest {
         serverFuture.get();
         ss.close();
 
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
     public void testSetNeedClientAuth() throws Exception {
-
-        System.out.print("\tsetNeedClientAuth()");
 
         /* create ctx, uses client keystore (cert/key) and truststore (cert) */
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider);
@@ -1876,7 +1778,6 @@ public class WolfSSLSocketTest {
                     server.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -1888,7 +1789,6 @@ public class WolfSSLSocketTest {
             cs.close();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -1919,7 +1819,6 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server2.startHandshake();
-                    System.out.println("\t\t... failed");
                     fail();
 
                 } catch (SSLException e) {
@@ -1932,7 +1831,6 @@ public class WolfSSLSocketTest {
 
         try {
             cs.startHandshake();
-            System.out.println("\t\t... failed");
             fail();
 
         } catch (SSLHandshakeException e) {
@@ -1976,7 +1874,6 @@ public class WolfSSLSocketTest {
                     server3.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t\t... failed");
                     fail();
                 }
                 return null;
@@ -1988,7 +1885,6 @@ public class WolfSSLSocketTest {
             cs.close();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t... failed");
             fail();
         }
 
@@ -1996,19 +1892,13 @@ public class WolfSSLSocketTest {
         serverFuture.get();
         ss.close();
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testProtocolTLSv10() throws Exception {
 
-        System.out.print("\tTLS 1.0 connection test");
-
         /* skip if TLS 1.0 is not compiled in at native level */
-        if (WolfSSL.TLSv1Enabled() == false) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.TLSv1Enabled());
 
         /* reset disabledAlgorithms property to test TLS 1.0 which is
          * disabled by default */
@@ -2019,7 +1909,6 @@ public class WolfSSLSocketTest {
 
             protocolConnectionTest("TLSv1");
 
-            System.out.print("\tTLS 1.0 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1");
 
             /* restore system property if it was originally set */
@@ -2033,13 +1922,8 @@ public class WolfSSLSocketTest {
     @Test
     public void testProtocolTLSv11() throws Exception {
 
-        System.out.print("\tTLS 1.1 connection test");
-
         /* skip if TLS 1.1 is not compiled in at native level */
-        if (WolfSSL.TLSv11Enabled() == false) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.TLSv11Enabled());
 
         /* reset disabledAlgorithms property to test TLS 1.1 which is
          * disabled by default */
@@ -2050,7 +1934,6 @@ public class WolfSSLSocketTest {
 
             protocolConnectionTest("TLSv1.1");
 
-            System.out.print("\tTLS 1.1 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1.1");
 
             /* restore system property if it was originally set */
@@ -2064,20 +1947,14 @@ public class WolfSSLSocketTest {
     @Test
     public void testProtocolTLSv12() throws Exception {
 
-        System.out.print("\tTLS 1.2 connection test");
-
         /* skip if TLS 1.2 is not compiled in at native level */
         synchronized (WolfSSLTestFactory.jdkTlsDisabledAlgorithmsLock) {
-            if (WolfSSL.TLSv12Enabled() == false ||
-                WolfSSLTestFactory.securityPropContains(
-                    "jdk.tls.disabledAlgorithms", "TLSv1.2")) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(WolfSSL.TLSv12Enabled());
+            Assume.assumeFalse(WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLSv1.2"));
 
             protocolConnectionTest("TLSv1.2");
 
-            System.out.print("\tTLS 1.2 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1.2");
         }
     }
@@ -2085,20 +1962,14 @@ public class WolfSSLSocketTest {
     @Test
     public void testProtocolTLSv13() throws Exception {
 
-        System.out.print("\tTLS 1.3 connection test");
-
         /* skip if TLS 1.3 is not compiled in at native level */
         synchronized (WolfSSLTestFactory.jdkTlsDisabledAlgorithmsLock) {
-            if (WolfSSL.TLSv13Enabled() == false ||
-                WolfSSLTestFactory.securityPropContains(
-                    "jdk.tls.disabledAlgorithms", "TLSv1.3")) {
-                System.out.println("\t\t... skipped");
-                return;
-            }
+            Assume.assumeTrue(WolfSSL.TLSv13Enabled());
+            Assume.assumeFalse(WolfSSLTestFactory.securityPropContains(
+                "jdk.tls.disabledAlgorithms", "TLSv1.3"));
 
             protocolConnectionTest("TLSv1.3");
 
-            System.out.print("\tTLS 1.3 extended Socket test");
             protocolConnectionTestExtendedSocket("TLSv1.3");
         }
     }
@@ -2122,9 +1993,7 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
-
                 } catch (SSLException e) {
-                    System.out.println("\t\t... failed");
                     fail();
                 }
                 return null;
@@ -2135,7 +2004,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t... failed");
             fail();
         }
 
@@ -2145,7 +2013,6 @@ public class WolfSSLSocketTest {
         server.close();
         ss.close();
 
-        System.out.println("\t\t... passed");
     }
 
     /**
@@ -2256,7 +2123,6 @@ public class WolfSSLSocketTest {
                     server.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -2268,7 +2134,6 @@ public class WolfSSLSocketTest {
             cs.close();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -2276,13 +2141,10 @@ public class WolfSSLSocketTest {
         serverFuture.get();
         ss.close();
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testConnectionWithDisabledAlgorithms() throws Exception {
-
-        System.out.print("\tConnect with disabled algos");
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -2310,14 +2172,13 @@ public class WolfSSLSocketTest {
 
                 /* disable protocol after socket setup, should fail conn */
                 Security.setProperty("jdk.tls.disabledAlgorithms",
-                        enabledProtocols.get(i));
+                    enabledProtocols.get(i));
 
                 /* don't need server since should throw exception before */
                 cs.connect(new InetSocketAddress(ss.getLocalPort()));
 
                 try {
                     cs.startHandshake();
-                    System.out.println("\t... failed");
                     fail();
 
                 } catch (SSLException e) {
@@ -2334,7 +2195,6 @@ public class WolfSSLSocketTest {
                 "jdk.tls.disabledAlgorithms", originalProperty);
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -2343,8 +2203,6 @@ public class WolfSSLSocketTest {
         byte[] sessionID1 = null;
         byte[] sessionID2 = null;
         String protocol = null;
-
-        System.out.print("\tTesting session resumption");
 
         /* use TLS 1.2, else 1.1, else 1.0, else skip */
         /* TODO: TLS 1.3 handles session resumption differently */
@@ -2355,10 +2213,8 @@ public class WolfSSLSocketTest {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* wolfjsse.clientSessionCache.disabled could be set in users
          * java.security file which would cause this test to not work
@@ -2396,7 +2252,6 @@ public class WolfSSLSocketTest {
                         }
 
                     } catch (SSLException e) {
-                        System.out.println("\t... failed");
                         fail();
                     }
                     return null;
@@ -2419,21 +2274,16 @@ public class WolfSSLSocketTest {
 
                 if (!Arrays.equals(sessionID1, sessionID2)) {
                     /* session not resumed */
-                    System.out.println("\t... failed");
                     fail();
                 }
 
             } catch (SSLHandshakeException e) {
-                System.out.println("\t... failed");
                 fail();
             }
-
 
             es.shutdown();
             serverFuture.get();
             ss.close();
-
-            System.out.println("\t... passed");
 
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {
@@ -2450,8 +2300,6 @@ public class WolfSSLSocketTest {
         byte[] sessionID2 = null;
         String protocol = null;
 
-        System.out.print("\tDisabling client session cache");
-
         /* Use TLS 1.2, else 1.1, else 1.0, else skip */
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
@@ -2459,10 +2307,8 @@ public class WolfSSLSocketTest {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* Save original Security property value */
         String originalProp = Security.getProperty(
@@ -2499,7 +2345,6 @@ public class WolfSSLSocketTest {
                         }
 
                     } catch (SSLException e) {
-                        System.out.println("\t... failed");
                         fail();
                     }
                     return null;
@@ -2522,21 +2367,16 @@ public class WolfSSLSocketTest {
 
                 if (Arrays.equals(sessionID1, sessionID2)) {
                     /* session resumed, but should not */
-                    System.out.println("\t... failed");
                     fail();
                 }
 
             } catch (SSLHandshakeException e) {
-                System.out.println("\t... failed");
                 fail();
             }
-
 
             es.shutdown();
             serverFuture.get();
             ss.close();
-
-            System.out.println("\t... passed");
 
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {
@@ -2560,8 +2400,6 @@ public class WolfSSLSocketTest {
         byte[] sessionID2 = null;
         String protocol = null;
 
-        System.out.print("\tresumption with tickets enabled");
-
         /* use TLS 1.2, else 1.1, else 1.0, else skip */
         /* TODO: TLS 1.3 handles session resumption differently */
 
@@ -2571,10 +2409,8 @@ public class WolfSSLSocketTest {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* wolfjsse.clientSessionCache.disabled could be set in users
          * java.security file which would cause this test to not work
@@ -2613,7 +2449,6 @@ public class WolfSSLSocketTest {
                         }
 
                     } catch (SSLException e) {
-                        System.out.println("\t... failed");
                         fail();
                     }
                     return null;
@@ -2637,21 +2472,16 @@ public class WolfSSLSocketTest {
 
                 if (!Arrays.equals(sessionID1, sessionID2)) {
                     /* session not resumed */
-                    System.out.println("\t... failed");
                     fail();
                 }
 
             } catch (SSLHandshakeException e) {
-                System.out.println("\t... failed");
                 fail();
             }
-
 
             es.shutdown();
             serverFuture.get();
             ss.close();
-
-            System.out.println("\t... passed");
 
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {
@@ -2666,18 +2496,14 @@ public class WolfSSLSocketTest {
 
         String protocol = null;
 
-        System.out.print("\tTesting duplicate close");
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv11Enabled()) {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* create new CTX */
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
@@ -2698,7 +2524,6 @@ public class WolfSSLSocketTest {
                     server.startHandshake();
 
                 } catch (SSLException e) {
-                    System.out.println("\t\t... failed");
                     fail();
                 }
                 return null;
@@ -2709,7 +2534,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t\t... failed");
             fail();
         }
 
@@ -2720,13 +2544,10 @@ public class WolfSSLSocketTest {
         ss.close();
         cs.close();
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testSocketConnectException() throws Exception {
-
-        System.out.print("\tTesting for ConnectException");
 
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
         SocketFactory sf = this.ctx.getSocketFactory();
@@ -2740,19 +2561,14 @@ public class WolfSSLSocketTest {
             /* expected */
         } catch (Exception e) {
             /* other Exceptions (ie NullPointerException) are unexpected */
-            System.out.println("\t... failed");
             e.printStackTrace();
             fail();
         }
 
-        System.out.println("\t... passed");
     }
-
 
     @Test
     public void testClientServerUsingSystemProperties() throws Exception {
-
-        System.out.print("\tSystem Property Store Support");
 
         System.setProperty("javax.net.ssl.trustStore", tf.clientJKS);
         System.setProperty("javax.net.ssl.trustStoreType", tf.keyStoreType);
@@ -2786,7 +2602,6 @@ public class WolfSSLSocketTest {
                     server.startHandshake();
 
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -2797,7 +2612,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -2825,7 +2639,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2850,7 +2663,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2875,7 +2687,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2899,7 +2710,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2924,7 +2734,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2949,7 +2758,6 @@ public class WolfSSLSocketTest {
             /* not specifying TrustStore and KeyStore, expect to load from
              * system properties set above */
             ctx.init(null, null, null);
-            System.out.println("\t... failed");
             fail();
         } catch (KeyManagementException e) {
             /* expected: java.io.IOException: keystore password was incorrect */
@@ -2963,7 +2771,6 @@ public class WolfSSLSocketTest {
         System.clearProperty("javax.net.ssl.keyStoreType");
         System.clearProperty("javax.net.ssl.keyStorePassword");
 
-        System.out.println("\t... passed");
     }
 
     /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
@@ -2976,15 +2783,10 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = null;
         boolean passed = false;
 
-        System.out.print("\tTesting close/write interrupt");
-
         /* pipe() interrupt mechamism not implemented for Windows yet since
          * Windows does not support Unix/Linux pipe(). Re-enable this test
          * for Windows when that support has been added */
-        if (WolfSSLTestFactory.isWindows()) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
 
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
@@ -2992,10 +2794,8 @@ public class WolfSSLSocketTest {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* create new CTX */
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
@@ -3031,7 +2831,6 @@ public class WolfSSLSocketTest {
                     cs.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     e.printStackTrace();
                     fail("Server thread got SSLException when not expected");
                 }
@@ -3049,7 +2848,6 @@ public class WolfSSLSocketTest {
                 out.write(tmpArr);
             }
             catch (Exception e) {
-                System.out.println("\t... failed");
                 e.printStackTrace();
                 fail("Exception from first out.write() when not expected");
             }
@@ -3066,8 +2864,9 @@ public class WolfSSLSocketTest {
             } catch (SocketException e) {
                 /* We expect SocketException with this message, error if
                  * different than expected */
-                if (!e.getMessage().contains("Socket fd closed during poll")) {
-                    System.out.println("\t... failed");
+                String msg = e.getMessage();
+                if (msg == null ||
+                    !msg.contains("Socket fd closed during poll")) {
                     e.printStackTrace();
                     fail("Incorrect SocketException thrown by client");
                     throw e;
@@ -3089,10 +2888,6 @@ public class WolfSSLSocketTest {
                 ss.close();
             }
         }
-
-        if (passed) {
-            System.out.println("\t... passed");
-        }
     }
 
     /* Test timeout set to 10000 ms (10 sec) in case inerrupt code is not
@@ -3106,15 +2901,10 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = null;
         boolean passed = false;
 
-        System.out.print("\tTesting close/read interrupt");
-
         /* pipe() interrupt mechamism not implemented for Windows yet since
          * Windows does not support Unix/Linux pipe(). Re-enable this test
          * for Windows when that support has been added */
-        if (WolfSSLTestFactory.isWindows()) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
 
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
@@ -3122,10 +2912,8 @@ public class WolfSSLSocketTest {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* create new CTX */
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
@@ -3160,7 +2948,6 @@ public class WolfSSLSocketTest {
                     cs.close();
 
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     e.printStackTrace();
                     fail("Server thread got SSLException when not expected");
                 }
@@ -3176,7 +2963,6 @@ public class WolfSSLSocketTest {
                 cs.startHandshake();
             }
             catch (Exception e) {
-                System.out.println("\t... failed");
                 e.printStackTrace();
                 fail("Exception from startHandshake() when not expected");
             }
@@ -3196,10 +2982,11 @@ public class WolfSSLSocketTest {
             } catch (SocketException e) {
                 /* We expect SocketException with this message, error if
                  * different than expected */
-                if (!e.getMessage().contains("Socket is closed") &&
-                    !e.getMessage().contains("Connection already shutdown") &&
-                    !e.getMessage().contains("object has been freed")) {
-                    System.out.println("\t... failed");
+                String msg = e.getMessage();
+                if (msg == null ||
+                    (!msg.contains("Socket is closed") &&
+                     !msg.contains("Connection already shutdown") &&
+                     !msg.contains("object has been freed"))) {
                     e.printStackTrace();
                     fail("Incorrect SocketException thrown by client");
                     throw e;
@@ -3221,10 +3008,6 @@ public class WolfSSLSocketTest {
                 ss.close();
             }
         }
-
-        if (passed) {
-            System.out.println("\t... passed");
-        }
     }
 
     @Test
@@ -3232,18 +3015,14 @@ public class WolfSSLSocketTest {
 
         String protocol = null;
 
-        System.out.print("\tTesting methods after close");
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv11Enabled()) {
             protocol = "TLSv1.1";
         } else if (WolfSSL.TLSv1Enabled()) {
             protocol = "TLSv1.0";
-        } else {
-            System.out.println("\t... skipped");
-            return;
         }
+        Assume.assumeNotNull(protocol);
 
         /* create new CTX */
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
@@ -3262,9 +3041,7 @@ public class WolfSSLSocketTest {
             public Void call() throws Exception {
                 try {
                     server.startHandshake();
-
                 } catch (SSLException e) {
-                    System.out.println("\t... failed");
                     fail();
                 }
                 return null;
@@ -3275,7 +3052,6 @@ public class WolfSSLSocketTest {
             cs.startHandshake();
 
         } catch (SSLHandshakeException e) {
-            System.out.println("\t... failed");
             fail();
         }
 
@@ -3292,7 +3068,6 @@ public class WolfSSLSocketTest {
             cs.getApplicationProtocol();
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getApplicationProtocol() exception after close()");
         }
 
@@ -3300,7 +3075,6 @@ public class WolfSSLSocketTest {
             cs.getEnableSessionCreation();
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getEnableSessionCreation() exception after close()");
         }
 
@@ -3308,18 +3082,15 @@ public class WolfSSLSocketTest {
             cs.setEnableSessionCreation(true);
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setEnableSessionCreation() exception after close()");
         }
 
         try {
             if (cs.getWantClientAuth() != false) {
-                System.out.println("\t... failed");
                 fail("getWantClientAuth() not false after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getWantClientAuth() exception after close()");
         }
 
@@ -3327,18 +3098,15 @@ public class WolfSSLSocketTest {
             cs.setWantClientAuth(true);
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setWantClientAuth() exception after close()");
         }
 
         try {
             if (cs.getNeedClientAuth() != false) {
-                System.out.println("\t... failed");
                 fail("getNeedClientAuth() not false after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getNeedClientAuth() exception after close()");
         }
 
@@ -3346,18 +3114,15 @@ public class WolfSSLSocketTest {
             cs.setNeedClientAuth(true);
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setNeedClientAuth() exception after close()");
         }
 
         try {
             if (cs.getUseClientMode() != true) {
-                System.out.println("\t... failed");
                 fail("getUseClientMode() on client not true after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getUseClientMode() exception after close()");
         }
 
@@ -3365,18 +3130,15 @@ public class WolfSSLSocketTest {
             cs.setUseClientMode(true);
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setUseClientMode() exception after close()");
         }
 
         try {
             if (cs.getHandshakeSession() != null) {
-                System.out.println("\t... failed");
                 fail("getHandshakeSession() not null after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getHandshakeSession() exception after close()");
         }
 
@@ -3384,23 +3146,19 @@ public class WolfSSLSocketTest {
             SSLSession closeSess = cs.getSession();
             if (closeSess == null ||
                 !closeSess.getCipherSuite().equals("SSL_NULL_WITH_NULL_NULL")) {
-                System.out.println("\t... failed");
                 fail("getSession() null or wrong cipher suite after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getSession() exception after close()");
         }
 
         try {
             if (cs.getEnabledProtocols() != null) {
-                System.out.println("\t... failed");
                 fail("getEnabledProtocols() not null after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getEnabledProtocols() exception after close()");
         }
 
@@ -3408,7 +3166,6 @@ public class WolfSSLSocketTest {
             cs.setEnabledProtocols(new String[] {"INVALID"});
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setEnabledProtocols() exception after close()");
         }
 
@@ -3416,50 +3173,41 @@ public class WolfSSLSocketTest {
             cs.setEnabledCipherSuites(new String[] {"INVALID"});
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("setEnabledCipherSuites() exception after close()");
         }
 
         try {
             String[] suppProtos = cs.getSupportedProtocols();
             if (suppProtos == null || suppProtos.length == 0) {
-                System.out.println("\t... failed");
                 fail("getSupportedProtocols() null or empty after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getSupportedProtocols() exception after close()");
         }
 
         try {
             String[] suppSuites = cs.getSupportedCipherSuites();
             if (suppSuites == null || suppSuites.length == 0) {
-                System.out.println("\t... failed");
                 fail("getSupportedCipherSuites() null or empty after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getSupportedCipherSuites() exception after close()");
         }
 
         try {
             if (cs.getEnabledCipherSuites() != null) {
-                System.out.println("\t... failed");
                 fail("getEnabledCipherSuites() not null after close()");
             }
         } catch (Exception e) {
             /* should not throw exception */
-            System.out.println("\t... failed");
             fail("getEnabledCipherSuites() exception after close()");
         }
 
-        System.out.println("\t... passed");
     }
     @Test
     public void testAutoSNIProperty() throws Exception {
-        System.out.print("\tTesting autoSNI property");
 
         /* Save original System property value */
         String originalProp = System.getProperty("wolfjsse.autoSNI");
@@ -3523,8 +3271,7 @@ public class WolfSSLSocketTest {
             sDoneLatch = new CountDownLatch(1);
             cDoneLatch = new CountDownLatch(1);
 
-            server = new TestServer(this.ctx, ss, sArgs,
-                            1, sDoneLatch);
+            server = new TestServer(this.ctx, ss, sArgs, 1, sDoneLatch);
             server.start();
 
             client = new TestClient(this.ctx, ss.getLocalPort(), cArgs,
@@ -3544,8 +3291,6 @@ public class WolfSSLSocketTest {
                 throw cliException;
             }
 
-            System.out.println("\t... passed");
-
         } finally {
             /* Restore original property value */
             if (originalProp != null) {
@@ -3559,8 +3304,6 @@ public class WolfSSLSocketTest {
     @Test
     public void testSNIMatchers() throws Exception {
 
-        System.out.print("\tTesting SNI Matchers");
-
         /* SNI matcher functionality requires wolfSSL 5.7.6 or later.
          * Older versions have a limitation where wolfSSL_SNI_GetRequest()
          * only returns SNI data if native wolfSSL already matched it, but
@@ -3570,18 +3313,14 @@ public class WolfSSLSocketTest {
          * WOLFSSL_ALWAYS_KEEP_SNI by default with --enable-jni (PR 8283),
          * which is required for full SNI matcher rejection behavior. */
         long libVerHex = WolfSSL.getLibVersionHex();
-        if (libVerHex < 0x05007006L) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(libVerHex >= 0x05007006L);
 
         /* create new CTX */
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss =
-            (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
+            .createServerSocket(0);
 
         /* Configure SNI matcher for server*/
         SNIMatcher matcher =
@@ -3619,7 +3358,6 @@ public class WolfSSLSocketTest {
                         serverMatched.startHandshake();
                         serverMatched.close();
                     } catch (SSLException e) {
-                        System.out.println("\t... failed");
                         fail();
                     }
                     return null;
@@ -3670,11 +3408,10 @@ public class WolfSSLSocketTest {
             serverFuture.get();
             cs.close();
 
-            System.out.println("\t\t... passed");
         } catch (Exception e) {
-            System.out.println("\t\t... failed");
             e.printStackTrace();
             fail("SNI Matcher test failed: " + e.getMessage());
+
         } finally {
             ss.close();
         }
@@ -3802,7 +3539,6 @@ public class WolfSSLSocketTest {
             this.numConnections = numConnections;
             this.doneLatch = doneLatch;
         }
-
 
         @Override
         public void run() {
@@ -3996,8 +3732,6 @@ public class WolfSSLSocketTest {
         throws NoSuchProviderException, NoSuchAlgorithmException,
                IOException {
 
-        System.out.print("\tdouble close() regression test");
-
         /* Test that calling close() when ssl field is null does not cause
          * NullPointerException. This is a regression test for the fix where
          * this.ssl could be null during close() operations. */
@@ -4015,9 +3749,8 @@ public class WolfSSLSocketTest {
                  * race conditions) */
                 if (sock instanceof com.wolfssl.provider.jsse.WolfSSLSocket) {
                     try {
-                        Field sslField =
-                            com.wolfssl.provider.jsse
-                                .WolfSSLSocket.class.getDeclaredField("ssl");
+                        Field sslField = com.wolfssl.provider.jsse
+                            .WolfSSLSocket.class.getDeclaredField("ssl");
                         sslField.setAccessible(true);
                         sslField.set(sock, null);
 
@@ -4031,10 +3764,9 @@ public class WolfSSLSocketTest {
                          * skip this specific test but don't fail */
                         System.out.print(" (reflection skipped)");
                     } catch (NullPointerException e) {
-                        System.out.println("\t... failed");
                         fail("close() call with null ssl field threw " +
-                             "NullPointerException: " + e.getMessage() +
-                             ". This indicates the NPE fix is not working.");
+                            "NullPointerException: " + e.getMessage() +
+                            ". This indicates the NPE fix is not working.");
                     }
                 }
 
@@ -4043,14 +3775,11 @@ public class WolfSSLSocketTest {
             }
         }
 
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testCloseWithNullEngineHelper()
         throws NoSuchFieldException, IllegalAccessException {
-
-        System.out.print("\tclose() with null EngineHelper");
 
         /* Create a normal WolfSSLSocket first using the factory */
         SSLSocketFactory factory = null;
@@ -4094,7 +3823,6 @@ public class WolfSSLSocketTest {
             /* IOException from close() is acceptable */
         }
 
-        System.out.println("\t... passed");
     }
 
     /**
@@ -4107,8 +3835,6 @@ public class WolfSSLSocketTest {
     @Test
     public void testCertificateChainOrderingFromStoreCtx()
         throws Exception {
-
-        System.out.print("\tProper chain ordering");
 
         /* Custom TrustManager that checks certificate order */
         final boolean[] wasCalled = {false};
@@ -4344,13 +4070,10 @@ public class WolfSSLSocketTest {
                 "first cert was not peer/leaf cert"),
             orderCorrect[0]);
 
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testSocketAnonCipherSuiteFiltering() throws Exception {
-
-        System.out.print("\tanon cipher suite filtering");
 
         String[] allCiphers = WolfSSL.getCiphersIana();
         String anonSuite = null;
@@ -4365,10 +4088,7 @@ public class WolfSSLSocketTest {
             }
         }
 
-        if (anonSuite == null) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeNotNull(anonSuite);
 
         Security.setProperty("wolfjsse.enabledCipherSuites", "");
         SSLContext ctx = tf.createSSLContext("TLS", "wolfJSSE");
@@ -4415,7 +4135,6 @@ public class WolfSSLSocketTest {
         assertEquals(2, enabled.length);
 
         sock.close();
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -4425,8 +4144,6 @@ public class WolfSSLSocketTest {
                CertificateException, IOException,
                UnrecoverableKeyException, InterruptedException,
                java.util.concurrent.ExecutionException {
-
-        System.out.print("\tSSLHandshakeException cause");
 
         /* Create server context with valid certs */
         SSLContext srvCtx = tf.createSSLContext("TLS", ctxProvider);
@@ -4480,7 +4197,6 @@ public class WolfSSLSocketTest {
 
         try {
             cs.startHandshake();
-            System.out.println("\t... failed");
             fail("Expected SSLHandshakeException from rejecting " +
                  "TrustManager");
         } catch (SSLHandshakeException e) {
@@ -4504,6 +4220,5 @@ public class WolfSSLSocketTest {
         server.close();
         ss.close();
 
-        System.out.println("\t... passed");
     }
 }

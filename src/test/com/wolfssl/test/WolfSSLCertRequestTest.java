@@ -21,8 +21,11 @@
 
 package com.wolfssl.test;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -47,6 +50,10 @@ import com.wolfssl.WolfSSLJNIException;
  * @author wolfSSL
  */
 public class WolfSSLCertRequestTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
@@ -108,13 +115,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddAttribute()");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -139,16 +140,13 @@ public class WolfSSLCertRequestTest {
 
         /* Adding unsupported NID should throw exception */
         try {
-            req.addAttribute(123456,
-                "12345".getBytes());
-            System.out.println("\t\t\t... failed");
+            req.addAttribute(123456, "12345".getBytes());
             fail("Unsupported NID did not throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -156,13 +154,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddExtension()");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -185,7 +177,6 @@ public class WolfSSLCertRequestTest {
         /* Adding unsupported NID should throw exception */
         try {
             req.addExtension(123456, "12345", false);
-            System.out.println("\t\t\t... failed");
             fail("Unsupported extension NID did not throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -195,28 +186,24 @@ public class WolfSSLCertRequestTest {
         req.addExtension(WolfSSL.NID_basic_constraints, true, true);
         req.addExtension(WolfSSL.NID_basic_constraints, false, true);
 
-        /* Test boolean extension with pathLen */
+        /* Test boolean extension with pathLen. If the basicConstraints
+         * pathLen overload isn't compiled in, skip the remaining pathLen
+         * assertions so they aren't interpreted as passing for the wrong
+         * reason (NOT_COMPILED_IN vs. actual input validation). */
         try {
             req.addExtension(WolfSSL.NID_basic_constraints, true, 0, true);
         } catch (WolfSSLException e) {
-            if (!isNotCompiledIn(e)) {
-                throw e;
+            if (isNotCompiledIn(e)) {
+                Assume.assumeNoException(
+                    "basicConstraints pathLen overload not compiled in", e);
             }
-            System.out.println("\t\t\t... skipped");
+            throw e;
         }
-        try {
-            req.addExtension(WolfSSL.NID_basic_constraints, true, 3, true);
-        } catch (WolfSSLException e) {
-            if (!isNotCompiledIn(e)) {
-                throw e;
-            }
-            System.out.println("\t\t\t... skipped");
-        }
+        req.addExtension(WolfSSL.NID_basic_constraints, true, 3, true);
 
         /* Invalid pathLen (< -1) should throw WolfSSLException */
         try {
             req.addExtension(WolfSSL.NID_basic_constraints, true, -2, true);
-            System.out.println("\t\t\t... failed");
             fail("Invalid pathLen did not throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -225,7 +212,6 @@ public class WolfSSLCertRequestTest {
         /* pathLen with isCA=false should throw (RFC 5280) */
         try {
             req.addExtension(WolfSSL.NID_basic_constraints, false, 0, true);
-            System.out.println("\t\t\t... failed");
             fail("pathLen with isCA=false did not throw");
         } catch (WolfSSLException e) {
             /* expected */
@@ -234,7 +220,6 @@ public class WolfSSLCertRequestTest {
         /* Unsupported NID with pathLen should throw exception */
         try {
             req.addExtension(123456, true, 0, true);
-            System.out.println("\t\t\t... failed");
             fail("Unsupported NID did not throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -243,14 +228,12 @@ public class WolfSSLCertRequestTest {
         /* Adding unsupported NID should throw exception */
         try {
             req.addExtension(123456, true, false);
-            System.out.println("\t\t\t... failed");
             fail("Unsupported extension NID did not throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -258,13 +241,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetVersion()");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -275,14 +252,12 @@ public class WolfSSLCertRequestTest {
         /* Negative versions should throw exception */
         try {
             req.setVersion(-100);
-            System.out.println("\t\t\t... failed");
             fail("Negative version should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -290,13 +265,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetPublicKey(file)");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -309,7 +278,6 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey(cliKeyPubDer, 12345,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("bad key type should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -318,7 +286,6 @@ public class WolfSSLCertRequestTest {
         /* Test bad file type */
         try {
             req.setPublicKey(cliKeyPubDer, WolfSSL.RSAk, 12345);
-            System.out.println("\t\t... failed");
             fail("bad file type should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -328,7 +295,6 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey((String)null, WolfSSL.RSAk,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("null PublicKey should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -338,14 +304,12 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey("badfile", WolfSSL.RSAk,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("Bad path to PublicKey should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -360,13 +324,7 @@ public class WolfSSLCertRequestTest {
         byte[] rsaPubKeyDer;
         byte[] eccPubKeyDer;
 
-        System.out.print("\tsetPublicKey(array)");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -395,7 +353,6 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey(rsaPubKeyDer, 12345,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("bad key type should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -404,7 +361,6 @@ public class WolfSSLCertRequestTest {
         /* Test bad file type */
         try {
             req.setPublicKey(rsaPubKeyDer, WolfSSL.RSAk, 12345);
-            System.out.println("\t\t... failed");
             fail("bad file type should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -414,7 +370,6 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey((byte[])null, WolfSSL.RSAk,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("null key array should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -425,14 +380,12 @@ public class WolfSSLCertRequestTest {
         try {
             req.setPublicKey(zeroArr, WolfSSL.RSAk,
                 WolfSSL.SSL_FILETYPE_ASN1);
-            System.out.println("\t\t... failed");
             fail("Zero length pub key array should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -440,13 +393,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tsetPublicKey(PublicKey)");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -468,14 +415,12 @@ public class WolfSSLCertRequestTest {
         /* Test null PublicKey object */
         try {
             req.setPublicKey((PublicKey)null);
-            System.out.println("\t\t... failed");
             fail("null PublicKey should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
         }
 
         req.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -483,13 +428,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tgen CSR using files");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -533,8 +472,6 @@ public class WolfSSLCertRequestTest {
         /* Free native memory */
         subjectName.free();
         req.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -542,13 +479,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tgen CSR using buffers");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -592,8 +523,6 @@ public class WolfSSLCertRequestTest {
         /* Free native memory */
         subjectName.free();
         req.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -601,13 +530,7 @@ public class WolfSSLCertRequestTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgen CSR using Java classes");
-
-        if (!WolfSSL.certReqEnabled()) {
-            /* WOLFSSL_CERT_REQ / --enable-certreq not enabled in wolfSSL */
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
 
         WolfSSLCertRequest req = new WolfSSLCertRequest();
         assertNotNull(req);
@@ -653,8 +576,6 @@ public class WolfSSLCertRequestTest {
         /* Free native memory */
         subjectName.free();
         req.free();
-
-        System.out.println("\t... passed");
     }
 
     /* Utility method if needed for testing, print out CSR array to file */
@@ -663,4 +584,3 @@ public class WolfSSLCertRequestTest {
         Files.write(new File(path).toPath(), csr);
     }
 }
-

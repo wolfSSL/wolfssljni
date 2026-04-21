@@ -21,8 +21,11 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.util.List;
@@ -30,6 +33,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.test.TimedTestWatcher;
 
 import java.io.FileInputStream;
 import javax.net.SocketFactory;
@@ -60,6 +64,9 @@ import java.lang.reflect.Method;
 
 public class WolfSSLContextTest {
 
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     private static WolfSSLTestFactory tf;
     private static final char[] jksPass = "wolfSSL test".toCharArray();
     private static final String ctxProvider = "wolfJSSE";
@@ -87,11 +94,7 @@ public class WolfSSLContextTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
-        System.out.print("\tGetting provider name");
-        if (p.getName().contains("wolfJSSE")) {
-            System.out.println("\t\t... passed");
-        } else {
-            System.out.println("\t\t... failed");
+        if (!p.getName().contains("wolfJSSE")) {
             fail("Failed to get proper wolfJSSE provider name");
         }
 
@@ -129,8 +132,6 @@ public class WolfSSLContextTest {
 
         SSLContext ctx;
 
-        System.out.print("\tTesting protocol support");
-
         /* try to get all available protocols we expect to have */
         for (int i = 0; i < enabledProtocols.size(); i++) {
             ctx = SSLContext.getInstance(enabledProtocols.get(i),
@@ -141,12 +142,11 @@ public class WolfSSLContextTest {
         try {
             ctx = SSLContext.getInstance("NotValid", ctxProvider);
 
-            System.out.println("\t... failed");
             fail("SSLContext.getInstance should throw " +
                  "NoSuchAlgorithmException when given bad protocol");
 
         } catch (NoSuchAlgorithmException nsae) {
-            System.out.println("\t... passed");
+            /* expected */
         }
     }
 
@@ -161,8 +161,6 @@ public class WolfSSLContextTest {
         KeyStore pKey, cert;
         SSLSocketFactory ssf;
 
-        System.out.print("\tgetSocketFactory()");
-
         try {
             /* set up KeyStore */
             InputStream stream = new FileInputStream(tf.clientJKS);
@@ -173,7 +171,7 @@ public class WolfSSLContextTest {
             stream = new FileInputStream(tf.clientJKS);
             cert = KeyStore.getInstance(tf.keyStoreType);
             cert.load(stream, jksPass);
-                stream.close();
+            stream.close();
 
             /* trust manager (certificates) */
             tm = TrustManagerFactory.getInstance("SunX509");
@@ -200,16 +198,12 @@ public class WolfSSLContextTest {
             ssf = ctx.getSocketFactory();
             assertNotNull(ssf);
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testInit() throws NoSuchProviderException,
         NoSuchAlgorithmException, IllegalStateException,
         KeyManagementException {
-
-        System.out.print("\tinit()");
 
         SecureRandom rand = new SecureRandom();
         SSLContext ctx = null;
@@ -222,7 +216,6 @@ public class WolfSSLContextTest {
                     ctxProvider);
                 ctx.init(null, null, rand);
             } catch (Exception e) {
-                System.out.println("\t\t\t\t... failed");
                 e.printStackTrace();
                 fail("Failed to initialize SSLContext with null params");
             }
@@ -236,20 +229,15 @@ public class WolfSSLContextTest {
                     ctxProvider);
                 ctx.init(null, null, null);
             } catch (Exception e) {
-                System.out.println("\t\t\t\t... failed");
                 fail("Failed to initialize SSLContext with null params");
             }
         }
-
-        System.out.println("\t\t\t\t... passed");
     }
 
     @Test
     public void testGetSessionContext() throws NoSuchProviderException,
         NoSuchAlgorithmException, IllegalStateException,
         KeyManagementException {
-
-        System.out.print("\tgetSessionContext()");
 
         SSLContext ctx = null;
 
@@ -260,7 +248,6 @@ public class WolfSSLContextTest {
                     ctxProvider);
                 ctx.init(null, null, null);
             } catch (Exception e) {
-                System.out.println("\t\t... failed");
                 fail("Failed to init SSLContext");
                 return;
             }
@@ -270,7 +257,6 @@ public class WolfSSLContextTest {
                 SSLSessionContext sess = ctx.getServerSessionContext();
                 assertNotNull(sess);
             } catch (UnsupportedOperationException e) {
-                System.out.println("\t\t... failed");
                 fail("Failed to get SSLSessionContext");
             }
 
@@ -279,18 +265,14 @@ public class WolfSSLContextTest {
                 SSLSessionContext sess = ctx.getClientSessionContext();
                 assertNotNull(sess);
             } catch (UnsupportedOperationException e) {
-                System.out.println("\t\t... failed");
                 fail("Failed to return client SSLSessionContext");
             }
         }
-        System.out.println("\t\t... passed");
     }
 
     @Test
     public void testGetSessionContextBeforeInit()
         throws NoSuchProviderException, NoSuchAlgorithmException {
-
-        System.out.print("\tgetSessionContext before init");
 
         SSLContext ctx = null;
         SSLSessionContext sess = null;
@@ -302,7 +284,6 @@ public class WolfSSLContextTest {
             /* getServerSessionContext() should work before init() */
             sess = ctx.getServerSessionContext();
             if (sess == null) {
-                System.out.println("\t... failed");
                 fail("getServerSessionContext() returned null before init()");
                 return;
             }
@@ -310,7 +291,6 @@ public class WolfSSLContextTest {
             /* getClientSessionContext() should work before init() */
             sess = ctx.getClientSessionContext();
             if (sess == null) {
-                System.out.println("\t... failed");
                 fail("getClientSessionContext() returned null before init()");
                 return;
             }
@@ -319,7 +299,6 @@ public class WolfSSLContextTest {
             int timeout = sess.getSessionTimeout();
             sess.setSessionTimeout(timeout);
         }
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -327,18 +306,15 @@ public class WolfSSLContextTest {
         NoSuchAlgorithmException, IllegalStateException,
         KeyManagementException {
 
-        System.out.print("\tgetSupportedSSLParameters()");
-
         SSLContext ctx = null;
 
         for (int i = 0; i < enabledProtocols.size(); i++) {
 
             try {
                 ctx = SSLContext.getInstance(enabledProtocols.get(i),
-                        ctxProvider);
+                    ctxProvider);
                 ctx.init(null, null, null);
             } catch (Exception e) {
-                System.out.println("\t\t... failed");
                 fail("Failed to init SSLContext");
                 return;
             }
@@ -347,30 +323,25 @@ public class WolfSSLContextTest {
             try {
                 SSLParameters params = ctx.getSupportedSSLParameters();
                 if (params == null) {
-                    System.out.println("\t... failed");
                     fail("Failed to valid supported SSLParameters");
                 }
 
                 /* make sure protocol list is not null */
                 String[] protocols = params.getProtocols();
                 if (protocols == null || protocols.length == 0) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getProtocols() returned null");
                 }
 
                 /* make sure cipher suite list is not null */
                 String[] ciphers = params.getCipherSuites();
                 if (ciphers == null || ciphers.length == 0) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getCipherSuites() returned null");
                 }
 
             } catch (UnsupportedOperationException e) {
-                System.out.println("\t... failed");
                 fail("UnsupportedOperationException thrown but not expected");
             }
         }
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -378,18 +349,15 @@ public class WolfSSLContextTest {
         NoSuchAlgorithmException, IllegalStateException,
         KeyManagementException {
 
-        System.out.print("\tgetDefaultSSLParameters()");
-
         SSLContext ctx = null;
 
         for (int i = 0; i < enabledProtocols.size(); i++) {
 
             try {
                 ctx = SSLContext.getInstance(enabledProtocols.get(i),
-                        ctxProvider);
+                    ctxProvider);
                 ctx.init(null, null, null);
             } catch (Exception e) {
-                System.out.println("\t\t... failed");
                 fail("Failed to init SSLContext");
                 return;
             }
@@ -398,28 +366,24 @@ public class WolfSSLContextTest {
             try {
                 SSLParameters params = ctx.getDefaultSSLParameters();
                 if (params == null) {
-                    System.out.println("\t... failed");
                     fail("Failed to valid default SSLParameters");
                 }
 
                 /* make sure protocol list is not null */
                 String[] protocols = params.getProtocols();
                 if (protocols == null || protocols.length == 0) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getProtocols() returned null");
                 }
 
                 /* make sure cipher suite list is not null */
                 String[] ciphers = params.getCipherSuites();
                 if (ciphers == null || ciphers.length == 0) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getCipherSuites() returned null");
                 }
 
                 /* needClientAuth should default to false */
                 boolean needClientAuth = params.getNeedClientAuth();
                 if (needClientAuth == true) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getNeedClientAuth() should default " +
                          "to false");
                 }
@@ -427,18 +391,14 @@ public class WolfSSLContextTest {
                 /* wantClientAuth should default to false */
                 boolean wantClientAuth = params.getWantClientAuth();
                 if (wantClientAuth == true) {
-                    System.out.println("\t... failed");
                     fail("SSLParameters.getWantClientAuth() should default " +
                          "to false");
                 }
 
             } catch (UnsupportedOperationException e) {
-                System.out.println("\t... failed");
                 fail("UnsupportedOperationException thrown but not expected");
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     /* Returns ArrayList of expected default SSLcontext protocols, assuming
@@ -527,11 +487,8 @@ public class WolfSSLContextTest {
         String[] defaultSSLContextProtocols = null;
         ArrayList<String> expectedList = null;
 
-        System.out.print("\tjdk.tls.disabledAlgorithms");
-
         List<?> enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
         if (enabledNativeProtocols == null) {
-            System.out.println("\t... failed");
             fail("WolfSSL.getProtocols() returned null");
         }
 
@@ -566,10 +523,8 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(defaultSSLContextProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLContext(" + allProtocols[i] +
-                         ") protocol list did not match " +
-                         "expected. Got: " +
+                         ") protocol list did not match expected. Got: " +
                          Arrays.toString(defaultSSLContextProtocols) +
                          " Expected: " + Arrays.toString(expectedList.toArray(
                             new String[expectedList.size()])));
@@ -583,7 +538,6 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(sockEnabledProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLSocket protocol list did not " +
                          "match expected");
                 }
@@ -613,7 +567,6 @@ public class WolfSSLContextTest {
                     if (!Arrays.equals(defaultSSLContextProtocols,
                             expectedList.toArray(
                                 new String[expectedList.size()]))) {
-                        System.out.print("\t... failed");
                         fail("Default SSLContext protocol list did not " +
                              "match expected");
                     }
@@ -626,7 +579,6 @@ public class WolfSSLContextTest {
                     if (!Arrays.equals(sockEnabledProtocols,
                             expectedList.toArray(
                                 new String[expectedList.size()]))) {
-                        System.out.print("\t... failed");
                         fail("Default SSLSocket protocol list did not " +
                              "match expected");
                     }
@@ -636,8 +588,8 @@ public class WolfSSLContextTest {
             /* Test with TLSv1, TLSv1.1 protocols disabled */
             Security.setProperty("jdk.tls.disabledAlgorithms",
                 "TLSv1, TLSv1.1");
-            for (int i = 0; i < allProtocols.length; i++) {
 
+            for (int i = 0; i < allProtocols.length; i++) {
                 if (!enabledNativeProtocols.contains(allProtocols[i])) {
                     /* protocol not available in native library, skip */
                     continue;
@@ -656,7 +608,6 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(defaultSSLContextProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLContext protocol list did not " +
                          "match expected");
                 }
@@ -669,7 +620,6 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(sockEnabledProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLSocket protocol list did not " +
                          "match expected");
                 }
@@ -678,8 +628,8 @@ public class WolfSSLContextTest {
             /* Test with TLSv1.1, TLSv1.2 protocols disabled */
             Security.setProperty("jdk.tls.disabledAlgorithms",
                 "TLSv1.1, TLSv1.2");
-            for (int i = 0; i < allProtocols.length; i++) {
 
+            for (int i = 0; i < allProtocols.length; i++) {
                 if (!enabledNativeProtocols.contains(allProtocols[i])) {
                     /* protocol not available in native library, skip */
                     continue;
@@ -698,7 +648,6 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(defaultSSLContextProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLContext protocol list did not " +
                          "match expected");
                 }
@@ -711,7 +660,6 @@ public class WolfSSLContextTest {
                 if (!Arrays.equals(sockEnabledProtocols,
                         expectedList.toArray(
                             new String[expectedList.size()]))) {
-                    System.out.print("\t... failed");
                     fail("Default SSLSocket protocol list did not " +
                          "match expected");
                 }
@@ -721,8 +669,6 @@ public class WolfSSLContextTest {
             Security.setProperty("jdk.tls.disabledAlgorithms",
                 originalProperty);
         } /* jdkTlsDisabledAlgorithmsLock */
-
-        System.out.println("\t... passed");
     }
 
     /** Helper method for testWolfJSSEEnabledCipherSuites() */
@@ -769,11 +715,8 @@ public class WolfSSLContextTest {
         String[] defaultSSLContextSuites = null;
         WolfSSL.TLS_VERSION version = WolfSSL.TLS_VERSION.INVALID;
 
-        System.out.print("\twolfjsse.enabledCipherSuites");
-
         List<?> enabledNativeProtocols = Arrays.asList(WolfSSL.getProtocols());
         if (enabledNativeProtocols == null) {
-            System.out.println("\t... failed");
             fail("WolfSSL.getProtocols() returned null");
         }
 
@@ -792,7 +735,6 @@ public class WolfSSLContextTest {
             /* get TLS_VERSION enum value from protocol version */
             version = getWolfSSLTLSVersion(allProtocols[i]);
             if (version == WolfSSL.TLS_VERSION.INVALID) {
-                System.out.print("\t... failed");
                 fail("Invalid TLS version");
             }
 
@@ -823,9 +765,7 @@ public class WolfSSLContextTest {
                 ctx.getDefaultSSLParameters().getCipherSuites();
 
             if (!Arrays.equals(defaultSSLContextSuites, nativeSuites)) {
-                System.out.print("\t... failed");
-                fail("Default SSLContext cipher list did not " +
-                     "match expected");
+                fail("Default SSLContext cipher list did not match expected");
             }
 
             sf = ctx.getSocketFactory();
@@ -835,9 +775,7 @@ public class WolfSSLContextTest {
             String[] sockEnabledSuites = sock.getEnabledCipherSuites();
 
             if (!Arrays.equals(sockEnabledSuites, nativeSuites)) {
-                System.out.print("\t... failed");
-                fail("SSLSocket enabled cipher list did not " +
-                     "match expected");
+                fail("SSLSocket enabled cipher list did not match expected");
             }
 
             /* ------------------------------------------------------------- */
@@ -856,7 +794,6 @@ public class WolfSSLContextTest {
 
             if (!Arrays.equals(defaultSSLContextSuites,
                     new String[] { nativeSuites[0] } )) {
-                System.out.print("\t... failed");
                 fail("Default SSLContext cipher list did not " +
                      "match expected single suite");
             }
@@ -868,7 +805,6 @@ public class WolfSSLContextTest {
             sockEnabledSuites = sock.getEnabledCipherSuites();
             if (!Arrays.equals(sockEnabledSuites,
                     new String[] { nativeSuites[0] } )) {
-                System.out.print("\t... failed");
                 fail("SSLSocket enabled cipher list did not " +
                      "match expected single suite");
             }
@@ -877,7 +813,6 @@ public class WolfSSLContextTest {
             sockEnabledSuites = sock.getSupportedCipherSuites();
             if (!Arrays.equals(sockEnabledSuites,
                     new String[] { nativeSuites[0] } )) {
-                System.out.print("\t... failed");
                 fail("SSLSocket supported cipher list did not " +
                      "match expected single suite");
             }
@@ -890,7 +825,7 @@ public class WolfSSLContextTest {
 
             if (nativeSuites.length >= 2) {
                 Security.setProperty("wolfjsse.enabledCipherSuites",
-                        nativeSuites[0] + ", " + nativeSuites[1]);
+                    nativeSuites[0] + ", " + nativeSuites[1]);
 
                 ctx = SSLContext.getInstance(allProtocols[i]);
                 ctx.init(null, null, null);
@@ -900,7 +835,6 @@ public class WolfSSLContextTest {
 
                 if (!Arrays.equals(defaultSSLContextSuites,
                         new String[] { nativeSuites[0], nativeSuites[1] } )) {
-                    System.out.print("\t... failed");
                     fail("Default SSLContext cipher list did not " +
                          "match expected single suite");
                 }
@@ -912,7 +846,6 @@ public class WolfSSLContextTest {
                 sockEnabledSuites = sock.getEnabledCipherSuites();
                 if (!Arrays.equals(sockEnabledSuites,
                         new String[] { nativeSuites[0], nativeSuites[1] } )) {
-                    System.out.print("\t... failed");
                     fail("SSLSocket enabled cipher list did not " +
                          "match expected single suite");
                 }
@@ -924,7 +857,6 @@ public class WolfSSLContextTest {
                         .containsAll(Arrays.asList(
                             new String[] {
                                 nativeSuites[0], nativeSuites[1] }))) {
-                    System.out.print("\t... failed");
                     fail("SSLSocket supported cipher list did not " +
                          "match expected single suite");
                 }
@@ -959,7 +891,6 @@ public class WolfSSLContextTest {
 
                 if (!Arrays.equals(sockEnabledSuites,
                         new String[] { nativeSuites[0] } )) {
-                    System.out.print("\t... failed");
                     fail("Default SSLSocket cipher list did not " +
                          "match expected single suite");
                 }
@@ -975,14 +906,10 @@ public class WolfSSLContextTest {
         else {
             Security.setProperty("wolfjsse.enabledCipherSuites", "");
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testSanitizeProtocolsNullInput() {
-
-        System.out.print("\tTesting sanitizeProtocols(null)");
 
         try {
             Class<?> utilClass = Class.forName(
@@ -997,15 +924,11 @@ public class WolfSSLContextTest {
                 null, (String[]) null, WolfSSL.TLS_VERSION.TLSv1_2);
 
             if (result != null) {
-                System.out.println("\t... failed");
                 fail("sanitizeProtocols(null) should return null");
                 return;
             }
 
-            System.out.println("\t... passed");
-
         } catch (Exception e) {
-            System.out.println("\t... failed");
             fail("Exception during sanitizeProtocols test: " + e.getMessage());
         }
     }
@@ -1026,8 +949,6 @@ public class WolfSSLContextTest {
     @Test
     public void testContextDefaultParamsExcludeAnon() throws Exception {
 
-        System.out.print("\tdefault params exclude anon");
-
         String[] allCiphers = WolfSSL.getCiphersIana();
         boolean haveAnon = false;
         for (String s : allCiphers) {
@@ -1037,10 +958,7 @@ public class WolfSSLContextTest {
             }
         }
 
-        if (!haveAnon) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(haveAnon);
 
         Security.setProperty("wolfjsse.enabledCipherSuites", "");
         SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
@@ -1051,8 +969,6 @@ public class WolfSSLContextTest {
         assertNotNull(defaults);
         assertFalse("Default params should not contain anon",
             arrayHasAnonSuite(defaults));
-
-        System.out.println("\t... passed");
     }
 }
 
