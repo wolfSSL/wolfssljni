@@ -825,9 +825,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1CRL_1add_1dist_
     if (uriStr != NULL) {
         ret = wolfSSL_X509_CRL_add_dist_point(x509, uriStr,
                 (critical == JNI_TRUE) ? 1 : 0);
+        (*jenv)->ReleaseStringUTFChars(jenv, uri, uriStr);
     }
-
-    (*jenv)->ReleaseStringUTFChars(jenv, uri, uriStr);
 
     return (jint)ret;
 #else
