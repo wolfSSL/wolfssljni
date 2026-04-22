@@ -498,8 +498,10 @@ public class WolfSSLEngine extends SSLEngine {
 
                 if (sendSz != this.internalIOSendBufOffset) {
                     System.arraycopy(this.internalIOSendBuf, sendSz,
-                             this.internalIOSendBuf, 0,
-                             this.internalIOSendBufOffset - sendSz);
+                                this.internalIOSendBuf, 0,
+                                this.internalIOSendBufOffset - sendSz);
+                    this.internalIOSendBufOffset =
+                                this.internalIOSendBufOffset - sendSz;
                 }
                 else {
                     /* reset internalIOSendBufOffset to zero, no data left */

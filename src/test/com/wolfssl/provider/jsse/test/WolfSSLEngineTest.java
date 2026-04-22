@@ -26,6 +26,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
@@ -3508,4 +3509,115 @@ public class WolfSSLEngineTest {
 
         pass("\t\t... passed");
     }
+
+    @Test
+    public void testWrapPartialDrainOffsetUpdate()
+        throws NoSuchProviderException, NoSuchAlgorithmException,
+               KeyManagementException, KeyStoreException,
+               CertificateException, IOException,
+               UnrecoverableKeyException,
+               NoSuchFieldException, IllegalAccessException {
+
+        /* CopyOutPacket() must decrement internalIOSendBufOffset after a
+         * partial drain, otherwise stale ciphertext gets re-emitted. */
+        System.out.print("\tTesting wrap() partial drain offset");
+
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+        client.setUseClientMode(true);
+
+        server.beginHandshake();
+        client.beginHandshake();
+
+        int ret = tf.testConnection(server, client, null, null,
+            "partial drain test");
+        if (ret != 0) {
+            error("\t... failed");
+            fail("failed to create connection");
+        }
+
+        /* Inject marker of size packetSz + 1000 so first drain copies
+         * packetSz bytes and leaves 1000 bytes queued. */
+        int packetSz = client.getSession().getPacketBufferSize();
+        int queuedSz = packetSz + 1000;
+        byte[] marker = new byte[queuedSz];
+        for (int i = 0; i < queuedSz; i++) {
+            marker[i] = (byte)((i * 31) & 0xFF);
+        }
+
+        Field bufField =
+            WolfSSLEngine.class.getDeclaredField("internalIOSendBuf");
+        Field bufSzField =
+            WolfSSLEngine.class.getDeclaredField("internalIOSendBufSz");
+        Field offField =
+            WolfSSLEngine.class.getDeclaredField(
+                "internalIOSendBufOffset");
+        bufField.setAccessible(true);
+        bufSzField.setAccessible(true);
+        offField.setAccessible(true);
+
+        bufField.set(client, marker);
+        bufSzField.setInt(client, queuedSz);
+        offField.setInt(client, queuedSz);
+
+        /* First wrap: out buffer sized exactly to packetBufferSize so
+         * the guard passes but CopyOutPacket partial-drains. */
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer firstOut = ByteBuffer.allocate(packetSz);
+        SSLEngineResult result = client.wrap(empty, firstOut);
+
+        if (result.bytesProduced() != packetSz) {
+            error("\t... failed");
+            fail("first wrap expected " + packetSz +
+                 " produced, got " + result.bytesProduced());
+        }
+
+        /* Fix-sensitive check: unfixed code leaves offset at queuedSz. */
+        int offAfterFirst = offField.getInt(client);
+        if (offAfterFirst != queuedSz - packetSz) {
+            error("\t... failed");
+            fail("internalIOSendBufOffset not decremented after " +
+                 "partial drain: expected " + (queuedSz - packetSz) +
+                 ", got " + offAfterFirst);
+        }
+
+        /* Second wrap: must drain only the remainder; unfixed code
+         * would re-emit packetSz stale bytes instead. */
+        ByteBuffer secondOut = ByteBuffer.allocate(packetSz);
+        result = client.wrap(empty, secondOut);
+
+        int expectedRemainder = queuedSz - packetSz;
+        if (result.bytesProduced() != expectedRemainder) {
+            error("\t... failed");
+            fail("second wrap expected " + expectedRemainder +
+                 " produced (remainder only), got " +
+                 result.bytesProduced() +
+                 " - stale bytes re-sent after partial drain");
+        }
+
+        if (offField.getInt(client) != 0) {
+            error("\t... failed");
+            fail("internalIOSendBufOffset not reset to 0 after " +
+                 "remainder drained");
+        }
+
+        /* Full integrity check: concatenated drained output must equal
+         * the original injected marker exactly. */
+        firstOut.flip();
+        secondOut.flip();
+        byte[] drained = new byte[queuedSz];
+        firstOut.get(drained, 0, packetSz);
+        secondOut.get(drained, packetSz, expectedRemainder);
+        if (!Arrays.equals(marker, drained)) {
+            error("\t... failed");
+            fail("drained output does not match injected queue");
+        }
+
+        pass("\t... passed");
+    }
+
 }

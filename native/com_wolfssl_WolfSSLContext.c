@@ -785,7 +785,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memrestoreCertCache
         ret = wolfSSL_CTX_memrestore_cert_cache(ctx, buff, buffSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, mem, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, mem, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 #else
@@ -888,7 +890,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyBuffer
         ret = wolfSSL_CTX_load_verify_buffer(ctx, buff, buffSz, format);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }
@@ -915,7 +919,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateBuffer
         ret = wolfSSL_CTX_use_certificate_buffer(ctx, buff, buffSz, format);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }
@@ -952,7 +958,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyBuffer
         XMEMSET(buff, 0, buffSz);
     #endif
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }
@@ -978,7 +986,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
         ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, buff, buffSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }
@@ -1005,7 +1015,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
                 ctx, buff, buffSz, format);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }

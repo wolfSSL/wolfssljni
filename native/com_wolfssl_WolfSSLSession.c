@@ -1280,6 +1280,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_write__J_3BIII
             (*jenv)->ExceptionClear(jenv);
             return SSL_FAILURE;
         }
+        if (data == NULL) {
+            return SSL_FAILURE;
+        }
 
         ret = SSLWriteNonblockingWithSelectPoll(ssl, data + offset,
             (int)length, (int)timeout);
@@ -1497,6 +1500,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            return SSL_FAILURE;
+        }
+        if (data == NULL) {
             return SSL_FAILURE;
         }
 
@@ -2426,7 +2432,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
         ret = wolfSSL_SetServerID(ssl, idBuf, idBufSz, (int)newSess);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, id, (jbyte*)idBuf, JNI_ABORT);
+    if (idBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, id, (jbyte*)idBuf, JNI_ABORT);
+    }
 
     return ret;
 #else
@@ -2808,7 +2816,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
 
     ret = wolfSSL_send_hrr_cookie(ssl, secretBuf, secretSz);
 
-    if (secret != NULL) {
+    if (secret != NULL && secretBuf != NULL) {
         (*jenv)->ReleaseByteArrayElements(jenv, secret,
             (jbyte*)secretBuf, JNI_ABORT);
     }
@@ -3774,7 +3782,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainBuffer
                 ssl, buff, buffSz, format);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, in, (jbyte*)buff, JNI_ABORT);
+    }
 
     return (jint)ret;
 }
@@ -5210,7 +5220,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
 
-    if (jenv == NULL || ssl == NULL) {
+    if (jenv == NULL || ssl == NULL || data == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -5225,7 +5235,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSNI
         ret = wolfSSL_UseSNI(ssl, (byte)type, dataBuf, (word16)dataSz);
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, data, (jbyte*)dataBuf, JNI_ABORT);
+    if (dataBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, data, (jbyte*)dataBuf,
+                                          JNI_ABORT);
+    }
 
 #else
     ret = NOT_COMPILED_IN;
@@ -5408,8 +5421,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicket
     else {
         ret = BAD_FUNC_ARG;
     }
-    (*jenv)->ReleaseByteArrayElements(jenv, dataBuf,
-                                        (jbyte*)data, JNI_ABORT);
+    if (data != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, dataBuf,
+                                            (jbyte*)data, JNI_ABORT);
+    }
     (void)jcl;
 #else
     (void)jenv;
@@ -5477,8 +5492,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sslSetAlpnProtos
 #endif
     }
 
-    (*jenv)->ReleaseByteArrayElements(jenv, alpnProtos,
-                                      (jbyte*)buff, JNI_ABORT);
+    if (buff != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, alpnProtos,
+                                          (jbyte*)buff, JNI_ABORT);
+    }
 #else
     (void)jenv;
     (void)jcl;

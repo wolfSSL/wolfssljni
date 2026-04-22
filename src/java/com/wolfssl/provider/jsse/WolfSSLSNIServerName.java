@@ -111,7 +111,7 @@ public abstract class WolfSSLSNIServerName
      * @return hash code value specific to this type and encoded name
      */
     public int hashCode() {
-        return Objects.hash(this.type, this.encoded);
+        return Objects.hash(this.type, Arrays.hashCode(this.encoded));
     }
 
     /**

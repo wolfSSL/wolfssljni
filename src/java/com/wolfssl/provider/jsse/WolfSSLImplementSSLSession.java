@@ -140,7 +140,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      * @return list of stored SNI server names, may be null
      */
     public synchronized List<SNIServerName> getSNIServerNames() {
-        return this.sniServerNames;
+        return (this.sniServerNames == null) ? null :
+                Collections.unmodifiableList(this.sniServerNames);
     }
 
     /**
