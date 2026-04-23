@@ -21,8 +21,11 @@
 
 package com.wolfssl.test;
 
-import org.junit.Test;
+import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.nio.charset.StandardCharsets;
@@ -36,8 +39,12 @@ import com.wolfssl.WolfSSLException;
 @SuppressWarnings("deprecation")
 public class WolfSSLTest {
 
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     @BeforeClass
     public static void loadLibrary() {
+        System.out.println("WolfSSL Class");
         try {
             WolfSSL.loadLibrary();
         } catch (UnsatisfiedLinkError ule) {
@@ -46,83 +53,49 @@ public class WolfSSLTest {
     }
 
     @Test
-    public void testWolfSSL() throws WolfSSLException {
-
-        WolfSSL lib = null;
-        System.out.println("WolfSSL Class");
-
-        test_WolfSSL_new(lib);
-        test_WolfSSL_protocol();
-        test_WolfSSL_getProtocolsMask();
-        test_WolfSSL_Method_Allocators(lib);
-        test_WolfSSL_getLibVersionHex();
-        test_WolfSSL_getErrno();
-        test_WolfSSL_getSNIFromBuffer();
-        testGetCiphersAvailableIana();
-        test_isLibraryLoadSkippedReturnsFalseByDefault();
-        test_SystemPropertyNotSetByDefault();
-        test_SettingPropertyAfterLoadHasNoEffect();
-    }
-
-    public void test_WolfSSL_new(WolfSSL lib) {
-
+    public void test_WolfSSL_new() {
         try {
-            System.out.print("\tWolfSSL()");
-            lib = new WolfSSL();
+            new WolfSSL();
         } catch (UnsatisfiedLinkError ule) {
-            System.out.println("\t\t\t... failed");
             fail("failed to load native JNI library");
         } catch (WolfSSLException we) {
-            System.out.println("\t\t\t... failed");
             fail("failed to create WolfSSL object");
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
+    @Test
     public void test_WolfSSL_protocol() {
         String[] p = WolfSSL.getProtocols();
-
-        System.out.print("\tWolfSSL_protocol()");
         if (p == null) {
-            System.out.println("\t\t... failed");
             fail("failed to get protocols");
         }
-        System.out.println("\t\t... passed");
     }
 
+    @Test
     public void test_WolfSSL_getProtocolsMask() {
-        System.out.print("\tgetProtocolsMask()");
-
         /* Get all protocols (no mask) */
         String[] allProtocols = WolfSSL.getProtocolsMask(0);
         if (allProtocols == null) {
-            System.out.println("\t\t... failed");
             fail("getProtocolsMask(0) returned null");
         }
-        List<String> allProtoList = Arrays.asList(allProtocols);
 
         /* Test with TLSv1.3 masked off, verify TLSv1.3 not in result */
         String[] noTls13 = WolfSSL.getProtocolsMask(WolfSSL.SSL_OP_NO_TLSv1_3);
         if (noTls13 == null) {
-            System.out.println("\t\t... failed");
             fail("getProtocolsMask(SSL_OP_NO_TLSv1_3) returned null");
         }
         List<String> noTls13List = Arrays.asList(noTls13);
         if (noTls13List.contains("TLSv1.3")) {
-            System.out.println("\t\t... failed");
             fail("TLSv1.3 should not be in result when masked");
         }
 
         /* Test with TLSv1.2 masked off, verify TLSv1.2 not in result */
         String[] noTls12 = WolfSSL.getProtocolsMask(WolfSSL.SSL_OP_NO_TLSv1_2);
         if (noTls12 == null) {
-            System.out.println("\t\t... failed");
             fail("getProtocolsMask(SSL_OP_NO_TLSv1_2) returned null");
         }
         List<String> noTls12List = Arrays.asList(noTls12);
         if (noTls12List.contains("TLSv1.2")) {
-            System.out.println("\t\t... failed");
             fail("TLSv1.2 should not be in result when masked");
         }
 
@@ -130,20 +103,17 @@ public class WolfSSLTest {
         long multiMask = WolfSSL.SSL_OP_NO_TLSv1_2 | WolfSSL.SSL_OP_NO_TLSv1_3;
         String[] noTls12And13 = WolfSSL.getProtocolsMask(multiMask);
         if (noTls12And13 == null) {
-            System.out.println("\t\t... failed");
             fail("getProtocolsMask with multiple masks returned null");
         }
         List<String> noTls12And13List = Arrays.asList(noTls12And13);
         if (noTls12And13List.contains("TLSv1.2") ||
             noTls12And13List.contains("TLSv1.3")) {
-            System.out.println("\t\t... failed");
             fail("TLSv1.2 and TLSv1.3 should not be in result when masked");
         }
-
-        System.out.println("\t\t... passed");
     }
 
-    public void test_WolfSSL_Method_Allocators(WolfSSL lib) {
+    @Test
+    public void test_WolfSSL_Method_Allocators() {
         /* Get protocols compiled into native wolfSSL */
         List<String> enabledProtocols = Arrays.asList(WolfSSL.getProtocols());
 
@@ -187,30 +157,22 @@ public class WolfSSLTest {
         tstMethod(WolfSSL.SSLv23_ClientMethod(), "SSLv23_ClientMethod()");
     }
 
-    public void tstMethod(long method, String name) {
-
-        System.out.print("\t" + name);
-
+    private void tstMethod(long method, String name) {
         if (method == 0) {
-            System.out.println("\t\t... failed");
-            fail("method test failed, method was null");
+            fail(name + " method test failed, method was null");
         } else if (method != WolfSSL.NOT_COMPILED_IN) {
             WolfSSL.nativeFree(method);
         }
-        System.out.println("\t\t... passed");
     }
 
+    @Test
     public void testGetCiphersAvailableIana() {
-        System.out.print("\tgetCiphersAvailableIana()");
-
         String[] ciphers = WolfSSL.getCiphersAvailableIana(
                 WolfSSL.TLS_VERSION.SSLv23);
         if (ciphers == null) {
-            System.out.println("\t... failed");
             fail("available ciphers array was null");
         }
         if (ciphers.length == 0) {
-            System.out.println("\t... failed");
             fail("available ciphers array length was zero");
         }
 
@@ -225,48 +187,36 @@ public class WolfSSLTest {
             String[] verCiphers = WolfSSL.getCiphersAvailableIana(ver);
             if (verCiphers != null) {
                 if (verCiphers.length == 0) {
-                    System.out.println("\t... failed");
                     fail("getCiphersAvailableIana(" + ver +
                         ") returned empty array");
                 }
                 for (int i = 0; i < verCiphers.length; i++) {
                     if (verCiphers[i] == null ||
                         verCiphers[i].isEmpty()) {
-                        System.out.println("\t... failed");
                         fail("getCiphersAvailableIana(" + ver +
                             ") contains null/empty cipher at index " + i);
                     }
                 }
             }
         }
-
-        System.out.println("\t... passed");
     }
 
+    @Test
     public void test_WolfSSL_getLibVersionHex() {
-        System.out.print("\tgetLibVersionHex()");
-
         long verHex = WolfSSL.getLibVersionHex();
         if (verHex == 0 || verHex < 0) {
-            System.out.println("\t\t... failed");
             fail("getting library version hex failed");
         }
-
-        System.out.println("\t\t... passed");
     }
 
+    @Test
     public void test_WolfSSL_getErrno() {
-        System.out.print("\tgetErrno()");
-
         /* Just make sure we don't seg fault or crash here */
-        int errno = WolfSSL.getErrno();
-
-        System.out.println("\t\t\t... passed");
+        WolfSSL.getErrno();
     }
 
+    @Test
     public void test_WolfSSL_getSNIFromBuffer() throws WolfSSLException {
-        System.out.print("\tgetSNIFromBuffer()");
-
         /* Minimal TLS 1.2 ClientHello with SNI extension for "www.example.com".
          * This is a hand crafted minimal valid ClientHello message. */
         String hostname = "www.example.com";
@@ -361,19 +311,14 @@ public class WolfSSLTest {
         int ret = WolfSSL.getSNIFromBuffer(clientHello,
             (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME, sniOut);
 
-        if (ret == WolfSSL.NOT_COMPILED_IN) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(ret != WolfSSL.NOT_COMPILED_IN);
 
         if (ret <= 0) {
-            System.out.println("\t\t... failed");
             fail("getSNIFromBuffer() returned: " + ret);
         }
 
         String extracted = new String(sniOut, 0, ret, StandardCharsets.UTF_8);
         if (!hostname.equals(extracted)) {
-            System.out.println("\t\t... failed");
             fail("getSNIFromBuffer() expected [" + hostname + "] got [" +
                 extracted + "]");
         }
@@ -382,7 +327,6 @@ public class WolfSSLTest {
         try {
             WolfSSL.getSNIFromBuffer(null, (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME,
                 sniOut);
-            System.out.println("\t\t... failed");
             fail("Expected IllegalArgumentException for null clientHello");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -392,66 +336,40 @@ public class WolfSSLTest {
         try {
             WolfSSL.getSNIFromBuffer(clientHello,
                 (byte)WolfSSL.WOLFSSL_SNI_HOST_NAME, null);
-            System.out.println("\t\t... failed");
             fail("Expected IllegalArgumentException for null sni");
         } catch (IllegalArgumentException e) {
             /* expected */
         }
-
-        System.out.println("\t\t... passed");
     }
 
+    @Test
     public void test_isLibraryLoadSkippedReturnsFalseByDefault() {
-
-        System.out.print(
-            "\tisLibraryLoadSkipped() default");
-
         /* Library was loaded normally in @BeforeClass, so
          * isLibraryLoadSkipped() should return false */
-        assertFalse(
-            "isLibraryLoadSkipped() should be false when " +
-            "library was loaded normally",
-            WolfSSL.isLibraryLoadSkipped());
-
-        System.out.println("\t... passed");
+        assertFalse("isLibraryLoadSkipped() should be false when " +
+            "library was loaded normally", WolfSSL.isLibraryLoadSkipped());
     }
 
+    @Test
     public void test_SystemPropertyNotSetByDefault() {
-
-        System.out.print(
-            "\twolfssl.skipLibraryLoad not set");
-
         /* Verify property is not set by default in test env */
-        String val =
-            System.getProperty("wolfssl.skipLibraryLoad");
-        assertNull(
-            "wolfssl.skipLibraryLoad should not be set " +
-            "by default", val);
-
-        System.out.println("\t... passed");
+        String val = System.getProperty("wolfssl.skipLibraryLoad");
+        assertNull("wolfssl.skipLibraryLoad should not be set by default", val);
     }
 
+    @Test
     public void test_SettingPropertyAfterLoadHasNoEffect() {
-
-        System.out.print(
-            "\tskipLibraryLoad after load");
-
         /* Setting the property after library has already been
          * loaded should not change isLibraryLoadSkipped() */
         try {
-            System.setProperty(
-                "wolfssl.skipLibraryLoad", "true");
+            System.setProperty("wolfssl.skipLibraryLoad", "true");
 
-            assertFalse(
-                "isLibraryLoadSkipped() should still be " +
+            assertFalse("isLibraryLoadSkipped() should still be " +
                 "false after setting property post-load",
                 WolfSSL.isLibraryLoadSkipped());
 
         } finally {
             System.clearProperty("wolfssl.skipLibraryLoad");
         }
-
-        System.out.println("\t... passed");
     }
 }
-

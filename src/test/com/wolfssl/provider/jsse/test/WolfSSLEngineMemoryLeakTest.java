@@ -21,9 +21,11 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import static org.junit.Assert.*;
 
@@ -35,6 +37,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.test.TimedTestWatcher;
 
 /**
  * Memory leak regression test for WolfSSLEngine.
@@ -48,6 +51,9 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
  * - Verify callback references (WolfSSLInternalVerifyCb.callingEngine)
  */
 public class WolfSSLEngineMemoryLeakTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     /**
      * Global timeout for all tests in this class. The 500-engine test
@@ -66,14 +72,6 @@ public class WolfSSLEngineMemoryLeakTest {
         Security.addProvider(new WolfSSLProvider());
     }
 
-    private void pass(String msg) {
-        WolfSSLTestFactory.pass(msg);
-    }
-
-    private void error(String msg) {
-        WolfSSLTestFactory.fail(msg);
-    }
-
     /**
      * Test that abandoned SSLEngine instances can be garbage collected.
      *
@@ -87,10 +85,7 @@ public class WolfSSLEngineMemoryLeakTest {
     public void testEngineMemoryLeakWithAbandonedEngines() throws Exception {
 
         /* Skip on Android due to performance and timeout issues */
-        if (WolfSSLTestFactory.isAndroid()) {
-            System.out.println("\tmem leak test\t\t\t... skipped (Android)");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         /* Number of engines to create. Use a smaller number for unit tests
          * to keep test time reasonable (few seconds). */
@@ -105,9 +100,6 @@ public class WolfSSLEngineMemoryLeakTest {
          * We use a conservative threshold that detects major leaks while
          * accounting for JVM differences. */
         final double maxAcceptableGrowthMB = 80.0;
-
-        String javaVersion = System.getProperty("java.version");
-        System.out.print("\tmem leak test with " + numEngines + " engines");
 
         /* Measure baseline memory - use aggressive GC */
         for (int i = 0; i < 3; i++) {
@@ -145,11 +137,8 @@ public class WolfSSLEngineMemoryLeakTest {
             numEngines, memoryGrowthMB, maxAcceptableGrowthMB);
 
         if (memoryGrowthMB > maxAcceptableGrowthMB) {
-            error("\t... failed");
             fail(message);
         }
-
-        pass("\t... passed");
     }
 
     /**
@@ -166,8 +155,6 @@ public class WolfSSLEngineMemoryLeakTest {
         System.gc();
         Thread.sleep(100);
         long baselineMemory = getUsedMemoryBytes();
-
-        System.out.print("\tmem leak test closed engines");
 
         /* Create engines and explicitly close them */
         for (int i = 0; i < numEngines; i++) {
@@ -204,11 +191,8 @@ public class WolfSSLEngineMemoryLeakTest {
             numEngines, memoryGrowthMB, maxAcceptableGrowthMB);
 
         if (memoryGrowthMB > maxAcceptableGrowthMB) {
-            error("\t... failed");
             fail(message);
         }
-
-        pass("\t... passed");
     }
 
     /**

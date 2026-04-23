@@ -28,6 +28,7 @@ import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLParameters;
+import com.wolfssl.test.TimedTestWatcher;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -57,6 +58,7 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
 /**
@@ -66,12 +68,14 @@ import org.junit.rules.Timeout;
  */
 public class WolfSSLParametersPskTest {
 
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     private static final String engineProvider = "wolfJSSE";
     private static String pskCipher = null;
 
     @Rule
-    public Timeout globalTimeout =
-        new Timeout(60, TimeUnit.SECONDS);
+    public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
 
     private static WolfSSLPskClientCallback testClientCb =
         new WolfSSLPskClientCallback() {
@@ -174,18 +178,12 @@ public class WolfSSLParametersPskTest {
 
     @Test
     public void testExtendsSSLParameters() {
-        System.out.print("\tExtends SSLParameters\t\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertTrue(wp instanceof SSLParameters);
-
-        System.out.println("passed");
     }
 
     @Test
     public void testGetSetPskClientCb() {
-        System.out.print("\tGet/Set PSK client cb\t\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertNull(wp.getPskClientCb());
 
@@ -194,14 +192,10 @@ public class WolfSSLParametersPskTest {
 
         wp.setPskClientCb(null);
         assertNull(wp.getPskClientCb());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testGetSetPskServerCb() {
-        System.out.print("\tGet/Set PSK server cb\t\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertNull(wp.getPskServerCb());
 
@@ -210,14 +204,10 @@ public class WolfSSLParametersPskTest {
 
         wp.setPskServerCb(null);
         assertNull(wp.getPskServerCb());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testGetSetPskIdentityHint() {
-        System.out.print("\tGet/Set PSK identity hint\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertNull(wp.getPskIdentityHint());
 
@@ -226,14 +216,10 @@ public class WolfSSLParametersPskTest {
 
         wp.setPskIdentityHint(null);
         assertNull(wp.getPskIdentityHint());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testGetSetKeepArrays() {
-        System.out.print("\tGet/Set keepArrays\t\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertFalse(wp.getKeepArrays());
 
@@ -242,25 +228,17 @@ public class WolfSSLParametersPskTest {
 
         wp.setKeepArrays(false);
         assertFalse(wp.getKeepArrays());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testUseCipherSuitesOrderDefault() {
-        System.out.print("\tCipher suite order default\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
         assertTrue("useCipherSuitesOrder should default to true",
             wp.getUseCipherSuitesOrder());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testUseCipherSuitesOrderGetSet() {
-        System.out.print("\tGet/Set useCipherSuitesOrder\t... ");
-
         WolfSSLParameters wp = new WolfSSLParameters();
 
         wp.setUseCipherSuitesOrder(false);
@@ -268,15 +246,11 @@ public class WolfSSLParametersPskTest {
 
         wp.setUseCipherSuitesOrder(true);
         assertTrue(wp.getUseCipherSuitesOrder());
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskFieldsNotLeakedViaGetSSLParameters()
         throws Exception {
-
-        System.out.print("\tPSK fields not in getSSLParams\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -293,15 +267,11 @@ public class WolfSSLParametersPskTest {
             assertNull(wp.getPskIdentityHint());
             assertFalse(wp.getKeepArrays());
         }
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskClearedOnPlainSSLParamsImport()
         throws Exception {
-
-        System.out.print("\tPSK cleared by plain SSLParams\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -347,14 +317,10 @@ public class WolfSSLParametersPskTest {
 
         clientEngine.closeOutbound();
         serverEngine.closeOutbound();
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskEngineHandshake() throws Exception {
-
-        System.out.print("\tPSK SSLEngine handshake\t\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -389,14 +355,10 @@ public class WolfSSLParametersPskTest {
 
         clientEngine.closeOutbound();
         serverEngine.closeOutbound();
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskEngineKeepArrays() throws Exception {
-
-        System.out.print("\tPSK SSLEngine keepArrays\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -408,8 +370,7 @@ public class WolfSSLParametersPskTest {
         serverParams.setPskServerCb(testServerCb);
         serverParams.setPskIdentityHint("wolfssl hint");
         serverParams.setKeepArrays(true);
-        serverParams.setCipherSuites(
-            new String[]{pskCipher});
+        serverParams.setCipherSuites(new String[]{pskCipher});
         serverEngine.setSSLParameters(serverParams);
 
         SSLEngine clientEngine = ctx.createSSLEngine("localhost", 0);
@@ -418,8 +379,7 @@ public class WolfSSLParametersPskTest {
         WolfSSLParameters clientParams = new WolfSSLParameters();
         clientParams.setPskClientCb(testClientCb);
         clientParams.setKeepArrays(true);
-        clientParams.setCipherSuites(
-            new String[]{pskCipher});
+        clientParams.setCipherSuites(new String[]{pskCipher});
         clientEngine.setSSLParameters(clientParams);
 
         doInMemoryHandshake(clientEngine, serverEngine);
@@ -429,14 +389,10 @@ public class WolfSSLParametersPskTest {
 
         clientEngine.closeOutbound();
         serverEngine.closeOutbound();
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskSocketHandshake() throws Exception {
-
-        System.out.print("\tPSK SSLSocket handshake\t\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -456,8 +412,7 @@ public class WolfSSLParametersPskTest {
                 WolfSSLParameters sp = new WolfSSLParameters();
                 sp.setPskServerCb(testServerCb);
                 sp.setPskIdentityHint("wolfssl hint");
-                sp.setCipherSuites(
-                    new String[]{pskCipher});
+                sp.setCipherSuites(new String[]{pskCipher});
                 serverSock.setSSLParameters(sp);
 
                 serverSock.startHandshake();
@@ -486,8 +441,7 @@ public class WolfSSLParametersPskTest {
 
             WolfSSLParameters cp = new WolfSSLParameters();
             cp.setPskClientCb(testClientCb);
-            cp.setCipherSuites(
-                new String[]{pskCipher});
+            cp.setCipherSuites(new String[]{pskCipher});
             clientSock.setSSLParameters(cp);
 
             clientSock.startHandshake();
@@ -510,17 +464,12 @@ public class WolfSSLParametersPskTest {
             latch.await(10, TimeUnit.SECONDS));
 
         if (serverEx[0] != null) {
-            fail("Server thread failed: " +
-                serverEx[0].getMessage());
+            fail("Server thread failed: " + serverEx[0].getMessage());
         }
-
-        System.out.println("passed");
     }
 
     @Test
     public void testPskSocketKeepArrays() throws Exception {
-
-        System.out.print("\tPSK SSLSocket keepArrays\t... ");
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
@@ -540,8 +489,7 @@ public class WolfSSLParametersPskTest {
                 sp.setPskServerCb(testServerCb);
                 sp.setPskIdentityHint("wolfssl hint");
                 sp.setKeepArrays(true);
-                sp.setCipherSuites(
-                    new String[]{pskCipher});
+                sp.setCipherSuites(new String[]{pskCipher});
                 serverSock.setSSLParameters(sp);
 
                 serverSock.startHandshake();
@@ -570,8 +518,7 @@ public class WolfSSLParametersPskTest {
             WolfSSLParameters cp = new WolfSSLParameters();
             cp.setPskClientCb(testClientCb);
             cp.setKeepArrays(true);
-            cp.setCipherSuites(
-                new String[]{pskCipher});
+            cp.setCipherSuites(new String[]{pskCipher});
             clientSock.setSSLParameters(cp);
 
             clientSock.startHandshake();
@@ -595,8 +542,6 @@ public class WolfSSLParametersPskTest {
         if (serverEx[0] != null) {
             fail("Server thread failed: " + serverEx[0].getMessage());
         }
-
-        System.out.println("passed");
     }
 
     /**

@@ -21,13 +21,17 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
+import com.wolfssl.test.TimedTestWatcher;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,6 +63,9 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 
 public class WolfSSLSocketFactoryTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     public final static char[] jksPass = "wolfSSL test".toCharArray();
     private final static String ctxProvider = "wolfJSSE";
@@ -160,51 +167,37 @@ public class WolfSSLSocketFactoryTest {
     public void testUseDefaultSSLSocketFactory()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetDefault()");
-
         SSLSocketFactory sf =
             new com.wolfssl.provider.jsse.WolfSSLSocketFactory();
         assertNotNull(sf);
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
     public void testGetDefaultCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetDefaultCipherSuites()");
-
         for (int i = 0; i < sockFactories.size(); i++) {
             SSLSocketFactory sf = sockFactories.get(i);
             String[] cipherSuites = sf.getDefaultCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLSocketFactory.getDefaultCipherSuites() failed");
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGetSupportedCipherSuites()
         throws NoSuchProviderException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSupportedCipherSuites()");
-
         for (int i = 0; i < sockFactories.size(); i++) {
             SSLSocketFactory sf = sockFactories.get(i);
             String[] cipherSuites = sf.getSupportedCipherSuites();
 
             if (cipherSuites == null) {
-                System.out.println("\t... failed");
                 fail("SSLSocketFactory.getSupportedCipherSuites() failed");
             }
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -212,11 +205,9 @@ public class WolfSSLSocketFactoryTest {
         throws NoSuchProviderException, NoSuchAlgorithmException,
                IOException {
 
-        System.out.print("\tcreateSocket()");
-
         for (int i = 0; i < sockFactories.size(); i++) {
             String addrStr = "www.example.com";
-            InetAddress addr;
+            InetAddress addr = null;
             int port = 443;
             SSLSocketFactory sf = sockFactories.get(i);
             SSLSocket ss = null;
@@ -230,8 +221,7 @@ public class WolfSSLSocketFactoryTest {
                 testConn.close();
             } catch (Exception e) {
                 /* unable to connect, skip test */
-                System.out.println("\t\t\t... skipped");
-                return;
+                Assume.assumeNoException(e);
             }
 
             /* set up InetAddress for www.example.com */
@@ -239,8 +229,7 @@ public class WolfSSLSocketFactoryTest {
                 addr = InetAddress.getByName("www.example.com");
             } catch (UnknownHostException e) {
                 /* skip test if no Internet connection available */
-                System.out.println("\t\t\t... skipped");
-                return;
+                Assume.assumeNoException(e);
             }
 
             /* good arguments */
@@ -249,7 +238,6 @@ public class WolfSSLSocketFactoryTest {
                 /* no arguments */
                 ss = (SSLSocket)sf.createSocket();
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket() failed");
                     return;
                 }
@@ -258,7 +246,6 @@ public class WolfSSLSocketFactoryTest {
                 /* InetAddress, int */
                 ss = (SSLSocket)sf.createSocket(addr, port);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Ii) failed");
                     return;
                 }
@@ -267,7 +254,6 @@ public class WolfSSLSocketFactoryTest {
                 /* String, int */
                 ss = (SSLSocket)sf.createSocket(addrStr, port);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(Si) failed");
                     return;
                 }
@@ -282,14 +268,12 @@ public class WolfSSLSocketFactoryTest {
 
                 ss = (SSLSocket)sf.createSocket(s, addrStr, port, true);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
                     return;
                 }
 
                 /* verify getSoTimeout matches set value */
                 if (ss.getSoTimeout() != tmpTimeout) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed " +
                          "setSoTimeout check");
                     return;
@@ -301,9 +285,9 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, InputStream, boolean */
                 s = new Socket(addr, port);
                 in = s.getInputStream();
-                ss = (SSLSocket)((WolfSSLSocketFactory)sf).createSocket(s, in, true);
+                ss = (SSLSocket)((WolfSSLSocketFactory)sf)
+                    .createSocket(s, in, true);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SkSib) failed");
                     return;
                 }
@@ -315,28 +299,23 @@ public class WolfSSLSocketFactoryTest {
                 ss = (SSLSocket)sf.createSocket(addrStr, port,
                     null, 0);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(SiIi) failed");
                     return;
                 }
                 ss.close();
 
                 /* InetAddress, int, InetAddress, int */
-                ss = (SSLSocket)sf.createSocket(addr, port,
-                    null, 0);
+                ss = (SSLSocket)sf.createSocket(addr, port, null, 0);
                 if (ss == null) {
-                    System.out.println("\t\t\t... failed");
                     fail("SSLSocketFactory.createSocket(IiIi) failed");
                     return;
                 }
                 ss.close();
 
             } catch (SocketException e) {
-                System.out.println("\t\t\t... failed");
                 throw e;
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 throw e;
             }
 
@@ -344,33 +323,28 @@ public class WolfSSLSocketFactoryTest {
             try {
                 /* InetAddress, int - null host */
                 ss = (SSLSocket)sf.createSocket((InetAddress)null, port);
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return NullPointerException");
             } catch (NullPointerException ne) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return NullPointerException");
             }
 
             try {
                 /* InetAddress, int - port out of range {0:65535} */
                 ss = (SSLSocket)sf.createSocket(addr, 65536);
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return IllegalArgumentException");
             } catch (IllegalArgumentException ie) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return IllegalArgumentException");
             }
 
             try {
                 /* String, int - bad host */
                 ss = (SSLSocket)sf.createSocket("badhost", port);
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return UnknownHostException");
             } catch (UnknownHostException ne) {
                 /* expected */
@@ -382,13 +356,11 @@ public class WolfSSLSocketFactoryTest {
             try {
                 /* String, int - port out of range {0:65535} */
                 ss = (SSLSocket)sf.createSocket(addrStr, 65536);
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return IllegalArgumentException");
             } catch (IllegalArgumentException ie) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return IllegalArgumentException");
             }
 
@@ -396,28 +368,23 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, String, int, boolean - null Socket */
                 ss = (SSLSocket)sf.createSocket((Socket)null, addrStr, port,
                     true);
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return NullPointerException");
             } catch (NullPointerException ne) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return NullPointerException");
             }
 
             try {
                 /* Socket, String, int, boolean - Socket not connected */
                 s = new Socket();
-                ss = (SSLSocket)sf.createSocket(s, addrStr, port,
-                    true);
-                System.out.println("\t\t\t... failed");
+                ss = (SSLSocket)sf.createSocket(s, addrStr, port, true);
                 fail("createSocket() should return IOException");
             } catch (IOException ne) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should return IOException");
             }
             s.close();
@@ -426,27 +393,22 @@ public class WolfSSLSocketFactoryTest {
                 /* Socket, InputStream, boolean - null Socket */
                 s = new Socket(addr, port);
                 in = s.getInputStream();
-                ss = (SSLSocket)((WolfSSLSocketFactory)sf).createSocket((Socket)null, in, true);
-                System.out.println("\t\t\t... failed");
+                ss = (SSLSocket)((WolfSSLSocketFactory)sf)
+                    .createSocket((Socket)null, in, true);
                 fail("createSocket() should throw exception");
             } catch (NullPointerException e) {
                 /* expected */
             }
             catch (Exception e) {
-                System.out.println("\t\t\t... failed");
                 fail("createSocket() should throw exception");
             }
             in.close();
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
     public void testFactoryAnonCipherSuiteFiltering()
         throws Exception {
-
-        System.out.print("\tanon cipher filtering");
 
         String[] allCiphers = WolfSSL.getCiphersIana();
         boolean haveAnon = false;
@@ -457,10 +419,7 @@ public class WolfSSLSocketFactoryTest {
             }
         }
 
-        if (!haveAnon) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(haveAnon);
 
         Security.setProperty("wolfjsse.enabledCipherSuites", "");
         SSLContext ctx = SSLContext.getInstance("TLS", ctxProvider);
@@ -494,7 +453,5 @@ public class WolfSSLSocketFactoryTest {
             assertTrue("Default suite not in supported: " + s,
                 suppList.contains(s));
         }
-
-        System.out.println("\t\t... passed");
     }
 }

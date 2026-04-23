@@ -79,14 +79,23 @@ import javax.net.ssl.KeyStoreBuilderParameters;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.*;
+import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.wolfssl.test.TimedTestWatcher;
 
 /**
  *
  * @author wolfSSL
  */
 public class WolfSSLTrustX509Test {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     private static WolfSSLTestFactory tf;
     private String provider = "wolfJSSE";
 
@@ -128,13 +137,8 @@ public class WolfSSLTrustX509Test {
         int i = 0;
         int expected = OU.length;
 
-        System.out.print("\tTesting parse all.jks");
-
-        if (WolfSSLTestFactory.isAndroid()) {
-            /* @TODO finding that BKS has different order of certs */
-            pass("\t... skipped");
-            return;
-        }
+        /* @TODO finding that BKS has different order of certs */
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
@@ -146,27 +150,24 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.allJKS, provider);
         if (tm == null) {
-            error("\t\t... failed");
             fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t\t... failed");
             fail("no CAs where found");
             return;
         }
 
         if (cas.length != expected) {
-            error("\t\t... failed");
             fail("wrong number of CAs found: found " + cas.length +
                  ", expected " + expected);
         }
 
         for (String x: OU) {
             if (this.provider != null &&
-                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
                 /* skip checking ECC certs, since not all Java versions
                  * support them */
                 if (WolfSSL.trustPeerCertEnabled()) {
@@ -176,13 +177,11 @@ public class WolfSSLTrustX509Test {
             }
 
             if (!cas[i].getSubjectDN().getName().contains(x)) {
-                error("\t\t... failed");
                 fail("wrong CA found");
             }
             i++;
 
         }
-        pass("\t\t... passed");
     }
 
     @Test
@@ -191,24 +190,17 @@ public class WolfSSLTrustX509Test {
         TrustManagerFactory tmf;
         KeyManagerFactory kmf;
 
-        System.out.print("\tTesting use before init()");
-
-        if (WolfSSLTestFactory.isAndroid()) {
-            /* @TODO finding that BKS has different order of certs */
-            pass("\t... skipped");
-            return;
-        }
+        /* @TODO finding that BKS has different order of certs */
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         tmf = TrustManagerFactory.getInstance("SunX509", provider);
         if (tmf == null) {
-            error("\t... failed");
             fail("failed to get instance of trustmanager factory");
             return;
         }
 
         try {
             tmf.getTrustManagers();
-            error("\t... failed");
             fail("getTrustManagers() before init() did not throw an error");
         } catch (IllegalStateException e) {
             /* Expected, TrustManagerFactory not yet initialized */
@@ -216,20 +208,17 @@ public class WolfSSLTrustX509Test {
 
         kmf = KeyManagerFactory.getInstance("SunX509", provider);
         if (kmf == null) {
-            error("\t... failed");
             fail("failed to get instance of keymanager factory");
             return;
         }
 
         try {
             kmf.getKeyManagers();
-            error("\t... failed");
             fail("getKeyManagers() before init() did not throw an error");
         } catch (IllegalStateException e) {
             /* Expected, KeyManagerFactory not yet initialized */
         }
 
-        pass("\t... passed");
     }
 
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with server.jks */
@@ -247,13 +236,8 @@ public class WolfSSLTrustX509Test {
         int i = 0;
         int expected = OU.length;
 
-        System.out.print("\tTesting parsing server.jks");
-
-        if (WolfSSLTestFactory.isAndroid()) {
-            /* @TODO finding that BKS has different order of certs */
-            pass("\t... skipped");
-            return;
-        }
+        /* @TODO finding that BKS has different order of certs */
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
@@ -265,40 +249,34 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t... failed");
             fail("no CAs were found");
             return;
         }
 
         if (cas.length != expected) {
-            error("\t... failed");
             fail("wrong number of CAs found: found " + cas.length +
                  ", expected " + expected);
         }
 
         for (String x : OU) {
             if (this.provider != null &&
-                    provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
+                provider.equals("wolfJSSE") && x.equals("OU=ECC")) {
                 continue;
             }
 
             if (!cas[i].getSubjectDN().getName().contains(x)) {
-                error("\t... failed");
                 fail("wrong CA found");
             }
             i++;
 
         }
-        pass("\t... passed");
     }
-
 
     /* Testing WolfSSLTrustX509.getAcceptedIssuers() with all_mixed.jks */
     @Test
@@ -317,13 +295,8 @@ public class WolfSSLTrustX509Test {
         int i = 0, j;
         int expected = OU.length;
 
-        System.out.print("\tTesting parse all_mixed.jks");
-
-        if (WolfSSLTestFactory.isAndroid()) {
-            /* @TODO finding that BKS has different order of certs */
-            pass("\t... skipped");
-            return;
-        }
+        /* @TODO finding that BKS has different order of certs */
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
         /* wolfSSL only returns a list of CA's, server-ecc basic constraint is
          * set to false so it is not added as a CA */
         if (this.provider != null && this.provider.equals("wolfJSSE") &&
@@ -334,20 +307,17 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.allMixedJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t... failed");
             fail("no CAs where found");
             return;
         }
 
         if (cas.length != expected) {
-            error("\t... failed");
             fail("wrong number of CAs found: found " + cas.length +
                  ", expected " + expected);
         }
@@ -364,13 +334,11 @@ public class WolfSSLTrustX509Test {
             }
 
             if (!cas[i].getSubjectDN().getName().contains(OU[j])) {
-                error("\t... failed");
                 fail("wrong CA found");
             }
             i++;
 
         }
-        pass("\t... passed");
     }
 
     @Test
@@ -381,32 +349,26 @@ public class WolfSSLTrustX509Test {
         String file = System.getProperty("javax.net.ssl.trustStore");
         TrustManager[] tm;
 
-        System.out.print("\tTesting loading default certs");
-
         if (file == null) {
             String home = System.getenv("JAVA_HOME");
             if (home != null) {
                 File f = new File(home.concat("lib/security/jssecacerts"));
                 if (f.exists()) {
                     tm = tf.createTrustManager(
-                            "SunX509", (String)null, provider);
+                        "SunX509", (String)null, provider);
                     if (tm == null) {
-                        error("\t... failed");
                         fail("failed to create trustmanager with default");
                     }
-                    pass("\t... passed");
                     return;
                 }
                 else {
                     f = new File(home.concat("lib/security/cacerts"));
                     if (f.exists()) {
                         tm = tf.createTrustManager(
-                                "SunX509", (String)null, provider);
+                            "SunX509", (String)null, provider);
                         if (tm == null) {
-                            error("\t... failed");
                             fail("failed to create trustmanager with default");
                         }
-                        pass("\t... passed");
                         return;
                     }
                 }
@@ -415,17 +377,13 @@ public class WolfSSLTrustX509Test {
         else {
             tm = tf.createTrustManager("SunX509", (String)null, provider);
             if (tm == null) {
-                error("\t... failed");
                 fail("failed to create trustmanager with default");
             }
-            pass("\t... passed");
             return;
         }
 
         /* case of no default found */
-        pass("\t... skipped");
     }
-
 
     @Test
     public void testVerify()
@@ -439,19 +397,15 @@ public class WolfSSLTrustX509Test {
         InputStream stream;
         KeyStore ks;
 
-        System.out.print("\tTesting verify");
-
         /* success case */
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t\t\t... failed");
             fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t\t\t... failed");
             fail("no CAs where found");
             return;
         }
@@ -465,22 +419,18 @@ public class WolfSSLTrustX509Test {
             (X509Certificate)ks.getCertificate("server") }, "RSA");
         }
         catch (Exception e) {
-            error("\t\t\t... failed");
             fail("failed to verify");
         }
-
 
         /* fail case */
         tm = tf.createTrustManager("SunX509", tf.serverJKS, provider);
         if (tm == null) {
-            error("\t\t\t... failed");
             fail("failed to create trustmanager");
             return;
         }
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t\t\t... failed");
             fail("no CAs where found");
         }
 
@@ -491,13 +441,11 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(new X509Certificate[] {
             (X509Certificate)ks.getCertificate("ca-ecc-cert") }, "ECC");
-            error("\t\t\t... failed");
             fail("able to verify when should not have");
         }
         catch (Exception e) {
             /* expected to error out */
         }
-        pass("\t\t\t... passed");
     }
 
     @Test
@@ -507,9 +455,7 @@ public class WolfSSLTrustX509Test {
             CertificateException {
 
         /* skip if RSA_PSS is not compiled in at native level */
-        if (WolfSSL.RsaPssEnabled() == false) {
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.RsaPssEnabled());
 
         TrustManager[] tm;
         X509TrustManager x509tm;
@@ -517,11 +463,8 @@ public class WolfSSLTrustX509Test {
         InputStream stream;
         KeyStore ks;
 
-        System.out.print("\tTesting verify rsa_pss");
-
         tm = tf.createTrustManager("SunX509", tf.caServerJKS, provider);
         if (tm == null) {
-            error("\t\t\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -529,7 +472,6 @@ public class WolfSSLTrustX509Test {
         x509tm = (X509TrustManager) tm[0];
         cas = x509tm.getAcceptedIssuers();
         if (cas == null) {
-            error("\t\t\t... failed");
             fail("no CAs where found");
             return;
         }
@@ -545,11 +487,9 @@ public class WolfSSLTrustX509Test {
         }
         catch (Exception e) {
             e.printStackTrace();
-            error("\t\t... failed");
             fail("failed to verify");
         }
 
-        pass("\t\t... passed");
     }
 
     @Test
@@ -565,8 +505,6 @@ public class WolfSSLTrustX509Test {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\tcheckServerTrusted() chain");
 
         String rsaServerCert =
             "examples/certs/intermediate/server-int-cert.pem";
@@ -590,7 +528,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -630,7 +567,6 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of RSA chain with intermediates");
         }
 
@@ -667,11 +603,9 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of ECC chain with intermediates");
         }
 
-        pass("\t... passed");
     }
 
     @Test
@@ -687,8 +621,6 @@ public class WolfSSLTrustX509Test {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\tcheckServerTrusted() bad int");
 
         String rsaServerCert =
             "examples/certs/intermediate/server-int-cert.pem";
@@ -720,7 +652,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -759,7 +690,6 @@ public class WolfSSLTrustX509Test {
         /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
-            error("\t... failed");
             fail("Verified RSA chain with bad CA, but shouldn't have");
         } catch (CertificateException e) {
             /* expected, should fail with wrong intermediate chain CA */
@@ -797,13 +727,11 @@ public class WolfSSLTrustX509Test {
         /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
-            error("\t... failed");
             fail("Verified RSA chain with bad CA, but shouldn't have");
         } catch (CertificateException e) {
             /* expected, should fail with wrong intermediate chain CA */
         }
 
-        pass("\t... passed");
     }
 
     @Test
@@ -819,8 +747,6 @@ public class WolfSSLTrustX509Test {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\tcheckServerTrusted() bad chain");
 
         /* server/peer cert is ECC, but is using RSA example chain. Should
          * not verify correctly */
@@ -848,7 +774,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -887,7 +812,6 @@ public class WolfSSLTrustX509Test {
         /* verify chain, root (certs/ca-ecc-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
-            error("\t... failed");
             fail("Verified cert with wrong chain, should not happen");
         } catch (CertificateException e) {
             /* expected, should fail with wrong intermediate chain CA */
@@ -925,13 +849,11 @@ public class WolfSSLTrustX509Test {
         /* verify chain, root (certs/ca-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
-            error("\t... failed");
             fail("Verified cert with wrong chain, should not happen");
         } catch (CertificateException e) {
             /* expected, should fail with wrong intermediate chain CA */
         }
 
-        pass("\t... passed");
     }
 
     @Test
@@ -947,8 +869,6 @@ public class WolfSSLTrustX509Test {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\tcheckServerTrusted() miss chain");
 
         /* RSA chain, missing intermediate CA 1 */
         String rsaServerCert =
@@ -972,7 +892,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -1003,7 +922,6 @@ public class WolfSSLTrustX509Test {
         /* try to verify chain, root (certs/ca-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
-            error("\t... failed");
             fail("Did not fail verify like expected when missing intermediate");
         } catch (CertificateException e) {
             /* Expected, missing intermediate 1 from chain */
@@ -1033,13 +951,11 @@ public class WolfSSLTrustX509Test {
         /* try to verify chain, root (certs/ca-cert.pem) should be in caJKS */
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
-            error("\t... failed");
             fail("Did not fail verify like expected when missing intermediate");
         } catch (CertificateException e) {
             /* Expected, missing intermediate 1 from chain */
         }
 
-        pass("\t... passed");
     }
 
     @Test
@@ -1055,8 +971,6 @@ public class WolfSSLTrustX509Test {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\tcheckServerTrusted() ooo chain");
 
         /* RSA chain, out of order intermediate CAs */
         String rsaServerCert =
@@ -1086,7 +1000,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -1126,7 +1039,6 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of RSA chain with intermediates");
         }
 
@@ -1163,13 +1075,10 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of ECC chain with intermediates");
         }
 
-        pass("\t... passed");
     }
-
 
     @Test
     public void testCheckServerTrustedWithChainReturnsChain()
@@ -1186,8 +1095,6 @@ public class WolfSSLTrustX509Test {
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         List<X509Certificate> retChain = null;
-
-        System.out.print("\tcheckServerTrusted() ret chain");
 
         /* RSA chain */
         String rsaServerCert =
@@ -1213,7 +1120,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -1260,18 +1166,15 @@ public class WolfSSLTrustX509Test {
             retChain = wolfX509tm.checkServerTrusted(certArray,
                                                      "RSA", "localhost");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of RSA chain with intermediates");
         }
 
         if (retChain == null) {
-            error("\t... failed");
             fail("checkServerTrusted() did not return expected List of certs");
         }
 
         /* cert chain returned should include peer, ints, and root */
         if (retChain.size() != 4) {
-            error("\t... failed");
             fail("checkServerTrusted() didn't return expected number of certs");
         }
 
@@ -1310,22 +1213,18 @@ public class WolfSSLTrustX509Test {
             retChain = wolfX509tm.checkServerTrusted(certArray,
                                                      "ECC", "localhost");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of ECC chain with intermediates");
         }
 
         if (retChain == null) {
-            error("\t... failed");
             fail("checkServerTrusted() did not return expected List of certs");
         }
 
         /* cert chain returned should include peer, ints, and root */
         if (retChain.size() != 4) {
-            error("\t... failed");
             fail("checkServerTrusted() didn't return expected number of certs");
         }
 
-        pass("\t... passed");
     }
 
     @Test
@@ -1344,8 +1243,6 @@ public class WolfSSLTrustX509Test {
         BufferedInputStream bis = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         List<X509Certificate> retChain = null;
-
-        System.out.print("\tcheckServerTrusted() dup root");
 
         /* RSA chain, including root (which is already in caJKS) */
         String rsaServerCert =
@@ -1375,7 +1272,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -1430,19 +1326,16 @@ public class WolfSSLTrustX509Test {
             retChain = wolfX509tm.checkServerTrusted(certArray,
                                                      "RSA", "localhost");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of RSA chain with intermediates");
         }
 
         if (retChain == null) {
-            error("\t... failed");
             fail("checkServerTrusted() did not return expected List of certs");
         }
 
         /* cert chain returned should include peer, ints, and root, but
          * not a duplicate of root if in both TrustStore and chain */
         if (retChain.size() != 4) {
-            error("\t... failed");
             fail("checkServerTrusted() didn't return expected number of certs");
         }
 
@@ -1454,7 +1347,6 @@ public class WolfSSLTrustX509Test {
             }
         }
         if (rootCount != 1) {
-            error("\t... failed");
             fail("checkServerTrusted() contained more than one copy of root");
         }
 
@@ -1501,19 +1393,16 @@ public class WolfSSLTrustX509Test {
             retChain = wolfX509tm.checkServerTrusted(certArray,
                                                      "ECC", "localhost");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed verify of ECC chain with intermediates");
         }
 
         if (retChain == null) {
-            error("\t... failed");
             fail("checkServerTrusted() did not return expected List of certs");
         }
 
         /* cert chain returned should include peer, ints, and root, but
          * not a duplicate of root if in both TrustStore and chain */
         if (retChain.size() != 4) {
-            error("\t... failed");
             fail("checkServerTrusted() didn't return expected number of certs");
         }
 
@@ -1525,11 +1414,9 @@ public class WolfSSLTrustX509Test {
             }
         }
         if (rootCount != 1) {
-            error("\t... failed");
             fail("checkServerTrusted() contained more than one copy of root");
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -1561,8 +1448,6 @@ public class WolfSSLTrustX509Test {
             intCACert1 = "/data/local/tmp/" + intCACert1;
             intCACert2 = "/data/local/tmp/" + intCACert2;
         }
-
-        System.out.print("\tcheckServerTrusted() Android");
 
         try {
             X509Certificate serverCert;
@@ -1597,7 +1482,6 @@ public class WolfSSLTrustX509Test {
             tm = tmf.getTrustManagers();
 
             if (tm.length != 1) {
-                error("\t... failed");
                 fail("TrustManagerFactory did not return single TrustManager");
             }
 
@@ -1609,21 +1493,18 @@ public class WolfSSLTrustX509Test {
                 retChain = wolfX509tm.checkServerTrusted(certArray,
                     null, null, "RSA", "localhost");
             } catch (CertificateException e) {
-                error("\t... failed");
                 fail("checkServerTrusted failed: " + e.getMessage());
             }
 
             if (retChain == null) {
-                error("\t... failed");
                 fail("checkServerTrusted() did not return expected " +
-                     "List of certs");
+                    "List of certs");
             }
 
             /* cert chain returned should include peer, ints, and root */
             if (retChain.size() != 4) {
-                error("\t... failed");
                 fail("checkServerTrusted() didn't return expected " +
-                     "number of certs, got: " + retChain.size());
+                    "number of certs, got: " + retChain.size());
             }
 
             /* Test with invalid OCSP data, should fail, SCT data is currently
@@ -1632,9 +1513,8 @@ public class WolfSSLTrustX509Test {
                 retChain = wolfX509tm.checkServerTrusted(certArray,
                     dummyOcspData, dummySctData, "RSA", "localhost");
 
-                error("\t... failed");
                 fail("checkServerTrusted with invalid OCSP data " +
-                     "should have thrown CertificateException");
+                    "should have thrown CertificateException");
 
             } catch (CertificateException e) {
                 /* Expected */
@@ -1646,53 +1526,39 @@ public class WolfSSLTrustX509Test {
                     null, dummySctData, "RSA", "localhost");
 
             } catch (CertificateException e) {
-                error("\t... failed");
                 fail("checkServerTrusted with null OCSP failed: " +
-                     e.getMessage());
+                    e.getMessage());
             }
 
             if (retChain == null) {
-                error("\t... failed");
                 fail("checkServerTrusted() with null OCSP did not " +
-                     "return expected List of certs");
+                    "return expected List of certs");
             }
 
             if (retChain.size() != 4) {
-                error("\t... failed");
                 fail("checkServerTrusted() with null OCSP didn't " +
-                     "return expected number of certs, got: " +
-                     retChain.size());
+                    "return expected number of certs, got: " +
+                    retChain.size());
             }
 
         } catch (Exception e) {
-            error("\t... failed");
-            fail("checkServerTrusted test failed with: " +
-                 e.getMessage());
+            fail("checkServerTrusted test failed with: " + e.getMessage());
         }
 
-        pass("\t... passed");
     }
 
     @Test
     public void testUsingRsaPssCert()
         throws Exception {
 
-        System.out.print("\tTest using rsa_pss certs");
-
         /* skip if RSA_PSS or TLS 1.3 are not compiled in at native level */
-        if ((WolfSSL.RsaPssEnabled() == false) ||
-            (WolfSSL.TLSv13Enabled() == false)) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.RsaPssEnabled());
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled());
 
         /* Skip on Android: Android's BKS KeyStore implementation cannot
          * extract RSA-PSS private keys. When calling store.getKey() for an
          * RSA-PSS key, it returns null. */
-        if (WolfSSLTestFactory.isAndroid()) {
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.3", provider,
             tf.createTrustManager("SunX509", tf.caClientJKS, provider),
@@ -1740,14 +1606,11 @@ public class WolfSSLTrustX509Test {
             throw new Exception(traceString);
         }
 
-        pass("\t... passed");
     }
 
     @Test
     public void testX509ExtTrustMgrInternal()
         throws CertificateException, IOException, Exception {
-
-        System.out.print("\tX509ExtendedTrustManager int");
 
         /* Basic SSLSocket success case, SNI matches server cert CN */
         testX509ExtTrustMgrSSLSocketBasicSuccess();
@@ -1792,19 +1655,18 @@ public class WolfSSLTrustX509Test {
         /* SSLEngine should fail if trying to use bad endoint alg */
         testX509ExtTrustMgrSSLEngineEndpointAlgFail();
 
-        pass("\t... passed");
     }
 
     private void testX509ExtTrustMgrSSLSocketBasicSuccess()
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -1851,12 +1713,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -1903,12 +1765,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -1955,12 +1817,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -2007,12 +1869,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -2051,12 +1913,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caServerJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caServerJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -2293,7 +2155,6 @@ public class WolfSSLTrustX509Test {
         client.setUseClientMode(true);
         server.setUseClientMode(false);
 
-
         /* Enable Endpoint Identification for hostname verification on client.
          * Not setting SNI, since LDAPS hostname verification requires server
          * name to come directly from when connection was made. Peer cert
@@ -2320,7 +2181,6 @@ public class WolfSSLTrustX509Test {
         server.setNeedClientAuth(true);
         client.setUseClientMode(true);
         server.setUseClientMode(false);
-
 
         /* Enable Endpoint Identification for hostname verification on client.
          * Not setting SNI, since LDAPS hostname verification requires server
@@ -2506,14 +2366,14 @@ public class WolfSSLTrustX509Test {
                 "wolfSSL test");
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         /* Loading caJKS so client SSLContext can verify server both
          * before and after cert changes */
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                tf.createTrustManager("SunX509", tf.caJKS, provider),
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            tf.createTrustManager("SunX509", tf.caJKS, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -2645,8 +2505,6 @@ public class WolfSSLTrustX509Test {
     public void testX509ExtTrustMgrExternal()
         throws CertificateException, IOException, Exception {
 
-        System.out.print("\tX509ExtendedTrustManager ext");
-
         /* Basic SSLSocket success case, SNI matches server cert CN */
         testX509ExtTrustMgrSSLSocketBasicExtSuccess();
 
@@ -2661,13 +2519,10 @@ public class WolfSSLTrustX509Test {
         testX509ExtTrustMgrSSLSocketExtNoClientStartHandshakeSuccess();
         testX509ExtTrustMgrSSLSocketExtNoServerStartHandshakeSuccess();
 
-        pass("\t... passed");
     }
 
     @Test
     public void testExtendedKeyUsageWithLeafNotFirst() throws Exception {
-
-        System.out.print("\tEKU validation leaf not first");
 
         /* This test reproduces the case where a certificate chain arrives
          * with CA before leaf cert and helps verify the peer chain sorting
@@ -2771,8 +2626,6 @@ public class WolfSSLTrustX509Test {
                  "Peer cert: " + peerCert.getSubjectX500Principal() +
                 ", EKU list: " + ekuOids);
         }
-
-        System.out.println("\t... passed");
     }
 
     /**
@@ -2791,8 +2644,6 @@ public class WolfSSLTrustX509Test {
         KeyStore caJKS;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         List<X509Certificate> retChain = null;
-
-        System.out.print("\tcheckServerTrusted() OCSP data");
 
         String rsaServerCert =
             "examples/certs/intermediate/server-int-cert.pem";
@@ -2835,8 +2686,7 @@ public class WolfSSLTrustX509Test {
 
             /* Load cacerts.jks into KeyStore */
             caJKS = KeyStore.getInstance(tf.keyStoreType);
-            try (FileInputStream stream =
-                    new FileInputStream(caJKSPath)) {
+            try (FileInputStream stream = new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
@@ -2851,13 +2701,11 @@ public class WolfSSLTrustX509Test {
                 retChain = wolfX509tm.checkServerTrusted(certArray,
                     null, null, "RSA", "localhost");
                 if (retChain == null || retChain.size() == 0) {
-                    error("\t... failed");
                     fail("checkServerTrusted with null OCSP failed");
                 }
             } catch (CertificateException e) {
-                error("\t... failed");
                 fail("checkServerTrusted with null OCSP failed: " +
-                     e.getMessage());
+                    e.getMessage());
             }
 
             /* Test invalid OCSP data */
@@ -2876,12 +2724,9 @@ public class WolfSSLTrustX509Test {
             }
 
         } catch (Exception e) {
-            error("\t... failed");
             fail("checkServerTrusted with OCSP test failed: " +
                 e.getMessage());
         }
-
-        pass("\t... passed");
     }
 
     /**
@@ -2897,8 +2742,6 @@ public class WolfSSLTrustX509Test {
     @Test
     public void testCheckServerTrustedWithValidOCSPData()
         throws Exception {
-
-        System.out.print("\tcheckServerTrusted() valid OCSP");
 
         String caJKSPath =
             "examples/provider/cacerts.jks";
@@ -2916,8 +2759,7 @@ public class WolfSSLTrustX509Test {
         try {
             /* Load basic cacerts trust store */
             KeyStore caJKS = KeyStore.getInstance(tf.keyStoreType);
-            try (FileInputStream stream =
-                    new FileInputStream(caJKSPath)) {
+            try (FileInputStream stream = new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
@@ -2957,25 +2799,21 @@ public class WolfSSLTrustX509Test {
 
             /* Verify return value is valid */
             if (retChain == null || retChain.size() == 0) {
-                error("\t... failed");
                 fail("checkServerTrusted with valid OCSP returned null or " +
-                     "empty chain");
+                    "empty chain");
             }
 
             /* Should return at least the certs we passed in */
             if (retChain.size() < certArray.length) {
-                error("\t... failed");
                 fail("checkServerTrusted with valid OCSP returned fewer " +
-                     "certs than expected, got: " + retChain.size());
+                    "certs than expected, got: " + retChain.size());
             }
 
         } catch (Exception e) {
-            error("\t... failed");
             fail("checkServerTrusted with valid OCSP test failed: " +
-                 e.getMessage());
+                e.getMessage());
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -2994,8 +2832,6 @@ public class WolfSSLTrustX509Test {
         TrustManager[] tm = null;
         WolfSSLTrustX509 wolfX509tm = null;
 
-        System.out.print("\tmismatched OCSP response");
-
         String caJKSPath = "examples/provider/cacerts.jks";
         String ocspRootCaPath = "examples/certs/ocsp-root-ca-cert.pem";
         String serverCertPath = "examples/certs/server-cert.pem";
@@ -3009,8 +2845,7 @@ public class WolfSSLTrustX509Test {
         try {
             /* Load basic cacerts trust store */
             caJKS = KeyStore.getInstance(tf.keyStoreType);
-            try (FileInputStream stream =
-                    new FileInputStream(caJKSPath)) {
+            try (FileInputStream stream = new FileInputStream(caJKSPath)) {
                 caJKS.load(stream, "wolfSSL test".toCharArray());
             }
 
@@ -3043,7 +2878,6 @@ public class WolfSSLTrustX509Test {
                     WolfSSLCertManagerTest.validOcspResponse,
                     null, "RSA", "localhost");
 
-                error("\t... failed");
                 fail("checkServerTrusted should have thrown " +
                     "CertificateException for mismatched OCSP response");
 
@@ -3053,18 +2887,13 @@ public class WolfSSLTrustX509Test {
 
         } catch (Exception e) {
             /* Check if OCSP is not compiled in */
-            if (e.getMessage() != null &&
-                e.getMessage().contains("not compiled")) {
-                System.out.println("\t... skipped (OCSP not compiled in)");
-                return;
-            }
+            Assume.assumeFalse(e.getMessage() != null &&
+                e.getMessage().contains("not compiled"));
 
-            error("\t... failed");
             fail("checkServerTrusted with mismatched OCSP test failed: " +
-                 e.getMessage());
+                e.getMessage());
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -3082,8 +2911,6 @@ public class WolfSSLTrustX509Test {
     @Test
     public void testCheckServerTrustedOCSPWithChainCAs()
         throws Exception {
-
-        System.out.print("\tOCSP with chain CAs");
 
         String ocspRootCaPath =
             "examples/certs/ocsp-root-ca-cert.pem";
@@ -3137,36 +2964,28 @@ public class WolfSSLTrustX509Test {
 
             /* Verify return value is valid */
             if (retChain == null || retChain.size() == 0) {
-                error("\t\t... failed");
                 fail("checkServerTrusted with OCSP and chain CAs " +
-                     "returned null or empty chain");
+                    "returned null or empty chain");
             }
 
             /* Should return at least the certs we passed in */
             if (retChain.size() < certArray.length) {
-                error("\t\t... failed");
                 fail("checkServerTrusted with OCSP and chain CAs " +
-                     "returned fewer certs than expected");
+                    "returned fewer certs than expected");
             }
 
         } catch (CertificateException e) {
             /* Check if OCSP is not compiled in */
             String msg = e.getMessage();
-            if (msg != null && msg.contains("not compiled")) {
-                System.out.println("\t... skipped (OCSP not compiled in)");
-                return;
-            }
-            error("\t\t... failed");
+            Assume.assumeFalse(msg != null && msg.contains("not compiled"));
             fail("checkServerTrusted with OCSP and chain CAs failed: " +
-                 e.getMessage());
+                e.getMessage());
 
         } catch (Exception e) {
-            error("\t\t... failed");
             fail("checkServerTrusted with OCSP and chain CAs test " +
-                 "failed: " + e.getMessage());
+                "failed: " + e.getMessage());
         }
 
-        pass("\t\t... passed");
     }
 
     /* TrustManager that trusts all certificates */
@@ -3233,12 +3052,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -3285,12 +3104,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustNoCerts,
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            trustNoCerts,
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustNoCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            trustNoCerts,
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -3328,12 +3147,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -3381,12 +3200,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -3434,12 +3253,12 @@ public class WolfSSLTrustX509Test {
         throws CertificateException, IOException, Exception {
 
         SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.serverJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.serverJKS, provider));
 
         SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
-                trustAllCerts,
-                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+            trustAllCerts,
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
         SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
@@ -3490,8 +3309,6 @@ public class WolfSSLTrustX509Test {
                KeyStoreException, IOException, CertificateException,
                InvalidAlgorithmParameterException {
 
-        System.out.print("\tinit(CPTrustManagerParameters)");
-
         /* Load CA certs and create TrustAnchors manually */
         KeyStore caStore = KeyStore.getInstance(
             WolfSSLTestFactory.isAndroid() ? "BKS" : "JKS");
@@ -3509,10 +3326,7 @@ public class WolfSSLTrustX509Test {
             }
         }
 
-        if (anchors.isEmpty()) {
-            pass("\t... skipped (no certs)");
-            return;
-        }
+        Assume.assumeFalse(anchors.isEmpty());
 
         PKIXParameters pkixParams = new PKIXParameters(anchors);
         CertPathTrustManagerParameters certPathParams =
@@ -3533,7 +3347,6 @@ public class WolfSSLTrustX509Test {
             fail("No accepted issuers after CertPathParams init");
         }
 
-        pass("\t... passed");
     }
 
     /* Test TrustManagerFactory.init(KeyStoreBuilderParameters) */
@@ -3542,8 +3355,6 @@ public class WolfSSLTrustX509Test {
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyStoreException, IOException, CertificateException,
                InvalidAlgorithmParameterException {
-
-        System.out.print("\tinit(KeyStoreBuilderParameters)");
 
         KeyStore.Builder ksBuilder = KeyStore.Builder.newInstance(
             WolfSSLTestFactory.isAndroid() ? "BKS" : "JKS",
@@ -3569,15 +3380,6 @@ public class WolfSSLTrustX509Test {
             fail("No accepted issuers after KeyStoreBuilder init");
         }
 
-        pass("\t... passed");
-    }
-
-    private void pass(String msg) {
-        WolfSSLTestFactory.pass(msg);
-    }
-
-    private void error(String msg) {
-        WolfSSLTestFactory.fail(msg);
     }
 
     /**
@@ -3827,8 +3629,6 @@ public class WolfSSLTrustX509Test {
         X509Certificate[] certArray = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        System.out.print("\talt chain: unverifiable CA");
-
         /* Build a chain where the root CA is included but in cross-signed
          * form that cannot verify against our trust store. The trust store
          * contains the self-signed version of the same root CA.
@@ -3852,7 +3652,6 @@ public class WolfSSLTrustX509Test {
         /* Create TrustManager with caJKS which contains ca-cert.pem */
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -3888,12 +3687,10 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed to verify chain with alternate path: " +
-                 e.getMessage());
+                e.getMessage());
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -3914,8 +3711,6 @@ public class WolfSSLTrustX509Test {
         X509Certificate[] certArray = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        System.out.print("\talt chain: multiple CA skip");
-
         /* Build valid chain with extra wrong CAs appended at end */
 
         String serverCert = "examples/certs/intermediate/server-int-cert.pem";
@@ -3933,7 +3728,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -3975,12 +3769,10 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed to verify chain with extra wrong CA: " +
-                 e.getMessage());
+                e.getMessage());
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -3998,8 +3790,6 @@ public class WolfSSLTrustX509Test {
         X509Certificate[] certArray = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        System.out.print("\talt chain: non-CA must verify");
-
         /* Build invalid chain with unverifiable server cert.
          * This should FAIL because non-CA certs must verify. */
 
@@ -4016,7 +3806,6 @@ public class WolfSSLTrustX509Test {
         /* Create TrustManager with RSA CA certs */
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -4043,13 +3832,11 @@ public class WolfSSLTrustX509Test {
          * verified and non-CA certs must always verify. */
         try {
             x509tm.checkServerTrusted(certArray, "ECC");
-            error("\t... failed");
             fail("Verified invalid server cert, should have failed");
         } catch (CertificateException e) {
             /* Expected - non-CA certificate must verify */
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -4066,8 +3853,6 @@ public class WolfSSLTrustX509Test {
         Certificate cert = null;
         X509Certificate[] certArray = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-
-        System.out.print("\talt chain: invalid still fails");
 
         /* Build invalid chain where no path to trust anchor exists, should
          * fail. Use server cert from one chain with CAs from different
@@ -4086,7 +3871,6 @@ public class WolfSSLTrustX509Test {
         /* Create TrustManager with ECC CAs only */
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -4097,21 +3881,21 @@ public class WolfSSLTrustX509Test {
 
         /* certArray[0]: RSA server cert */
         try (FileInputStream fis = new FileInputStream(serverCert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[0] = (X509Certificate)cert;
         }
 
         /* certArray[1]: ECC CA (wrong chain) */
         try (FileInputStream fis = new FileInputStream(wrongCA1);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[1] = (X509Certificate)cert;
         }
 
         /* certArray[2]: ECC CA 2 (wrong chain) */
         try (FileInputStream fis = new FileInputStream(wrongCA2);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[2] = (X509Certificate)cert;
         }
@@ -4119,13 +3903,11 @@ public class WolfSSLTrustX509Test {
         /* Verify chain, should fail. No valid path to trust anchor exists */
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
-            error("\t... failed");
             fail("Verified invalid chain, should have failed");
         } catch (CertificateException e) {
             /* Expected - no valid path to trust anchor */
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -4145,8 +3927,6 @@ public class WolfSSLTrustX509Test {
         X509Certificate[] certArray = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        System.out.print("\talt chain: cross-sign");
-
         String serverCert = "examples/certs/intermediate/server-int-cert.pem";
         String int1Cert = "examples/certs/intermediate/ca-int-cert.pem";
         String int2Cert = "examples/certs/intermediate/ca-int2-cert.pem";
@@ -4159,7 +3939,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -4169,19 +3948,19 @@ public class WolfSSLTrustX509Test {
         certArray = new X509Certificate[3];
 
         try (FileInputStream fis = new FileInputStream(serverCert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[0] = (X509Certificate)cert;
         }
 
         try (FileInputStream fis = new FileInputStream(int1Cert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[1] = (X509Certificate)cert;
         }
 
         try (FileInputStream fis = new FileInputStream(int2Cert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[2] = (X509Certificate)cert;
         }
@@ -4189,12 +3968,10 @@ public class WolfSSLTrustX509Test {
         try {
             x509tm.checkServerTrusted(certArray, "RSA");
         } catch (CertificateException e) {
-            error("\t\t... failed");
             fail("Cross-signed root test failed: " +
                  e.getMessage());
         }
 
-        pass("\t\t... passed");
     }
 
     /**
@@ -4216,8 +3993,6 @@ public class WolfSSLTrustX509Test {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         List<X509Certificate> retChain = null;
 
-        System.out.print("\tret chain excludes skipped CAs");
-
         /* Build valid RSA chain with extra wrong CA appended at end */
         String serverCert =
             "examples/certs/intermediate/server-int-cert.pem";
@@ -4235,7 +4010,6 @@ public class WolfSSLTrustX509Test {
 
         tm = tf.createTrustManager("SunX509", tf.caJKS, provider);
         if (tm == null) {
-            error("\t... failed");
             fail("failed to create trustmanager");
             return;
         }
@@ -4251,21 +4025,21 @@ public class WolfSSLTrustX509Test {
 
         /* certArray[0]: RSA server cert */
         try (FileInputStream fis = new FileInputStream(serverCert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[0] = (X509Certificate)cert;
         }
 
         /* certArray[1]: RSA intermediate CA 1 */
         try (FileInputStream fis = new FileInputStream(int1Cert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[1] = (X509Certificate)cert;
         }
 
         /* certArray[2]: RSA intermediate CA 2 */
         try (FileInputStream fis = new FileInputStream(int2Cert);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[2] = (X509Certificate)cert;
         }
@@ -4273,7 +4047,7 @@ public class WolfSSLTrustX509Test {
         /* certArray[3]: ECC CA (wrong, should be skipped) */
         X509Certificate skippedCA = null;
         try (FileInputStream fis = new FileInputStream(wrongCA);
-             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
             cert = cf.generateCertificate(bis);
             certArray[3] = (X509Certificate)cert;
             skippedCA = (X509Certificate)cert;
@@ -4285,27 +4059,23 @@ public class WolfSSLTrustX509Test {
             retChain = wolfX509tm.checkServerTrusted(certArray,
                 "RSA", "localhost");
         } catch (CertificateException e) {
-            error("\t... failed");
             fail("Failed to verify chain with extra wrong CA: " +
-                 e.getMessage());
+                e.getMessage());
         }
 
         if (retChain == null) {
-            error("\t... failed");
             fail("checkServerTrusted() did not return expected List of certs");
         }
 
         /* Returned chain should include peer + 2 intermediates + root = 4.
          * It should not include the skipped ECC CA cert. */
         if (retChain.size() != 4) {
-            error("\t... failed");
             fail("Expected 4 certs in chain (peer + 2 ints + root), got: " +
-                 retChain.size());
+                retChain.size());
         }
 
         /* Verify skipped CA is NOT in returned chain */
         if (retChain.contains(skippedCA)) {
-            error("\t... failed");
             fail("Returned chain should not contain skipped CA certificate");
         }
 
@@ -4314,28 +4084,23 @@ public class WolfSSLTrustX509Test {
          * - Chain must contain both intermediates (int1 and int2)
          * - Chain must not contain the skipped ECC CA */
         if (!retChain.get(0).equals(certArray[0])) {
-            error("\t... failed");
             fail("Expected peer cert at position 0 in returned chain");
         }
 
         /* Verify both valid intermediates are present in the chain */
         if (!retChain.contains(certArray[1])) {
-            error("\t... failed");
             fail("Returned chain missing intermediate 1 (ca-int-cert.pem)");
         }
 
         if (!retChain.contains(certArray[2])) {
-            error("\t... failed");
             fail("Returned chain missing intermediate 2 (ca-int2-cert.pem)");
         }
 
         /* Verify skipped CA is definitely NOT in the chain */
         if (retChain.contains(certArray[3])) {
-            error("\t... failed");
             fail("Returned chain should NOT contain skipped ECC CA");
         }
 
-        pass("\t... passed");
     }
 
     /**
@@ -4347,12 +4112,9 @@ public class WolfSSLTrustX509Test {
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyStoreException {
 
-        System.out.print("\tTesting cacerts via java.home");
-
         /* Verify java.home system property is set (should always be by JVM) */
         String javaHome = System.getProperty("java.home");
         if (javaHome == null || javaHome.isEmpty()) {
-            error("\t... failed");
             fail("java.home system property not set");
             return;
         }
@@ -4362,18 +4124,14 @@ public class WolfSSLTrustX509Test {
             File.separator + "security" + File.separator + "cacerts";
         File cacertsFile = new File(cacertsPath);
 
-        if (!cacertsFile.exists()) {
-            /* cacerts may not exist on all systems, skip test */
-            pass("\t... skipped (no cacerts)");
-            return;
-        }
+        /* cacerts may not exist on all systems, skip test */
+        Assume.assumeTrue(cacertsFile.exists());
 
         /* Create TrustManagerFactory and init with null KeyStore.
          * This triggers loading of system CA certs from cacerts file. */
         TrustManagerFactory tmf =
             TrustManagerFactory.getInstance("PKIX", provider);
         if (tmf == null) {
-            error("\t... failed");
             fail("failed to get TrustManagerFactory instance");
             return;
         }
@@ -4381,7 +4139,6 @@ public class WolfSSLTrustX509Test {
         try {
             tmf.init((KeyStore)null);
         } catch (Exception e) {
-            error("\t... failed");
             fail("TrustManagerFactory.init(null) failed: " + e.getMessage());
             return;
         }
@@ -4389,7 +4146,6 @@ public class WolfSSLTrustX509Test {
         /* Verify TrustManagers were created */
         TrustManager[] tms = tmf.getTrustManagers();
         if (tms == null || tms.length == 0) {
-            error("\t... failed");
             fail("No TrustManagers returned after init with null KeyStore");
             return;
         }
@@ -4409,13 +4165,9 @@ public class WolfSSLTrustX509Test {
         }
 
         if (!foundX509TM) {
-            error("\t... failed");
             fail("No X509TrustManager with accepted issuers found, " +
                  "system cacerts may not have been loaded");
             return;
         }
-
-        pass("\t... passed");
     }
 }
-

@@ -23,8 +23,11 @@ package com.wolfssl.test;
 
 import java.util.List;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import com.wolfssl.WolfSSL;
@@ -41,6 +44,9 @@ import com.wolfssl.WolfSSLGeneralName;
  * @author wolfSSL
  */
 public class WolfSSLNameConstraintsTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
 
     /* Test certificate with email name constraint (.wolfssl.com) */
     public static String certWithNC = "examples/certs/test/cert-ext-nc.pem";
@@ -85,12 +91,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testGetNameConstraintsWithNC() throws WolfSSLException {
 
-        System.out.print("\tgetNameConstraints() with ext");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -118,8 +119,6 @@ public class WolfSSLNameConstraintsTest {
             assertNotNull("Value should not be null", gn.getValue());
             assertTrue("Value should contain wolfssl.com",
                 gn.getValue().contains("wolfssl.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -133,12 +132,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testGetNameConstraintsWithoutNC() throws WolfSSLException {
 
-        System.out.print("\tgetNameConstraints() no ext");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         try {
@@ -151,8 +145,6 @@ public class WolfSSLNameConstraintsTest {
             /* Should be null for cert without name constraints extension */
             assertNull("Name constraints should be null for cert without NC",
                 nc);
-
-            System.out.println("\t... passed");
         } finally {
             if (cert != null) {
                 cert.free();
@@ -163,12 +155,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testGetNameConstraintsIPAddress() throws WolfSSLException {
 
-        System.out.print("\tgetNameConstraints() IP address");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -195,8 +182,6 @@ public class WolfSSLNameConstraintsTest {
             String value = gn.getValue();
             assertTrue("IP constraint should contain network address",
                 value.contains("192.168.1.0") || value.contains(":"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -210,8 +195,6 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testGeneralNameTypes() throws WolfSSLException {
 
-        System.out.print("\tGeneralName type constants");
-
         /* Verify type constants match RFC 5280 */
         assertEquals("GEN_OTHERNAME", 0, WolfSSLGeneralName.GEN_OTHERNAME);
         assertEquals("GEN_EMAIL", 1, WolfSSLGeneralName.GEN_EMAIL);
@@ -222,14 +205,10 @@ public class WolfSSLNameConstraintsTest {
         assertEquals("GEN_URI", 6, WolfSSLGeneralName.GEN_URI);
         assertEquals("GEN_IPADD", 7, WolfSSLGeneralName.GEN_IPADD);
         assertEquals("GEN_RID", 8, WolfSSLGeneralName.GEN_RID);
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testGeneralNameTypeName() {
-
-        System.out.print("\tGeneralName.getTypeName()");
 
         WolfSSLGeneralName gn = new WolfSSLGeneralName(
             WolfSSLGeneralName.GEN_DNS, "example.com");
@@ -238,19 +217,12 @@ public class WolfSSLNameConstraintsTest {
         assertEquals(WolfSSLGeneralName.GEN_DNS, gn.getType());
         assertEquals("example.com", gn.getValue());
         assertEquals("DNS:example.com", gn.toString());
-
-        System.out.println("\t... passed");
     }
 
     @Test
     public void testCheckDnsNamePermitted() throws WolfSSLException {
 
-        System.out.print("\tcheckDnsName() permitted");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -264,8 +236,6 @@ public class WolfSSLNameConstraintsTest {
              * but no DNS constraints, so all DNS names should pass */
             assertTrue("DNS name should be permitted when no DNS constraint",
                 nc.checkDnsName("www.example.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -279,12 +249,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testCheckEmailPermitted() throws WolfSSLException {
 
-        System.out.print("\tcheckEmail() permitted");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -303,8 +268,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkEmail("user@sub.wolfssl.com"));
             assertTrue("Deeper subdomain should also be permitted",
                 nc.checkEmail("user@a.b.wolfssl.com"));
-
-            System.out.println("\t\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -318,12 +281,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testCheckEmailNotPermitted() throws WolfSSLException {
 
-        System.out.print("\tcheckEmail() not permitted");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -338,8 +296,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkEmail("user@other.com"));
             assertFalse("Email @notwolfssl.com should not be permitted",
                 nc.checkEmail("user@notwolfssl.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -353,12 +309,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testCheckNameWithNullArgument() throws WolfSSLException {
 
-        System.out.print("\tcheckName() null argument");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -374,8 +325,6 @@ public class WolfSSLNameConstraintsTest {
             } catch (IllegalArgumentException e) {
                 /* Expected */
             }
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -389,12 +338,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testNameConstraintsFree() throws WolfSSLException {
 
-        System.out.print("\tNameConstraints.free()");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -417,8 +361,6 @@ public class WolfSSLNameConstraintsTest {
             } catch (IllegalStateException e) {
                 /* Expected */
             }
-
-            System.out.println("\t\t... passed");
         } finally {
             /* nc already freed in test, but safe due to double-free handling */
             if (cert != null) {
@@ -430,12 +372,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testExcludedSubtrees() throws WolfSSLException {
 
-        System.out.print("\tgetExcludedSubtrees()");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -457,8 +394,6 @@ public class WolfSSLNameConstraintsTest {
             } catch (UnsupportedOperationException e) {
                 /* Expected */
             }
-
-            System.out.println("\t\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -472,12 +407,7 @@ public class WolfSSLNameConstraintsTest {
     @Test
     public void testPermittedSubtreesUnmodifiable() throws WolfSSLException {
 
-        System.out.print("\tSubtrees unmodifiable");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -497,8 +427,6 @@ public class WolfSSLNameConstraintsTest {
             } catch (UnsupportedOperationException e) {
                 /* Expected */
             }
-
-            System.out.println("\t\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -511,20 +439,12 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testCheckIpAddressPermitted() throws WolfSSLException {
-        System.out.print("\tcheckIpAddress() permitted");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         /* Native wolfSSL XINET_PTON on Windows casts char* to
          * PCWSTR, causing IP address parsing to fail. Skip until
          * fixed in native wolfSSL (should use InetPtonA). */
-        if (WolfSSLTestCommon.isWindows()) {
-            System.out.println("\t... skipped (Windows)");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestCommon.isWindows());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -541,8 +461,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkIpAddress("192.168.1.1"));
             assertTrue("IP 192.168.1.254 should be permitted",
                 nc.checkIpAddress("192.168.1.254"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -555,12 +473,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testCheckIpAddressNotPermitted() throws WolfSSLException {
-        System.out.print("\tcheckIpAddress() not permitted");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -577,8 +490,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkIpAddress("10.0.0.1"));
             assertFalse("IP 8.8.8.8 should not be permitted",
                 nc.checkIpAddress("8.8.8.8"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -591,12 +502,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testIpConstraintValueFormat() throws WolfSSLException {
-        System.out.print("\tIP constraint value format");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -622,8 +528,6 @@ public class WolfSSLNameConstraintsTest {
                 value.contains("/"));
             assertEquals("Should be 192.168.1.0/255.255.255.0",
                 "192.168.1.0/255.255.255.0", value);
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -636,12 +540,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testCheckUriNoConstraint() throws WolfSSLException {
-        System.out.print("\tcheckUri() no constraint");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -657,8 +556,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkUri("https://example.com/path"));
             assertTrue("Any URI should be permitted",
                 nc.checkUri("http://wolfssl.com/test"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -671,18 +568,10 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testCheckNameGeneric() throws WolfSSLException {
-        System.out.print("\tcheckName() generic type");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         /* Skip on Windows, see testCheckIpAddressPermitted */
-        if (WolfSSLTestCommon.isWindows()) {
-            System.out.println("\t\t... skipped (Windows)");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestCommon.isWindows());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -701,8 +590,6 @@ public class WolfSSLNameConstraintsTest {
             /* DNS should be permitted since no DNS constraint exists */
             assertTrue("checkName with GEN_DNS should be permitted",
                 nc.checkName(WolfSSLGeneralName.GEN_DNS, "www.example.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -715,18 +602,10 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testIpSubnetBoundaries() throws WolfSSLException {
-        System.out.print("\tIP subnet boundary cases");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         /* Skip on Windows, see testCheckIpAddressPermitted */
-        if (WolfSSLTestCommon.isWindows()) {
-            System.out.println("\t... skipped (Windows)");
-            return;
-        }
+        Assume.assumeFalse(WolfSSLTestCommon.isWindows());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -751,8 +630,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkIpAddress("192.168.0.255"));
             assertFalse("192.168.2.0 should be outside range",
                 nc.checkIpAddress("192.168.2.0"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -765,12 +642,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testIterateAllSubtrees() throws WolfSSLException {
-        System.out.print("\tIterate all subtrees");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -804,8 +676,6 @@ public class WolfSSLNameConstraintsTest {
             for (WolfSSLGeneralName gn : excluded) {
                 assertNotNull("Excluded GeneralName should not be null", gn);
             }
-
-            System.out.println("\t\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -818,12 +688,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testDnsConstraintEnforcement() throws WolfSSLException {
-        System.out.print("\tDNS constraint enforcement");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -854,8 +719,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkDnsName("example.com"));
             assertFalse("notwolfssl.com should not be permitted",
                 nc.checkDnsName("notwolfssl.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -868,12 +731,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testUriConstraintEnforcement() throws WolfSSLException {
-        System.out.print("\tURI constraint enforcement");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -894,8 +752,6 @@ public class WolfSSLNameConstraintsTest {
             /* URIs with other hosts should not be permitted */
             assertFalse("https://example.com should not be permitted",
                 nc.checkUri("https://example.com/path"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -908,12 +764,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testExcludedConstraintEnforcement() throws WolfSSLException {
-        System.out.print("\tExcluded constraint enforcement");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -948,8 +799,6 @@ public class WolfSSLNameConstraintsTest {
             /* Domains outside permitted .example.com should not be allowed */
             assertFalse("www.wolfssl.com DNS should not be permitted",
                 nc.checkDnsName("www.wolfssl.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -964,12 +813,7 @@ public class WolfSSLNameConstraintsTest {
     public void testMixedPermittedExcludedConstraints()
         throws WolfSSLException {
 
-        System.out.print("\tMixed permitted/excluded");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -1010,8 +854,6 @@ public class WolfSSLNameConstraintsTest {
                 nc.checkDnsName("other.com"));
             assertFalse("user@other.com should not be permitted",
                 nc.checkEmail("user@other.com"));
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();
@@ -1024,12 +866,7 @@ public class WolfSSLNameConstraintsTest {
 
     @Test
     public void testDnsConstraintValueFormat() throws WolfSSLException {
-        System.out.print("\tDNS constraint value format");
-
-        if (!WolfSSL.NameConstraintsEnabled()) {
-            System.out.println("\t... skipped (not compiled in)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.NameConstraintsEnabled());
 
         WolfSSLCertificate cert = null;
         WolfSSLNameConstraints nc = null;
@@ -1063,8 +900,6 @@ public class WolfSSLNameConstraintsTest {
             String value = dnsGn.getValue();
             assertNotNull("DNS value should not be null", value);
             assertEquals("Should be .wolfssl.com", ".wolfssl.com", value);
-
-            System.out.println("\t... passed");
         } finally {
             if (nc != null) {
                 nc.free();

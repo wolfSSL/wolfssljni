@@ -21,8 +21,11 @@
 
 package com.wolfssl.test;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -51,6 +54,10 @@ import com.wolfssl.WolfSSLJNIException;
  * @author wolfSSL
  */
 public class WolfSSLCRLTest {
+
+    @Rule
+    public TestRule testWatcher = TimedTestWatcher.create();
+
     public final static int TEST_FAIL    = -1;
     public final static int TEST_SUCCESS =  0;
 
@@ -170,13 +177,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetVersion()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -197,7 +198,6 @@ public class WolfSSLCRLTest {
         /* Native may or may not validate, so just check it doesn't crash */
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -205,13 +205,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetIssuerName()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -225,7 +219,6 @@ public class WolfSSLCRLTest {
         /* Test null issuer name */
         try {
             crl.setIssuerName(null);
-            System.out.println("\t\t\t... failed");
             fail("null issuer name should throw exception");
         } catch (WolfSSLException e) {
             /* expected */
@@ -234,7 +227,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -242,13 +234,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetLastUpdate()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -268,14 +254,12 @@ public class WolfSSLCRLTest {
         /* Test null date */
         try {
             crl.setLastUpdate(null);
-            System.out.println("\t\t\t... failed");
             fail("null date should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
         }
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -283,13 +267,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tsetNextUpdate()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -311,14 +289,12 @@ public class WolfSSLCRLTest {
         /* Test null date */
         try {
             crl.setNextUpdate(null);
-            System.out.println("\t\t\t... failed");
             fail("null date should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
         }
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -326,13 +302,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddRevoked()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -357,7 +327,6 @@ public class WolfSSLCRLTest {
         /* Test null serial number */
         try {
             crl.addRevoked(null, new Date());
-            System.out.println("\t\t\t... failed");
             fail("null serial number should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -366,14 +335,12 @@ public class WolfSSLCRLTest {
         /* Test empty serial number */
         try {
             crl.addRevoked(new byte[0], new Date());
-            System.out.println("\t\t\t... failed");
             fail("empty serial number should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
         }
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -381,13 +348,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddRevokedCert(byte[])");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -412,7 +373,6 @@ public class WolfSSLCRLTest {
         /* Test null certificate DER */
         try {
             crl.addRevokedCert((byte[])null, new Date());
-            System.out.println("\t\t... failed");
             fail("null certificate DER should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -421,14 +381,12 @@ public class WolfSSLCRLTest {
         /* Test empty certificate DER */
         try {
             crl.addRevokedCert(new byte[0], new Date());
-            System.out.println("\t\t... failed");
             fail("empty certificate DER should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
         }
 
         crl.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -436,13 +394,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\taddRevokedCert(cert)");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -466,7 +418,6 @@ public class WolfSSLCRLTest {
         /* Test null certificate */
         try {
             crl.addRevokedCert((WolfSSLCertificate)null, new Date());
-            System.out.println("\t\t... failed");
             fail("null certificate should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -476,7 +427,6 @@ public class WolfSSLCRLTest {
         cert.free();
         cert2.free();
         crl.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -484,13 +434,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tsign(PrivateKey)");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -530,7 +474,6 @@ public class WolfSSLCRLTest {
         /* Test null private key */
         try {
             crl.sign(null, "SHA256");
-            System.out.println("\t\t... failed");
             fail("null private key should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -539,7 +482,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -547,13 +489,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, ReflectiveOperationException {
 
-        System.out.print("\tsign(native PEM key bytes)");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -601,8 +537,6 @@ public class WolfSSLCRLTest {
             }
             crl.free();
         }
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -610,13 +544,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\twriteToFile()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -663,7 +591,6 @@ public class WolfSSLCRLTest {
         /* Test null path */
         try {
             crl.writeToFile(null, WolfSSL.SSL_FILETYPE_PEM);
-            System.out.println("\t\t\t... failed");
             fail("null path should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -672,7 +599,6 @@ public class WolfSSLCRLTest {
         /* Test empty path */
         try {
             crl.writeToFile("", WolfSSL.SSL_FILETYPE_PEM);
-            System.out.println("\t\t\t... failed");
             fail("empty path should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -681,7 +607,6 @@ public class WolfSSLCRLTest {
         /* Test invalid format */
         try {
             crl.writeToFile("test.der", 12345);
-            System.out.println("\t\t\t... failed");
             fail("invalid format should throw exception");
         } catch (IllegalArgumentException e) {
             /* expected */
@@ -690,7 +615,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -698,13 +622,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetDer()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -738,7 +656,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -746,13 +663,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetPem()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -790,7 +701,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -798,13 +708,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tgetVersion()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -815,19 +719,16 @@ public class WolfSSLCRLTest {
         crl.setVersion(0);
         version = crl.getVersion();
         if (version != 1) {
-            System.out.println("\t\t\t... failed");
             fail("Version should be 1 for v1");
         }
 
         crl.setVersion(1);
         version = crl.getVersion();
         if (version != 2) {
-            System.out.println("\t\t\t... failed");
             fail("Version should be 2 for v2");
         }
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -835,13 +736,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgen CRL using files");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -900,8 +795,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -909,13 +802,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgen CRL using certificates");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -962,8 +849,6 @@ public class WolfSSLCRLTest {
         cert1.free();
         issuerName.free();
         crl.free();
-
-        System.out.println("\t... passed");
     }
 
     @Test
@@ -971,18 +856,9 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgen CRL with ECC key");
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t... skipped");
-            return;
-        }
-
-        if (!WolfSSL.EccEnabled()) {
-            System.out.println("\t\t... skipped (ECC not enabled)");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.EccEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -1027,8 +903,6 @@ public class WolfSSLCRLTest {
         /* Free native memory */
         issuerName.free();
         crl.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1036,12 +910,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tload CRL from DER");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Load DER from pre-generated file */
         byte[] der = Files.readAllBytes(Paths.get(crlDecodeDer));
@@ -1082,7 +951,6 @@ public class WolfSSLCRLTest {
 
         loadedCrl2.free();
         loadedCrl.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1090,12 +958,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tload CRL from PEM");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Load PEM from pre-generated file */
         byte[] pem = Files.readAllBytes(Paths.get(crlDecodePem));
@@ -1107,7 +970,6 @@ public class WolfSSLCRLTest {
         assertNotNull(loadedCrl);
 
         loadedCrl.free();
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1115,12 +977,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tload CRL from file");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Load pre-generated PEM CRL from file */
         WolfSSLCRL crl = loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
@@ -1157,8 +1014,6 @@ public class WolfSSLCRLTest {
             loadedCrl.free();
             genCrl.free();
         }
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1166,12 +1021,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetIssuerName()");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Test on CRL loaded from file */
         WolfSSLCRL fileCrl = loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
@@ -1193,8 +1043,6 @@ public class WolfSSLCRLTest {
             loadedCrl.free();
             genCrl.free();
         }
-
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -1202,20 +1050,13 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSignatureType()");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Test on CRL loaded from file */
         WolfSSLCRL fileCrl = loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
         int sigType = fileCrl.getSignatureType();
         assertTrue("Signature type should be > 0", sigType > 0);
         fileCrl.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1223,20 +1064,13 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tgetSignatureNid()");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Test on CRL loaded from file */
         WolfSSLCRL fileCrl = loadTestCRLFromFile(WolfSSL.SSL_FILETYPE_PEM);
         int sigNid = fileCrl.getSignatureNid();
         assertTrue("Signature NID should be > 0", sigNid > 0);
         fileCrl.free();
-
-        System.out.println("\t\t... passed");
     }
 
     @Test
@@ -1244,12 +1078,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException, NoSuchAlgorithmException {
 
-        System.out.print("\tverify()");
-
-        if (!WolfSSL.CrlDecodeEnabled()) {
-            System.out.println("\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlDecodeEnabled());
 
         /* Load CRL from file, attempt verify.
          * wolfSSL_X509_CRL_verify is currently a stub and
@@ -1263,7 +1092,6 @@ public class WolfSSLCRLTest {
         assertFalse("Stub verify should return false", result);
 
         crl.free();
-        System.out.println("\t\t\t... passed");
     }
 
     @Test
@@ -1271,13 +1099,7 @@ public class WolfSSLCRLTest {
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
 
-        System.out.print("\tfree()");
-
-        if (!WolfSSL.CrlGenerationEnabled()) {
-            /* CRL generation not enabled in wolfSSL */
-            System.out.println("\t\t\t\t... skipped");
-            return;
-        }
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
 
         WolfSSLCRL crl = new WolfSSLCRL();
         assertNotNull(crl);
@@ -1288,7 +1110,6 @@ public class WolfSSLCRLTest {
         /* Operations after free should throw IllegalStateException */
         try {
             crl.setVersion(1);
-            System.out.println("\t\t\t\t... failed");
             fail("setVersion after free should throw exception");
         } catch (IllegalStateException e) {
             /* expected */
@@ -1296,7 +1117,6 @@ public class WolfSSLCRLTest {
 
         try {
             crl.getVersion();
-            System.out.println("\t\t\t\t... failed");
             fail("getVersion after free should throw exception");
         } catch (IllegalStateException e) {
             /* expected */
@@ -1304,7 +1124,5 @@ public class WolfSSLCRLTest {
 
         /* Multiple free() calls should be safe */
         crl.free();
-
-        System.out.println("\t\t\t\t... passed");
     }
 }
