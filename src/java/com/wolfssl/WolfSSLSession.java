@@ -630,6 +630,7 @@ public class WolfSSLSession {
     private native InetSocketAddress dtlsGetPeer(long ssl);
     private native int sessionReused(long ssl);
     private native long getPeerCertificate(long ssl);
+    private native byte[][] getPeerCertificateChainDER(long ssl);
     private native String getPeerX509Issuer(long ssl, long x509);
     private native String getPeerX509Subject(long ssl, long x509);
     private native String getPeerX509AltName(long ssl, long x509);
@@ -3339,6 +3340,162 @@ public class WolfSSLSession {
 
             return getPeerCertificate(this.sslPtr);
         }
+    }
+
+    /**
+     * Gets the DER encoding of the peer certificate.
+     *
+     * Requires native wolfSSL to be compiled with KEEP_PEER_CERT,
+     * auto defined by "--enable-jni".
+     *
+     * @return DER encoding of the peer cert, or null if the peer did not send
+     *         a certificate or it is not available. Returned encoding is a
+     *         copy, no native memory needs to be freed by caller.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#getPeerCertificateChainDER()
+     */
+    public byte[] getPeerCertificateDER()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerCertificateDER()");
+
+            return getPeerCertificateDERLocked();
+        }
+    }
+
+    /**
+     * Get the DER encoding of the peer certificate, caller must already hold
+     * sslLock and have called confirmObjectIsActive(). The public method
+     * cannot be used from inside sslLock, confirmObjectIsActive() is
+     * synchronized on this object and would invert this class's lock order.
+     *
+     * @return DER encoding of the peer cert, or null if not available
+     */
+    private byte[] getPeerCertificateDERLocked() {
+
+        long x509 = getPeerCertificate(this.sslPtr);
+
+        if (x509 == 0) {
+            return null;
+        }
+
+        try {
+            return WolfSSL.x509_getDer(x509);
+
+        } finally {
+            /* wolfSSL 5.3.0 and later hand back a new WOLFSSL_X509 the
+             * caller owns, earlier versions internal memory */
+            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
+                WolfSSLCertificate.freeX509(x509);
+            }
+        }
+    }
+
+    /**
+     * Gets the DER encoding of each certificate in the peer cert chain,
+     * as sent by the peer during the handshake.
+     *
+     * Index zero holds the peer cert, followed by any intermediate CA certs
+     * the peer chose to send, in the order received. If native wolfSSL
+     * stored no chain, for example when built without SESSION_CERTS, the
+     * peer cert alone is returned.
+     *
+     * Native wolfSSL skips certs of MAX_X509_SIZE or larger when storing the
+     * peer chain, and drops anything past MAX_CHAIN_DEPTH, so an oversized
+     * or deep intermediate CA cert will be missing. An oversized peer cert
+     * is skipped too, but is restored to index zero from the separate
+     * KEEP_PEER_CERT copy. Without KEEP_PEER_CERT there is no copy to check
+     * index zero against, so null is returned rather than a chain that might
+     * start at a CA.
+     *
+     * On a resumed session no Certificate message is received, so native
+     * wolfSSL reports the chain stored in the resumed session. Callers
+     * needing the certs from the original handshake should cache them.
+     *
+     * This method makes several native calls, one of which copies the peer
+     * cert, so callers should cache the result rather than call this
+     * repeatedly to avoid performance penalties.
+     *
+     * @return two dimensional byte array holding the DER encoding of each
+     *         certificate in the peer's chain, or null if the peer sent no
+     *         certificates. Returned arrays are copies, no native memory
+     *         needs to be freed by caller.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     * @see    WolfSSLSession#getPeerCertificateDER()
+     * @see    WolfSSLSession#getPeerCertificate()
+     */
+    public byte[][] getPeerCertificateChainDER()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        byte[] peerDer = null;
+        byte[][] chain = null;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered getPeerCertificateChainDER()");
+
+            chain = getPeerCertificateChainDER(this.sslPtr);
+            peerDer = getPeerCertificateDERLocked();
+            chain = ensurePeerCertFirst(chain, peerDer);
+
+            final int chainSz = (chain == null) ? 0 : chain.length;
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "peer chain size: " + chainSz);
+
+            return chain;
+        }
+    }
+
+    /**
+     * Place the peer certificate at index zero of the stored chain, which
+     * native wolfSSL leaves starting at a CA when the peer cert was too
+     * large to store.
+     *
+     * @param chain DER encoding of each cert in the chain stored by native
+     *        wolfSSL, may be null or empty
+     * @param peerDer DER encoding of the peer's own cert, may be null
+     *
+     * @return chain holding the peer cert at index zero, or null if no cert
+     *         is available or the peer cert cannot be confirmed to be first
+     */
+    private static byte[][] ensurePeerCertFirst(byte[][] chain,
+        byte[] peerDer) {
+
+        byte[][] fullChain = null;
+
+        if (chain == null || chain.length == 0) {
+            if (peerDer == null) {
+                return null;
+            }
+            return new byte[][] { peerDer };
+        }
+
+        if (peerDer == null) {
+            /* No peer cert to check chain[0] against, fail closed rather
+             * than report CA as peer. */
+            return null;
+        }
+
+        if (Arrays.equals(peerDer, chain[0])) {
+            return chain;
+        }
+
+        fullChain = new byte[chain.length + 1][];
+        fullChain[0] = peerDer;
+        System.arraycopy(chain, 0, fullChain, 1, chain.length);
+
+        return fullChain;
     }
 
     /**

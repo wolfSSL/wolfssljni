@@ -3412,6 +3412,84 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
 #endif
 }
 
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificateChainDER
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifdef SESSION_CERTS
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    WOLFSSL_X509_CHAIN* chain = NULL;
+    jclass byteArrayClass = NULL;
+    jobjectArray chainArr = NULL;
+    jbyteArray derArr = NULL;
+    unsigned char* der = NULL;
+    int chainSz = 0;
+    int derSz = 0;
+    int i = 0;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return NULL;
+    }
+
+    chain = wolfSSL_get_peer_chain(ssl);
+    if (chain == NULL) {
+        return NULL;
+    }
+
+    chainSz = wolfSSL_get_chain_count(chain);
+    if (chainSz <= 0) {
+        return NULL;
+    }
+
+    byteArrayClass = (*jenv)->FindClass(jenv, "[B");
+    if (byteArrayClass == NULL) {
+        return NULL;
+    }
+
+    chainArr = (*jenv)->NewObjectArray(jenv, chainSz, byteArrayClass, NULL);
+    if (chainArr == NULL) {
+        return NULL;
+    }
+
+    /* Appended in wire order, peer cert first. Native wolfSSL drops certs
+     * of MAX_X509_SIZE or larger and anything past MAX_CHAIN_DEPTH, so the
+     * chain can be incomplete and may not start with the peer cert. */
+    for (i = 0; i < chainSz; i++) {
+
+        der = wolfSSL_get_chain_cert(chain, i);
+        derSz = wolfSSL_get_chain_length(chain, i);
+
+        if (der == NULL || derSz <= 0) {
+            /* Chain not usable if any entry is missing */
+            return NULL;
+        }
+
+        derArr = (*jenv)->NewByteArray(jenv, derSz);
+        if (derArr == NULL) {
+            return NULL;
+        }
+
+        (*jenv)->SetByteArrayRegion(jenv, derArr, 0, derSz, (jbyte*)der);
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            return NULL;
+        }
+
+        (*jenv)->SetObjectArrayElement(jenv, chainArr, i, derArr);
+        (*jenv)->DeleteLocalRef(jenv, derArr);
+        if ((*jenv)->ExceptionCheck(jenv)) {
+            return NULL;
+        }
+    }
+
+    return chainArr;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NULL;
+#endif
+}
+
 JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jlong x509Ptr)
 {

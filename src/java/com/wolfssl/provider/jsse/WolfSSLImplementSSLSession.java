@@ -491,15 +491,91 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     }
 
     /**
+     * Get DER encoding of each cert the peer sent, peer cert first.
+     * Ordering and fallback are handled by WolfSSLSession.
+     *
+     * @return DER encoded peer chain, or null if the peer sent no certs
+     */
+    private byte[][] getPeerCertificateChainDER() {
+
+        try {
+            return this.ssl.getPeerCertificateChainDER();
+
+        } catch (IllegalStateException | WolfSSLJNIException ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error getting peer certificate chain: "
+                + ex.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isSessionReused() {
+
+        try {
+            if (this.ssl.sessionReused() == 1) {
+                return true;
+            }
+        } catch (Exception ex) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Error checking session reuse: " + ex.getMessage());
+        }
+
+        return false;
+    }
+
+    /**
+     * Convert an array of DER encoded certificates into an array of
+     * java.security.cert.X509Certificate objects.
+     *
+     * @param derChain array holding the DER encoding of each certificate
+     *
+     * @return X509Certificate array matching the order of the input array
+     *
+     * @throws SSLPeerUnverifiedException if error converting any of the
+     *         DER encodings into an X509Certificate object
+     */
+    private static X509Certificate[] derChainToX509Certificates(
+            byte[][] derChain) throws SSLPeerUnverifiedException {
+
+        CertificateFactory cf;
+        X509Certificate[] certs;
+
+        try {
+            cf = CertificateFactory.getInstance("X.509");
+        } catch (CertificateException ex) {
+            throw new SSLPeerUnverifiedException(
+                    "Error getting CertificateFactory instance");
+        }
+
+        certs = new X509Certificate[derChain.length];
+
+        for (int i = 0; i < derChain.length; i++) {
+            if (derChain[i] == null) {
+                throw new SSLPeerUnverifiedException(
+                    "Null DER encoding in peer certificate chain");
+            }
+
+            try {
+                certs[i] = (X509Certificate)cf.generateCertificate(
+                    new ByteArrayInputStream(derChain[i]));
+            } catch (CertificateException ex) {
+                throw new SSLPeerUnverifiedException(
+                    "Error generating X509Certificate from DER encoding");
+            }
+        }
+
+        return certs;
+    }
+
+    /**
      * Get peer certificates for this session
      *
-     * This method first tries to call down to native wolfSSL with
-     * ssl.getPeerCertificate(). If that succeeds, it caches the peer
-     * certificate inside this object (this.peerCerts) so that in a resumed
-     * session when this method is called, the caller will still have access
-     * to the original certificate (matches SunJSSE behavior). If calling
-     * ssl.getPeerCertificate() fails, then we return the cached cert if
-     * we have it.
+     * Certificates are returned in the order sent by the peer, index zero
+     * holding the peer's own certificate. Certs from the handshake that
+     * created this session are cached, so a resumed session still reports
+     * them. Native wolfSSL only stores the full chain when compiled with
+     * SESSION_CERTS, included with "--enable-jni", otherwise only the peer
+     * cert is returned.
      *
      * @return Certificate array of peer certs for session. Actual subclass
      *         type returned is X509Certificate[] to match SunJSSE behavior
@@ -509,12 +585,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      */
     public synchronized Certificate[] getPeerCertificates()
             throws SSLPeerUnverifiedException {
-        long x509;
-        WolfSSLX509 cert;
-        CertificateFactory cf;
-        ByteArrayInputStream der;
-        X509Certificate exportCert;
 
+        byte[][] derChain;
 
         if (ssl == null) {
             throw new SSLPeerUnverifiedException(
@@ -531,25 +603,23 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 "peer not authenticated (no client auth requested)");
         }
 
-        try {
-            x509 = this.ssl.getPeerCertificate();
-        } catch (IllegalStateException | WolfSSLJNIException ex) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Error getting peer certificate: "
-                    + ex.getMessage());
-            x509 = 0;
+        /* Resumed session receives no Certificate message, use the certs
+         * cached from the handshake that created this session */
+        if (this.peerCerts != null && isSessionReused()) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "Session resumed, returning cached peer certs");
+            return this.peerCerts.clone();
         }
 
-        /* if no peer cert, throw SSLPeerUnverifiedException */
-        if (x509 == 0) {
+        derChain = getPeerCertificateChainDER();
+
+        if (derChain == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "ssl.getPeerCertificates() returned null, trying " +
-                "cached cert");
+                () -> "No peer certs available, trying cached certs");
 
             if (this.peerCerts != null) {
-                /* If peer cert is already cached, just return that */
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "peer cert already cached, returning it");
+                    () -> "peer certs already cached, returning them");
                 return this.peerCerts.clone();
             }
             else {
@@ -559,53 +629,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             }
         }
 
-        try {
-            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
-             * structure from wolfSSL_get_peer_certificate(). In that case,
-             * we need to free the pointer when finished. Prior to 5.3.0,
-             * this memory was freed internally by wolfSSL since the API
-             * only returned a pointer to internal memory */
-            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
-                cert = new WolfSSLX509(x509, true);
-            }
-            else {
-                cert = new WolfSSLX509(x509, false);
-            }
-        } catch (WolfSSLException ex) {
-            throw new SSLPeerUnverifiedException("Error creating certificate");
-        }
-
-        /* convert WolfSSLX509 into X509Certificate so we can release
-         * our native memory */
-        try {
-            cf = CertificateFactory.getInstance("X.509");
-        } catch (CertificateException ex) {
-            cert.free();
-            throw new SSLPeerUnverifiedException(
-                    "Error getting CertificateFactory instance");
-        }
-
-        try {
-            der = new ByteArrayInputStream(cert.getEncoded());
-        } catch (CertificateEncodingException ex) {
-            cert.free();
-            throw new SSLPeerUnverifiedException(
-                    "Error getting encoded DER from WolfSSLX509 object");
-        }
-
-        try {
-            exportCert = (X509Certificate)cf.generateCertificate(der);
-        } catch (CertificateException ex) {
-            cert.free();
-            throw new SSLPeerUnverifiedException(
-                    "Error generating X509Certificdate from DER encoding");
-        }
-
-        /* release native memory */
-        cert.free();
-
-        /* cache peer cert for use by app in resumed session */
-        this.peerCerts = new X509Certificate[] { exportCert };
+        /* cache peer certs for use by app in resumed session */
+        this.peerCerts = derChainToX509Certificates(derChain);
 
         return this.peerCerts.clone();
     }
@@ -621,49 +646,34 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     public synchronized javax.security.cert.X509Certificate[]
         getPeerCertificateChain() throws SSLPeerUnverifiedException {
 
-        long peerX509 = 0;
-        WolfSSLX509X x509;
+        Certificate[] javaCerts;
+        javax.security.cert.X509Certificate[] certs;
 
-        if (ssl == null) {
-            throw new SSLPeerUnverifiedException("handshake not done");
-        }
+        /* Get peer cert chain from native wolfSSL, or a cached copy if this
+         * is a resumed session and we had one from the original handshake. */
+        javaCerts = getPeerCertificates();
 
-        /* Throw if server side with no client auth requested */
-        if (this.side == WolfSSL.WOLFSSL_SERVER_END &&
-            !this.clientAuthRequested) {
-            throw new SSLPeerUnverifiedException(
-                "peer not authenticated (no client auth requested)");
-        }
+        certs = new javax.security.cert.X509Certificate[javaCerts.length];
 
         try {
-            peerX509 = this.ssl.getPeerCertificate();
-            if (peerX509 == 0) {
-                throw new SSLPeerUnverifiedException("No peer certificate");
+            for (int i = 0; i < javaCerts.length; i++) {
+                certs[i] = new WolfSSLX509X(javaCerts[i].getEncoded());
             }
-
-            /* wolfSSL starting with 5.3.0 returns a new WOLFSSL_X509
-             * structure from wolfSSL_get_peer_certificate(). In that case,
-             * we need to free the pointer when finished. Prior to 5.3.0,
-             * this memory was freed internally by wolfSSL since the API
-             * only returned a pointer to internal memory */
-            if (WolfSSL.getLibVersionHex() >= 0x05003000) {
-                x509 = new WolfSSLX509X(peerX509, true);
+        } catch (CertificateEncodingException | WolfSSLException ex) {
+            /* Release certs, array is discarded */
+            for (int i = 0; i < certs.length; i++) {
+                if (certs[i] != null) {
+                    ((WolfSSLX509X)certs[i]).free();
+                }
             }
-            else {
-                x509 = new WolfSSLX509X(peerX509, false);
-            }
-
-            return new javax.security.cert.X509Certificate[] {
-                (javax.security.cert.X509Certificate)x509 };
-
-        } catch (IllegalStateException | WolfSSLJNIException |
-                WolfSSLException ex) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                 () -> "Error getting peer certificate chain: "
                 + ex.getMessage());
             throw new SSLPeerUnverifiedException(
                 "Error getting peer certificate chain: " + ex.getMessage());
         }
+
+        return certs;
     }
 
     @Override

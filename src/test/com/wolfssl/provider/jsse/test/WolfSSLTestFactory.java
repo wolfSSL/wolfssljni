@@ -1013,6 +1013,136 @@ class WolfSSLTestFactory {
     }
 
     /**
+     * Alias used for the leaf entry in the KeyStore returned by
+     * generateLargeLeafChain().
+     */
+    protected final static String largeLeafAlias = "large-leaf";
+
+    /**
+     * Generate a [leaf, CA] certificate chain where the leaf is larger than
+     * the default native wolfSSL MAX_X509_SIZE of 2048 bytes.
+     *
+     * Native wolfSSL skips certificates of MAX_X509_SIZE or larger when
+     * storing the peer chain, including the peer's own certificate, which
+     * leaves the stored chain starting at the issuing CA. This chain is used
+     * to check that SSLSession.getPeerCertificates() still reports the peer
+     * certificate at index zero in that case.
+     *
+     * The leaf is grown with Subject Alt Names. Native wolfSSL cannot
+     * generate certificates larger than WC_MAX_X509_GEN (4096 bytes), so the
+     * leaf only crosses MAX_X509_SIZE on builds leaving it at the 2048 byte
+     * default. Builds raising it, such as those enabling ML-DSA (8192), store
+     * this leaf into the peer chain normally and exercise the ordinary path.
+     *
+     * @return two element KeyStore array. Index zero holds the leaf private
+     *         key with the [leaf, CA] chain under alias largeLeafAlias.
+     *         Index one holds the CA certificate, for use as a trust store.
+     *
+     * @throws CertificateException on error generating certificates
+     * @throws WolfSSLException on native wolfSSL error
+     * @throws WolfSSLJNIException on native JNI error
+     * @throws NoSuchAlgorithmException on error generating key pairs
+     * @throws IOException on error loading KeyStore objects
+     * @throws KeyStoreException on error loading KeyStore objects
+     */
+    protected KeyStore[] generateLargeLeafChain()
+        throws CertificateException, WolfSSLException,
+               NoSuchAlgorithmException, IOException, KeyStoreException,
+               WolfSSLJNIException {
+
+        int i;
+        /* Sized to stay under WC_MAX_X509_GEN while clearing the 2048 byte
+         * default MAX_X509_SIZE */
+        final int numAltNames = 80;
+        final String leafCN = "large.example.com";
+
+        KeyPairGenerator kpg = null;
+        KeyPair caPair = null;
+        KeyPair leafPair = null;
+        WolfSSLCertificate caX509 = null;
+        WolfSSLCertificate leafX509 = null;
+        WolfSSLX509Name caName = null;
+        WolfSSLX509Name leafName = null;
+        X509Certificate caCert = null;
+        X509Certificate leafCert = null;
+        KeyStore keyStore = null;
+        KeyStore trustStore = null;
+
+        Instant now = Instant.now();
+        final Date notBefore = Date.from(now);
+        final Date notAfter = Date.from(now.plus(Duration.ofDays(365)));
+
+        try {
+
+            kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+
+            /* Self-signed CA */
+            caPair = kpg.generateKeyPair();
+            caX509 = new WolfSSLCertificate();
+            caName = generateTestSubjectName("Large Leaf Test CA");
+
+            caX509.setNotBefore(notBefore);
+            caX509.setNotAfter(notAfter);
+            caX509.setSerialNumber(BigInteger.valueOf(9001));
+            caX509.setSubjectName(caName);
+            caX509.setPublicKey(caPair.getPublic());
+            caX509.addExtension(WolfSSL.NID_basic_constraints, true, true);
+            caX509.signCert(caPair.getPrivate(), "SHA256");
+            caCert = caX509.getX509Certificate();
+
+            /* Leaf signed by the CA above, grown with Subject Alt Names */
+            leafPair = kpg.generateKeyPair();
+            leafX509 = new WolfSSLCertificate();
+            leafName = generateTestSubjectName(leafCN);
+
+            leafX509.setNotBefore(notBefore);
+            leafX509.setNotAfter(notAfter);
+            leafX509.setSerialNumber(BigInteger.valueOf(9002));
+            leafX509.setSubjectName(leafName);
+            leafX509.setIssuerName(caCert);
+            leafX509.setPublicKey(leafPair.getPublic());
+            leafX509.addExtension(WolfSSL.NID_basic_constraints, false, true);
+
+            /* CN first, CN is ignored once SAN is present (RFC 6125) */
+            leafX509.addAltName(leafCN, WolfSSL.ASN_DNS_TYPE);
+            for (i = 0; i < numAltNames; i++) {
+                leafX509.addAltName("host" + i + ".large.example.com",
+                    WolfSSL.ASN_DNS_TYPE);
+            }
+
+            leafX509.signCert(caPair.getPrivate(), "SHA256");
+            leafCert = leafX509.getX509Certificate();
+
+            keyStore = KeyStore.getInstance(keyStoreType);
+            keyStore.load(null, jksPass);
+            keyStore.setKeyEntry(largeLeafAlias, leafPair.getPrivate(), jksPass,
+                new X509Certificate[] { leafCert, caCert });
+
+            trustStore = KeyStore.getInstance(keyStoreType);
+            trustStore.load(null, jksPass);
+            trustStore.setCertificateEntry("large-ca", caCert);
+
+            return new KeyStore[] { keyStore, trustStore };
+
+        } finally {
+            /* Free native memory */
+            if (caName != null) {
+                caName.free();
+            }
+            if (leafName != null) {
+                leafName.free();
+            }
+            if (caX509 != null) {
+                caX509.free();
+            }
+            if (leafX509 != null) {
+                leafX509.free();
+            }
+        }
+    }
+
+    /**
      * Returns the DER encoded buffer of the certificate
      * @param alias lookup alias in allJKS
      * @return the DER encoded buffer of the certificate or null on failure

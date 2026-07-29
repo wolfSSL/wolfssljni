@@ -943,6 +943,14 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_trustPeerCertEnabled
 
 /*
  * Class:     com_wolfssl_WolfSSL
+ * Method:    sessionCertsEnabled
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionCertsEnabled
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
  * Method:    sessionTicketEnabled
  * Signature: ()Z
  */

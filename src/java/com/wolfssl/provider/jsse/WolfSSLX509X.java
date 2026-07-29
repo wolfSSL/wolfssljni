@@ -211,6 +211,14 @@ public class WolfSSLX509X extends X509Certificate {
         return this.cert.getPublicKey();
     }
 
+    /**
+     * Free native resources used by this object, mirrors WolfSSLX509.free().
+     * Otherwise released by the finalizer.
+     */
+    public void free() {
+        this.cert.free();
+    }
+
     @Override
     @SuppressWarnings("removal")
     protected void finalize() throws Throwable {

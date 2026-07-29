@@ -1236,6 +1236,17 @@ public class WolfSSL {
     public static native boolean trustPeerCertEnabled();
 
     /**
+     * Tests if native wolfSSL has been compiled with SESSION_CERTS.
+     * If defined, wolfSSL stores the cert chain sent by the peer, allowing
+     * full chain to be returned from
+     * WolfSSLSession.getPeerCertificateChainDER().
+     *
+     * @return true if enabled, otherwise false if SESSION_CERTS has not
+     *         been defined.
+     */
+    public static native boolean sessionCertsEnabled();
+
+    /**
      * Tests if native session ticket support has been compiled into wolfSSL
      * with HAVE_SESSION_TICKET.
      *

@@ -1413,6 +1413,19 @@ JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_trustPeerCertEnabled
 #endif
 }
 
+JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionCertsEnabled
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef SESSION_CERTS
+    return JNI_TRUE;
+#else
+    return JNI_FALSE;
+#endif
+}
+
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_sessionTicketEnabled
   (JNIEnv* jenv, jclass jcl)
 {
