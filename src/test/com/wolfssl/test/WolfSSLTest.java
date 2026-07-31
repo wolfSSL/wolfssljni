@@ -582,6 +582,18 @@ public class WolfSSLTest {
         }
     }
 
+    @Test
+    public void test_SessionCerts_FeatureDetect_NativeReturns() {
+
+        /* Native call should be reachable, a broken JNI binding shows up
+         * as UnsatisfiedLinkError. */
+        boolean sessionCerts = WolfSSL.sessionCertsEnabled();
+
+        if (sessionCerts) {
+            /* N/A, keep to prevent unused var warning */
+        }
+    }
+
     /* Logging callback used by the setLoggingCb test. Uses a shared static
      * counter so invocations across swapped instances accumulate. */
     static class TestLoggingCallback implements WolfSSLLoggingCallback {

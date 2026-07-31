@@ -457,6 +457,14 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificate
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getPeerCertificateChainDER
+ * Signature: (J)[[B
+ */
+JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificateChainDER
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    getPeerX509Issuer
  * Signature: (JJ)Ljava/lang/String;
  */

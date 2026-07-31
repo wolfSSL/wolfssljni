@@ -21,6 +21,8 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -29,7 +31,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.Provider;
@@ -62,7 +66,9 @@ import org.junit.rules.TestRule;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLX509X;
 import com.wolfssl.test.TimedTestWatcher;
 
 public class WolfSSLSessionTest {
@@ -341,6 +347,356 @@ public class WolfSSLSessionTest {
         if (!server.getSession().getProtocol().equals(
                 client.getSession().getProtocol())) {
             fail("protocols do not match");
+        }
+    }
+
+    /**
+     * Test that SSLSession.getPeerCertificates() returns the full cert chain
+     * sent by the peer, peer cert first, matching expected JSSE behavior.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void testGetPeerCertificatesReturnsFullChain()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        byte[][] derChain;
+        SSLContext ctxClient;
+        SSLContext ctxServer;
+        SSLEngine client;
+        SSLEngine server;
+        Certificate[] expectedCerts;
+        KeyStore serverStore;
+        KeyStore clientStore;
+        javax.security.cert.X509Certificate[] oldPeerCerts;
+
+        /* Server key store holds server cert followed by the CA signer,
+         * both are sent to the client during the handshake */
+        serverStore = KeyStore.getInstance(tf.keyStoreType);
+        try (FileInputStream stream = new FileInputStream(tf.serverRSAJKS)) {
+            serverStore.load(stream, WolfSSLTestFactory.jksPass);
+        }
+        expectedCerts = serverStore.getCertificateChain("server-rsa");
+        assertNotNull(expectedCerts);
+
+        /* Sanity check that the test key store still holds a chain, if it
+         * only has the peer cert this test can not detect a regression */
+        Assume.assumeTrue(expectedCerts.length > 1);
+
+        Assume.assumeTrue(WolfSSL.sessionCertsEnabled());
+
+        ctxClient = tf.createSSLContext("TLS", engineProvider,
+            tf.createTrustManager("SunX509", tf.caServerJKS, engineProvider),
+            tf.createKeyManager("SunX509", tf.clientRSAJKS, engineProvider));
+        ctxServer = tf.createSSLContext("TLS", engineProvider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, engineProvider),
+            tf.createKeyManager("SunX509", tf.serverRSAJKS, engineProvider));
+
+        client = ctxClient.createSSLEngine("wolfSSL client test", 11111);
+        server = ctxServer.createSSLEngine();
+
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+        /* Client auth on to cover server side. client-rsa.jks has one self
+         * signed cert, so that leg checks the leaf only. */
+        server.setNeedClientAuth(true);
+
+        ret = tf.testConnection(server, client, null, null,
+            "Test peer cert chain");
+        if (ret != 0) {
+            fail("failed to connect");
+        }
+
+        checkPeerChain(client.getSession().getPeerCertificates(),
+            expectedCerts, "client side");
+
+        /* Deprecated getPeerCertificateChain() reports the same chain */
+        oldPeerCerts = client.getSession().getPeerCertificateChain();
+        assertNotNull(oldPeerCerts);
+        derChain = new byte[oldPeerCerts.length][];
+        try {
+            for (int i = 0; i < oldPeerCerts.length; i++) {
+                derChain[i] = oldPeerCerts[i].getEncoded();
+            }
+        } catch (javax.security.cert.CertificateEncodingException e) {
+            fail("failed to get encoding of peer certificate: " + e);
+        } finally {
+            freeX509XCerts(oldPeerCerts);
+        }
+        checkPeerChainDER(derChain, expectedCerts,
+            "client side deprecated API");
+
+        /* Server side sees the client's chain from the same code path */
+        clientStore = KeyStore.getInstance(tf.keyStoreType);
+        try (FileInputStream stream =
+                new FileInputStream(tf.clientRSAJKS)) {
+            clientStore.load(stream, WolfSSLTestFactory.jksPass);
+        }
+        expectedCerts = clientStore.getCertificateChain("client-rsa");
+        assertNotNull(expectedCerts);
+
+        checkPeerChain(server.getSession().getPeerCertificates(),
+            expectedCerts, "server side");
+    }
+
+    /**
+     * Test that a resumed session still reports the certificates from the
+     * handshake that created it. No Certificate message is received on a
+     * resumed connection, so wolfJSSE serves them from the certs cached during
+     * the original handshake.
+     */
+    @Test
+    public void testGetPeerCertificatesOnResumedSession()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        SSLContext ctx;
+        SSLEngine client;
+        SSLEngine server;
+        Certificate[] firstCerts;
+        Certificate[] resumedCerts;
+        byte[] firstId;
+
+        /* Make sure session cache is not disabled for resume test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        try {
+
+            ctx = tf.createSSLContext("TLS", engineProvider);
+
+            client = ctx.createSSLEngine("wolfSSL peer chain test", 11111);
+            server = ctx.createSSLEngine();
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test resume 1");
+            if (ret != 0) {
+                fail("failed to connect");
+            }
+
+            try {
+                firstCerts = client.getSession().getPeerCertificates();
+            } catch (SSLPeerUnverifiedException e) {
+                fail("failed to get peer certificates: " + e);
+                return;
+            }
+            assertNotNull(firstCerts);
+            firstId = client.getSession().getId();
+
+            /* Second connection off the same context, resumes the session */
+            client = ctx.createSSLEngine("wolfSSL peer chain test", 11111);
+            server = ctx.createSSLEngine();
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test resume 2");
+            if (ret != 0) {
+                fail("failed to connect for resumption");
+            }
+
+            try {
+                resumedCerts = client.getSession().getPeerCertificates();
+            } catch (SSLPeerUnverifiedException e) {
+                fail("failed to get resumed peer certificates: " + e);
+                return;
+            }
+
+            /* Matching session IDs confirm the session resumed */
+            assertArrayEquals("second connection did not resume the session",
+                firstId, client.getSession().getId());
+
+            assertNotNull(resumedCerts);
+            assertEquals("resumed session peer chain length changed",
+                firstCerts.length, resumedCerts.length);
+
+            for (int i = 0; i < firstCerts.length; i++) {
+                assertArrayEquals("resumed session cert mismatch at index " + i,
+                    firstCerts[i].getEncoded(), resumedCerts[i].getEncoded());
+            }
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    /**
+     * Verify peer certs match the expected chain.
+     */
+    private void checkPeerChain(Certificate[] peerCerts,
+        Certificate[] expectedCerts, String desc)
+        throws CertificateException {
+
+        byte[][] derChain;
+
+        assertNotNull(peerCerts);
+
+        derChain = new byte[peerCerts.length][];
+        for (int i = 0; i < peerCerts.length; i++) {
+            derChain[i] = peerCerts[i].getEncoded();
+        }
+
+        checkPeerChainDER(derChain, expectedCerts, desc);
+    }
+
+    /**
+     * Verify DER encoded peer certs match the expected chain. Only the peer
+     * cert is available when native wolfSSL has not been compiled with
+     * SESSION_CERTS.
+     */
+    private void checkPeerChainDER(byte[][] derChain,
+        Certificate[] expectedCerts, String desc)
+        throws CertificateException {
+
+        assertNotNull(derChain);
+        assertEquals(desc + ": unexpected peer chain length",
+            expectedCerts.length, derChain.length);
+
+        for (int i = 0; i < expectedCerts.length; i++) {
+            assertArrayEquals(desc + ": cert mismatch at index " + i,
+                expectedCerts[i].getEncoded(), derChain[i]);
+        }
+    }
+
+    /**
+     * Test that SSLSession.getPeerCertificates() reports the peer cert at
+     * index zero when the peer cert is large.
+     *
+     * Native wolfSSL skips certs of MAX_X509_SIZE or larger when storing the
+     * peer chain. The peer's own cert is skipped the same way, which would
+     * otherwise leave the issuing CA at index zero and make both
+     * getPeerCertificates()[0] and getPeerPrincipal() report the CA.
+     *
+     * The generated leaf clears the 2048 byte MAX_X509_SIZE default, so the
+     * skip is exercised on default native wolfSSL builds. Builds raising
+     * MAX_X509_SIZE, for example those enabling ML-DSA (8192), store the leaf
+     * normally and exercise the ordinary path, since native wolfSSL cannot
+     * generate a cert larger than WC_MAX_X509_GEN (4096 bytes).
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void testGetPeerCertificatesLargePeerCert()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException,
+               WolfSSLException, WolfSSLJNIException {
+
+        int ret;
+        KeyStore[] stores;
+        X509Certificate leafCert;
+        SSLContext ctxClient;
+        SSLContext ctxServer;
+        SSLEngine client;
+        SSLEngine server;
+        SSLSession session;
+        Certificate[] peerCerts;
+
+        Assume.assumeFalse(WolfSSLTestFactory.isAndroid());
+        /* Without SESSION_CERTS no chain stored, skip test */
+        Assume.assumeTrue(WolfSSL.sessionCertsEnabled());
+
+        stores = tf.generateLargeLeafChain();
+        leafCert = (X509Certificate)stores[0].getCertificateChain(
+            WolfSSLTestFactory.largeLeafAlias)[0];
+
+        /* Sanity check the leaf really is over the MAX_X509_SIZE default,
+         * otherwise this duplicates the normal peer chain test */
+        if (leafCert.getEncoded().length <= 2048) {
+            fail("generated leaf certificate too small to test large peer " +
+                 "certificate handling, size " +
+                 leafCert.getEncoded().length);
+        }
+
+        ctxServer = tf.createSSLContext("TLS", engineProvider,
+            tf.createTrustManager("SunX509", stores[1], engineProvider),
+            tf.createKeyManager("SunX509", stores[0], engineProvider));
+        /* No client key material, NoDefaults avoids both the test factory
+         * default and the WolfSSLAuthStore default substitution */
+        ctxClient = tf.createSSLContextNoDefaults("TLS", engineProvider,
+            tf.createTrustManager("SunX509", stores[1], engineProvider), null);
+
+        client = ctxClient.createSSLEngine("large.example.com", 11111);
+        server = ctxServer.createSSLEngine();
+
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+        server.setNeedClientAuth(false);
+
+        ret = tf.testConnection(server, client, null, null,
+            "Test large peer cert");
+        if (ret != 0) {
+            fail("failed to connect with large peer certificate");
+        }
+
+        session = client.getSession();
+
+        try {
+            peerCerts = session.getPeerCertificates();
+        } catch (SSLPeerUnverifiedException e) {
+            fail("failed to get peer certificates: " + e);
+            return;
+        }
+
+        assertNotNull(peerCerts);
+        /* [leaf, CA] whether or not native skipped the leaf, so a silent
+         * fall back to the peer cert alone shows up here */
+        assertEquals("unexpected peer chain length", 2, peerCerts.length);
+
+        /* Peer cert must be first */
+        assertArrayEquals("peer cert at index 0 was not the peer's own cert",
+            leafCert.getEncoded(), peerCerts[0].getEncoded());
+
+        /* getPeerPrincipal() re-reads index zero */
+        try {
+            assertEquals("getPeerPrincipal() did not match peer cert subject",
+                leafCert.getSubjectX500Principal(), session.getPeerPrincipal());
+        } catch (SSLPeerUnverifiedException e) {
+            fail("failed to get peer principal: " + e);
+        }
+
+        /* Deprecated API reports the same peer cert */
+        javax.security.cert.X509Certificate[] oldCerts = null;
+        try {
+            oldCerts = session.getPeerCertificateChain();
+            assertNotNull(oldCerts);
+            assertArrayEquals("deprecated API peer cert at index 0 was not " +
+                "the peer's own cert", leafCert.getEncoded(),
+                oldCerts[0].getEncoded());
+        } catch (SSLPeerUnverifiedException |
+                 javax.security.cert.CertificateEncodingException e) {
+            fail("failed to get peer certificate chain: " + e);
+        } finally {
+            freeX509XCerts(oldCerts);
+        }
+    }
+
+    /**
+     * Free native memory held by WolfSSLX509X certs from the deprecated
+     * getPeerCertificateChain(), rather than waiting on the finalizer.
+     */
+    @SuppressWarnings("removal")
+    private void freeX509XCerts(javax.security.cert.X509Certificate[] certs) {
+
+        if (certs == null) {
+            return;
+        }
+
+        for (int i = 0; i < certs.length; i++) {
+            if (certs[i] instanceof WolfSSLX509X) {
+                ((WolfSSLX509X)certs[i]).free();
+            }
         }
     }
 

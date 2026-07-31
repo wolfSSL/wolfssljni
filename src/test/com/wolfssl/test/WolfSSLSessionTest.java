@@ -55,6 +55,7 @@ import java.security.Security;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
+import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
@@ -1253,6 +1254,224 @@ public class WolfSSLSessionTest {
                 } catch (Exception e) { }
             }
         }
+    }
+
+    @Test
+    public void test_WolfSSLSession_getPeerCertificateChainDER()
+        throws WolfSSLJNIException {
+
+        int ret, err;
+        WolfSSLSession ssl = null;
+        Socket cliSock = null;
+        byte[][] chain = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
+
+        try {
+            /* Create ServerSocket first to get ephemeral port, set
+             * 10 sec timeout on accept() to prevent test hangs. */
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket finalSrvSocket = srvSocket;
+
+            /* Server loads server-cert.pem, which holds the server cert
+             * followed by the CA that signed it. The client should get both
+             * back from the peer chain. */
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            final WolfSSLContext finalSrvCtx = srvCtx;
+
+            ssl = new WolfSSLSession(cliCtx);
+
+            /* Peer chain should not be available before the handshake */
+            chain = ssl.getPeerCertificateChainDER();
+            if (chain != null) {
+                fail("Peer chain should be null before connection");
+            }
+
+            /* Latch to signal when server is ready to accept */
+            final CountDownLatch serverReady = new CountDownLatch(1);
+
+            /* Start server thread */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Signal that we're ready to accept */
+                        serverReady.countDown();
+                        server = finalSrvSocket.accept();
+                        srvSes = new WolfSSLSession(finalSrvCtx);
+
+                        ret = srvSes.setFd(server);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.setFd() failed: " + ret);
+                        }
+
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.accept() failed: " + ret);
+                        }
+
+                        srvSes.shutdownSSL();
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                        finalSrvSocket.close();
+                    }
+
+                    return null;
+                }
+            });
+
+            /* Wait for server thread to be ready before connecting */
+            if (!serverReady.await(5, TimeUnit.SECONDS)) {
+                fail("Server thread did not become ready in time");
+            }
+
+            /* Client connects to local server */
+            cliSock = new Socket("localhost", port);
+
+            ret = ssl.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("Failed to set file descriptor");
+            }
+
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                   (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                    err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                fail("Failed WolfSSL.connect() to localhost");
+            }
+
+            /* Wait for server thread to complete and check for errors */
+            serverFuture.get(5, TimeUnit.SECONDS);
+
+            chain = ssl.getPeerCertificateChainDER();
+
+            int expectedSz = 1;
+
+            if (chain == null) {
+                fail("Peer certificate chain should not be null");
+            }
+
+            /* server-cert.pem holds the server cert plus the CA that signed
+             * it. Without SESSION_CERTS native wolfSSL stores no chain and
+             * only the peer cert is returned. */
+            if (WolfSSL.sessionCertsEnabled()) {
+                expectedSz = 2;
+            }
+            if (chain.length != expectedSz) {
+                fail("Expected " + expectedSz + " certs in peer chain, got " +
+                     chain.length);
+            }
+
+            for (int i = 0; i < chain.length; i++) {
+                if (chain[i] == null || chain[i].length == 0) {
+                    fail("Peer chain entry " + i + " was empty");
+                }
+            }
+
+            byte[] peerDer = ssl.getPeerCertificateDER();
+            if (peerDer == null) {
+                fail("Unable to get peer certificate DER");
+            }
+            if (!Arrays.equals(peerDer, chain[0])) {
+                fail("First cert in chain did not match peer cert");
+            }
+
+            if (WolfSSL.sessionCertsEnabled()) {
+                /* Second cert is the CA that signed the server cert, which
+                 * the test setup also loads as the client trusted CA */
+                byte[] caDer = getDerFromCertFile(caCert);
+                if (caDer == null) {
+                    fail("Unable to read CA certificate DER");
+                }
+                if (!Arrays.equals(caDer, chain[1])) {
+                    fail("Second cert in chain was not the issuing CA");
+                }
+            }
+
+            ssl.shutdownSSL();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Failed getPeerCertificateChainDER test: " + e.getMessage());
+
+        } finally {
+            /* Clean up resources */
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                try { cliSock.close(); } catch (Exception e) { }
+            }
+            if (srvSocket != null) {
+                try { srvSocket.close(); } catch (Exception e) { }
+            }
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (Exception e) { }
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+
+    }
+
+    /**
+     * Read a PEM certificate file and return its DER encoding.
+     */
+    private byte[] getDerFromCertFile(String path)
+        throws WolfSSLException, WolfSSLJNIException {
+
+        byte[] der = null;
+        WolfSSLCertificate cert = null;
+
+        cert = new WolfSSLCertificate(path, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            der = cert.getDer();
+        } finally {
+            cert.free();
+        }
+
+        return der;
     }
 
     @Test
