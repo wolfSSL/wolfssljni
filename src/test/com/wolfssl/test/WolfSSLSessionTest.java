@@ -54,6 +54,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLALPNSelectCallback;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLContext;
@@ -933,6 +934,326 @@ public class WolfSSLSessionTest {
             e.printStackTrace();
 
         }
+    }
+
+    /* Run one client/server TLS handshake over localhost, with the server
+     * using the provided ALPN select callback and the client offering
+     * cliProtos via useALPN(). Returns int[2] containing the server
+     * accept() and client connect() return values. If the handshake
+     * succeeds, the ALPN protocol selected is placed into selectedOut[0]
+     * (server side) and selectedOut[1] (client side). Returns null if
+     * setAlpnSelectCb() is not compiled into native wolfSSL. */
+    private int[] runAlpnSelectHandshake(final WolfSSLALPNSelectCallback cb,
+        final String[] cliProtos, final String[] selectedOut)
+        throws Exception {
+
+        int ret, err;
+        final int[] results = new int[2];
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
+        final int[] srvAcceptRet = new int[1];
+        final String[] srvSelected = new String[1];
+
+        try {
+            /* Create ServerSocket first to get ephemeral port, set
+             * 10 sec timeout on accept() to prevent test hangs. */
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+
+            final int port = srvSocket.getLocalPort();
+            final ServerSocket finalSrvSocket = srvSocket;
+
+            /* Setup server and client contexts */
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            final WolfSSLContext finalSrvCtx = srvCtx;
+
+            /* Check native ALPN select callback support before starting
+             * handshake threads. setAlpnSelectCb() returns NOT_COMPILED_IN
+             * if support not available in native wolfSSL. */
+            WolfSSLSession tmpSes = new WolfSSLSession(srvCtx);
+            ret = tmpSes.setAlpnSelectCb(cb, null);
+            tmpSes.freeSSL();
+            if (ret == WolfSSL.NOT_COMPILED_IN) {
+                return null;
+            }
+            else if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("setAlpnSelectCb() failed: " + ret);
+            }
+
+            /* Latch to signal when server is ready to accept */
+            final CountDownLatch serverReady = new CountDownLatch(1);
+
+            /* Start server thread */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    int ret;
+                    int err;
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+
+                    try {
+                        /* Signal that we're ready to accept */
+                        serverReady.countDown();
+                        server = finalSrvSocket.accept();
+                        srvSes = new WolfSSLSession(finalSrvCtx);
+
+                        ret = srvSes.setAlpnSelectCb(cb, null);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "setAlpnSelectCb() failed: " + ret);
+                        }
+
+                        ret = srvSes.setFd(server);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception(
+                                "WolfSSLSession.setFd() failed: " + ret);
+                        }
+
+                        try {
+                            do {
+                                ret = srvSes.accept();
+                                err = srvSes.getError(ret);
+                            } while (ret != WolfSSL.SSL_SUCCESS &&
+                                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                        } catch (Exception e) {
+                            /* Exception from inside ALPN select callback
+                             * may propagate out of accept(), treat as
+                             * handshake failure */
+                            ret = WolfSSL.SSL_FAILURE;
+                        }
+
+                        /* Store result instead of throwing, accept()
+                         * failure is expected in some test scenarios */
+                        srvAcceptRet[0] = ret;
+
+                        if (ret == WolfSSL.SSL_SUCCESS) {
+                            srvSelected[0] = srvSes.getAlpnSelectedString();
+                            srvSes.shutdownSSL();
+                        }
+
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                        finalSrvSocket.close();
+                    }
+
+                    return null;
+                }
+            });
+
+            /* Wait for server thread to be ready before connecting */
+            serverReady.await(2, TimeUnit.SECONDS);
+
+            /* Client connects to local server */
+            cliSock = new Socket("localhost", port);
+            cliSes = new WolfSSLSession(cliCtx);
+
+            ret = cliSes.useALPN(cliProtos,
+                WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("useALPN() failed: " + ret);
+            }
+
+            ret = cliSes.setFd(cliSock);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("setFd() failed: " + ret);
+            }
+
+            do {
+                ret = cliSes.connect();
+                err = cliSes.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            /* Store result, connect() failure is expected in some
+             * test scenarios */
+            results[1] = ret;
+
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                selectedOut[1] = cliSes.getAlpnSelectedString();
+                cliSes.shutdownSSL();
+            }
+
+            /* Wait for server thread to finish */
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+            results[0] = srvAcceptRet[0];
+            selectedOut[0] = srvSelected[0];
+
+        } finally {
+            if (cliSes != null) {
+                cliSes.freeSSL();
+            }
+            if (cliSock != null) {
+                try { cliSock.close(); } catch (Exception e) { }
+            }
+            if (srvSocket != null) {
+                try { srvSocket.close(); } catch (Exception e) { }
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (Exception e) { }
+            }
+        }
+
+        return results;
+    }
+
+    @Test
+    public void test_WolfSSLSession_alpnSelectCallback() throws Exception {
+
+        int[] ret = null;
+        String[] selected = null;
+        final boolean[] cbFired = new boolean[1];
+        final boolean[] peerListOk = new boolean[1];
+
+        /* Scenario 1: callback selects "h2" from peer list. Handshake should
+         * succeed with "h2" negotiated on both peers, and the callback should
+         * receive the full client protocol list. */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                int found = 0;
+                cbFired[0] = true;
+                for (String proto : in) {
+                    if (proto.equals("http/1.1") ||
+                        proto.equals("h2")) {
+                        found++;
+                    }
+                }
+                peerListOk[0] = (in.length == 2 && found == 2);
+                out[0] = "h2";
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        /* Skip test if setAlpnSelectCb() not compiled into native wolfSSL
+         * (helper returns null on NOT_COMPILED_IN) */
+        Assume.assumeTrue(ret != null);
+
+        /* Skip test if native wolfSSL registered the callback but does not
+         * invoke it. Invocation requires native wolfSSL to be compiled with
+         * OPENSSL_ALL, WOLFSSL_NGINX, or WOLFSSL_HAPROXY */
+        Assume.assumeTrue(cbFired[0]);
+
+        assertEquals("server accept() failed in ALPN select test",
+            WolfSSL.SSL_SUCCESS, ret[0]);
+        assertEquals("client connect() failed in ALPN select test",
+            WolfSSL.SSL_SUCCESS, ret[1]);
+        assertTrue("ALPN callback did not receive expected peer " +
+            "protocol list", peerListOk[0]);
+        assertEquals("server did not negotiate expected ALPN protocol",
+            "h2", selected[0]);
+        assertEquals("client did not negotiate expected ALPN protocol",
+            "h2", selected[1]);
+
+        /* Scenario 2: callback returns NOACK. Handshake should succeed with no
+         * ALPN protocol negotiated on either peer. */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                return WolfSSL.SSL_TLSEXT_ERR_NOACK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertEquals("server accept() failed in ALPN NOACK test",
+            WolfSSL.SSL_SUCCESS, ret[0]);
+        assertEquals("client connect() failed in ALPN NOACK test",
+            WolfSSL.SSL_SUCCESS, ret[1]);
+        assertNull("no ALPN protocol should be selected on server",
+            selected[0]);
+        assertNull("no ALPN protocol should be selected on client",
+            selected[1]);
+
+        /* Scenario 3: callback selects protocol not offered by the peer.
+         * Native callback wrapper should reject the selection and the
+         * handshake should fail on both peers. */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                out[0] = "badproto";
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "selects protocol not in peer list",
+            ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "selects protocol not in peer list",
+            ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 4: callback returns ALERT_FATAL directly. Handshake should
+         * fail on both peers. */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "returns SSL_TLSEXT_ERR_ALERT_FATAL",
+            ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "returns SSL_TLSEXT_ERR_ALERT_FATAL",
+            ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 5: callback throws RuntimeException. Native wrapper detects
+         * the pending exception after calling into Java, cleans up local refs
+         * with the exception pending, and fails the handshake on both peers
+         * without crashing the JVM. */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                throw new RuntimeException(
+                    "test exception from ALPN select callback");
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "throws exception", ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "throws exception", ret[1] != WolfSSL.SSL_SUCCESS);
     }
 
     @Test
