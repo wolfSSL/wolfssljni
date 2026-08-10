@@ -466,7 +466,7 @@ public class WolfSSLCRLTest {
 
         /* Sign CRL */
         int ret = crl.sign(privKey, "SHA256");
-        assertTrue("sign should succeed", ret >= 0);
+        assertEquals("sign should succeed", WolfSSL.SSL_SUCCESS, ret);
         byte[] sig = crl.getSignature();
         assertNotNull("signature should be available after sign", sig);
         assertTrue("signature length should be > 0", sig.length > 0);
@@ -481,6 +481,27 @@ public class WolfSSLCRLTest {
 
         /* Free native memory */
         issuerName.free();
+        crl.free();
+    }
+
+    @Test
+    public void testSignEmptyCrlFails()
+        throws WolfSSLException, WolfSSLJNIException,
+               NoSuchAlgorithmException {
+
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
+
+        WolfSSLCRL crl = new WolfSSLCRL();
+        assertNotNull(crl);
+
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+
+        int ret = crl.sign(keyPair.getPrivate(), "SHA256");
+        assertEquals("sign of empty CRL should fail",
+            WolfSSL.BAD_FUNC_ARG, ret);
+
         crl.free();
     }
 

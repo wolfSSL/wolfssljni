@@ -451,11 +451,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1sign
         }
     }
 
-    /* sign WOLFSSL_X509_CRL with WOLFSSL_EVP_PKEY, returns size of signature
-     * on success or negative on error */
+    /* sign WOLFSSL_X509_CRL with WOLFSSL_EVP_PKEY, wolfSSL_X509_CRL_sign()
+     * returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE (0) or negative
+     * code on error */
     if (ret == WOLFSSL_SUCCESS) {
         ret = wolfSSL_X509_CRL_sign(crl, priv, md);
-        if (ret >= 0) {
+        if (ret > 0) {
             ret = WOLFSSL_SUCCESS;
         }
     }
