@@ -77,8 +77,8 @@ public final class WolfSSLProvider extends Provider {
      */
     @SuppressWarnings("deprecation")
     public WolfSSLProvider() {
-        super("wolfJSSE", 1.17, "wolfSSL JSSE Provider");
-        /* super("wolfJSSE", "1.17", "wolfSSL JSSE Provider"); */
+        super("wolfJSSE", 1.18, "wolfSSL JSSE Provider");
+        /* super("wolfJSSE", "1.18", "wolfSSL JSSE Provider"); */
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();

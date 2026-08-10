@@ -1,3 +1,91 @@
+### wolfSSL JNI Release 1.18.0 (08/10/2026)
+
+Release 1.18.0 of wolfSSL JNI and JSSE changes the open source license from
+GPLv2 to GPLv3 to match native wolfSSL, and has bug fixes and new features
+including:
+
+**New JSSE Functionality:**
+* Add ML-KEM (FIPS 203) TLS 1.3 named groups, including IETF hybrids and CNSA 2.0 `SECP384R1MLKEM1024` (PR 361)
+* Add experimental OQS-assigned ML-KEM hybrid named groups (PR 361)
+* Add ML-DSA (FIPS 204) X.509 certificate support (PR 361)
+* Add `SSLParameters.setNamedGroups()` support on JDK 20+ for restricting TLS named groups (PR 361)
+* Pre-generate the TLS 1.3 client key share for the first configured group, avoiding a HelloRetryRequest (PR 361)
+* Return the full peer certificate chain from `SSLSession.getPeerCertificates()` (PR 390)
+
+**New JNI Functionality:**
+* Add `WolfSSLSession.getPeerCertificateChainDER()` and `getPeerCertificateDER()` (PR 390)
+* Add `WolfSSL.sessionCertsEnabled()` to detect native `SESSION_CERTS` support (PR 390)
+* Add `WolfSSLCertRequest.addAltName()` for non-hostname SAN types in CSRs (PR 373)
+* Add `WolfSSLX509Name` constructors taking a DN `String` or `X500Principal` (PR 366)
+* Add `WolfSSL.isECCNamedGroup()` for checking if a named group is an ECC curve (PR 376)
+
+**New Property Support:**
+* Add `jdk.tls.namedGroups` System property support for restricting TLS named groups (PR 361)
+* Add `wolfjsse.enabledSupportedCurves` Security property for named groups on JDK 8+ (PR 361)
+
+**JNI and JSSE Changes:**
+* Fix `SSLEngine` hang and silently discarded application data on `unwrap()` after `closeOutbound()` (PR 379)
+* Fix `SSLEngine.unwrap()` copy bounds and reported byte count when a destination offset was used (PR 365)
+* Fix `SSLEngine` `wrap()`/`unwrap()` ByteBuffer array bounds checks when offset was non-zero (PR 360)
+* Fix `SSLEngine` reads and writes on sliced ByteBuffers by honoring `arrayOffset()` (PR 360)
+* Fix `SSLEngine.closeOutbound()` leaving inbound open when called before the handshake (PR 360)
+* Fix stale data being resent from the `SSLEngine` internal send buffer on partial drain (PR 359)
+* Fix `SSLSocket` stream `read()`/`write()` dispatching native I/O during an in-progress handshake (PR 389)
+* Fix `SSLSocket.close()` during a concurrent `read()`/`write()` freeing the session too early (PR 383)
+* Fix `SSLSocket.startHandshake()` after `close()` seeing an inconsistent closed state (PR 389)
+* Fix `SSLSocket.close()` not interrupting a blocked write under `WOLFJNI_USE_IO_SELECT` (PR 386)
+* Fix hostname verification and SNI when connecting via `connect(InetSocketAddress)` (PR 374)
+* Fix client session cache collisions between hosts by keying the cache on host and port (PR 382)
+* Fix duplicate `SSLSession` IDs for TLS 1.3 and session tickets, now from `SecureRandom` (PR 383)
+* Fix IP address peer verification to match `iPAddress` SAN entries only, per RFC 6125 (PR 382)
+* Fix `wantClientAuth(true)` accepting a presented client certificate that failed validation (PR 381)
+* Fix peer certificate chain ordering in `WolfSSLTrustX509` so the leaf stays at index 0 (PR 380)
+* Fix `NullPointerException` from `SSLSession.getValue()` when passed a null name (PR 371)
+* Fix double free of the PK callback context when a context was set more than once (PR 377)
+* Fix verify callbacks firing across contexts, now routed per `WolfSSLContext` (PR 369)
+* Fix crash from verify and CRL callback references freed by a concurrent `setVerify()` (PR 369, 382)
+* Fix `setCRLCb(null)` leaving the native missing-CRL callback registered (PR 369)
+* Fix TLS 1.2 handshake failure with RSA and ECC keys when named groups exclude ECC curves (PR 376)
+* Fix `NOT_COMPILED_IN` errors from the min key size setters against `NO_DH` builds (PR 385)
+* Fix crash in `WolfSSLCertRequest.setSubjectName()` when the name was freed concurrently (PR 389)
+* Fix out of bounds read in the `WolfSSLSession` certificate and private key buffer loaders (PR 388)
+* Fix races on the global logging and FIPS error callbacks when set from multiple threads (PR 388)
+* Fix `getPeerCertificateChain()` returning null instead of `SSLPeerUnverifiedException` (PR 363)
+* Fix `SSLSession` value bindings for concurrent access and reject null in `putValue()` (PR 363)
+* Fix `getRequestedServerNames()` and `getSNIServerNames()` returning mutable internal lists (PR 359, 363)
+* Fix missing shutdown alert when the handshake is rejected with session creation disabled (PR 363)
+* Fix `SSLSocket` memory leak of the ALPN peer protocol buffer on allocation failure (PR 382)
+* Fix `SNIServerName.equals()`/`hashCode()` comparing by identity instead of encoded value (PR 359)
+* Fix RSA verify PK callback returning an undefined result when the Java callback throws (PR 381)
+* Fix I/O callbacks reporting a graceful close instead of an error on internal failure (PR 365)
+* Fix null dereferences in native `useSNI()` and other JNI byte array and string releases (PR 359)
+* Zero plaintext application data buffers after send and on `SSLEngine` cleanup (PR 363)
+* Zero private key bytes on release in X509, CSR, and CRL signing operations (PR 365)
+
+**Debugging Changes:**
+* Replace `printStackTrace()` with debug logging in `beginHandshake()` and `getId()` (PR 363)
+* Skip the "loaded trusted root cert" debug log when CA loading failed (PR 363)
+* Log KeyManager and TrustManager class names instead of caller-supplied `toString()` output (PR 363)
+
+**Example Changes:**
+* Add ML-DSA certificates, keystores, and a generation script for post-quantum examples (PR 361)
+* Add PQC options to the `Client`/`Server` and `ClientJSSE`/`ServerJSSE` examples (PR 361)
+* Verify the peer hostname for non-loopback hosts in the `Client` example (PR 389)
+* Enable hostname verification in the `ClientSSLSocket` example (PR 388)
+* Enable client authentication in the `MultiThreadedSSLServer` example (PR 388)
+* Add IP and email SANs to the `X509CertRequest` example (PR 373)
+* Update Android `CMakeLists.txt` to exclude newly split wolfSSL source files (PR 361, 373, 378, 387)
+
+**Testing Changes:**
+* GitHub workflow performance and stability improvements (PR 386)
+* Replace JUnit passed/failed/skipped output with per-method timing via `TimedTestWatcher` (PR 358)
+* Split umbrella JUnit tests into per-unit tests and report skips with `Assume` (PR 358)
+* Add PQC key exchange, authentication, and named group JUnit tests (PR 361)
+
+The wolfSSL JNI/JSSE Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni/. For build
+instructions and more details, please check the manual.
+
 ### wolfSSL JNI Release 1.17.0 (04/20/2026)
 
 Release 1.17.0 has bug fixes and new features including:
