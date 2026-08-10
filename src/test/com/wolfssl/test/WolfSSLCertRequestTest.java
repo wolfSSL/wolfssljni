@@ -619,6 +619,35 @@ public class WolfSSLCertRequestTest {
     }
 
     @Test
+    public void testSignRequestFailureThrows()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.certReqEnabled());
+
+        WolfSSLCertRequest req = new WolfSSLCertRequest();
+        assertNotNull(req);
+
+        WolfSSLX509Name subjectName = GenerateTestSubjectName();
+        assertNotNull(subjectName);
+
+        try {
+            req.setSubjectName(subjectName);
+
+            /* no public key set, native signing fails */
+            try {
+                req.signRequest(cliKeyDer, WolfSSL.RSAk,
+                    WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+                fail("signRequest() should throw when native signing fails");
+            } catch (WolfSSLException expected) {
+                /* expected */
+            }
+        } finally {
+            subjectName.free();
+            req.free();
+        }
+    }
+
+    @Test
     public void testGenCSR_UsingBuffers()
         throws WolfSSLException, WolfSSLJNIException, IOException,
                CertificateException {
