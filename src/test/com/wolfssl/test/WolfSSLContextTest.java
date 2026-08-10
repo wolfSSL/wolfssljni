@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLIORecvCallback;
+import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.WolfSSLVerifyCallback;
 import com.wolfssl.WolfSSLMissingCRLCallback;
@@ -297,6 +299,155 @@ public class WolfSSLContextTest {
             assertEquals(WolfSSL.SSL_SUCCESS, ret);
         } finally {
             ctx2.free();
+        }
+    }
+
+    /* in-memory byte queue connecting context level I/O callbacks */
+    class TestIOQueue {
+        private byte[] data = new byte[0];
+
+        synchronized void add(byte[] buf, int sz) {
+            byte[] tmp = new byte[data.length + sz];
+            System.arraycopy(data, 0, tmp, 0, data.length);
+            System.arraycopy(buf, 0, tmp, data.length, sz);
+            data = tmp;
+        }
+
+        synchronized int take(byte[] buf, int sz) {
+            byte[] tmp = null;
+            int n = Math.min(sz, data.length);
+            if (n == 0) {
+                return 0;
+            }
+            System.arraycopy(data, 0, buf, 0, n);
+            tmp = new byte[data.length - n];
+            System.arraycopy(data, n, tmp, 0, tmp.length);
+            data = tmp;
+            return n;
+        }
+    }
+
+    class TestCtxIOCallback implements WolfSSLIORecvCallback,
+        WolfSSLIOSendCallback {
+
+        private final TestIOQueue in;
+        private final TestIOQueue out;
+
+        TestCtxIOCallback(TestIOQueue in, TestIOQueue out) {
+            this.in = in;
+            this.out = out;
+        }
+
+        public int receiveCallback(WolfSSLSession ssl, byte[] buf, int sz,
+            Object ctx) {
+            int n = in.take(buf, sz);
+            if (n == 0) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            return n;
+        }
+
+        public int sendCallback(WolfSSLSession ssl, byte[] buf, int sz,
+            Object ctx) {
+            out.add(buf, sz);
+            return sz;
+        }
+    }
+
+    @Test
+    public void test_WolfSSLContext_ioRecvSendCallbacks() throws Exception {
+
+        int cliRet = WolfSSL.SSL_FAILURE;
+        int srvRet = WolfSSL.SSL_FAILURE;
+        int cliErr = 0;
+        int srvErr = 0;
+        int i;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession server = null;
+        WolfSSLSession client = null;
+        TestIOQueue cliToSrv = new TestIOQueue();
+        TestIOQueue srvToCli = new TestIOQueue();
+        TestCtxIOCallback srvCb = new TestCtxIOCallback(cliToSrv, srvToCli);
+        TestCtxIOCallback cliCb = new TestCtxIOCallback(srvToCli, cliToSrv);
+
+        if (WolfSSL.FileSystemEnabled() == false) {
+            return;
+        }
+
+        try {
+            srvCtx = new WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
+            cliCtx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+
+            assertEquals(WolfSSL.SSL_SUCCESS, srvCtx.useCertificateFile(
+                svrCert, WolfSSL.SSL_FILETYPE_PEM));
+            assertEquals(WolfSSL.SSL_SUCCESS, srvCtx.usePrivateKeyFile(
+                svrKey, WolfSSL.SSL_FILETYPE_PEM));
+            assertEquals(WolfSSL.SSL_SUCCESS,
+                cliCtx.loadVerifyLocations(caCert, null));
+
+            /* register context level I/O callbacks before creating sessions
+             * so new sessions inherit them */
+            srvCtx.setIORecv(srvCb);
+            srvCtx.setIOSend(srvCb);
+            cliCtx.setIORecv(cliCb);
+            cliCtx.setIOSend(cliCb);
+
+            server = new WolfSSLSession(srvCtx);
+            client = new WolfSSLSession(cliCtx);
+
+            /* single threaded handshake, alternate client and server until
+             * both complete */
+            for (i = 0; i < 100; i++) {
+                if (cliRet != WolfSSL.SSL_SUCCESS) {
+                    cliRet = client.connect();
+                    cliErr = client.getError(cliRet);
+                    if (cliRet != WolfSSL.SSL_SUCCESS &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        cliErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        break;
+                    }
+                }
+                if (srvRet != WolfSSL.SSL_SUCCESS) {
+                    srvRet = server.accept();
+                    srvErr = server.getError(srvRet);
+                    if (srvRet != WolfSSL.SSL_SUCCESS &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_READ &&
+                        srvErr != WolfSSL.SSL_ERROR_WANT_WRITE) {
+                        break;
+                    }
+                }
+                if (cliRet == WolfSSL.SSL_SUCCESS &&
+                    srvRet == WolfSSL.SSL_SUCCESS) {
+                    break;
+                }
+            }
+
+            assertEquals("client connect over context I/O callbacks, " +
+                "error: " + cliErr, WolfSSL.SSL_SUCCESS, cliRet);
+            assertEquals("server accept over context I/O callbacks, " +
+                "error: " + srvErr, WolfSSL.SSL_SUCCESS, srvRet);
+
+            /* exchange application data through the callbacks */
+            byte[] msg = "hello callbacks".getBytes();
+            byte[] rcvd = new byte[msg.length];
+            assertEquals(msg.length, client.write(msg, msg.length));
+            assertEquals(msg.length, server.read(rcvd, rcvd.length));
+            assertArrayEquals(msg, rcvd);
+
+        } finally {
+            if (server != null) {
+                server.freeSSL();
+            }
+            if (client != null) {
+                client.freeSSL();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
         }
     }
 

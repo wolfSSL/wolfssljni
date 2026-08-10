@@ -1327,6 +1327,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     jobject    ctxRef;                /* WolfSSLContext object */
     jclass     innerCtxClass;         /* WolfSSLContext class */
+    jmethodID  recvCbMethodId;        /* internalIORecvCallback ID */
     jbyteArray inData;
 
     if (!g_vm || !ssl || !buf || !ctx) {
@@ -1438,10 +1439,17 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* make sure cached recv callback method ID is not null */
-    if (!g_sslIORecvMethodId) {
+    /* call internal I/O recv callback */
+    recvCbMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
+            "internalIORecvCallback", "(Lcom/wolfssl/WolfSSLSession;[BI)I");
+    if (!recvCbMethodId) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+        }
         (*jenv)->ThrowNew(jenv, excClass,
-            "Cached recv callback method ID is null in NativeIORecvCb");
+            "Error getting internalIORecvCallback method from JNI");
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1458,11 +1466,9 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* call Java send callback, ignore native ctx since Java
-     * handles it */
-    retval = (*jenv)->CallIntMethod(jenv, ctxRef, g_sslIORecvMethodId,
-                                (jobject)(*g_cachedSSLObj),
-                                inData, (jint)sz);
+    /* call Java recv callback, ignore native ctx since Java handles it */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, recvCbMethodId,
+        (jobject)(*g_cachedSSLObj), inData, (jint)sz);
 
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
