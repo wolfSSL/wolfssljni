@@ -249,6 +249,57 @@ public class WolfSSLContextTest {
         }
     }
 
+    @Test
+    public void test_WolfSSLContext_memsaveCertCache()
+        throws WolfSSLException, WolfSSLJNIException {
+
+        int ret;
+        int sz;
+        int[] used = new int[1];
+        byte[] mem = null;
+        WolfSSLContext ctx2 = null;
+
+        if (WolfSSL.FileSystemEnabled() == false) {
+            return;
+        }
+
+        ret = ctx.loadVerifyLocations(caCert, null);
+        assertEquals(WolfSSL.SSL_SUCCESS, ret);
+
+        sz = ctx.getCertCacheMemsize();
+        if (sz == WolfSSL.NOT_COMPILED_IN) {
+            /* skip when PERSIST_CERT_CACHE is not compiled in */
+            return;
+        }
+        assertTrue(sz > 0);
+
+        /* undersized buffer returns BUFFER_E and leaves used untouched */
+        used[0] = -1;
+        ret = ctx.memsaveCertCache(new byte[1], 1, used);
+        assertEquals(WolfSSL.BUFFER_E, ret);
+        assertEquals(-1, used[0]);
+
+        /* null used array is rejected */
+        ret = ctx.memsaveCertCache(new byte[sz], sz, null);
+        assertEquals(WolfSSL.BAD_FUNC_ARG, ret);
+
+        /* correctly sized buffer saves cert cache */
+        mem = new byte[sz];
+        used[0] = 0;
+        ret = ctx.memsaveCertCache(mem, sz, used);
+        assertEquals(WolfSSL.SSL_SUCCESS, ret);
+        assertTrue(used[0] > 0 && used[0] <= sz);
+
+        /* saved cache restores into a new context */
+        ctx2 = new WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
+        try {
+            ret = ctx2.memrestoreCertCache(mem, used[0]);
+            assertEquals(WolfSSL.SSL_SUCCESS, ret);
+        } finally {
+            ctx2.free();
+        }
+    }
+
     class TestPskClientCb implements WolfSSLPskClientCallback
     {
         public long pskClientCallback(WolfSSLSession ssl, String hint,

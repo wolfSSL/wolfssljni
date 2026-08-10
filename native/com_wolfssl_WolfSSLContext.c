@@ -935,13 +935,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memsaveCertCache
 {
 #ifdef PERSIST_CERT_CACHE
     int ret;
-    int usedTmp;
+    int usedTmp = 0;
     unsigned char* memBuf = NULL;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     jclass excClass = NULL;
     (void)jcl;
 
-    if (jenv == NULL || ctx == NULL || mem == NULL || sz <= 0) {
+    if (jenv == NULL || ctx == NULL || mem == NULL || used == NULL || sz <= 0) {
         return (jint)BAD_FUNC_ARG;
     }
 
@@ -961,23 +961,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memsaveCertCache
 
     ret = wolfSSL_CTX_memsave_cert_cache(ctx, memBuf, (int)sz, &usedTmp);
 
-    /* set used value for return */
-    (*jenv)->SetIntArrayRegion(jenv, used, 0, 1, &usedTmp);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
+    /* only publish used and mem on success, usedTmp is not set on error */
+    if (ret == WOLFSSL_SUCCESS) {
+        /* fail if native reported size is outside memBuf bounds */
+        if ((usedTmp < 0) || (usedTmp > (int)sz)) {
+            XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return (jint)SSL_FAILURE;
+        }
 
-        XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Failed to set array region in native memsaveCertCache");
-
-        return (jint)SSL_FAILURE;
-    }
-
-    /* set jbyteArray for return */
-    if (usedTmp >= 0) {
-        (*jenv)->SetByteArrayRegion(jenv, mem, 0, usedTmp, (jbyte*)memBuf);
+        /* set used value for return */
+        (*jenv)->SetIntArrayRegion(jenv, used, 0, 1, &usedTmp);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
@@ -985,9 +978,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memsaveCertCache
             XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
             (*jenv)->ThrowNew(jenv, excClass,
-                    "Failed to set byte region in native memsaveCertCache");
+                    "Failed to set array region in native memsaveCertCache");
 
             return (jint)SSL_FAILURE;
+        }
+
+        /* set jbyteArray for return */
+        if (usedTmp > 0) {
+            (*jenv)->SetByteArrayRegion(jenv, mem, 0, usedTmp, (jbyte*)memBuf);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+
+                XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+                (*jenv)->ThrowNew(jenv, excClass,
+                        "Failed to set byte region in native memsaveCertCache");
+
+                return (jint)SSL_FAILURE;
+            }
         }
     }
 
