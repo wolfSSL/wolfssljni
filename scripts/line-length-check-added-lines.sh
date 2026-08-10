@@ -57,6 +57,10 @@ while IFS= read -r file; do
       continue
     fi
 
+    if [[ "$file" == examples/certs/* ]]; then
+      continue
+    fi
+
     if [[ "$file" =~ \.sh$ ]]; then
       continue
     fi
