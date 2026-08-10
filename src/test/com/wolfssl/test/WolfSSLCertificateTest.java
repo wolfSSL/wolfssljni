@@ -797,6 +797,43 @@ public class WolfSSLCertificateTest {
         }
     }
 
+    @Test
+    public void testCertSignFailureThrows()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        WolfSSLCertificate x509 = null;
+        WolfSSLX509Name name = null;
+
+        if (WolfSSL.FileSystemEnabled() == false) {
+            return;
+        }
+
+        x509 = new WolfSSLCertificate();
+        name = new WolfSSLX509Name();
+
+        try {
+            Instant now = Instant.now();
+            x509.setNotBefore(Date.from(now));
+            x509.setNotAfter(Date.from(now.plus(Duration.ofDays(365))));
+            x509.setSerialNumber(BigInteger.valueOf(1123));
+
+            name.setCommonName("sign failure test");
+            x509.setSubjectName(name);
+
+            /* no public key set, native signing fails */
+            try {
+                x509.signCert(cliKeyDer, WolfSSL.RSAk,
+                    WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+                fail("signCert() should throw when native signing fails");
+            } catch (WolfSSLException expected) {
+                /* expected */
+            }
+        } finally {
+            name.free();
+            x509.free();
+        }
+    }
+
     /* Generate a self-signed cert with the given CN and an optional single
      * SubjectAltName entry, return its DER encoding. */
     private byte[] genIpTestCertDer(String cn, String sanValue, int sanType)
