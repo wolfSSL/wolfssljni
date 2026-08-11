@@ -2229,6 +2229,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
     if (ekuBits & XKU_SMIME)      ekuCount++;
     if (ekuBits & XKU_TIMESTAMP)  ekuCount++;
     if (ekuBits & XKU_OCSP_SIGN)  ekuCount++;
+    if (ekuBits & XKU_ANYEKU)     ekuCount++;
 
     if (ekuCount == 0) {
         return NULL;
@@ -2257,7 +2258,11 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
         EKU_EMAILPROTECT_OID);
     idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_TIMESTAMP,
         EKU_TIMESTAMP_OID);
-    (void)addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN, EKU_OCSP_SIGN_OID);
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN,
+        EKU_OCSP_SIGN_OID);
+    /* NID_anyExtendedKeyUsage used here since no EKU_*_OID sum for anyEKU */
+    (void)addEkuOid(jenv, ret, idx, ekuBits, XKU_ANYEKU,
+        NID_anyExtendedKeyUsage);
 
     (*jenv)->DeleteLocalRef(jenv, stringClass);
 

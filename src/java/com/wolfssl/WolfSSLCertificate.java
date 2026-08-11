@@ -1140,6 +1140,7 @@ public class WolfSSLCertificate implements Serializable {
      *                  emailProtection
      *                  timeStamping
      *                  OCSPSigning
+     *                  any
      *
      * @param isCritical Boolean flag indicating if this extension is
      *        critical
@@ -1961,6 +1962,7 @@ public class WolfSSLCertificate implements Serializable {
      *   - 1.3.6.1.5.5.7.3.2 (TLS Web Client Authentication / clientAuth)
      *   - 1.3.6.1.5.5.7.3.3 (Code Signing / codeSigning)
      *   - 1.3.6.1.5.5.7.3.4 (Email Protection / emailProtection)
+     *   - 2.5.29.37.0 (Any Extended Key Usage / anyExtendedKeyUsage)
      *
      * @return Array of OID strings, or null if Extended Key Usage extension
      *         is not present in certificate
