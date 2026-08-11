@@ -271,14 +271,23 @@ public class WolfSSLContext extends SSLContextSpi {
 
         int minKeySize = 0;
 
+        /* Limit of 0 means no keySize entry in jdk.tls.disabledAlgorithms,
+         * leave native wolfSSL default min in place rather than overwriting
+         * with zero. */
         minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("RSA");
-        checkMinKeySizeResult("RSA", this.ctx.setMinRSAKeySize(minKeySize));
+        if (minKeySize > 0) {
+            checkMinKeySizeResult("RSA", this.ctx.setMinRSAKeySize(minKeySize));
+        }
 
         minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("EC");
-        checkMinKeySizeResult("ECC", this.ctx.setMinECCKeySize(minKeySize));
+        if (minKeySize > 0) {
+            checkMinKeySizeResult("ECC", this.ctx.setMinECCKeySize(minKeySize));
+        }
 
         minKeySize = WolfSSLUtil.getDisabledAlgorithmsKeySizeLimit("DH");
-        checkMinKeySizeResult("DH", this.ctx.setMinDHKeySize(minKeySize));
+        if (minKeySize > 0) {
+            checkMinKeySizeResult("DH", this.ctx.setMinDHKeySize(minKeySize));
+        }
     }
 
     /**
