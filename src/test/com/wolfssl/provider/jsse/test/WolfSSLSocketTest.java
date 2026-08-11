@@ -3591,14 +3591,18 @@ public class WolfSSLSocketTest {
 
         ExecutorService es = Executors.newCachedThreadPool();
 
-        /* Busy spinners force thread preemption inside write()/close() */
+        /* Busy spinners force thread preemption inside write()/close().
+         * Capped so load does not grow with machine size. */
         final AtomicBoolean spinStop = new AtomicBoolean(false);
-        int numSpin = Runtime.getRuntime().availableProcessors() * 2;
+        final long spinDeadline = System.nanoTime()
+            + TimeUnit.MILLISECONDS.toNanos(budgetMs + 10000L);
+        int numSpin = Math.min(Runtime.getRuntime().availableProcessors(), 4);
         for (i = 0; i < numSpin; i++) {
             Thread spin = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    while (!spinStop.get()) {
+                    while (!spinStop.get() &&
+                        (System.nanoTime() < spinDeadline)) {
                         /* busy loop to create CPU load */
                     }
                 }
@@ -3608,10 +3612,11 @@ public class WolfSSLSocketTest {
         }
 
         try {
-            long startMs = System.currentTimeMillis();
+            long start = System.nanoTime();
+            long budget = TimeUnit.MILLISECONDS.toNanos(budgetMs);
 
             for (i = 0; (i < maxIterations) &&
-                 ((System.currentTimeMillis() - startMs) < budgetMs);
+                 ((System.nanoTime() - start) < budget);
                  i++) {
 
                 SSLServerSocket ss = null;
@@ -3749,14 +3754,18 @@ public class WolfSSLSocketTest {
 
         ExecutorService es = Executors.newCachedThreadPool();
 
-        /* Busy spinners force thread preemption inside read()/close() */
+        /* Busy spinners force thread preemption inside read()/close().
+         * Capped so load does not grow with machine size. */
         final AtomicBoolean spinStop = new AtomicBoolean(false);
-        int numSpin = Runtime.getRuntime().availableProcessors() * 2;
+        final long spinDeadline = System.nanoTime()
+            + TimeUnit.MILLISECONDS.toNanos(budgetMs + 10000L);
+        int numSpin = Math.min(Runtime.getRuntime().availableProcessors(), 4);
         for (i = 0; i < numSpin; i++) {
             Thread spin = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    while (!spinStop.get()) {
+                    while (!spinStop.get() &&
+                        (System.nanoTime() < spinDeadline)) {
                         /* busy loop to create CPU load */
                     }
                 }
@@ -3766,10 +3775,11 @@ public class WolfSSLSocketTest {
         }
 
         try {
-            long startMs = System.currentTimeMillis();
+            long start = System.nanoTime();
+            long budget = TimeUnit.MILLISECONDS.toNanos(budgetMs);
 
             for (i = 0; (i < maxIterations) &&
-                 ((System.currentTimeMillis() - startMs) < budgetMs);
+                 ((System.nanoTime() - start) < budget);
                  i++) {
 
                 SSLServerSocket ss = null;
