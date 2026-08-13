@@ -4997,7 +4997,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
             *verifyCb = (*jenv)->NewGlobalRef(jenv, callbackIface);
             if (*verifyCb == NULL) {
                 printf("error storing global callback interface\n");
-		        XFREE(verifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(verifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                verifyCb = NULL;
             }
             else {
                 /* Publish under g_verifyCbMutex so a concurrent callback
@@ -5009,6 +5010,11 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
                 /* set verify mode, register Java callback with wolfSSL */
                 wolfSSL_set_verify(ssl, mode, NativeSSLVerifyCallback);
             }
+        }
+
+        /* If callback could not be registered, still apply requested mode */
+        if ((appData == NULL) || (verifyCb == NULL)) {
+            wolfSSL_set_verify(ssl, mode, NULL);
         }
     }
 }
