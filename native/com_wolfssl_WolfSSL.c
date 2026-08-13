@@ -2644,15 +2644,17 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
             ianaName = cipherName;
         #endif
             if (ianaName != NULL) {
-                /* colon separated list */
-                if (i != 0 && (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
+                /* colon separated list, only prepend separator once cipherList
+                 * already holds a name */
+                if (cipherList[0] != '\0' &&
+                    (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
                     XSTRNCAT(cipherList, ":",
-                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
+                        sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
                 if ((XSTRLEN(ianaName) + XSTRLEN(cipherList) + 1) <
-                        sizeof(cipherList)) {
+                    sizeof(cipherList)) {
                     XSTRNCAT(cipherList, ianaName,
-                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
+                        sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
             }
         }
