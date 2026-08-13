@@ -2916,7 +2916,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
     }
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
-#ifdef WOLFSSL_ALLOW_SSLv3
+#ifdef WOLFSSL_ALLOW_SSLV3
     if(!(mask & SSL_OP_NO_SSLv3)) {
         numProtocols += 1;
     }
@@ -2979,7 +2979,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 
-#ifdef WOLFSSL_ALLOW_SSLv3
+#ifdef WOLFSSL_ALLOW_SSLV3
     if(!(mask & SSL_OP_NO_SSLv3)) {
         (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
                 (*jenv)->NewStringUTF(jenv, "SSLv3"));
