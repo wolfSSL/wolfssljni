@@ -94,6 +94,10 @@ public class WolfSSLUtil {
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             () -> "jdk.tls.disabledAlgorithms: " + tmpDisabledAlgos);
 
+        if (disabledAlgos == null) {
+            disabledAlgos = "";
+        }
+
         /*
          * WolfJSSE only supports DTLSv1.3, automatically add DTLSv1,
          * and DTLSv1.2 to disabled algorithms for now */
