@@ -327,12 +327,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1sign
         }
     }
 
-    /* sign WOLFSSL_X509 with WOLFSSL_EVP_PKEY, returns size of signature
-     * on success or negative on error */
+    /* sign X509 REQ with WOLFSSL_EVP_PKEY, wolfSSL_X509_REQ_sign() returns
+     * WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE (0) on error */
     if (ret == WOLFSSL_SUCCESS) {
         ret = wolfSSL_X509_REQ_sign(x509, priv, md);
-        if (ret >= 0) {
+        if (ret > 0) {
             ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
         }
     }
 
