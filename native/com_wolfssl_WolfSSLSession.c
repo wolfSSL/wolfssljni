@@ -1556,6 +1556,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
              * 0 is used here to both commit and free */
             (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, 0);
         }
+    } else {
+        return BAD_FUNC_ARG;
     }
 
     return size;
