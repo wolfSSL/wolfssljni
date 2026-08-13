@@ -3569,6 +3569,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
     }
 
     altname = wolfSSL_X509_get_next_altname(x509);
+    if (altname == NULL) {
+        return NULL;
+    }
 
     retString = (*jenv)->NewStringUTF(jenv, altname);
     return retString;
