@@ -6117,7 +6117,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
 
     jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
     jclass    sslClass;             /* WolfSSLSession class */
-    jmethodID sessTicketCbMethodId; /* internalTls13SecretCallback ID */
+    jmethodID sessTicketCbMethodId; /* internalSessionTicketCallback ID */
     jbyteArray ticketArr = NULL;
     (void)ctx;
 
@@ -6166,7 +6166,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         return -1;
     }
 
-    /* Call internal TLS 1.3 secret callback */
+    /* Call internal session-ticket callback */
     sessTicketCbMethodId = (*jenv)->GetMethodID(jenv, sslClass,
         "internalSessionTicketCallback", "(Lcom/wolfssl/WolfSSLSession;[B)I");
     if (sessTicketCbMethodId == NULL) {
