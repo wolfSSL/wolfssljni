@@ -2515,7 +2515,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
-        retval = -1;
+        return -1;
     }
 
     if (retval == 0)
