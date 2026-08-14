@@ -6135,10 +6135,6 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        (*jenv)->DeleteLocalRef(jenv, inBB);
-        (*jenv)->DeleteLocalRef(jenv, outBB);
-        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
         retval = -1;
     }
 

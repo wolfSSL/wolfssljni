@@ -66,46 +66,55 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
         return NULL;
     }
 
-    /* create new array of byte arrays, of size skNum */
+    /* create new array of byte arrays, of size skNum. Elements default to
+     * null so any slot left unset is null rather than a placeholder. */
     arrType = (*jenv)->FindClass(jenv, "[B");
-    certArr = (*jenv)->NewObjectArray(jenv, skNum, arrType,
-                                      (*jenv)->NewByteArray(jenv, 1));
+    certArr = (*jenv)->NewObjectArray(jenv, skNum, arrType, NULL);
+    if (certArr == NULL) {
+        wolfSSL_sk_X509_pop_free(sk, NULL);
+        return NULL;
+    }
     for (i = 0; i < skNum; i++) {
         x509 = wolfSSL_sk_X509_value(sk, i);
         der = wolfSSL_X509_get_der(x509, &derSz);
 
-        if (der != NULL) {
-            /* create byte[] per WOLFSSL_X509 der, add to certArr[] */
-            derArr = (*jenv)->NewByteArray(jenv, derSz);
-            if (!derArr) {
-                (*jenv)->ThrowNew(jenv, excClass,
-                    "Failed to create byte array in native getDerCerts()");
-                wolfSSL_sk_X509_free(sk);
-                return NULL;
-            }
-
-            buf = (*jenv)->GetByteArrayElements(jenv, derArr, NULL);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                wolfSSL_sk_X509_free(sk);
-                return NULL;
-            }
-            XMEMCPY(buf, der, derSz);
-            (*jenv)->ReleaseByteArrayElements(jenv, derArr, buf, 0);
-
-        #if LIBWOLFSSL_VERSION_HEX >= 0x05008000
-            /* Reverse order, so peer cert is first in returned array,
-             * followed by intermediates, lastly by root. Native
-             * wolfSSL_X509_STORE_GetCerts() returns certs in order of
-             * root to peer, but Java/JSSE expects peer to root */
-            (*jenv)->SetObjectArrayElement(jenv, certArr, skNum-1-i, derArr);
-        #else
-            /* wolfSSL < 5.8.0 returns certs peer->root, matches Java needs */
-            (*jenv)->SetObjectArrayElement(jenv, certArr, i, derArr);
-        #endif
-            (*jenv)->DeleteLocalRef(jenv, derArr);
+        if (der == NULL) {
+            /* If one cert has no retrievable DER, the chain would be
+             * incomplete. Return null to fail closed. */
+            wolfSSL_sk_X509_pop_free(sk, NULL);
+            return NULL;
         }
+
+        /* create byte[] per WOLFSSL_X509 der, add to certArr[] */
+        derArr = (*jenv)->NewByteArray(jenv, derSz);
+        if (!derArr) {
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Failed to create byte array in native getDerCerts()");
+            wolfSSL_sk_X509_pop_free(sk, NULL);
+            return NULL;
+        }
+
+        buf = (*jenv)->GetByteArrayElements(jenv, derArr, NULL);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            wolfSSL_sk_X509_pop_free(sk, NULL);
+            return NULL;
+        }
+        XMEMCPY(buf, der, derSz);
+        (*jenv)->ReleaseByteArrayElements(jenv, derArr, buf, 0);
+
+    #if LIBWOLFSSL_VERSION_HEX >= 0x05008000
+        /* Reverse order, so peer cert is first in returned array,
+         * followed by intermediates, lastly by root. Native
+         * wolfSSL_X509_STORE_GetCerts() returns certs in order of
+         * root to peer, but Java/JSSE expects peer to root */
+        (*jenv)->SetObjectArrayElement(jenv, certArr, skNum-1-i, derArr);
+    #else
+        /* wolfSSL < 5.8.0 returns certs peer->root, matches Java needs */
+        (*jenv)->SetObjectArrayElement(jenv, certArr, i, derArr);
+    #endif
+        (*jenv)->DeleteLocalRef(jenv, derArr);
     }
     wolfSSL_sk_X509_pop_free(sk, NULL);
 

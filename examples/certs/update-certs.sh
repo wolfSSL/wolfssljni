@@ -129,6 +129,37 @@ if [ $? -ne 0 ]; then
 fi
 rm -rf "${TMP_DIR}"
 
+# Generate mixed Extended Key Usage test cert, EKU holds anyExtendedKeyUsage
+# (2.5.29.37.0) alongside serverAuth and clientAuth
+printf "Generating test/eku-any-mixed-cert.pem\n"
+mkdir -p test
+TMP_DIR="$(mktemp -d)"
+cat > "${TMP_DIR}/openssl.cnf" <<EOF
+[ req ]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[ dn ]
+CN = Test EKU Any Mixed
+O = wolfSSL Test
+C = US
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+extendedKeyUsage = 2.5.29.37.0, serverAuth, clientAuth
+EOF
+
+openssl req -new -newkey rsa:2048 -nodes -x509 -days 3650 \
+  -keyout "${TMP_DIR}/eku-any-mixed-key.pem" -out test/eku-any-mixed-cert.pem \
+  -config "${TMP_DIR}/openssl.cnf" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    printf "Failed to generate test/eku-any-mixed-cert.pem\n"
+    rm -rf "${TMP_DIR}"
+    exit 1
+fi
+rm -rf "${TMP_DIR}"
+
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-cert.pem

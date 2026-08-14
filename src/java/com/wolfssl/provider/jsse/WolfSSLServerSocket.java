@@ -343,6 +343,10 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     /**
      * Set the SSLParameters for this SSLServerSocket.
      *
+     * Note: wolfJSSE does not support SSLParameters algorithm constraints.
+     * Any value set via SSLParameters.setAlgorithmConstraints() is ignored
+     * and not enforced during negotiation.
+     *
      * @param params SSLParameters to set for this SSLServerSocket object
      */
     synchronized public void setSSLParameters(SSLParameters params) {

@@ -83,6 +83,8 @@ public class WolfSSLCertificateTest {
     public static String external = "examples/certs/ca-google-root.der";
     public static String sanTestDir = "examples/certs/san-test";
     public static String crlDpCertPem = "examples/certs/test/crl-dp-cert.pem";
+    public static String ekuAnyMixedCertPem =
+        "examples/certs/test/eku-any-mixed-cert.pem";
     public static String sanTestUpnCert = null;
     public static String sanTestAllTypesCert = null;
     public static String sanTestAllTypesDer = null;
@@ -149,6 +151,7 @@ public class WolfSSLCertificateTest {
         external   = WolfSSLTestCommon.getPath(external);
         sanTestDir = WolfSSLTestCommon.getPath(sanTestDir);
         crlDpCertPem = WolfSSLTestCommon.getPath(crlDpCertPem);
+        ekuAnyMixedCertPem = WolfSSLTestCommon.getPath(ekuAnyMixedCertPem);
         sanTestUpnCert = sanTestDir + "/san-test-othername-upn.pem";
         sanTestAllTypesCert = sanTestDir + "/san-test-all-types.pem";
         sanTestAllTypesDer = sanTestDir + "/san-test-all-types.der";
@@ -631,6 +634,97 @@ public class WolfSSLCertificateTest {
             if (!eku[i].matches("^[0-9]+(\\.[0-9]+)*$")) {
                 fail("Invalid OID format: " + eku[i]);
             }
+        }
+    }
+
+    /* Generate a self-signed cert with the given EKU value string,
+     * return its DER encoding. */
+    private byte[] genEkuTestCertDer(String ekuValues)
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        WolfSSLX509Name name = null;
+
+        try {
+            Instant now = Instant.now();
+            x509.setNotBefore(Date.from(now));
+            x509.setNotAfter(Date.from(now.plus(Duration.ofDays(365))));
+            x509.setSerialNumber(BigInteger.valueOf(1124));
+
+            name = new WolfSSLX509Name();
+            name.setCommonName("eku test");
+            x509.setSubjectName(name);
+
+            x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+                WolfSSL.SSL_FILETYPE_ASN1);
+
+            x509.addExtension(WolfSSL.NID_ext_key_usage, ekuValues, false);
+
+            x509.signCert(cliKeyDer, WolfSSL.RSAk,
+                WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+            return x509.getDer();
+
+        } finally {
+            if (name != null) {
+                name.free();
+            }
+            x509.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageAnyOnly()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate cert =
+            new WolfSSLCertificate(genEkuTestCertDer("any"));
+        try {
+            String[] eku = cert.getExtendedKeyUsage();
+            assertNotNull("EKU arr should not be null for any only cert", eku);
+            assertEquals(1, eku.length);
+            assertEquals("2.5.29.37.0", eku[0]);
+        } finally {
+            cert.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageMixedWithAny()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        String[] expected = {
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
+            "2.5.29.37.0"
+        };
+
+        /* Fixture cert EKU holds anyExtendedKeyUsage plus serverAuth and
+         * clientAuth. wolfSSL cert generation cannot produce this mix, the
+         * encoder collapses EKU to the any OID alone when any is set. */
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuAnyMixedCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            String[] eku = cert.getExtendedKeyUsage();
+            assertNotNull("EKU array should not be null for mixed cert", eku);
+            assertEquals(expected.length, eku.length);
+            for (String exp : expected) {
+                boolean found = false;
+                for (String oid : eku) {
+                    if (oid.equals(exp)) {
+                        found = true;
+                        break;
+                    }
+                }
+                assertTrue("Missing expected OID: " + exp, found);
+            }
+        } finally {
+            cert.free();
         }
     }
 
