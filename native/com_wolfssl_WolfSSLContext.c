@@ -7088,8 +7088,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinDhKeySz
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)obj;
 
-    /* wolfSSL_CTX_SetMinDhKey_Sz() sanitizes ctx and keySzBits */
+    /* wolfSSL_CTX_SetMinDhKey_Sz() sanitizes ctx */
     if (jenv == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    /* Validate range before narrowing to word16, otherwise out of range
+     * value can wrap to a smaller key size */
+    if ((keySzBits < 0) || (keySzBits > (jint)WOLFSSL_MAX_16BIT)) {
         return (jint)BAD_FUNC_ARG;
     }
 
@@ -7110,8 +7116,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinRsaKeySz
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)obj;
 
-    /* wolfSSL_CTX_SetMinRsaKey_Sz() sanitizes ctx and keySzBits */
+    /* wolfSSL_CTX_SetMinRsaKey_Sz() sanitizes ctx */
     if (jenv == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    /* Validate range before narrowing to short, otherwise out of range value
+     * can wrap to a smaller key size */
+    if ((keySzBits < 0) || (keySzBits > INT16_MAX)) {
         return (jint)BAD_FUNC_ARG;
     }
 
@@ -7132,8 +7144,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setMinEccKeySz
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)obj;
 
-    /* wolfSSL_CTX_SetMinEccKey_Sz() sanitizes ctx and keySzBits */
+    /* wolfSSL_CTX_SetMinEccKey_Sz() sanitizes ctx */
     if (jenv == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    /* Validate range before narrowing to short, otherwise out of range value
+     * can wrap to a smaller key size */
+    if ((keySzBits < 0) || (keySzBits > INT16_MAX)) {
         return (jint)BAD_FUNC_ARG;
     }
 
