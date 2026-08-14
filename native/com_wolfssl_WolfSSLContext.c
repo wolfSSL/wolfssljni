@@ -43,7 +43,7 @@
  * release it before calling DeleteGlobalRef on the prior ref. Any thread
  * already inside NativeVerifyCallback's local-ref window completes safely.
  *
- * Initialized in Java_com_wolfssl_WolfSSL_init, freed in JNI_OnUnload. */
+ * Initialized in JNI_OnLoad, freed in JNI_OnUnload. */
 static wolfSSL_Mutex g_verifyCbMutex;
 static int g_verifyCbMutexInit = 0;
 
@@ -138,8 +138,7 @@ static jobject g_crlCtxCbIfaceObj;
 #endif
 
 /* Process-global mutex covering both CTX-level and session-level missing CRL
- * callback jobjects. Initialized in Java_com_wolfssl_WolfSSL_init, freed in
- * JNI_OnUnload. */
+ * callback jobjects. Initialized in JNI_OnLoad, freed in JNI_OnUnload. */
 static wolfSSL_Mutex g_crlCbMutex;
 static int g_crlCbMutexInit = 0;
 
