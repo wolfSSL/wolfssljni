@@ -2509,11 +2509,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCipherList
         return SSL_FAILURE;
     }
 
-    cipherList= (*jenv)->GetStringUTFChars(jenv, list, 0);
+    cipherList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = (jint) wolfSSL_set_cipher_list(ssl, cipherList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    if (cipherList == NULL) {
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = (jint) wolfSSL_set_cipher_list(ssl, cipherList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    }
 
     return ret;
 }
@@ -6275,9 +6279,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
 
     sigAlgList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    if (sigAlgList == NULL) {
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    }
 
     return (jint)ret;
 #else
