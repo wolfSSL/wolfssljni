@@ -6232,7 +6232,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     return (int)retval;
 }
 
-#endif /* WOLFSSL_TLS13 && !WOLFCRYPT_ONLY && HAVE_SECRET_CALLBACK */
+#endif /* !NO_WOLFSSL_CLIENT && HAVE_SESSION_TICKET */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ssl)
