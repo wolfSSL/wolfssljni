@@ -48,6 +48,7 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -3826,13 +3827,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyBuffer
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return SSL_FAILURE;
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
     }
 
-    ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
-
+#if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+    !defined(WOLFSSL_NO_FORCE_ZERO)
+    wc_ForceZero(buff, (word32)sz);
+#else
     XMEMSET(buff, 0, (word32)sz);
+#endif
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
