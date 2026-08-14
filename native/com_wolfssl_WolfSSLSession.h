@@ -657,6 +657,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getKeySize
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    getDhKeySize
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getDhKeySize
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    getSide
  * Signature: (J)I
  */

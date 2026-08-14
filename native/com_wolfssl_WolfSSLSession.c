@@ -4492,6 +4492,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getKeySize
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getDhKeySize
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifndef NO_DH
+    /* Returns negotiated DH group size in bits, 0 if no DH suite was
+     * negotiated, or BAD_FUNC_ARG if ssl is NULL. */
+    return wolfSSL_GetDhKey_Sz((WOLFSSL*)(uintptr_t)ssl);
+#else
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getSide
   (JNIEnv* jenv, jobject jcl, jlong ssl)
 {

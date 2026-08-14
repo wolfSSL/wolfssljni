@@ -421,6 +421,120 @@ public class WolfSSLSocketTest {
 
     }
 
+    /**
+     * A valid TLS 1.2 DHE_RSA handshake over a 2048 bit FFDHE group must
+     * complete even with the legacy jdk.tls.ephemeralDHKeySize property set.
+     * The group is above the DH minimum, so checkKeySize must not reject it.
+     */
+    @Test
+    public void testLegacyEphemeralDHKeySizeAllowsValidDheHandshake()
+        throws Exception {
+
+        Assume.assumeTrue("TLS 1.2 and RSA required in native wolfSSL",
+            WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+
+        String[] dheSuites = dheRsaIanaSuites();
+        Assume.assumeTrue("DHE_RSA cipher suites not available",
+            dheSuites.length > 0);
+
+        synchronized (WolfSSLPQCTestUtil.GROUP_PROP_LOCK) {
+            String prevWolf = WolfSSLPQCTestUtil.setCurvesProperty(null);
+            String prevJdk =
+                WolfSSLPQCTestUtil.setJdkNamedGroupsProperty("ffdhe2048");
+            String prevEphemeral =
+                System.getProperty("jdk.tls.ephemeralDHKeySize");
+            System.clearProperty("jdk.tls.ephemeralDHKeySize");
+
+            try {
+                /* Probe without legacy property first, skip if build cannot
+                 * complete ffdhe2048 DHE handshake. */
+                try {
+                    dheSocketHandshake(dheSuites);
+                } catch (Exception e) {
+                    Assume.assumeNoException(
+                        "TLS 1.2 ffdhe2048 DHE handshake not supported by " +
+                        "this build", e);
+                }
+
+                /* Legacy property must not cause checkKeySize to reject same
+                 * valid handshake. */
+                System.setProperty("jdk.tls.ephemeralDHKeySize", "legacy");
+                String suite = dheSocketHandshake(dheSuites);
+                assertTrue("negotiated cipher suite must be DHE_RSA, got: " +
+                    suite, suite.startsWith("TLS_DHE_RSA_") ||
+                    suite.startsWith("DHE-RSA-"));
+            }
+            finally {
+                if (prevEphemeral == null) {
+                    System.clearProperty("jdk.tls.ephemeralDHKeySize");
+                } else {
+                    System.setProperty("jdk.tls.ephemeralDHKeySize",
+                        prevEphemeral);
+                }
+                WolfSSLPQCTestUtil.restoreCurvesProperty(prevWolf);
+                WolfSSLPQCTestUtil.restoreJdkNamedGroupsProperty(prevJdk);
+            }
+        }
+    }
+
+    /* Complete a TLS 1.2 DHE_RSA SSLSocket handshake with the given suites
+     * and return the negotiated cipher suite. Throws on handshake failure. */
+    private String dheSocketHandshake(String[] dheSuites) throws Exception {
+        SSLContext dheCtx = tf.createSSLContext("TLSv1.2", "wolfJSSE");
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        ExecutorService es = Executors.newSingleThreadExecutor();
+
+        try {
+            ss = (SSLServerSocket)dheCtx.getServerSocketFactory()
+                .createServerSocket(0);
+            ss.setEnabledCipherSuites(dheSuites);
+            ss.setEnabledProtocols(new String[] { "TLSv1.2" });
+
+            cs = (SSLSocket)dheCtx.getSocketFactory().createSocket();
+            cs.setEnabledCipherSuites(dheSuites);
+            cs.setEnabledProtocols(new String[] { "TLSv1.2" });
+            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+
+            final SSLSocket server0 = (SSLSocket)ss.accept();
+            server = server0;
+
+            Future<Void> f = es.submit(() -> {
+                server0.startHandshake();
+                return null;
+            });
+
+            cs.startHandshake();
+            f.get(10, TimeUnit.SECONDS);
+
+            return cs.getSession().getCipherSuite();
+        }
+        finally {
+            es.shutdownNow();
+            if (cs != null) {
+                cs.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+            if (ss != null) {
+                ss.close();
+            }
+        }
+    }
+
+    /* IANA-named DHE_RSA cipher suites compiled into native wolfSSL. */
+    private static String[] dheRsaIanaSuites() {
+        ArrayList<String> matched = new ArrayList<>();
+        for (String suite : WolfSSL.getCiphersIana()) {
+            if (suite.startsWith("TLS_DHE_RSA_")) {
+                matched.add(suite);
+            }
+        }
+        return matched.toArray(new String[matched.size()]);
+    }
+
     @Test
     public void testGetSupportedProtocols()
         throws NoSuchProviderException, NoSuchAlgorithmException {
