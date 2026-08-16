@@ -1069,9 +1069,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1load_1certific
 
     if (path != NULL) {
         x509 = wolfSSL_X509_load_certificate_file(path, format);
+        (*jenv)->ReleaseStringUTFChars(jenv, filename, path);
     }
-
-    (*jenv)->ReleaseStringUTFChars(jenv, filename, path);
 
     return (jlong)(uintptr_t)x509;
 #else
@@ -2377,6 +2376,10 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
     }
 
     oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
+    if (oid == NULL) {
+        return NULL;
+    }
+
     nid = wolfSSL_OBJ_txt2nid(oid);
     (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);
     if (nid == NID_undef) {
@@ -2446,6 +2449,10 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1is_1extension_1
     }
 
     oid = (*jenv)->GetStringUTFChars(jenv, oidIn, 0);
+    if (oid == NULL) {
+        return -1;
+    }
+
     nid = wolfSSL_OBJ_txt2nid(oid);
     if (nid == NID_undef) {
         (*jenv)->ReleaseStringUTFChars(jenv, oidIn, oid);

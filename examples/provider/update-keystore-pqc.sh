@@ -38,17 +38,20 @@ OUT_DIR="$(dirname "$0")"
 
 KT="${JAVA_HOME:+$JAVA_HOME/bin/}keytool"
 
+# One private scratch dir for all keytool work. mktemp -d gives it an
+# unpredictable name and mode 0700. The trap removes it on every exit.
+WORK_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/wolfssl-pqc.XXXXXXXX")"
+trap 'rm -rf -- "$WORK_ROOT"' EXIT
+
 # Verify JDK 24+
 if ! "$KT" -genkeypair -keyalg ML-DSA -alias _probe \
-        -keystore /tmp/_pqc_probe_$$.jks -storepass "$PASSWD" \
+        -keystore "$WORK_ROOT/probe.jks" -storepass "$PASSWD" \
         -dname "CN=probe" >/dev/null 2>&1; then
     echo "ERROR: keytool does not support ML-DSA. Need JDK 24+." >&2
     echo "  Tried: $KT" >&2
     "$KT" -version 2>&1 || true
-    rm -f /tmp/_pqc_probe_$$.jks
     exit 1
 fi
-rm -f /tmp/_pqc_probe_$$.jks
 
 # Generate one entity keystore (server or client) signed by the supplied
 # root. Helper used by gen_keystore() so both roles share one root.
@@ -117,13 +120,13 @@ gen_keystore() {
     local ext="$3"         # jks or p12
     local alg="ML-DSA-${level}"
     local ca_ks="${OUT_DIR}/ca-mldsa${level}.${ext}"
-    local work="/tmp/_pqc_$$_${level}_${ext}"
+    local work="${WORK_ROOT}/mldsa${level}_${ext}"
     local root_ks="${work}/root.${ext}"
 
     echo "=== Generating ML-DSA-${level} (${storetype}) cert chain ==="
 
     rm -f "$ca_ks"
-    mkdir -p "$work"
+    mkdir "$work"
 
     # 1. Root CA self-signed (kept in $work; never shipped)
     "$KT" -genkeypair -keyalg "$alg" \

@@ -414,7 +414,7 @@ public class WolfSSLCertificate implements Serializable {
         synchronized (x509Lock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.x509Ptr,
-                () -> "entering getSubjectName(" + name + ")");
+                () -> "entering setSubjectName(" + name + ")");
 
             /* TODO somehow lock WolfSSLX509Name object while using pointer? */
             ret = X509_set_subject_name(this.x509Ptr,

@@ -1020,7 +1020,7 @@ public class WolfSSLEngine extends SSLEngine {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "setUseClientMode: " +
                     this.engineHelper.getUseClientMode());
-                for (i = 0; i < len; i++) {
+                for (i = ofst; i < ofst + len; i++) {
                     final int idx = i;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "ByteBuffer in["+idx+"].remaining(): " +
@@ -1889,7 +1889,7 @@ public class WolfSSLEngine extends SSLEngine {
                     () -> "in.position(): " + in.position());
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "in.limit(): " + in.limit());
-                for (i = 0; i < length; i++) {
+                for (i = ofst; i < ofst + length; i++) {
                     final int idx = i;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "out["+idx+"].remaining(): " +
