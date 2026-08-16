@@ -938,9 +938,15 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
 
 #ifndef USE_WINDOWS_API
     } while ((result == -1) && ((errno == EINTR) || (errno == EAGAIN)));
+
+    /* POSIX select() returns EBADF for any invalid fd in the sets.
+     * Expected cause is the socket or interrupt descriptor being closed
+     * concurrently. Report as a closed fd, matching socketPoll() POLLNVAL. */
+    if ((result == -1) && (errno == EBADF)) {
+        return WOLFJNI_IO_EVENT_FD_CLOSED;
+    }
 #endif
 
-    /* Return on error, unless errno EINTR or EAGAIN, try again above */
     return WOLFJNI_IO_EVENT_FAIL;
 }
 
