@@ -1562,6 +1562,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_read__J_3BIII
              * 0 is used here to both commit and free */
             (*jenv)->ReleaseByteArrayElements(jenv, raw, (jbyte*)data, 0);
         }
+    } else {
+        return BAD_FUNC_ARG;
     }
 
     return size;
@@ -3575,6 +3577,9 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509AltName
     }
 
     altname = wolfSSL_X509_get_next_altname(x509);
+    if (altname == NULL) {
+        return NULL;
+    }
 
     retString = (*jenv)->NewStringUTF(jenv, altname);
     return retString;
@@ -5003,7 +5008,8 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
             *verifyCb = (*jenv)->NewGlobalRef(jenv, callbackIface);
             if (*verifyCb == NULL) {
                 printf("error storing global callback interface\n");
-		        XFREE(verifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(verifyCb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                verifyCb = NULL;
             }
             else {
                 /* Publish under g_verifyCbMutex so a concurrent callback
@@ -5015,6 +5021,11 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
                 /* set verify mode, register Java callback with wolfSSL */
                 wolfSSL_set_verify(ssl, mode, NativeSSLVerifyCallback);
             }
+        }
+
+        /* If callback could not be registered, still apply requested mode */
+        if ((appData == NULL) || (verifyCb == NULL)) {
+            wolfSSL_set_verify(ssl, mode, NULL);
         }
     }
 }

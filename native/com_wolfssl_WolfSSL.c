@@ -2644,15 +2644,17 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
             ianaName = cipherName;
         #endif
             if (ianaName != NULL) {
-                /* colon separated list */
-                if (i != 0 && (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
+                /* colon separated list, only prepend separator once cipherList
+                 * already holds a name */
+                if (cipherList[0] != '\0' &&
+                    (XSTRLEN(cipherList) + 1) < sizeof(cipherList)) {
                     XSTRNCAT(cipherList, ":",
-                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
+                        sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
                 if ((XSTRLEN(ianaName) + XSTRLEN(cipherList) + 1) <
-                        sizeof(cipherList)) {
+                    sizeof(cipherList)) {
                     XSTRNCAT(cipherList, ianaName,
-                             sizeof(cipherList) - XSTRLEN(cipherList) - 1);
+                        sizeof(cipherList) - XSTRLEN(cipherList) - 1);
                 }
             }
         }
@@ -2914,7 +2916,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
     }
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
-#ifdef WOLFSSL_ALLOW_SSLv3
+#ifdef WOLFSSL_ALLOW_SSLV3
     if(!(mask & SSL_OP_NO_SSLv3)) {
         numProtocols += 1;
     }
@@ -2977,7 +2979,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocolsMask
 #endif /* WOLFSSL_ALLOW_TLSv10 */
 #endif /* !NO_OLD_TLS */
 
-#ifdef WOLFSSL_ALLOW_SSLv3
+#ifdef WOLFSSL_ALLOW_SSLV3
     if(!(mask & SSL_OP_NO_SSLv3)) {
         (*jenv)->SetObjectArrayElement(jenv, ret, idx++,
                 (*jenv)->NewStringUTF(jenv, "SSLv3"));

@@ -762,6 +762,13 @@ public class WolfSSLContextTest {
                 fail("setMinRSAKeySize should fail with negative key size");
             }
 
+            /* value that wraps across the 16-bit boundary should fail,
+             * 66560 wraps to 1024. */
+            ret = ctx.setMinRSAKeySize(66560);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                fail("setMinRSAKeySize should fail for out-of-range value");
+            }
+
             /* key length not % 8 should fail */
             ret = ctx.setMinRSAKeySize(1023);
             if (ret != WolfSSL.BAD_FUNC_ARG) {
@@ -812,6 +819,13 @@ public class WolfSSLContextTest {
             ret = ctx.setMinECCKeySize(-1);
             if (ret != WolfSSL.BAD_FUNC_ARG) {
                 fail("setMinECCKeySize should fail with negative key size");
+            }
+
+            /* value that wraps across the 16-bit boundary should fail,
+             * 66048 narrows to 512. */
+            ret = ctx.setMinECCKeySize(66048);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                fail("setMinECCKeySize should fail for out-of-range value");
             }
 
             /* valid key length should succeed */
@@ -866,6 +880,13 @@ public class WolfSSLContextTest {
             ret = ctx.setMinDHKeySize(17000);
             if (ret != WolfSSL.BAD_FUNC_ARG) {
                 fail("setMinDHKeySize should fail with key size too large");
+            }
+
+            /* value that wraps across the 16-bit boundary should fail,
+             * 66560 narrows to 1024. */
+            ret = ctx.setMinDHKeySize(66560);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                fail("setMinDHKeySize should fail for out-of-range value");
             }
 
             /* key length not % 8 should fail */

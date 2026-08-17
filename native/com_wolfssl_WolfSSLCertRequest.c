@@ -509,6 +509,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1get_
     if (derArr == NULL) {
         throwWolfSSLJNIException(jenv,
             "Failed to create byte array in native X509_REQ_get_der");
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
 

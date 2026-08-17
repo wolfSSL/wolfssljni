@@ -2898,7 +2898,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1su
     /* If we got fewer entries than expected, create a trimmed array */
     if (idx < numNames) {
         jobjectArray trimmedArray = (*jenv)->NewObjectArray(jenv, idx,
-            objectClass, NULL);
+            objectArrayClass, NULL);
         if (trimmedArray != NULL && !(*jenv)->ExceptionCheck(jenv)) {
             for (i = 0; i < idx; i++) {
                 jobject elem = (*jenv)->GetObjectArrayElement(jenv,

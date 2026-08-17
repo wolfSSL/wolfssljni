@@ -2676,14 +2676,14 @@ public class WolfSSLEngine extends SSLEngine {
                 return 0;
             }
 
-            /* If we have more data than internal static buffer,
-             * grow buffer 2x (or up to sz needed) and copy data over */
+            /* If we have more data than internal static buffer, grow buffer
+             * 2x (or up to offset + sz needed) and copy data over */
             if ((this.internalIOSendBufSz -
                     this.internalIOSendBufOffset) < sz) {
-                /* Allocate new buffer to hold data to be sent */
+                int needed = this.internalIOSendBufOffset + sz;
                 int newSz = this.internalIOSendBufSz * 2;
-                if (newSz < sz) {
-                    newSz = sz;
+                if (newSz < needed) {
+                    newSz = needed;
                 }
                 byte[] newBuf = new byte[newSz];
                 System.arraycopy(this.internalIOSendBuf, 0,
