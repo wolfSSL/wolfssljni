@@ -44,15 +44,15 @@ JAVA_HOME       ?= $(shell \
 
 # Platform-specific flags
 ifeq ($(OS),Darwin)
-    JNI_INCLUDES  = -I$(JAVA_HOME)/include \
-                    -I$(JAVA_HOME)/include/darwin \
-                    -I$(WOLFSSL_INSTALL_DIR)/include
+    JNI_INCLUDES  = -I"$(JAVA_HOME)/include" \
+                    -I"$(JAVA_HOME)/include/darwin" \
+                    -I"$(WOLFSSL_INSTALL_DIR)/include"
     JNI_LIB_FLAGS = -dynamiclib
     JNI_LIB_NAME  = libwolfssljni.dylib
 else ifeq ($(OS),Linux)
-    JNI_INCLUDES  = -I$(JAVA_HOME)/include \
-                    -I$(JAVA_HOME)/include/linux \
-                    -I$(WOLFSSL_INSTALL_DIR)/include
+    JNI_INCLUDES  = -I"$(JAVA_HOME)/include" \
+                    -I"$(JAVA_HOME)/include/linux" \
+                    -I"$(WOLFSSL_INSTALL_DIR)/include"
     JNI_LIB_FLAGS = -shared
     JNI_LIB_NAME  = libwolfssljni.so
     ifneq ($(filter x86_64 aarch64,$(ARCH)),)
@@ -79,11 +79,12 @@ endif
 
 JNI_CFLAGS  = -Wall -Wextra -Werror $(FPIC) -MMD -MP $(PATCH_CFLAGS) $(CFLAGS)
 JNI_LDFLAGS = -Wall $(JNI_LIB_FLAGS) $(CFLAGS) \
-              -L$(WOLFSSL_INSTALL_DIR)/lib \
-              -L$(WOLFSSL_INSTALL_DIR)/lib64
+              -L"$(WOLFSSL_INSTALL_DIR)/lib" \
+              -L"$(WOLFSSL_INSTALL_DIR)/lib64"
 JNI_LDLIBS  = -l$(WOLFSSL_LIBNAME)
 
-.PHONY: all build check native clean-native clean install uninstall dist rpm print-config
+.PHONY: all build check native clean-native clean install uninstall dist rpm \
+        print-config check-jdk
 
 all: build
 
@@ -94,8 +95,15 @@ build: build.xml
 check: build
 	ant test
 
+# Fail with a clear message when JAVA_HOME does not point at a JDK.
+check-jdk:
+	@if [ ! -f "$(JAVA_HOME)/include/jni.h" ]; then \
+	    echo "ERROR: JAVA_HOME \"$(JAVA_HOME)\" has no include/jni.h" >&2; \
+	    exit 1; \
+	fi
+
 # Pattern rule: compile any native/*.c to native/*.o
-$(NATIVE_SRC_DIR)/%.o: $(NATIVE_SRC_DIR)/%.c | print-config
+$(NATIVE_SRC_DIR)/%.o: $(NATIVE_SRC_DIR)/%.c | print-config check-jdk
 	@echo "  CC      $<"
 	$(Q)$(CC) $(JNI_CFLAGS) -c $< -o $@ $(JNI_INCLUDES)
 
