@@ -149,7 +149,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
 
     timeBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, time, NULL);
     timeSz = (*jenv)->GetArrayLength(jenv, time);
-    /* Ensure there is enough room for date string (32 bytes) 
+    /* Ensure there is enough room for date string (32 bytes)
        plus 4 bytes of length and 4 bytes for type. */
     if (timeBuf == NULL || timeSz < (CTC_DATE_SIZE + 8)) {
         ret = 0;
@@ -164,7 +164,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1lastUpdate
             /* Copy time string and null-terminate */
             XMEMCPY(timeStr, timeBuf, timeLen);
             timeStr[timeLen] = '\0';
+
             /* Create ASN1_TIME object and set string */
+            XMEMSET(&asnTime, 0, sizeof(asnTime));
             if (wolfSSL_ASN1_TIME_set_string(&asnTime, timeStr) == 1) {
                 ret = wolfSSL_X509_CRL_set_lastUpdate(crl, &asnTime);
             }
@@ -208,7 +210,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
 
     timeBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, time, NULL);
     timeSz = (*jenv)->GetArrayLength(jenv, time);
-    /* Ensure there is enough room for date string (32 bytes) 
+    /* Ensure there is enough room for date string (32 bytes)
        plus 4 bytes of length and 4 bytes for type. */
     if (timeBuf == NULL || timeSz < (CTC_DATE_SIZE + 8)) {
         ret = 0;
@@ -223,7 +225,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1set_1nextUpdate
             /* Copy time string and null-terminate */
             XMEMCPY(timeStr, timeBuf, timeLen);
             timeStr[timeLen] = '\0';
+
             /* Create ASN1_TIME object and set string */
+            XMEMSET(&asnTime, 0, sizeof(asnTime));
             if (wolfSSL_ASN1_TIME_set_string(&asnTime, timeStr) == 1) {
                 ret = wolfSSL_X509_CRL_set_nextUpdate(crl, &asnTime);
             }
