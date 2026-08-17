@@ -3414,6 +3414,14 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, inBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
     }
 
     if (retval == 0) {
