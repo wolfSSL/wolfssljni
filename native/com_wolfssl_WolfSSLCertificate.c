@@ -469,10 +469,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notBefore
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     WOLFSSL_ASN1_TIME* asnBefore = NULL;
     int ret = WOLFSSL_SUCCESS;
-    time_t notBeforeTime = (time_t)(long)notBefore;
+    time_t notBeforeTime = (time_t)notBefore;
     (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Reject values the platform time_t cannot represent */
+    if ((jlong)notBeforeTime != notBefore) {
         return WOLFSSL_FAILURE;
     }
 
@@ -509,10 +514,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1notAfter
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     WOLFSSL_ASN1_TIME* asnAfter = NULL;
     int ret = WOLFSSL_SUCCESS;
-    time_t notAfterTime = (time_t)(long)notAfter;
+    time_t notAfterTime = (time_t)notAfter;
     (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Reject values the platform time_t cannot represent */
+    if ((jlong)notAfterTime != notAfter) {
         return WOLFSSL_FAILURE;
     }
 
