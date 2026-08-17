@@ -3903,12 +3903,13 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         unsigned char* out, unsigned int* outlen, int side, void* ctx)
 {
     int        ret;
+    int        cbException = 0;       /* Java callback threw an exception */
     jint       retval = 0;
 
     JNIEnv*    jenv = NULL;           /* JNI Environment */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
-    jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
+    jobject* g_cachedSSLObj;          /* WolfSSLSession cached object */
 
     jobject    ctxRef;                /* WolfSSLContext object */
     jmethodID  eccSharedSecretMethodId;
@@ -4138,12 +4139,22 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
             (jobject)(*g_cachedSSLObj), eccKeyObject, pubKeyDerBB,
             j_pubKeyDerSz, outBB, j_outSz, (jint)side);
 
-    CheckException(jenv);
+    cbException = CheckException(jenv);
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
     (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
     (*jenv)->DeleteLocalRef(jenv, pubKeyDerBB);
     if (side == WOLFSSL_SERVER_END) {
         XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    if (cbException) {
+        /* Java callback threw, do not use the undefined result */
+        (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
+        (*jenv)->DeleteLocalRef(jenv, j_outSz);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        if (needsDetach)
+            (*g_vm)->DetachCurrentThread(g_vm);
+        return -1;
     }
 
     if (retval == 0) {
