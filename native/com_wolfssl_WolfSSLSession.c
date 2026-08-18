@@ -4123,6 +4123,27 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
 
 #ifdef HAVE_CRL
 
+/* Delete JNI local references created inside NativeMissingCRLCallback() */
+static void freeMissingCRLCbLocalRefs(JNIEnv* jenv, jobject crlCbObj,
+    jclass crlClass, jstring missingUrl)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (missingUrl != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, missingUrl);
+    }
+
+    if (crlClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlClass);
+    }
+
+    if (crlCbObj != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlCbObj);
+    }
+}
+
 void NativeMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
@@ -4178,6 +4199,7 @@ void NativeMissingCRLCallback(const char* url)
         if (!crlClass) {
             throwWolfSSLException(jenv,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -4194,6 +4216,7 @@ void NativeMissingCRLCallback(const char* url)
 
             throwWolfSSLException(jenv,
                 "Error getting missingCRLCallback method from JNI");
+            freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -4218,6 +4241,8 @@ void NativeMissingCRLCallback(const char* url)
         throwWolfSSLException(jenv,
             "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
 
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
