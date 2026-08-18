@@ -639,6 +639,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
     }
 
     certFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (certFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_certificate_file(ssl, certFile, (int)format);
 
@@ -673,6 +676,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
     }
 
     keyFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (keyFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_PrivateKey_file(ssl, keyFile, (int)format);
 
@@ -707,6 +713,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainFile
     }
 
     chainFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (chainFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_certificate_chain_file(ssl, chainFile);
 
@@ -3647,6 +3656,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_checkDomainName
     }
 
     dname = (*jenv)->GetStringUTFChars(jenv, dn, 0);
+    if (dname == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_check_domain_name(ssl, dname);
 
@@ -3745,6 +3757,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
     }
 
     fname = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (fname == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_SetTmpDH_file(ssl, fname, format);
 
@@ -4016,6 +4031,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
     }
 
     crlPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+    if (crlPath == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_LoadCRL(ssl, crlPath, type, monitor);
 
@@ -4926,6 +4944,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
     }
 
     nativeHint = (*jenv)->GetStringUTFChars(jenv, hint, 0);
+    if (nativeHint == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint)wolfSSL_use_psk_identity_hint(ssl, nativeHint);
 

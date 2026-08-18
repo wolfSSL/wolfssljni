@@ -439,12 +439,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDHFile
             return (jint)SSL_FAILURE;
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLContext object was null in "
-                "setTmpDHFile");
+            "Input WolfSSLContext object was null in setTmpDHFile");
         return (jint)SSL_FAILURE;
     }
 
     fname = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (fname == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = wolfSSL_CTX_SetTmpDH_file(ctx, fname, format);
 
@@ -482,13 +484,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
             (*jenv)->ExceptionClear(jenv);
         }
         /* throw NullPointerException */
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input certificate file is NULL");
+        (*jenv)->ThrowNew(jenv, excClass, "Input certificate file is NULL");
 
         return (jint)SSL_FAILURE;
     }
 
     certFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (certFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_certificate_file(ctx, certFile, (int)format);
 
@@ -526,13 +530,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyFile
             (*jenv)->ExceptionClear(jenv);
         }
         /* throw NullPointerException */
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input private key file is NULL");
+        (*jenv)->ThrowNew(jenv, excClass, "Input private key file is NULL");
 
         return (jint)SSL_FAILURE;
     }
 
     keyFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (keyFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile, (int)format);
 
@@ -579,12 +585,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyLocations
 
     if (file) {
         caFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+        if (caFile == NULL) {
+            return (jint)SSL_FAILURE;
+        }
     } else {
         caFile = NULL;
     }
 
     if (path) {
         caPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+        if (caPath == NULL) {
+            if (caFile) {
+                (*jenv)->ReleaseStringUTFChars(jenv, file, caFile);
+            }
+            return (jint)SSL_FAILURE;
+        }
     } else {
         caPath = NULL;
     }
@@ -636,6 +651,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainFile
     }
 
     chainFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (chainFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_certificate_chain_file(ctx, chainFile);
 
@@ -2098,6 +2116,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadCRL
     }
 
     crlPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+    if (crlPath == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = wolfSSL_CTX_LoadCRL(ctx, crlPath, type, monitor);
 
@@ -7093,6 +7114,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
     }
 
     nativeHint = (*jenv)->GetStringUTFChars(jenv, hint, 0);
+    if (nativeHint == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint)wolfSSL_CTX_use_psk_identity_hint(ctx, nativeHint);
 
