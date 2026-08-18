@@ -2738,12 +2738,27 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1su
                     strValue = (const char*)wolfSSL_ASN1_STRING_data(asn1Str);
                     strLen = wolfSSL_ASN1_STRING_length(asn1Str);
                     if ((strValue != NULL) && (strLen >= 0)) {
-                        valueStr = (*jenv)->NewStringUTF(jenv, strValue);
-                        if ((valueStr != NULL) &&
-                            !(*jenv)->ExceptionCheck(jenv)) {
-                            (*jenv)->SetObjectArrayElement(jenv, innerArray,
-                                1, valueStr);
-                            (*jenv)->DeleteLocalRef(jenv, valueStr);
+                        /* Copy exactly strLen bytes, null terminate */
+                        char* valBuf = (char*)XMALLOC((size_t)strLen + 1, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+                        if (valBuf != NULL) {
+                            if (strLen > 0) {
+                                XMEMCPY(valBuf, strValue, (size_t)strLen);
+                            }
+                            valBuf[strLen] = '\0';
+
+                            /* A shorter C string means an embedded null.
+                             * Skip it so the name is not truncated there. */
+                            if (XSTRLEN(valBuf) == (size_t)strLen) {
+                                valueStr = (*jenv)->NewStringUTF(jenv, valBuf);
+                                if ((valueStr != NULL) &&
+                                    !(*jenv)->ExceptionCheck(jenv)) {
+                                    (*jenv)->SetObjectArrayElement(jenv,
+                                        innerArray, 1, valueStr);
+                                    (*jenv)->DeleteLocalRef(jenv, valueStr);
+                                }
+                            }
+                            XFREE(valBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         }
                     }
                 }

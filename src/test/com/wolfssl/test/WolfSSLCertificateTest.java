@@ -26,6 +26,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
@@ -1024,6 +1025,86 @@ public class WolfSSLCertificateTest {
         return der;
     }
 
+    /* Generate a self-signed cert carrying two dNSName SubjectAltName entries,
+     * return its DER encoding. */
+    private byte[] genCertWithTwoDnsSans(String san1, String san2)
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        WolfSSLX509Name name = new WolfSSLX509Name();
+
+        Instant now = Instant.now();
+        x509.setNotBefore(Date.from(now));
+        x509.setNotAfter(Date.from(now.plus(Duration.ofDays(365))));
+        x509.setSerialNumber(BigInteger.valueOf(1123));
+
+        name.setCountryName("US");
+        name.setOrganizationName("wolfSSL Inc.");
+        name.setCommonName("Embedded NUL SAN Test");
+        x509.setSubjectName(name);
+
+        x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1);
+
+        x509.addAltName(san1, WolfSSL.ASN_DNS_TYPE);
+        x509.addAltName(san2, WolfSSL.ASN_DNS_TYPE);
+
+        x509.signCert(cliKeyDer, WolfSSL.RSAk,
+            WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+
+        byte[] der = x509.getDer();
+
+        name.free();
+        x509.free();
+
+        return der;
+    }
+
+    /* Index of the first occurrence of needle in haystack, or -1. */
+    private static int indexOf(byte[] haystack, byte[] needle) {
+        for (int i = 0; i + needle.length <= haystack.length; i++) {
+            int j = 0;
+            while (j < needle.length && haystack[i + j] == needle[j]) {
+                j++;
+            }
+            if (j == needle.length) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /* True if sans holds a dNSName entry whose value equals value. */
+    private static boolean hasDnsSan(Collection<List<?>> sans, String value) {
+        if (sans == null) {
+            return false;
+        }
+        for (List<?> san : sans) {
+            if (san.size() < 2) {
+                continue;
+            }
+            int type = (Integer)san.get(0);
+            if (type == WolfSSL.ASN_DNS_TYPE && value.equals(san.get(1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* True if sans holds any entry, of any type, whose value equals value. */
+    private static boolean hasSanValue(Collection<List<?>> sans,
+        String value) {
+        if (sans == null) {
+            return false;
+        }
+        for (List<?> san : sans) {
+            if (san.size() >= 2 && value.equals(san.get(1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /* An IP address reference identity must be matched only against an
      * iPAddress SAN, never the Subject CN or a dNSName SAN (RFC 6125 /
      * RFC 2818). checkIpAddress() must reject a cert whose only "match" is a
@@ -1070,6 +1151,95 @@ public class WolfSSLCertificateTest {
         assertEquals("non-matching IP must be rejected",
             WolfSSL.SSL_FAILURE, certC.checkIpAddress("198.51.100.9"));
         certC.free();
+    }
+
+    /* A SubjectAltName with an embedded null must not be returned truncated
+     * at that null. The parser drops such an entry. Build a cert with a valid
+     * dNSName plus one holding a placeholder byte, then overwrite that byte
+     * with a raw null in the DER, keeping all ASN.1 lengths unchanged. */
+    @Test
+    public void test_getSubjectAltNames_EmbeddedNulNotTruncated()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        final String prefix = "example.com";
+        final String marker = prefix + "X.evil.com";
+        final String valid = "good.example";
+
+        byte[] der = genCertWithTwoDnsSans(valid, marker);
+
+        /* Unpatched, both names round-trip in full. */
+        WolfSSLCertificate before = new WolfSSLCertificate(der);
+        Collection<List<?>> sansBefore = before.getSubjectAltNames();
+        assertTrue("valid dNSName missing before patch",
+            hasDnsSan(sansBefore, valid));
+        assertTrue("marker dNSName missing before patch",
+            hasDnsSan(sansBefore, marker));
+        before.free();
+
+        int at = indexOf(der, marker.getBytes(StandardCharsets.UTF_8));
+        assertTrue("marker not found in generated DER", at >= 0);
+        der[at + prefix.length()] = 0x00;
+
+        WolfSSLCertificate after = null;
+        try {
+            after = new WolfSSLCertificate(der);
+        } catch (WolfSSLException e) {
+            Assume.assumeNoException(
+                "build rejects embedded-null cert at parse", e);
+        }
+        Collection<List<?>> sansAfter = after.getSubjectAltNames();
+
+        /* The valid name still returns, the embedded null name is dropped
+         * rather than truncated to its pre null prefix. */
+        assertTrue("valid dNSName must survive", hasDnsSan(sansAfter, valid));
+        assertFalse("embedded null dNSName must not truncate to a prefix",
+            hasDnsSan(sansAfter, prefix));
+        after.free();
+    }
+
+    /* When the embedded-null SAN is the only SAN, the entry must still be
+     * dropped, not returned truncated through the legacy getSubjectAltNames()
+     * fallback that runs when no typed SAN entry survives. All three SAN
+     * accessors must agree. The native handling is shared across dNSName,
+     * rfc822Name, and URI. */
+    @Test
+    public void test_getSubjectAltNames_EmbeddedNulSingleSanDropped()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        final String prefix = "example.com";
+        final String marker = prefix + "X.evil.com";
+
+        byte[] der = genIpTestCertDer("Embedded NUL SAN Test", marker,
+            WolfSSL.ASN_DNS_TYPE);
+
+        int at = indexOf(der, marker.getBytes(StandardCharsets.UTF_8));
+        assertTrue("marker not found in generated DER", at >= 0);
+        der[at + prefix.length()] = 0x00;
+
+        WolfSSLCertificate cert = null;
+        try {
+            cert = new WolfSSLCertificate(der);
+        } catch (WolfSSLException e) {
+            Assume.assumeNoException(
+                "build rejects embedded-null cert at parse", e);
+        }
+
+        /* Legacy accessor must not fall back and return the value truncated
+         * at the null. */
+        assertFalse("truncated value returned via getSubjectAltNames",
+            hasSanValue(cert.getSubjectAltNames(), prefix));
+
+        /* With the sole entry dropped, the typed accessors return null. */
+        assertNull("getSubjectAltNamesArray",
+            cert.getSubjectAltNamesArray());
+        assertNull("getSubjectAltNamesExtended",
+            cert.getSubjectAltNamesExtended());
+
+        cert.free();
     }
 
     @Test
