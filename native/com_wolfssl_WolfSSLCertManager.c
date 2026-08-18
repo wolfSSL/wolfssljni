@@ -116,8 +116,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerLoadCABuff
         return BAD_FUNC_ARG;
     }
 
+    /* number of bytes to parse and must fit within the array */
+    if (sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return BAD_FUNC_ARG;
+    }
+
     buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    buffSz = (word32)sz;
 
     if (buff != NULL) {
         ret = wolfSSL_CertManagerLoadCABuffer(cm, buff, buffSz, format);
@@ -159,8 +164,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerVerifyBuff
     if (jenv == NULL || in == NULL || (sz < 0))
         return BAD_FUNC_ARG;
 
+    /* number of bytes to parse and must fit within the array */
+    if (sz > (jlong)(*jenv)->GetArrayLength(jenv, in))
+        return BAD_FUNC_ARG;
+
     buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    buffSz = (word32)sz;
 
     if (buff != NULL) {
         ret = wolfSSL_CertManagerVerifyBuffer(cm, buff, buffSz, format);
