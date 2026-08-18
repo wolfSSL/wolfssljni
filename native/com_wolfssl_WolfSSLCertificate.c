@@ -1596,10 +1596,11 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1signatu
     }
 
     oidSz = wolfSSL_OBJ_obj2txt(oid, oidSz, obj, 1);
+    wolfSSL_ASN1_OBJECT_free(obj);
     if (oidSz <= 0) {
         return NULL;
     }
-    wolfSSL_ASN1_OBJECT_free(obj);
+
     return (*jenv)->NewStringUTF(jenv, oid);
 }
 
