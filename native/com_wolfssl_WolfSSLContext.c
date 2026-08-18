@@ -2193,6 +2193,31 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
 #ifdef HAVE_CRL
 
+/* Delete JNI local references created inside NativeCtxMissingCRLCallback() */
+static void freeCtxMissingCRLCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jobject crlCbObj, jclass crlClass, jstring missingUrl)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (missingUrl != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, missingUrl);
+    }
+
+    if (crlClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlClass);
+    }
+
+    if (crlCbObj != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlCbObj);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
+}
+
 void NativeCtxMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
@@ -2245,6 +2270,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
     if (crlCbObj == NULL) {
         /* No Java callback registered, drop silently. */
+        freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+            missingUrl);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -2261,6 +2288,8 @@ void NativeCtxMissingCRLCallback(const char* url)
         if (!crlClass) {
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+                missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -2277,6 +2306,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting missingCRLCallback method from JNI");
+            freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+                missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -2302,6 +2333,9 @@ void NativeCtxMissingCRLCallback(const char* url)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+        missingUrl);
 
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
