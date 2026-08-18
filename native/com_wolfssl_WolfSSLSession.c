@@ -2680,6 +2680,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
     }
+    if (addrObj == NULL) {
+        return SSL_FAILURE;
+    }
 
     /* is this a wildcard address, ie: INADDR_ANY? */
     isAnyID = (*jenv)->GetMethodID(jenv, inetaddr, "isAnyLocalAddress", "()Z");
@@ -2715,9 +2718,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
+        if (ipAddr == NULL) {
+            return SSL_FAILURE;
+        }
 
         /* convert IP string to char* */
         ipAddress = (*jenv)->GetStringUTFChars(jenv, ipAddr, 0);
+        if (ipAddress == NULL) {
+            return SSL_FAILURE;
+        }
     }
 
     /* build sockaddr_in */

@@ -3855,6 +3855,56 @@ public class WolfSSLSessionTest {
         /* Result can be null if not compiled in or no valid CID found */
     }
 
+    /* dtlsSetPeer() with an unresolved InetSocketAddress must fail cleanly.
+     * getAddress() returns null there, so the native code must not invoke
+     * InetAddress methods on a null object reference. */
+    @Test
+    public void test_WolfSSLSession_dtlsSetPeerUnresolved()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        String[] protocols = WolfSSL.getProtocols();
+        String dtlsProto = null;
+        for (String p : protocols) {
+            if (p.startsWith("DTLS")) {
+                dtlsProto = p;
+                break;
+            }
+        }
+        Assume.assumeTrue(dtlsProto != null);
+
+        long method;
+        if (dtlsProto.equals("DTLSv1.3")) {
+            method = WolfSSL.DTLSv1_3_ClientMethod();
+        }
+        else if (dtlsProto.equals("DTLSv1.2")) {
+            method = WolfSSL.DTLSv1_2_ClientMethod();
+        }
+        else {
+            method = WolfSSL.DTLSv1_ClientMethod();
+        }
+        /* Skip if the selected DTLS method is not compiled in. */
+        Assume.assumeTrue(method != 0);
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+        try {
+            dtlsCtx = new WolfSSLContext(method);
+            sess = new WolfSSLSession(dtlsCtx);
+
+            InetSocketAddress unresolved =
+                InetSocketAddress.createUnresolved("host.invalid", 11111);
+            assertEquals("unresolved peer address must fail",
+                WolfSSL.SSL_FAILURE, sess.dtlsSetPeer(unresolved));
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
     @Test
     public void test_WolfSSLSession_dtlsCidFunctions()
         throws WolfSSLJNIException, WolfSSLException {
