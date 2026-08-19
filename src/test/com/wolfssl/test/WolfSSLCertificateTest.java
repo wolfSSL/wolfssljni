@@ -928,6 +928,66 @@ public class WolfSSLCertificateTest {
         }
     }
 
+    /* A validity date after the 2038 32-bit time_t rollover must round-trip
+     * through the notBefore and notAfter setters. */
+    @Test
+    public void test_setNotBeforeNotAfterPost2038RoundTrips()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        Date notBefore = Date.from(Instant.parse("2039-01-01T00:00:00Z"));
+        Date notAfter = Date.from(Instant.parse("2040-01-01T00:00:00Z"));
+        Date representable = Date.from(Instant.parse("2020-01-01T00:00:00Z"));
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        WolfSSLX509Name name = null;
+        byte[] der;
+
+        try {
+            /* A representable date must set cleanly. Let a failure here
+             * propagate, since it is a real regression not a time_t limit. */
+            x509.setNotBefore(representable);
+
+            /* A 32-bit time_t cannot hold a post-2038 date, so the setter
+             * rejects it there. Skip rather than fail on those platforms. */
+            try {
+                x509.setNotBefore(notBefore);
+                x509.setNotAfter(notAfter);
+            } catch (WolfSSLException e) {
+                Assume.assumeNoException(
+                    "post-2038 validity dates require 64-bit time_t", e);
+            }
+
+            x509.setSerialNumber(BigInteger.valueOf(1125));
+
+            name = new WolfSSLX509Name();
+            name.setCommonName("post 2038 test");
+            x509.setSubjectName(name);
+
+            x509.setPublicKey(cliKeyPubDer, WolfSSL.RSAk,
+                WolfSSL.SSL_FILETYPE_ASN1);
+            x509.signCert(cliKeyDer, WolfSSL.RSAk,
+                WolfSSL.SSL_FILETYPE_ASN1, "SHA256");
+            der = x509.getDer();
+        } finally {
+            if (name != null) {
+                name.free();
+            }
+            x509.free();
+        }
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(der);
+        try {
+            assertEquals("post-2038 notBefore must round-trip",
+                notBefore, cert.notBefore());
+            assertEquals("post-2038 notAfter must round-trip",
+                notAfter, cert.notAfter());
+        } finally {
+            cert.free();
+        }
+    }
+
     /* Generate a self-signed cert with the given CN and an optional single
      * SubjectAltName entry, return its DER encoding. */
     private byte[] genIpTestCertDer(String cn, String sanValue, int sanType)
