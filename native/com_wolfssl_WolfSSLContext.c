@@ -43,7 +43,7 @@
  * release it before calling DeleteGlobalRef on the prior ref. Any thread
  * already inside NativeVerifyCallback's local-ref window completes safely.
  *
- * Initialized in Java_com_wolfssl_WolfSSL_init, freed in JNI_OnUnload. */
+ * Initialized in JNI_OnLoad, freed in JNI_OnUnload. */
 static wolfSSL_Mutex g_verifyCbMutex;
 static int g_verifyCbMutexInit = 0;
 
@@ -138,8 +138,7 @@ static jobject g_crlCtxCbIfaceObj;
 #endif
 
 /* Process-global mutex covering both CTX-level and session-level missing CRL
- * callback jobjects. Initialized in Java_com_wolfssl_WolfSSL_init, freed in
- * JNI_OnUnload. */
+ * callback jobjects. Initialized in JNI_OnLoad, freed in JNI_OnUnload. */
 static wolfSSL_Mutex g_crlCbMutex;
 static int g_crlCbMutexInit = 0;
 
@@ -1113,9 +1112,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCipherList
 
     cipherList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = (jint) wolfSSL_CTX_set_cipher_list(ctx, cipherList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    if (cipherList == NULL) {
+        ret = (jint)SSL_FAILURE;
+    }
+    else {
+        ret = (jint) wolfSSL_CTX_set_cipher_list(ctx, cipherList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    }
 
     return ret;
 }
@@ -2343,9 +2346,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setOCSPOverrideUrl
 
     url = (*jenv)->GetStringUTFChars(jenv, urlString, 0);
 
-    ret = (jint) wolfSSL_CTX_SetOCSP_OverrideURL(ctx, url);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, urlString, url);
+    if (url == NULL) {
+        ret = (jint)SSL_FAILURE;
+    }
+    else {
+        ret = (jint) wolfSSL_CTX_SetOCSP_OverrideURL(ctx, url);
+        (*jenv)->ReleaseStringUTFChars(jenv, urlString, url);
+    }
 
     return ret;
 #else
@@ -2608,7 +2615,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->DeleteLocalRef(jenv, ctxRef);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
-        retval = -1;
+        return -1;
     }
 
     if (retval == 0)
@@ -5440,6 +5447,14 @@ int NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
     }
 
     /* point out* to the beginning of decrypted buffer */
@@ -5669,6 +5684,14 @@ int NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        (*jenv)->DeleteLocalRef(jenv, sigBB);
+        (*jenv)->DeleteLocalRef(jenv, outBB);
+        (*jenv)->DeleteLocalRef(jenv, keyDerBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
     }
 
     /* point out* to the beginning of decrypted buffer */
@@ -7142,9 +7165,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_set1SigAlgsList
 
     sigAlgList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = wolfSSL_CTX_set1_sigalgs_list(ctx, sigAlgList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    if (sigAlgList == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_CTX_set1_sigalgs_list(ctx, sigAlgList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    }
 
     return (jint)ret;
 #else

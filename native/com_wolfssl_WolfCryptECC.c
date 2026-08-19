@@ -95,6 +95,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
     int     ret;
     WC_RNG  rng;
     ecc_key myKey;
+    int     rngInit = 0;
+    int     keyInit = 0;
     unsigned int tmpOut;
     unsigned int idx = 0;
     unsigned char* inBuf = NULL;
@@ -130,8 +132,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
     (*jenv)->GetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
     tmpOut = (unsigned int)tmp;
 
-    wc_InitRng(&rng);
-    wc_ecc_init(&myKey);
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        printf("wc_InitRng failed, ret = %d\n", ret);
+        return ret;
+    }
+    rngInit = 1;
+
+    ret = wc_ecc_init(&myKey);
+    if (ret != 0) {
+        printf("wc_ecc_init failed, ret = %d\n", ret);
+        wc_FreeRng(&rng);
+        return ret;
+    }
+    keyInit = 1;
 
     ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, (long)keySz);
     if (ret == 0) {
@@ -144,8 +158,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
         printf("wc_EccPrivateKeyDecode failed, ret = %d\n", ret);
     }
 
-    wc_ecc_free(&myKey);
-    wc_FreeRng(&rng);
+    if (keyInit) {
+        wc_ecc_free(&myKey);
+    }
+    if (rngInit) {
+        wc_FreeRng(&rng);
+    }
 
     if (ret == 0) {
         tmp = (jlong)tmpOut;

@@ -60,8 +60,9 @@ static wolfSSL_Mutex g_loggingCbMutex;
 static int g_loggingCbMutexInit = 0;
 
 /* Tracks one-time native registration of NativeLoggingCallback and its return
- * value. We register once and never deregister: wolfssl_log reads LogFunction
- * without a lock, so clearing it while another thread logs would crash.
+ * value. We do not deregister during normal operation: wolfssl_log reads
+ * LogFunction without a lock, so clearing it while another thread logs would
+ * crash. JNI_OnUnload deregisters it after JVM execution has ended.
  * Guarded by g_loggingCbMutex. */
 static int g_loggingCbNativeReg = 0;
 static int g_loggingCbNativeRet = 0;

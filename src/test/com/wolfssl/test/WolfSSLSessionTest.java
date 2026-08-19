@@ -706,6 +706,177 @@ public class WolfSSLSessionTest {
     }
 
     @Test
+    public void test_WolfSSLSession_getDhKeySizeBeforeHandshakeAndAfterFree()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+
+        /* Before any handshake, no DH group is negotiated */
+        int dhSz = ssl.getDhKeySize();
+        assertTrue("getDhKeySize() before handshake should be <= 0, got " +
+            dhSz, dhSz <= 0);
+
+        ssl.freeSSL();
+
+        try {
+            ssl.getDhKeySize();
+            fail("getDhKeySize() after freeSSL() should throw " +
+                "IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_getDhKeySizeAfterDheHandshake()
+        throws Exception {
+
+        Assume.assumeTrue("TLS 1.2 not compiled into native wolfSSL",
+            WolfSSL.TLSv12Enabled());
+        Assume.assumeTrue("DHE-RSA-AES128-GCM-SHA256 not available",
+            suiteAvailable("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"));
+        Assume.assumeTrue("ffdhe2048 named group not supported",
+            ffdhe2048Supported());
+
+        final String dheSuite = "DHE-RSA-AES128-GCM-SHA256";
+        final int[] ffdhe = new int[] { WolfSSL.WOLFSSL_FFDHE_2048 };
+
+        final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
+            srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.TLSv1_2_ServerMethod());
+        WolfSSLContext cliCtx = createAndSetupWolfSSLContext(
+            cliCert, cliKey, WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.TLSv1_2_ClientMethod());
+
+        final ServerSocket srvSocket = new ServerSocket(0);
+        final int port = srvSocket.getLocalPort();
+        Socket cliSock = null;
+        WolfSSLSession ssl = null;
+        ExecutorService es = Executors.newSingleThreadExecutor();
+
+        try {
+            final Future<Void> srvFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    Socket server = null;
+                    WolfSSLSession srvSes = null;
+                    try {
+                        server = srvSocket.accept();
+                        srvSes = new WolfSSLSession(srvCtx);
+                        assertEquals("server setCipherList",
+                            WolfSSL.SSL_SUCCESS,
+                            srvSes.setCipherList(dheSuite));
+                        assertEquals("server useSupportedCurves",
+                            WolfSSL.SSL_SUCCESS,
+                            srvSes.useSupportedCurves(ffdhe));
+                        assertEquals("server setFd", WolfSSL.SSL_SUCCESS,
+                            srvSes.setFd(server));
+
+                        int ret, err;
+                        do {
+                            ret = srvSes.accept();
+                            err = srvSes.getError(ret);
+                        } while (ret != WolfSSL.SSL_SUCCESS &&
+                                 (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                                  err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.shutdownSSL();
+                            srvSes.freeSSL();
+                        }
+                        if (server != null) {
+                            server.close();
+                        }
+                    }
+                    return null;
+                }
+            });
+
+            cliSock = new Socket("localhost", port);
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals("client setCipherList", WolfSSL.SSL_SUCCESS,
+                ssl.setCipherList(dheSuite));
+            assertEquals("client useSupportedCurves", WolfSSL.SSL_SUCCESS,
+                ssl.useSupportedCurves(ffdhe));
+            assertEquals("client setFd", WolfSSL.SSL_SUCCESS,
+                ssl.setFd(cliSock));
+
+            int ret, err;
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            /* Allow for server-side exception to come through */
+            srvFuture.get(10, TimeUnit.SECONDS);
+
+            /* Skip if build cannot complete the ffdhe2048 DHE handshake */
+            Assume.assumeTrue("build cannot complete ffdhe2048 DHE handshake",
+                ret == WolfSSL.SSL_SUCCESS);
+
+            int dhSz = ssl.getDhKeySize();
+            assertTrue("getDhKeySize() after DHE handshake should be > 0, " +
+                "got " + dhSz, dhSz > 0);
+            assertEquals("ffdhe2048 handshake should report 2048 bits",
+                2048, dhSz);
+
+            ssl.shutdownSSL();
+        } finally {
+            es.shutdownNow();
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            srvSocket.close();
+            cliCtx.free();
+            srvCtx.free();
+        }
+    }
+
+    /* True if the given IANA cipher suite is compiled into native wolfSSL. */
+    private static boolean suiteAvailable(String ianaName) {
+        for (String suite : WolfSSL.getCiphersIana()) {
+            if (suite.equals(ianaName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* True if native wolfSSL supports the ffdhe2048 named group. */
+    private static boolean ffdhe2048Supported() {
+        WolfSSLContext c = null;
+        WolfSSLSession s = null;
+        try {
+            c = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+            s = new WolfSSLSession(c);
+            int[] ffdhe2048 = new int[] { WolfSSL.WOLFSSL_FFDHE_2048 };
+            return s.useSupportedCurves(ffdhe2048) == WolfSSL.SSL_SUCCESS;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (s != null) {
+                try {
+                    s.freeSSL();
+                } catch (Exception e) {
+                    /* ignore */
+                }
+            }
+            if (c != null) {
+                try {
+                    c.free();
+                } catch (Exception e) {
+                    /* ignore */
+                }
+            }
+        }
+    }
+
+    @Test
     public void test_WolfSSLSession_getPskIdentity()
         throws WolfSSLJNIException, WolfSSLException {
 

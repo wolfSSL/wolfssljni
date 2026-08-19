@@ -48,6 +48,7 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/error-ssl.h>
 
 #include "com_wolfssl_globals.h"
@@ -2517,11 +2518,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCipherList
         return SSL_FAILURE;
     }
 
-    cipherList= (*jenv)->GetStringUTFChars(jenv, list, 0);
+    cipherList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = (jint) wolfSSL_set_cipher_list(ssl, cipherList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    if (cipherList == NULL) {
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = (jint) wolfSSL_set_cipher_list(ssl, cipherList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, cipherList);
+    }
 
     return ret;
 }
@@ -3833,13 +3838,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyBuffer
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return SSL_FAILURE;
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
     }
 
-    ret = wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz, format);
-
+#if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+    !defined(WOLFSSL_NO_FORCE_ZERO)
+    wc_ForceZero(buff, (word32)sz);
+#else
     XMEMSET(buff, 0, (word32)sz);
+#endif
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -4489,6 +4499,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getKeySize
     /* wolfSSL checks ssl for NULL */
     return wolfSSL_GetKeySize((WOLFSSL*)(uintptr_t)ssl);
 #else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getDhKeySize
+  (JNIEnv* jenv, jobject jcl, jlong ssl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifndef NO_DH
+    /* Returns negotiated DH group size in bits, 0 if no DH suite was
+     * negotiated, or BAD_FUNC_ARG if ssl is NULL. */
+    return wolfSSL_GetDhKey_Sz((WOLFSSL*)(uintptr_t)ssl);
+#else
+    (void)ssl;
     return NOT_COMPILED_IN;
 #endif
 }
@@ -6134,7 +6160,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
 
     jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
     jclass    sslClass;             /* WolfSSLSession class */
-    jmethodID sessTicketCbMethodId; /* internalTls13SecretCallback ID */
+    jmethodID sessTicketCbMethodId; /* internalSessionTicketCallback ID */
     jbyteArray ticketArr = NULL;
     (void)ctx;
 
@@ -6183,7 +6209,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         return -1;
     }
 
-    /* Call internal TLS 1.3 secret callback */
+    /* Call internal session-ticket callback */
     sessTicketCbMethodId = (*jenv)->GetMethodID(jenv, sslClass,
         "internalSessionTicketCallback", "(Lcom/wolfssl/WolfSSLSession;[B)I");
     if (sessTicketCbMethodId == NULL) {
@@ -6249,7 +6275,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     return (int)retval;
 }
 
-#endif /* WOLFSSL_TLS13 && !WOLFCRYPT_ONLY && HAVE_SECRET_CALLBACK */
+#endif /* !NO_WOLFSSL_CLIENT && HAVE_SESSION_TICKET */
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useSecureRenegotiation
   (JNIEnv* jenv, jobject jcl, jlong ssl)
@@ -6292,9 +6318,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_set1SigAlgsList
 
     sigAlgList = (*jenv)->GetStringUTFChars(jenv, list, 0);
 
-    ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
-
-    (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    if (sigAlgList == NULL) {
+        ret = SSL_FAILURE;
+    }
+    else {
+        ret = wolfSSL_set1_sigalgs_list(ssl, sigAlgList);
+        (*jenv)->ReleaseStringUTFChars(jenv, list, sigAlgList);
+    }
 
     return (jint)ret;
 #else

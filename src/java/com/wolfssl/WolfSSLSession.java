@@ -659,6 +659,7 @@ public class WolfSSLSession {
     private native byte[] getServerWriteKey(long ssl);
     private native byte[] getServerWriteIV(long ssl);
     private native int getKeySize(long ssl);
+    private native int getDhKeySize(long ssl);
     private native int getSide(long ssl);
     private native int isTLSv1_1(long ssl);
     private native int getBulkCipher(long ssl);
@@ -4378,6 +4379,27 @@ public class WolfSSLSession {
                 () -> "entered getKeySize()");
 
             return getKeySize(this.sslPtr);
+        }
+    }
+
+    /**
+     * Get DH group size (bits) negotiated during handshake.
+     *
+     * @return negotiated DH group size in bits, or 0 if the handshake
+     *         did not use a Diffie-Hellman cipher suite. Returns negative
+     *         error code on error (ex: NOT_COMPILED_IN, BAD_FUNC_ARG, etc).
+     * @throws IllegalStateException WolfSSLSession object has been freed
+     * @see    #getKeySize()
+     */
+    public int getDhKeySize() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered getDhKeySize()");
+
+            return getDhKeySize(this.sslPtr);
         }
     }
 
