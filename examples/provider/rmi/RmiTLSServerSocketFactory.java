@@ -26,6 +26,7 @@ import java.security.KeyStore;
 import java.net.ServerSocket;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.KeyManagerFactory;
@@ -47,8 +48,12 @@ public class RmiTLSServerSocketFactory implements RMIServerSocketFactory
         }
 
         System.out.println("Creating server Socket");
-        return (ServerSocket)sf.createServerSocket(port);
 
+        /* Require client cert auth */
+        SSLServerSocket ss = (SSLServerSocket)sf.createServerSocket(port);
+        ss.setNeedClientAuth(true);
+
+        return ss;
     }
 
     public int hashCode() {
