@@ -75,7 +75,7 @@ public class ThreadedSSLSocketClientServer
                 TrustManagerFactory tm = TrustManagerFactory
                     .getInstance(tmfType, tmfProv);
                 tm.init(cert);
-                
+
                 KeyManagerFactory km = KeyManagerFactory
                     .getInstance(kmfType, kmfProv);
                 km.init(pKey, ksPass);
@@ -85,6 +85,9 @@ public class ThreadedSSLSocketClientServer
 
                 SSLServerSocket ss = (SSLServerSocket)ctx
                     .getServerSocketFactory().createServerSocket(srvPort);
+
+                /* Require client auth */
+                ss.setNeedClientAuth(true);
 
                 SSLSocket sock = (SSLSocket)ss.accept();
                 sock.startHandshake();
@@ -119,11 +122,11 @@ public class ThreadedSSLSocketClientServer
                 pKey.load(new FileInputStream(keyStorePath), ksPass);
                 KeyStore cert = KeyStore.getInstance("JKS");
                 cert.load(new FileInputStream(trustStorePath), tsPass);
-                
+
                 TrustManagerFactory tm = TrustManagerFactory
                     .getInstance(tmfType, tmfProv);
                 tm.init(cert);
-                
+
                 KeyManagerFactory km = KeyManagerFactory
                     .getInstance(kmfType, kmfProv);
                 km.init(pKey, ksPass);
