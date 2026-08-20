@@ -64,6 +64,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doVerify
         return -1;
     }
 
+    if ((sigSz  > (*jenv)->GetDirectBufferCapacity(jenv, sig)) ||
+        (hashSz > (*jenv)->GetDirectBufferCapacity(jenv, hash)) ||
+        (keySz  > (*jenv)->GetDirectBufferCapacity(jenv, keyDer))) {
+        return -1;
+    }
+
     wc_ecc_init(&myKey);
 
     ret = wc_ecc_import_x963(keyBuf, (unsigned int)keySz, &myKey);
@@ -129,8 +135,20 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doSign
     }
 
     /* set previous value of outSz */
+    if ((*jenv)->GetArrayLength(jenv, outSz) < 1) {
+        return -1;
+    }
     (*jenv)->GetLongArrayRegion(jenv, outSz, 0, 1, &tmp);
     tmpOut = (unsigned int)tmp;
+
+    /* Reject a negative output size or any size larger than the backing
+     * direct buffer */
+    if ((tmp < 0) ||
+        (inSz  > (*jenv)->GetDirectBufferCapacity(jenv, in)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        (tmp   > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
+        return -1;
+    }
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
