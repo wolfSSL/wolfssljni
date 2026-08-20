@@ -1128,20 +1128,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
-        ret = wolfSSL_CTX_load_verify_buffer(ctx, buff, buffSz, format);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+
+    if (buff != NULL) {
+        ret = wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format);
     }
 
     if (buff != NULL) {
@@ -1157,20 +1158,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
-        ret = wolfSSL_CTX_use_certificate_buffer(ctx, buff, buffSz, format);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+
+    if (buff != NULL) {
+        ret = wolfSSL_CTX_use_certificate_buffer(ctx, buff, (long)sz, format);
     }
 
     if (buff != NULL) {
@@ -1186,30 +1188,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
+    jsize inLen = 0;
     jboolean isCopy = JNI_FALSE;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, &isCopy);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    inLen = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)inLen) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, buffSz, format);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, &isCopy);
+
+    if (buff != NULL) {
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, (long)sz, format);
     }
 
     /* Only zero if JVM made a copy */
     if (buff != NULL && isCopy == JNI_TRUE) {
     #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
         !defined(WOLFSSL_NO_FORCE_ZERO)
-        wc_ForceZero(buff, buffSz);
+        wc_ForceZero(buff, (word32)inLen);
     #else
-        XMEMSET(buff, 0, buffSz);
+        XMEMSET(buff, 0, (word32)inLen);
     #endif
     }
     if (buff != NULL) {
@@ -1224,20 +1229,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
-        ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, buff, buffSz);
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+
+    if (buff != NULL) {
+        ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, buff, (long)sz);
     }
 
     if (buff != NULL) {
@@ -1252,21 +1258,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+
+    if (buff != NULL) {
         ret = wolfSSL_CTX_use_certificate_chain_buffer_format(
-                ctx, buff, buffSz, format);
+                ctx, buff, (long)sz, format);
     }
 
     if (buff != NULL) {
