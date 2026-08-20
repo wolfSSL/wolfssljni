@@ -36,7 +36,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 
-import java.net.InetAddress;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -267,8 +266,9 @@ public class RmiClient
         }
 
         try {
-            /* Server hostname, null indicates localhost */
-            String host = InetAddress.getLocalHost().getHostName();
+            /* Connect over loopback, matches a SAN in the server cert so
+             * endpoint identification passes */
+            String host = "127.0.0.1";
 
             /* Make single first client connection in order to get the
              * list of registry ports that have been created. Then we can
