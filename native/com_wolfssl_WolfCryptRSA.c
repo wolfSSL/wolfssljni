@@ -42,6 +42,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doSign
     int     keyInit = 0;
     unsigned int idx;
     unsigned int tmpOut;
+    jint outSzVal = 0;
     unsigned char* inBuf = NULL;
     unsigned char* outBuf = NULL;
     unsigned char* keyBuf = NULL;
@@ -72,7 +73,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doSign
     }
 
     /* get output buffer size */
-    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
+    if ((*jenv)->GetArrayLength(jenv, outSz) < 1) {
+        return -1;
+    }
+    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
+
+    /* Reject negative output size or size larger than backing buffer */
+    if ((outSzVal < 0) ||
+        (inSz  > (*jenv)->GetDirectBufferCapacity(jenv, in)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        ((jlong)outSzVal > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
+        return -1;
+    }
+    tmpOut = (unsigned int)outSzVal;
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -97,8 +110,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doSign
                 &myKey, &rng);
         if (ret > 0) {
             /* save and convert to 0 for success */
-            tmpOut = ret;
-            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
+            outSzVal = ret;
+            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
             ret = 0;
         }
     } else {
@@ -151,6 +164,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doVerify
         return -1;
     }
 
+    /* Reject sizes larger than their backing direct buffers */
+    if ((sigSz > (*jenv)->GetDirectBufferCapacity(jenv, sig)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        (outSz > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
+        return -1;
+    }
+
     wc_InitRsaKey(&myKey, NULL);
     idx = 0;
 
@@ -181,6 +201,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
     int     keyInit = 0;
     unsigned int idx;
     unsigned int tmpOut;
+    jint outSzVal = 0;
     unsigned char* inBuf = NULL;
     unsigned char* outBuf = NULL;
     unsigned char* keyBuf = NULL;
@@ -211,7 +232,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
     }
 
     /* get output buffer size */
-    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
+    if ((*jenv)->GetArrayLength(jenv, outSz) < 1) {
+        return -1;
+    }
+    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
+
+    /* Reject negative output size or size larger than backing buffer */
+    if ((outSzVal < 0) ||
+        (inSz  > (*jenv)->GetDirectBufferCapacity(jenv, in)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        ((jlong)outSzVal > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
+        return -1;
+    }
+    tmpOut = (unsigned int)outSzVal;
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -236,7 +269,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doEnc
                 &myKey, &rng);
         if (ret > 0) {
             /* save and convert to 0 for success */
-            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&ret);
+            outSzVal = ret;
+            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
             ret = 0;
         }
     } else {
@@ -264,6 +298,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssSign
     int     keyInit = 0;
     unsigned int idx = 0;
     unsigned int tmpOut;
+    jint outSzVal = 0;
     unsigned char* inBuf = NULL;
     unsigned char* outBuf = NULL;
     unsigned char* keyBuf = NULL;
@@ -299,7 +334,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssSign
     }
 
     /* get output buffer size */
-    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
+    if ((*jenv)->GetArrayLength(jenv, outSz) < 1) {
+        return -1;
+    }
+    (*jenv)->GetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
+
+    /* Reject negative output size or size larger than backing buffer */
+    if ((outSzVal < 0) ||
+        (inSz  > (*jenv)->GetDirectBufferCapacity(jenv, in)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        ((jlong)outSzVal > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
+        return -1;
+    }
+    tmpOut = (unsigned int)outSzVal;
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -322,8 +369,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssSign
         ret = wc_RsaPSS_Sign(inBuf, (unsigned int)inSz, outBuf, tmpOut,
             hashType, mgf, &myKey, &rng);
         if (ret > 0) {
-            tmpOut = ret;
-            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, (jint*)&tmpOut);
+            outSzVal = ret;
+            (*jenv)->SetIntArrayRegion(jenv, outSz, 0, 1, &outSzVal);
             ret = 0;
         }
     } else {
@@ -391,6 +438,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssVerify
     hashType = wc_OidGetHash(hash);
     if (hashType == WC_HASH_TYPE_NONE) {
         printf("doPssVerify: unsupported hash OID %d\n", hash);
+        return -1;
+    }
+
+    /* Reject sizes larger than their backing direct buffers */
+    if ((sigSz > (*jenv)->GetDirectBufferCapacity(jenv, sig)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        (outSz > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
         return -1;
     }
 
@@ -469,6 +523,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doDec
     keyBuf = (*jenv)->GetDirectBufferAddress(jenv, keyDer);
     if (keyBuf == NULL) {
         printf("problem getting key buffer address\n");
+        return -1;
+    }
+
+    /* Reject sizes larger than their backing direct buffers */
+    if ((inSz  > (*jenv)->GetDirectBufferCapacity(jenv, in)) ||
+        (keySz > (*jenv)->GetDirectBufferCapacity(jenv, keyDer)) ||
+        (outSz > (*jenv)->GetDirectBufferCapacity(jenv, out))) {
         return -1;
     }
 
