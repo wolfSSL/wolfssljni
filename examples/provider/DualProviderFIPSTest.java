@@ -113,6 +113,9 @@ public class DualProviderFIPSTest {
                     (SSLServerSocket)ctx.getServerSocketFactory()
                         .createServerSocket(port)) {
 
+                    /* Require client auth */
+                    ss.setNeedClientAuth(true);
+
                     /* Signal client that server is ready */
                     serverReady.countDown();
 
