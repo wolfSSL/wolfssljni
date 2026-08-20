@@ -37,7 +37,6 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -273,15 +272,6 @@ public class DtlsClientEngine {
         /* Create SSLEngine */
         engine = ctx.createSSLEngine(host, port);
         engine.setUseClientMode(true);
-
-        /* Enable endpoint identification if available */
-        try {
-            SSLParameters params = engine.getSSLParameters();
-            engine.setSSLParameters(params);
-        } catch (Exception e) {
-            System.out.println(
-                "DEBUG: Exception setting SSL parameters: " + e.getMessage());
-        }
 
         System.out.println("DTLS 1.3 Client Engine created");
     }
