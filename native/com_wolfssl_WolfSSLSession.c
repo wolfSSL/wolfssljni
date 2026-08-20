@@ -3904,21 +3904,22 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainBuffer
 {
     int ret = WOLFSSL_FAILURE;
     byte* buff = NULL;
-    word32 buffSz = 0;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ssl == NULL || in == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, in);
+    if (sz <= 0 || sz > (jlong)(*jenv)->GetArrayLength(jenv, in)) {
+        return (jint)BAD_FUNC_ARG;
+    }
 
-    if (buff != NULL && buffSz > 0) {
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, in, NULL);
+
+    if (buff != NULL) {
         ret = wolfSSL_use_certificate_chain_buffer_format(
-                ssl, buff, buffSz, format);
+                ssl, buff, (long)sz, format);
     }
 
     if (buff != NULL) {
