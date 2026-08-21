@@ -811,11 +811,14 @@ public class WolfSSLContext {
      *
      * @param mem   memory buffer containing the stored certificate cache
      *              to restore
-     * @param sz    size of the input memory buffer, <b>mem</b>
+     * @param sz    number of bytes from <b>mem</b> to restore, must be
+     *              greater than zero and no larger than the <b>mem</b>
+     *              array length
      * @return      <b><code>SSL_SUCCESS</code></b> upon success,
      *              <b><code>SSL_FAILURE</code></b> upon general failure,
-     *              <b><code>BAD_FUNC_ARG</code></b> if null or negative
-     *              parameters are passed in,
+     *              <b><code>BAD_FUNC_ARG</code></b> if <b>mem</b> is
+     *              null, or <b>sz</b> is not positive or larger than
+     *              the <b>mem</b> array length,
      *              <b><code>BUFFER_E</code></b> if the certificate cache
      *              memory buffer is too small,
      *              <b><code>CACHE_MATCH_ERROR</code></b> if the cert cache

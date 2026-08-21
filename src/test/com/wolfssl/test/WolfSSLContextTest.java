@@ -297,6 +297,14 @@ public class WolfSSLContextTest {
         try {
             ret = ctx2.memrestoreCertCache(mem, used[0]);
             assertEquals(WolfSSL.SSL_SUCCESS, ret);
+
+            /* Ensure we reject bad sizes */
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ctx2.memrestoreCertCache(mem, mem.length + 1));
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ctx2.memrestoreCertCache(mem, 0));
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ctx2.memrestoreCertCache(mem, -1));
         } finally {
             ctx2.free();
         }

@@ -1022,16 +1022,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_memrestoreCertCache
     word32 buffSz = 0;
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
-    (void)sz;
 
     if (jenv == NULL || ctx == NULL || mem == NULL) {
         return (jint)BAD_FUNC_ARG;
     }
 
-    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, mem, NULL);
-    buffSz = (*jenv)->GetArrayLength(jenv, mem);
+    if (sz <= 0 || sz > (*jenv)->GetArrayLength(jenv, mem)) {
+        return (jint)BAD_FUNC_ARG;
+    }
+    buffSz = (word32)sz;
 
-    if (buff != NULL && buffSz > 0) {
+    buff = (byte*)(*jenv)->GetByteArrayElements(jenv, mem, NULL);
+
+    if (buff != NULL) {
         ret = wolfSSL_CTX_memrestore_cert_cache(ctx, buff, buffSz);
     }
 
