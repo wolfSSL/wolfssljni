@@ -334,8 +334,10 @@ public class WolfSSLCRL implements Serializable {
         confirmObjectIsActive();
 
         synchronized (crlLock) {
-            return X509_CRL_set_issuer_name(this.crlPtr,
-                name.getNativeX509NamePtr());
+            synchronized (name) {
+                return X509_CRL_set_issuer_name(this.crlPtr,
+                    name.getNativeX509NamePtr());
+            }
         }
     }
 

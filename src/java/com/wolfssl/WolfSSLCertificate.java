@@ -407,6 +407,10 @@ public class WolfSSLCertificate implements Serializable {
     public void setSubjectName(WolfSSLX509Name name)
         throws IllegalStateException, WolfSSLException {
 
+        if (name == null) {
+            throw new WolfSSLException("Subject name is null");
+        }
+
         int ret;
 
         confirmObjectIsActive();
@@ -416,9 +420,10 @@ public class WolfSSLCertificate implements Serializable {
                 WolfSSLDebug.INFO, this.x509Ptr,
                 () -> "entering setSubjectName(" + name + ")");
 
-            /* TODO somehow lock WolfSSLX509Name object while using pointer? */
-            ret = X509_set_subject_name(this.x509Ptr,
+            synchronized (name) {
+                ret = X509_set_subject_name(this.x509Ptr,
                     name.getNativeX509NamePtr());
+            }
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
@@ -443,6 +448,10 @@ public class WolfSSLCertificate implements Serializable {
     public void setIssuerName(WolfSSLX509Name name)
         throws IllegalStateException, WolfSSLException {
 
+        if (name == null) {
+            throw new WolfSSLException("Issuer name is null");
+        }
+
         int ret;
 
         confirmObjectIsActive();
@@ -452,9 +461,10 @@ public class WolfSSLCertificate implements Serializable {
                 WolfSSLDebug.INFO, this.x509Ptr,
                 () -> "entering setIssuerName(" + name + ")");
 
-            /* TODO somehow lock WolfSSLX509Name object while using pointer? */
-            ret = X509_set_issuer_name(this.x509Ptr,
+            synchronized (name) {
+                ret = X509_set_issuer_name(this.x509Ptr,
                     name.getNativeX509NamePtr());
+            }
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {

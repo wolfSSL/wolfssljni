@@ -793,14 +793,17 @@ public class WolfSSLX509Name {
     /**
      * For package use only, return native WOLFSSL_X509_NAME pointer.
      *
-     * @return native WOLFSSL_X509_POINTER value
+     * The returned pointer is only valid while this object is not freed.
+     * Callers must synchronize on this WolfSSLX509Name while using the
+     * returned pointer so a concurrent free() cannot release it.
+     *
+     * @return native WOLFSSL_X509_NAME pointer value
      * @throws IllegalStateException if WolfSSLX509Name has been freed.
      */
     protected long getNativeX509NamePtr() throws IllegalStateException {
 
         confirmObjectIsActive();
 
-        /* TODO lock around x509NamePtr for caller use */
         synchronized (x509NameLock) {
             return this.x509NamePtr;
         }
