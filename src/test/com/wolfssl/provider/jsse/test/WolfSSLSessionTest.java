@@ -24,7 +24,10 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
+
+import java.util.Arrays;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -523,6 +526,79 @@ public class WolfSSLSessionTest {
                 assertArrayEquals("resumed session cert mismatch at index " + i,
                     firstCerts[i].getEncoded(), resumedCerts[i].getEncoded());
             }
+
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    /**
+     * An invalidated session must not be resumed. Establish a session, mark
+     * it invalid, then reconnect and verify a new session (different ID) is
+     * negotiated instead of resuming the invalidated one.
+     */
+    @Test
+    public void testInvalidatedSessionNotResumed()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        int ret;
+        SSLContext ctx;
+        SSLEngine client;
+        SSLEngine server;
+        byte[] firstId;
+        byte[] secondId;
+
+        /* Make sure session cache is not disabled for this test */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        try {
+            ctx = tf.createSSLContext("TLS", engineProvider);
+
+            client = ctx.createSSLEngine("wolfSSL invalidate test", 11111);
+            server = ctx.createSSLEngine();
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test invalidate 1");
+            if (ret != 0) {
+                fail("failed to connect");
+            }
+
+            firstId = client.getSession().getId();
+            assertNotNull(firstId);
+            assertFalse("empty session ID", firstId.length == 0);
+
+            /* Invalidate the cached session before reconnecting */
+            client.getSession().invalidate();
+
+            client = ctx.createSSLEngine("wolfSSL invalidate test", 11111);
+            server = ctx.createSSLEngine();
+            client.setUseClientMode(true);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+
+            ret = tf.testConnection(server, client, null, null,
+                "Test invalidate 2");
+            if (ret != 0) {
+                fail("failed to connect second time");
+            }
+
+            secondId = client.getSession().getId();
+            assertNotNull(secondId);
+
+            /* Invalidated session must not resume, so the new session must
+             * have a different ID. */
+            assertFalse("invalidated session was resumed",
+                Arrays.equals(firstId, secondId));
 
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {

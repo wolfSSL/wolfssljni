@@ -386,12 +386,12 @@ public class WolfSSLAuthStore {
 
         /* Check conditions where we need to create a new new session:
          *   1. Session not found in cache
-         *   2. Session marked as not resumable
-         *   3. Original session cipher suite not available
-         *   4. Original session protocol version not available
+         *   2. Session has been invalidated
+         *   3. Session marked as not resumable
+         *   4. Original session cipher suite not available
+         *   5. Original session protocol version not available
          */
-        if (ses == null ||
-            !ses.isResumable() ||
+        if (ses == null || !ses.isValid() || !ses.isResumable() ||
             !sessionCipherSuiteAvailable(ses, enabledCipherSuites) ||
             !sessionProtocolAvailable(ses, enabledProtocols)) {
             needNewSession = true;
@@ -401,6 +401,11 @@ public class WolfSSLAuthStore {
             if (ses == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "session not found in cache table, " +
+                    "creating new session");
+            }
+            else if (!ses.isValid()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "cached session has been invalidated, " +
                     "creating new session");
             }
             else if (!ses.isResumable()) {
@@ -696,6 +701,10 @@ public class WolfSSLAuthStore {
 
             /* Lock access to store while adding new session, store is global */
             synchronized (storeLock) {
+                /* Skip caching a session invalidated during setup. */
+                if (!session.isValid()) {
+                    return WolfSSL.SSL_FAILURE;
+                }
                 session.isInTable = true;
                 store.put(cacheKey, session);
             }
