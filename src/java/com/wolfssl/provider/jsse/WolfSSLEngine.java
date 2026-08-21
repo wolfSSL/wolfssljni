@@ -2172,6 +2172,15 @@ public class WolfSSLEngine extends SSLEngine {
         return this.engineHelper.getCiphers();
     }
 
+    /**
+     * Sets the cipher suites enabled for this SSLEngine.
+     *
+     * Note: the jdk.tls.disabledAlgorithms security property is applied to
+     * protocols and key sizes, but not to cipher suites. Cipher suites
+     * disabled only through that property may still be negotiated.
+     *
+     * @param suites array of cipher suites to enable for this SSLEngine
+     */
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,

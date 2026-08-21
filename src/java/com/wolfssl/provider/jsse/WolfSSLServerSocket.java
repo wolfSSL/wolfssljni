@@ -163,6 +163,18 @@ public class WolfSSLServerSocket extends SSLServerSocket {
         return WolfSSLUtil.sanitizeSuites(params.getCipherSuites(), false);
     }
 
+    /**
+     * Sets the cipher suites enabled for this SSLServerSocket.
+     *
+     * Note: the jdk.tls.disabledAlgorithms security property is applied to
+     * protocols and key sizes, but not to cipher suites. Cipher suites
+     * disabled only through that property may still be negotiated.
+     *
+     * @param suites array of cipher suites to enable for this ServerSocket
+     *
+     * @throws IllegalArgumentException when suites array contains
+     *         cipher suites unsupported by native wolfSSL
+     */
     @Override
     synchronized public void setEnabledCipherSuites(String[] suites)
         throws IllegalArgumentException {

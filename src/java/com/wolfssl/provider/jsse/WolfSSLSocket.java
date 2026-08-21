@@ -1082,6 +1082,10 @@ public class WolfSSLSocket extends SSLSocket {
     /**
      * Sets the cipher suites enabled for this SSLSocket.
      *
+     * Note: the jdk.tls.disabledAlgorithms security property is applied to
+     * protocols and key sizes, but not to cipher suites. Cipher suites
+     * disabled only through that property may still be negotiated.
+     *
      * @param suites array of cipher suites to enable for this Socket
      *
      * @throws IllegalArgumentException when suites array contains
