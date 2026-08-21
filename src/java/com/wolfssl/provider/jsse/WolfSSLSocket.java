@@ -268,7 +268,8 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "creating new WolfSSLSocket(clientMode: " +
-            String.valueOf(clientMode) + ", host: " + host + ", port: " +
+            String.valueOf(clientMode) + ", host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " +
             port + ")");
 
         try {
@@ -312,7 +313,8 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "creating new WolfSSLSocket(clientMode: " +
-            String.valueOf(clientMode) + ", host: " + host + ", port: " +
+            String.valueOf(clientMode) + ", host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " +
             port + ", InetAddress, locaPort: " + localPort + ")");
 
         try {
@@ -360,7 +362,8 @@ public class WolfSSLSocket extends SSLSocket {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "creating new WolfSSLSocket(clientMode: " +
-            String.valueOf(clientMode) + ", Socket, host: " + host +
+            String.valueOf(clientMode) + ", Socket, host: " +
+            WolfSSLDebug.sanitizeForLog(host) +
             ", port: " + port + ", autoClose: " +
             String.valueOf(autoClose) + ")");
 

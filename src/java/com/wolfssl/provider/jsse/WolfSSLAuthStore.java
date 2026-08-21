@@ -358,8 +358,8 @@ public class WolfSSLAuthStore {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "attempting to look up session (host: " + host +
-            ", port: " + port + ")");
+            () -> "attempting to look up session (host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " + port + ")");
 
         /* Print current size and contents of SessionStore / LinkedHashMap.
          * Synchronizes on storeLock internally. */
@@ -559,7 +559,9 @@ public class WolfSSLAuthStore {
                     () -> "    values: ");
                 for (WolfSSLImplementSSLSession s : values) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "        " + s.getHost() + ": " + s.getPort());
+                        () -> "        " +
+                        WolfSSLDebug.sanitizeForLog(s.getHost()) +
+                        ": " + s.getPort());
                 }
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -695,8 +697,10 @@ public class WolfSSLAuthStore {
         if (haveKey) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "stored session in cache table (host: " +
-                session.getPeerHost() + ", port: " +
-                session.getPeerPort() + ") " + "cacheKey = " + cacheKey +
+                WolfSSLDebug.sanitizeForLog(session.getPeerHost()) +
+                ", port: " +
+                session.getPeerPort() + ") cacheKey = " +
+                WolfSSLDebug.sanitizeForLog(cacheKey) +
                 " side = " + session.getSideString());
 
             /* Lock access to store while adding new session, store is global */

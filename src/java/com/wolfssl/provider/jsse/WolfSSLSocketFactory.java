@@ -238,7 +238,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         throws IOException, UnknownHostException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "entered createSocket(host: " + host + ", port: " +
+            () -> "entered createSocket(host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " +
             port + ")");
 
         try {
@@ -268,7 +269,8 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         int localPort) throws IOException, UnknownHostException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "entered createSocket(host: " + host + ", port: " + port +
+            () -> "entered createSocket(host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " + port +
             ", InetAddress localHost, localPort: " + localPort + ")");
 
         try {
@@ -299,8 +301,9 @@ public class WolfSSLSocketFactory extends SSLSocketFactory {
         boolean autoClose) throws IOException {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "entered createSocket(Socket: " + s.getClass() + ", host: " +
-            host + ", port: " + port + ", autoClose: " +
+            () -> "entered createSocket(Socket: " + s.getClass() +
+            ", host: " + WolfSSLDebug.sanitizeForLog(host) +
+            ", port: " + port + ", autoClose: " +
             String.valueOf(autoClose) + ")");
 
         try {
