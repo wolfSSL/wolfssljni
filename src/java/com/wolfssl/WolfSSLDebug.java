@@ -28,6 +28,7 @@ import java.util.logging.*;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * Central location for all debugging messages
@@ -177,6 +178,30 @@ public class WolfSSLDebug {
         /* Disable parent handlers to prevent double logging */
         jniLogger.setUseParentHandlers(false);
         jsseLogger.setUseParentHandlers(false);
+    }
+
+    /**
+     * Control characters (including CR/LF), double quote, and backslash,
+     * which could forge log lines or break out of a JSON string field.
+     */
+    private static final Pattern LOG_UNSAFE_CHARS =
+        Pattern.compile("[\\x00-\\x1F\\x7F\"\\\\]");
+
+    /**
+     * Sanitize String for log, replacing characters that could forge log lines
+     * (CR/LF) or break out of a JSON string field (double quote, backslash)
+     * with '_'.
+     *
+     * @param in string to sanitize, may be null
+     * @return sanitized string, or null if input was null
+     */
+    public static String sanitizeForLog(String in) {
+
+        if (in == null) {
+            return null;
+        }
+
+        return LOG_UNSAFE_CHARS.matcher(in).replaceAll("_");
     }
 
     /**
