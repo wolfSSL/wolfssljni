@@ -4877,13 +4877,19 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentityHint
 {
 #ifndef NO_PSK
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    const char* hint = NULL;
     (void)obj;
 
     if (jenv == NULL || ssl == NULL) {
         return NULL;
     }
 
-    return (*jenv)->NewStringUTF(jenv, wolfSSL_get_psk_identity_hint(ssl));
+    hint = wolfSSL_get_psk_identity_hint(ssl);
+    if (hint == NULL) {
+        return NULL;
+    }
+
+    return (*jenv)->NewStringUTF(jenv, hint);
 #else
     (void)jenv;
     (void)obj;
@@ -4897,13 +4903,19 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPskIdentity
 {
 #ifndef NO_PSK
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    const char* identity = NULL;
     (void)obj;
 
     if (jenv == NULL || ssl == NULL) {
         return NULL;
     }
 
-    return (*jenv)->NewStringUTF(jenv, wolfSSL_get_psk_identity(ssl));
+    identity = wolfSSL_get_psk_identity(ssl);
+    if (identity == NULL) {
+        return NULL;
+    }
+
+    return (*jenv)->NewStringUTF(jenv, identity);
 #else
     (void)jenv;
     (void)obj;
