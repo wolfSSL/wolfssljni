@@ -416,7 +416,7 @@ public class WolfSSLCRL implements Serializable {
         int dateFmt = 0;
         if (revocationDate != null) {
             Asn1TimeData timeData = buildAsn1TimeData(revocationDate);
-            revDateBytes = timeData.paddedData;
+            revDateBytes = Arrays.copyOf(timeData.paddedData, timeData.length);
             dateFmt = timeData.type;
         }
 
@@ -434,36 +434,36 @@ public class WolfSSLCRL implements Serializable {
      * Add revoked certificate entry to CRL from DER-encoded certificate.
      *
      * @param certDer DER-encoded certificate to add as revoked
-     * @param revocationDate Date when certificate was revoked, or null
+     * @param revocationDate must be null. This method records the current
+     *        time as the revocation date. Use addRevoked() with a serial
+     *        number to set a specific date, a non-null value is rejected.
      *
      * @return native wolfSSL return code
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed.
-     * @throws IllegalArgumentException if certDer is null or empty.
+     * @throws IllegalArgumentException if certDer is null or empty, or if
+     *         revocationDate is non-null.
      */
     public int addRevokedCert(byte[] certDer, Date revocationDate) {
+
         if (certDer == null || certDer.length == 0) {
             throw new IllegalArgumentException(
                 "Certificate DER is null or empty");
         }
 
-        confirmObjectIsActive();
-
-        byte[] revDateBytes = null;
-        int dateFmt = 0;
         if (revocationDate != null) {
-            Asn1TimeData timeData = buildAsn1TimeData(revocationDate);
-            revDateBytes = timeData.paddedData;
-            dateFmt = timeData.type;
+            throw new IllegalArgumentException(
+                "revocationDate is not supported by addRevokedCert(), pass " +
+                "null. Use addRevoked() to set a specific revocation date");
         }
+
+        confirmObjectIsActive();
 
         synchronized (crlLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.crlPtr,
-                () -> "entered addRevokedCert(der: " + certDer.length +
-                ", revocationDate: " + revocationDate + ")");
-            return X509_CRL_add_revoked_cert(this.crlPtr, certDer,
-                revDateBytes, dateFmt);
+                () -> "entered addRevokedCert(der: " + certDer.length + ")");
+            return X509_CRL_add_revoked_cert(this.crlPtr, certDer, null, 0);
         }
     }
 
@@ -471,17 +471,27 @@ public class WolfSSLCRL implements Serializable {
      * Add revoked certificate entry to CRL from WolfSSLCertificate object.
      *
      * @param cert WolfSSLCertificate object to add as revoked
-     * @param revocationDate Date when certificate was revoked, or null
+     * @param revocationDate must be null. This method records the current
+     *        time as the revocation date. Use addRevoked() with a serial
+     *        number to set a specific date, a non-null value is rejected.
      *
      * @return native wolfSSL return code
      *
      * @throws IllegalStateException if WolfSSLCRL has been freed or if
      *         certificate DER encoding fails.
-     * @throws IllegalArgumentException if cert is null.
+     * @throws IllegalArgumentException if cert is null, or if
+     *         revocationDate is non-null.
      */
     public int addRevokedCert(WolfSSLCertificate cert, Date revocationDate) {
+
         if (cert == null) {
             throw new IllegalArgumentException("Certificate is null");
+        }
+
+        if (revocationDate != null) {
+            throw new IllegalArgumentException(
+                "revocationDate is not supported by addRevokedCert, pass " +
+                "null. Use addRevoked() to set a specific revocation date");
         }
 
         confirmObjectIsActive();
@@ -489,8 +499,7 @@ public class WolfSSLCRL implements Serializable {
         synchronized (crlLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
                 WolfSSLDebug.INFO, this.crlPtr,
-                () -> "entered addRevokedCert(cert, revocationDate: " +
-                revocationDate + ")");
+                () -> "entered addRevokedCert(cert)");
         }
 
         byte[] certDer = null;
@@ -506,7 +515,7 @@ public class WolfSSLCRL implements Serializable {
             throw new IllegalStateException("Certificate DER is empty");
         }
 
-        return addRevokedCert(certDer, revocationDate);
+        return addRevokedCert(certDer, null);
     }
 
     /**

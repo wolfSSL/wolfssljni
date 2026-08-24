@@ -44,6 +44,13 @@
 #define WOLFSSL_JNI_CRL_GEN_ENABLED
 #endif
 
+/* WOLFSSL_X509_REVOKED.revocationDate was added in 5.9.0 */
+#if defined(WOLFSSL_JNI_CRL_GEN_ENABLED) && \
+    ((LIBWOLFSSL_VERSION_HEX > 0x05008004) || \
+     defined(WOLFSSL_PR9839_PATCH_APPLIED))
+#define WOLFSSL_JNI_CRL_REVDATE_ENABLED
+#endif
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1new
   (JNIEnv* jenv, jclass jcl)
 {
@@ -260,14 +267,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_X509_REVOKED revoked;
     WOLFSSL_ASN1_INTEGER* serialInt = NULL;
+#ifdef WOLFSSL_JNI_CRL_REVDATE_ENABLED
+    WOLFSSL_ASN1_TIME revTime;
+    byte* revDateBuf = NULL;
+    int revDateSz = 0;
+#endif
     byte* serialBuf = NULL;
     int serialSz = 0;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
-
-    /* Note: date is not currently used until WOLFSSL_X509_REVOKED adds it. */
-    (void)revDate;
-    (void)dateFmt;
 
     if (jenv == NULL || crl == NULL || serial == NULL) {
         return WOLFSSL_FAILURE;
@@ -291,10 +299,46 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked
             serialInt->isDynamic = 0;
             serialInt->type = 0;
             revoked.serialNumber = serialInt;
-            ret = wolfSSL_X509_CRL_add_revoked(crl, &revoked);
+
+        #ifdef WOLFSSL_JNI_CRL_REVDATE_ENABLED
+            /* Set caller-supplied revocation date if present, otherwise
+             * wolfSSL fills in the current time. revDate holds the ASN.1
+             * time value bytes, dateFmt is ASN_UTC_TIME or
+             * ASN_GENERALIZED_TIME tag. */
+            if (revDate != NULL) {
+                revDateBuf = (byte*)(*jenv)->GetByteArrayElements(jenv,
+                    revDate, NULL);
+                revDateSz = (*jenv)->GetArrayLength(jenv, revDate);
+                if (revDateBuf == NULL || revDateSz <= 0 ||
+                    (size_t)revDateSz > sizeof(revTime.data)) {
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    XMEMSET(&revTime, 0, sizeof(revTime));
+                    XMEMCPY(revTime.data, revDateBuf, (size_t)revDateSz);
+                    revTime.length = revDateSz;
+                    revTime.type = (int)dateFmt;
+                    revoked.revocationDate = &revTime;
+                }
+            }
+        #else
+            /* No revocationDate support, wolfSSL records the current time. */
+            (void)revDate;
+            (void)dateFmt;
+        #endif
+
+            if (ret == WOLFSSL_SUCCESS) {
+                ret = wolfSSL_X509_CRL_add_revoked(crl, &revoked);
+            }
         }
     }
 
+#ifdef WOLFSSL_JNI_CRL_REVDATE_ENABLED
+    if (revDateBuf != NULL) {
+        (*jenv)->ReleaseByteArrayElements(jenv, revDate,
+            (jbyte*)revDateBuf, JNI_ABORT);
+    }
+#endif
     if (serialBuf != NULL) {
         (*jenv)->ReleaseByteArrayElements(jenv, serial,
             (jbyte*)serialBuf, JNI_ABORT);
@@ -325,11 +369,18 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1add_1revoked_1cert
     int certSz = 0;
     int ret = WOLFSSL_SUCCESS;
     (void)jcl;
-    (void)revDate;
     (void)dateFmt;
 
     if (jenv == NULL || crl == NULL || certDer == NULL) {
         return WOLFSSL_FAILURE;
+    }
+
+    /* Reject non-null date rather than ignoring it, since
+     * wolfSSL_X509_CRL_add_revoked_cert() always records the current time.
+     * Caller should use addRevoked() with an explicit serial number to set a
+     * specific revocation date. */
+    if (revDate != NULL) {
+        return BAD_FUNC_ARG;
     }
 
     certBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, certDer, NULL);
