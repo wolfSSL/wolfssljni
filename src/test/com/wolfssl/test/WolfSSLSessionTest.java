@@ -705,6 +705,159 @@ public class WolfSSLSessionTest {
         }
     }
 
+    /* Accept one TLS connection on a background thread. A server-side
+     * handshake failure is expected once the client rejects the cert. */
+    private Future<Void> runOneShotTlsServer(final ServerSocket srvSocket,
+        final WolfSSLContext srvCtx, ExecutorService es) {
+        return es.submit(new Callable<Void>() {
+            @Override
+            public Void call() {
+                Socket server = null;
+                WolfSSLSession srvSes = null;
+                try {
+                    server = srvSocket.accept();
+                    server.setSoTimeout(10000);
+                    srvSes = new WolfSSLSession(srvCtx);
+                    srvSes.setFd(server);
+                    int ret, err;
+                    do {
+                        ret = srvSes.accept();
+                        err = srvSes.getError(ret);
+                    } while (ret != WolfSSL.SSL_SUCCESS &&
+                             (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                              err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                } catch (Exception e) {
+                    /* expected once the client rejects the certificate */
+                } finally {
+                    if (srvSes != null) {
+                        try {
+                            srvSes.freeSSL();
+                        } catch (Exception e) { }
+                    }
+                    if (server != null) {
+                        try {
+                            server.close();
+                        } catch (Exception e) { }
+                    }
+                }
+                return null;
+            }
+        });
+    }
+
+    /* Client handshake against a one-shot server, trusting no CA so the
+     * server cert cannot verify, with the verify callback on the context
+     * or session. Assert the handshake fails closed. */
+    private void assertHandshakeFailsWithVerifyCallback(
+        WolfSSLVerifyCallback cb, boolean registerOnCtx) throws Exception {
+
+        /* Initialize wolfSSL so the verify callback ex_data slot is
+         * allocated before setVerify() is called. */
+        new WolfSSL();
+
+        final ServerSocket srvSocket = new ServerSocket(0);
+        srvSocket.setSoTimeout(10000);
+        final int port = srvSocket.getLocalPort();
+
+        final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
+            srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.SSLv23_ServerMethod());
+
+        final WolfSSLContext cliCtx =
+            new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+        if (registerOnCtx) {
+            cliCtx.setVerify(WolfSSL.SSL_VERIFY_PEER, cb);
+        }
+
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<Void> srvFuture = runOneShotTlsServer(srvSocket, srvCtx, es);
+
+        Socket cliSock = new Socket("localhost", port);
+        cliSock.setSoTimeout(10000);
+        WolfSSLSession ssl = new WolfSSLSession(cliCtx);
+        try {
+            if (!registerOnCtx) {
+                ssl.setVerify(WolfSSL.SSL_VERIFY_PEER, cb);
+            }
+
+            int ret = ssl.setFd(cliSock);
+            assertEquals(WolfSSL.SSL_SUCCESS, ret);
+
+            int err;
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+            assertTrue("handshake must fail closed when the verify callback " +
+                "throws or returns non-success on an untrusted certificate",
+                ret != WolfSSL.SSL_SUCCESS);
+        } finally {
+            ssl.freeSSL();
+            cliSock.close();
+            try {
+                srvFuture.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) { }
+            es.shutdown();
+            srvSocket.close();
+            srvCtx.free();
+            cliCtx.free();
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_verifyCallbackExceptionFailsClosed()
+        throws Exception {
+        /* Throwing callback on the context must fail the handshake closed. */
+        assertHandshakeFailsWithVerifyCallback(new WolfSSLVerifyCallback() {
+            @Override
+            public int verifyCallback(int preverify_ok, long storePtr) {
+                throw new RuntimeException("verify callback failure");
+            }
+        }, true);
+    }
+
+    @Test
+    public void test_WolfSSLSession_sslVerifyCallbackExceptionFailsClosed()
+        throws Exception {
+        /* Throwing callback on the session (the wolfJSSE path) must fail
+         * closed. */
+        assertHandshakeFailsWithVerifyCallback(new WolfSSLVerifyCallback() {
+            @Override
+            public int verifyCallback(int preverify_ok, long storePtr) {
+                throw new RuntimeException("verify callback failure");
+            }
+        }, false);
+    }
+
+    @Test
+    public void test_WolfSSLSession_verifyCallbackNegativeReturnFailsClosed()
+        throws Exception {
+        /* Negative return on the context must fail closed, exercising the
+         * return normalization rather than the exception path. */
+        assertHandshakeFailsWithVerifyCallback(new WolfSSLVerifyCallback() {
+            @Override
+            public int verifyCallback(int preverify_ok, long storePtr) {
+                return -1;
+            }
+        }, true);
+    }
+
+    @Test
+    public void test_WolfSSLSession_sslVerifyCallbackNegativeReturnFailsClosed()
+        throws Exception {
+        /* Negative return on the session must fail closed, exercising the
+         * return normalization rather than the exception path. */
+        assertHandshakeFailsWithVerifyCallback(new WolfSSLVerifyCallback() {
+            @Override
+            public int verifyCallback(int preverify_ok, long storePtr) {
+                return -1;
+            }
+        }, false);
+    }
+
     @Test
     public void test_WolfSSLSession_getDhKeySizeBeforeHandshakeAndAfterFree()
         throws WolfSSLJNIException, WolfSSLException {
