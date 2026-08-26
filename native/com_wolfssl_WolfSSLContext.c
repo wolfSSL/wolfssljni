@@ -779,6 +779,27 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setVerify(JNIEnv* jenv,
     }
 }
 
+/* Delete local references created in NativeVerifyCallback */
+static void freeNativeVerifyCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jclass verifyClass, jobject verifyCbObj)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (verifyClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, verifyClass);
+    }
+
+    if (verifyCbObj != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, verifyCbObj);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
+}
+
 int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 {
     JNIEnv*   jenv;
@@ -819,6 +840,7 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     if( (*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass, verifyCbObj);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -103;
@@ -847,6 +869,7 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
     }
     if (verifyCbObj == NULL) {
         /* No Java callback registered. Fail closed without throwing. */
+        freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass, verifyCbObj);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -869,6 +892,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLVerifyCallback class reference");
+            freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass,
+                verifyCbObj);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -104;
@@ -884,6 +909,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting verifyCallback method from JNI");
+            freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass,
+                verifyCbObj);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -105;
@@ -896,6 +923,8 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
             /* exception occurred on the Java side during method call */
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass,
+                verifyCbObj);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -106;
@@ -909,11 +938,13 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeVerifyCallback");
+        freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass, verifyCbObj);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
     }
 
+    freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass, verifyCbObj);
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
 
