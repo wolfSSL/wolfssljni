@@ -381,7 +381,15 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             return SSL_FAILURE;
         }
 
-        wc_InitMutex(jniSessLock);
+        if (wc_InitMutex(jniSessLock) != 0) {
+            printf("error initializing jniSessLock in newSSL\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
         appData->jniSessLock = jniSessLock;
 
         /* set up interrupt pipe for SSLSocket.close() to use if/when needed.
@@ -398,13 +406,24 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
         if (pollCountLock == NULL) {
             printf("error mallocing pollCountLock in newSSL for SSLAppData\n");
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            wc_FreeMutex(jniSessLock);
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
             return SSL_FAILURE;
         }
-        wc_InitMutex(pollCountLock);
+        if (wc_InitMutex(pollCountLock) != 0) {
+            printf("error initializing pollCountLock in newSSL\n");
+            (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+            XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wc_FreeMutex(jniSessLock);
+            XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_free((WOLFSSL*)(uintptr_t)sslPtr);
+            return SSL_FAILURE;
+        }
         appData->pollCountLock = pollCountLock;
 
         appData->interruptFds[0] = -1;
@@ -415,7 +434,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             if (ret == -1) {
                 printf("error setting up pipe() for interruptFds[] in newSSL\n");
                 (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+                wc_FreeMutex(pollCountLock);
                 XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_FreeMutex(jniSessLock);
                 XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -429,7 +450,9 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
                 printf("error setting interruptFds[0] non-blocking in newSSL\n");
                 closeInterruptPipe(appData);
                 (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
+                wc_FreeMutex(pollCountLock);
                 XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_FreeMutex(jniSessLock);
                 XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -446,8 +469,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
         #ifndef USE_WINDOWS_API
             closeInterruptPipe(appData);
+            wc_FreeMutex(pollCountLock);
             XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
+            wc_FreeMutex(jniSessLock);
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -462,8 +487,10 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_newSSL
             (*jenv)->DeleteGlobalRef(jenv, *g_cachedSSLObj);
         #ifndef USE_WINDOWS_API
             closeInterruptPipe(appData);
+            wc_FreeMutex(pollCountLock);
             XFREE(pollCountLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
+            wc_FreeMutex(jniSessLock);
             XFREE(jniSessLock, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(appData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(g_cachedSSLObj, NULL, DYNAMIC_TYPE_TMP_BUFFER);
