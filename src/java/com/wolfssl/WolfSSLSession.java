@@ -2425,12 +2425,18 @@ public class WolfSSLSession {
             () -> "entered setSessTimeout(timeout (sec): " + t + ")");
 
         session = this.getSession();
-        if (session == 0) {
-            /* session may be null if session cache disabled, wolfSSL
-             * doesn't have session ID available, mutex function fails, etc */
-            ret = WolfSSL.JNI_SESSION_UNAVAILABLE;
-        } else {
-            ret = setSessTimeout(session, t);
+        try {
+            if (session == 0) {
+                /* session may be null if session cache disabled, no session
+                 * ID available, mutex function fails, etc */
+                ret = WolfSSL.JNI_SESSION_UNAVAILABLE;
+            } else {
+                ret = setSessTimeout(session, t);
+            }
+        } finally {
+            /* getSession() returns a get1Session() owned reference that
+             * must be released. freeSession() is a no-op when passed 0. */
+            freeSession(session);
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
@@ -6121,12 +6127,17 @@ public class WolfSSLSession {
         confirmObjectIsActive();
         synchronized (sslLock) {
             WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
-                WolfSSLDebug.INFO, this.sslPtr,
-                () -> "entered sessionToDer()");
+                WolfSSLDebug.INFO, this.sslPtr, () -> "entered sessionToDer()");
             long sessPtr = this.getSession();
-            return sessionToDerNative(sessPtr);
-        }
 
+            try {
+                return sessionToDerNative(sessPtr);
+            } finally {
+                /* getSession() returns a get1Session() owned reference, must
+                 * be released. */
+                freeSession(sessPtr);
+            }
+        }
     }
 
     /**
