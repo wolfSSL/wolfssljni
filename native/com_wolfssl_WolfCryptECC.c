@@ -70,7 +70,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptECC_doVerify
         return -1;
     }
 
-    wc_ecc_init(&myKey);
+    ret = wc_ecc_init(&myKey);
+    if (ret != 0) {
+        printf("wc_ecc_init failed, ret = %d\n", ret);
+        return ret;
+    }
 
     ret = wc_ecc_import_x963(keyBuf, (unsigned int)keySz, &myKey);
 

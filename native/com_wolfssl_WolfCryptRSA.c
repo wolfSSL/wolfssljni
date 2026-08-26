@@ -171,7 +171,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doVerify
         return -1;
     }
 
-    wc_InitRsaKey(&myKey, NULL);
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret != 0) {
+        printf("wc_InitRsaKey failed, ret = %d\n", ret);
+        return ret;
+    }
     idx = 0;
 
     ret = wc_RsaPublicKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
@@ -533,7 +537,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doDec
         return -1;
     }
 
-    wc_InitRsaKey(&myKey, NULL);
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret != 0) {
+        printf("wc_InitRsaKey failed, ret = %d\n", ret);
+        return ret;
+    }
     idx = 0;
 
     ret = wc_RsaPrivateKeyDecode(keyBuf, &idx, &myKey, (unsigned int)keySz);
