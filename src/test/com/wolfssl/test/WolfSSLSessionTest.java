@@ -5552,5 +5552,38 @@ public class WolfSSLSessionTest {
             }
         }
     }
+
+    @Test
+    public void test_WolfSSLSession_setTlsHmacInnerErrorNoBufferCopy()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        /* WOLFSSL_TLS_HMAC_INNER_SZ from native wolfSSL */
+        final int hmacInnerSz = 13;
+
+        /* dtls12_cid content type forces wolfSSL_SetTlsHmacInner() to return
+         * an error before it writes the inner buffer */
+        final int dtls12Cid = 25;
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+
+        try {
+            /* Prefill inner with a sentinel so we can detect any overwrite */
+            byte[] inner = new byte[hmacInnerSz];
+            byte[] expected = new byte[hmacInnerSz];
+            for (int i = 0; i < hmacInnerSz; i++) {
+                inner[i] = (byte)0xAA;
+                expected[i] = (byte)0xAA;
+            }
+
+            int ret = ssl.setTlsHmacInner(inner, 0, dtls12Cid, 0);
+
+            /* Error return expected, buffer must be left untouched so no
+             * uninitialized native data is handed back to the caller */
+            assertNotEquals(0, ret);
+            assertArrayEquals(expected, inner);
+        } finally {
+            ssl.freeSSL();
+        }
+    }
 }
 
