@@ -376,12 +376,19 @@ public class WolfSSLAuthStore {
             /* Try getting session out of Java store */
             ses = store.get(cacheKey);
 
-            /* Remove old entry from table. TLS 1.3 binder changes between
-             * resumptions and stored session should only be used to
-             * resume once. New session structure/object will be cached
-             * after the resumed session completes the handshake, for
-             * subsequent resumption attempts to use. */
-            store.remove(cacheKey);
+            /* A server-side entry is not usable for client resumption, so leave
+             * it in the table and fall through to create a new session. */
+            if (ses != null && ses.getSide() != WolfSSL.WOLFSSL_CLIENT_END) {
+                ses = null;
+            }
+            else {
+                /* Remove old entry from table. TLS 1.3 binder changes between
+                 * resumptions and stored session should only be used to
+                 * resume once. New session structure/object will be cached
+                 * after the resumed session completes the handshake, for
+                 * subsequent resumption attempts to use. */
+                store.remove(cacheKey);
+            }
         }
 
         /* Check conditions where we need to create a new new session:
@@ -684,9 +691,11 @@ public class WolfSSLAuthStore {
             }
         }
 
-        /* Only store session into cache if we have a usable key. If a session
-         * already exists for cacheKey, it will be overwritten with the new
-         * version. */
+        /* Only store session into cache if we have a usable key. An existing
+         * entry for cacheKey is overwritten, including one from the opposite
+         * side since client and server share the host:port key namespace.
+         * getSession() guards the read side against reusing a server-side
+         * entry for client resumption. */
         if (haveKey) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "stored session in cache table (host: " +
