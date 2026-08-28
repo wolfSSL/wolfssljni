@@ -3639,7 +3639,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getCurrentCipher
 
     if (ssl == NULL) {
         throwWolfSSLException(jenv,
-            "Input WolfSSLSession object was null in getVersion");
+            "Input WolfSSLSession object was null in getCurrentCipher");
         return SSL_FAILURE;
     }
 
