@@ -6430,7 +6430,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
     /* Note: since this is called from C, not the JVM, we need to explicitly
      * free all object refs with DeleteLocalRef() */
 
-    if (!g_vm || !ssl || !hint || !identity || !key) {
+    if (!g_vm || !ssl || !identity || !key) {
         /* we can't throw an exception yet, so just return 0 (failure) */
         return 0;
     }
@@ -6598,20 +6598,24 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         return 0;
     }
 
-    /* create String to wrap 'hint' */
-    hintString = (*jenv)->NewStringUTF(jenv, hint);
-    if (!hintString) {
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
+    /* Wrap hint as a String, passing null to Java when hint is NULL. */
+    if (hint != NULL) {
+        hintString = (*jenv)->NewStringUTF(jenv, hint);
+        if (!hintString) {
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+            }
+            (*jenv)->ThrowNew(jenv, excClass,
+                "Error creating String for PSK client hint");
+            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            if (needsDetach) {
+                (*g_vm)->DetachCurrentThread(g_vm);
+            }
+            return 0;
         }
-        (*jenv)->ThrowNew(jenv, excClass,
-            "Error creating String for PSK client hint");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach) {
-            (*g_vm)->DetachCurrentThread(g_vm);
-        }
-        return 0;
+    } else {
+        hintString = NULL;
     }
 
     /* find StringBuffer class to wrap 'identity' */
