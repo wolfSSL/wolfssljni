@@ -1874,24 +1874,53 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setGenCookie
 #endif
 }
 
+/* Delete JNI local references created inside NativeGenCookieCb() */
+static void freeGenCookieCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jclass sessClass, jobject ctxRef, jclass innerCtxClass, jbyteArray inData)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (inData != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, inData);
+    }
+
+    if (innerCtxClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, innerCtxClass);
+    }
+
+    if (ctxRef != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    }
+
+    if (sessClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sessClass);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
+}
+
 int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
 {
     jint       retval = 0;
     jint       vmret  = 0;
 
     JNIEnv*    jenv;                  /* JNI environment */
-    jclass     excClass;              /* WolfSSLJNIException class */
+    jclass     excClass = NULL;       /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
     jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
-    jclass     sessClass;             /* WolfSSLSession class */
+    jclass     sessClass = NULL;      /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
 
-    jobject    ctxRef;                /* WolfSSLContext object */
-    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jobject    ctxRef = NULL;         /* WolfSSLContext object */
+    jclass     innerCtxClass = NULL;  /* WolfSSLContext class */
     jmethodID  cookieCbMethodId;      /* internalGenCookieCallback ID */
-    jbyteArray inData;                /* jbyteArray to hold cookie data */
+    jbyteArray inData = NULL;         /* jbyteArray to hold cookie data */
 
     (void)ctx;
 
@@ -1921,8 +1950,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1932,8 +1964,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeGenCookieCb");
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1943,8 +1978,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeGenCookieCb");
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1959,8 +1997,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in "
             "NativeGenCookieCb");
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1976,8 +2017,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeGenCookieCb");
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1988,8 +2032,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeGenCookieCb");
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -1999,9 +2046,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext class reference in "
             "NativeGenCookieCb");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -2010,16 +2059,18 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
             "internalGenCookieCallback",
             "(Lcom/wolfssl/WolfSSLSession;[BI)I");
 
-   if (!cookieCbMethodId) {
+    if (!cookieCbMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalGenCookieCallback method from JNI");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
-        if (needsDetach)
+        freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, inData);
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return GEN_COOKIE_E;
     }
 
@@ -2029,10 +2080,12 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         inData = (*jenv)->NewByteArray(jenv, sz);
         if (!inData) {
             (*jenv)->ThrowNew(jenv, excClass,
-                    "Error getting internalGenCookieCallback method from JNI");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            if (needsDetach)
+                    "Error creating jbyteArray in NativeGenCookieCb");
+            freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, inData);
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return GEN_COOKIE_E;
         }
 
@@ -2044,10 +2097,11 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, inData);
-            if (needsDetach)
+            freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, inData);
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
+            }
             return GEN_COOKIE_E;
         }
 
@@ -2058,22 +2112,22 @@ int NativeGenCookieCb(WOLFSSL *ssl, unsigned char *buf, int sz, void *ctx)
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->DeleteLocalRef(jenv, ctxRef);
-                (*jenv)->DeleteLocalRef(jenv, inData);
-                if (needsDetach)
+                freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                    innerCtxClass, inData);
+                if (needsDetach) {
                     (*g_vm)->DetachCurrentThread(g_vm);
+                }
                 return GEN_COOKIE_E;
             }
         }
-
-        /* delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, inData);
     }
 
     /* delete local refs, detach JNIEnv from thread */
-    (*jenv)->DeleteLocalRef(jenv, ctxRef);
-    if (needsDetach)
+    freeGenCookieCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+        innerCtxClass, inData);
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
