@@ -936,6 +936,44 @@ public class WolfSSLSessionTest {
     }
 
     @Test
+    public void test_WolfSSLSession_setTimeoutInvalid()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+
+        try {
+            /* Values outside the unsigned int range are rejected rather
+             * than wrapping or truncating */
+            if (ssl.setTimeout(-1) >= 0) {
+                fail("setTimeout accepted a negative value");
+            }
+            if (ssl.setTimeout(0x100000000L) >= 0) {
+                fail("setTimeout accepted a value above UINT32_MAX");
+            }
+
+            /* UINT32_MAX is the inclusive upper bound and is accepted */
+            if (ssl.setTimeout(0xFFFFFFFFL) != WolfSSL.SSL_SUCCESS) {
+                fail("setTimeout rejected UINT32_MAX");
+            }
+
+            if (ssl.setTimeout(60) != WolfSSL.SSL_SUCCESS) {
+                fail("setTimeout rejected a valid value");
+            }
+
+            /* A rejected value leaves the previously set timeout intact */
+            if (ssl.setTimeout(-1) >= 0) {
+                fail("setTimeout accepted a negative value");
+            }
+            if (ssl.getTimeout() != 60) {
+                fail("rejected setTimeout changed the session timeout");
+            }
+
+        } finally {
+            ssl.freeSSL();
+        }
+    }
+
+    @Test
     public void test_WolfSSLSession_status()
         throws WolfSSLJNIException, WolfSSLException {
 

@@ -2435,6 +2435,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
     (void)jenv;
     (void)jcl;
 
+    /* Reject timeouts outside unsigned int range accepted by native */
+    if (ssl == NULL || t < 0 || t > (jlong)UINT32_MAX) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
     return wolfSSL_set_timeout(ssl, (unsigned int)t);
 }
 
