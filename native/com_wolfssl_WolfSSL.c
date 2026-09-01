@@ -2495,12 +2495,15 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getEnabledCipherSuitesIana
  *        src/java/com/wolfssl/WolfSSL.java:
  *
  *        public static enum TLS_VERSION {
- *            INVALID, (0)
- *            TLSv1,   (1)
- *            TLSv1_1, (2)
- *            TLSv1_2, (3)
- *            TLSv1_3, (4)
- *            SSLv23   (5)
+ *            INVALID,  (0)
+ *            TLSv1,    (1)
+ *            TLSv1_1,  (2)
+ *            TLSv1_2,  (3)
+ *            TLSv1_3,  (4)
+ *            SSLv23,   (5)
+ *            DTLSv1,   (6)
+ *            DTLSv1_2, (7)
+ *            DTLSv1_3  (8)
  *        }
  * @returns colon-separated cipher suite string.
  */
