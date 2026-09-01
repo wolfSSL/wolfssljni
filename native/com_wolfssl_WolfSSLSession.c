@@ -5403,9 +5403,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sslGet0AlpnSelected
         return NULL;
     }
 
-    /* get ALPN protocol received from server:
+    /* get the negotiated ALPN protocol for this session:
      * WOLFSSL_SUCCESS - on success
-     * WOLFSSL_ALPN_NOT_FOUND - no ALPN received (no match with server)
+     * WOLFSSL_ALPN_NOT_FOUND - no ALPN protocol was negotiated
      * other - error case */
     err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
     if (err != WOLFSSL_SUCCESS) {
