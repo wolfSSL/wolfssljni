@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse.test;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -37,6 +38,8 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -48,6 +51,7 @@ import org.junit.rules.TestRule;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLKeyX509;
 import com.wolfssl.test.TimedTestWatcher;
 
 public class WolfSSLKeyX509Test {
@@ -135,6 +139,42 @@ public class WolfSSLKeyX509Test {
 
         if (alias.length != 3) {
             fail("unexpected number of alias found");
+        }
+    }
+
+    @Test
+    public void testGetClientAliasesSkipsCertlessEntries() throws Exception {
+
+        /* JCEKS can hold a SecretKeyEntry (an alias with no X509Certificate),
+         * which JKS/BKS cannot. Skip where JCEKS is unavailable. */
+        KeyStore store;
+        try {
+            store = KeyStore.getInstance("JCEKS");
+        } catch (KeyStoreException e) {
+            return;
+        }
+        store.load(null, null);
+        SecretKey sk = new SecretKeySpec(new byte[16], "AES");
+        store.setKeyEntry("secretOnly", sk, "pass".toCharArray(), null);
+
+        String original =
+            Security.getProperty("wolfjsse.X509KeyManager.disableCache");
+        try {
+            /* Both cached and direct KeyStore paths must skip aliases without
+             * a cert */
+            for (String disabled : new String[] { "false", "true" }) {
+                Security.setProperty(
+                    "wolfjsse.X509KeyManager.disableCache", disabled);
+
+                WolfSSLKeyX509 km =
+                    new WolfSSLKeyX509(store, "pass".toCharArray());
+
+                assertNull(km.getClientAliases("RSA", null));
+                assertNull(km.getServerAliases("RSA", null));
+            }
+        } finally {
+            Security.setProperty("wolfjsse.X509KeyManager.disableCache",
+                original != null ? original : "");
         }
     }
 
