@@ -6559,7 +6559,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject    directBuf;
     jboolean   useByteBuffer = 0;      /* ByteBuffer or byte[] I/O callbacks */
 
-    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL || sz < 0) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -6735,7 +6735,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject    directBuf;
     jboolean   useByteBuffer = 0;     /* ByteBuffer I/O callbacks */
 
-    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL || sz < 0) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
