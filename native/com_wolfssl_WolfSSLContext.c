@@ -2459,6 +2459,48 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setVerifyDecryptCb
 
 #ifdef ATOMIC_USER
 
+/* Delete JNI local references created inside NativeMacEncryptCb() */
+static void freeMacEncryptCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jclass sessClass, jobject ctxRef, jclass innerCtxClass, jobject macOutBB,
+    jbyteArray j_macIn, jobject encOutBB, jobject encInBB)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (macOutBB != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, macOutBB);
+    }
+
+    if (j_macIn != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, j_macIn);
+    }
+
+    if (encOutBB != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, encOutBB);
+    }
+
+    if (encInBB != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, encInBB);
+    }
+
+    if (innerCtxClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, innerCtxClass);
+    }
+
+    if (ctxRef != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    }
+
+    if (sessClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sessClass);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
+}
+
 int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         const unsigned char* macIn, unsigned int macInSz, int macContent,
         int macVerify, unsigned char* encOut, const unsigned char* encIn,
@@ -2468,16 +2510,16 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     jint       vmret  = 0;
 
     JNIEnv*    jenv;                  /* JNI environment */
-    jclass     excClass;              /* WolfSSLJNIException class */
+    jclass     excClass = NULL;       /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
     jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
-    jclass     sessClass;             /* WolfSSLSession class */
+    jclass     sessClass = NULL;      /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
 
-    jobject    ctxRef;                /* WolfSSLContext object */
-    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jobject    ctxRef = NULL;         /* WolfSSLContext object */
+    jclass     innerCtxClass = NULL;  /* WolfSSLContext class */
     jmethodID  macEncryptMethodId;    /* internalMacEncryptCallback ID */
 
     jobject    macOutBB = NULL;
@@ -2485,7 +2527,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     jobject    encInBB = NULL;
 
     int        hmacSize;
-    jbyteArray j_macIn;
+    jbyteArray j_macIn = NULL;
 
     (void)ctx;
 
@@ -2514,6 +2556,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2525,6 +2569,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2536,6 +2582,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2552,6 +2600,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID in "
             "NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2569,6 +2619,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID in "
             "NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2582,6 +2634,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2593,7 +2647,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext class reference in "
             "NativeMacEncryptCb");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2612,7 +2667,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         }
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalMacEncryptCallback method from JNI");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2627,7 +2683,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if (!macOutBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create macOut ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2638,8 +2695,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if (!j_macIn) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create macIn ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, macOutBB);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2650,9 +2707,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, macOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2663,9 +2719,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if (!encOutBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create encOut ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, macOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_macIn);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2679,10 +2734,8 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         if (!encInBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create encIn ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, macOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_macIn);
-            (*jenv)->DeleteLocalRef(jenv, encOutBB);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2698,29 +2751,59 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->ThrowNew(jenv, excClass,
                 "Call to Java callback failed in NativeMacEncryptCb");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, macOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_macIn);
-            (*jenv)->DeleteLocalRef(jenv, encOutBB);
-            (*jenv)->DeleteLocalRef(jenv, encInBB);
+            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
-
-        /* delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, macOutBB);
-        (*jenv)->DeleteLocalRef(jenv, j_macIn);
-        (*jenv)->DeleteLocalRef(jenv, encOutBB);
-        (*jenv)->DeleteLocalRef(jenv, encInBB);
     }
 
-    /* detach JNIEnv from thread */
-    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    /* delete local refs, detach JNIEnv from thread */
+    freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+        innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
+}
+
+/* Delete JNI local references created inside NativeDecryptVerifyCb() */
+static void freeDecryptVerifyCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jclass sessClass, jobject ctxRef, jclass innerCtxClass, jobject decOutBB,
+    jbyteArray j_decIn, jlongArray j_padSz)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (decOutBB != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, decOutBB);
+    }
+
+    if (j_decIn != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, j_decIn);
+    }
+
+    if (j_padSz != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, j_padSz);
+    }
+
+    if (innerCtxClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, innerCtxClass);
+    }
+
+    if (ctxRef != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    }
+
+    if (sessClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sessClass);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
 }
 
 int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
@@ -2731,20 +2814,20 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     jint       vmret  = 0;
 
     JNIEnv*    jenv;                  /* JNI environment */
-    jclass     excClass;              /* WolfSSLJNIException class */
+    jclass     excClass = NULL;       /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
 
     jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
-    jclass     sessClass;             /* WolfSSLSession class */
+    jclass     sessClass = NULL;      /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
 
-    jobject    ctxRef;                /* WolfSSLContext object */
-    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jobject    ctxRef = NULL;         /* WolfSSLContext object */
+    jclass     innerCtxClass = NULL;  /* WolfSSLContext class */
     jmethodID  decryptVerifyMethodId;
 
-    jbyteArray j_decIn;
-    jlongArray j_padSz;
+    jbyteArray j_decIn = NULL;
+    jlongArray j_padSz = NULL;
 
     jobject    decOutBB = NULL;
     jlong      tmpVal = 0;
@@ -2776,6 +2859,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2786,7 +2871,9 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
-                "NativeMacEncryptCb");
+                "NativeDecryptVerifyCb");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2797,7 +2884,9 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if (!sessClass) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
-            "NativeMacEncryptCb");
+            "NativeDecryptVerifyCb");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2814,6 +2903,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID "
             "in NativeDecryptVerifyCb");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2831,6 +2922,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID "
             "in NativeDecryptVerifyCb");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2843,6 +2936,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2854,7 +2949,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext class reference "
             "in NativeDecryptVerifyCb");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2873,7 +2969,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalDecryptVerifyCallback method "
                 "from JNI");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -2886,7 +2983,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!decOutBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create decOut ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2897,8 +2995,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!j_decIn) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create decIn ByteArray");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2908,9 +3006,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2922,9 +3019,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!j_padSz) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create padSz longArray");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2939,10 +3035,8 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
-            (*jenv)->DeleteLocalRef(jenv, j_padSz);
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -2954,29 +3048,61 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->DeleteLocalRef(jenv, ctxRef);
-                (*jenv)->DeleteLocalRef(jenv, decOutBB);
-                (*jenv)->DeleteLocalRef(jenv, j_decIn);
-                (*jenv)->DeleteLocalRef(jenv, j_padSz);
+                freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass,
+                    ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
                 if (needsDetach)
                     (*g_vm)->DetachCurrentThread(g_vm);
                 return -1;
             }
             *padSz = (unsigned int)tmpVal;
         }
-
-        /* delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, decOutBB);
-        (*jenv)->DeleteLocalRef(jenv, j_decIn);
-        (*jenv)->DeleteLocalRef(jenv, j_padSz);
     }
 
     /* delete local refs, detach JNIEnv from thread */
-    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+        innerCtxClass, decOutBB, j_decIn, j_padSz);
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
 
     return retval;
+}
+
+/* Delete JNI local references created inside NativeVerifyDecryptCb() */
+static void freeVerifyDecryptCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jclass sessClass, jobject ctxRef, jclass innerCtxClass, jobject decOutBB,
+    jbyteArray j_decIn, jlongArray j_padSz)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (decOutBB != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, decOutBB);
+    }
+
+    if (j_decIn != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, j_decIn);
+    }
+
+    if (j_padSz != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, j_padSz);
+    }
+
+    if (innerCtxClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, innerCtxClass);
+    }
+
+    if (ctxRef != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    }
+
+    if (sessClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sessClass);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
 }
 
 int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
@@ -2987,21 +3113,21 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
     jint       vmret  = 0;
 
     JNIEnv*    jenv;                  /* JNI environment */
-    jclass     excClass;              /* WolfSSLJNIException class */
+    jclass     excClass = NULL;       /* WolfSSLJNIException class */
     int        needsDetach = 0;       /* Should we explicitly detach? */
     int        hmacSize = 0;          /* WOLFSSL HMAC digest size */
 
     jobject* g_cachedSSLObj;           /* WolfSSLSession cached object */
-    jclass     sessClass;             /* WolfSSLSession class */
+    jclass     sessClass = NULL;      /* WolfSSLSession class */
     jfieldID   ctxFid;                /* WolfSSLSession->ctx FieldID */
     jmethodID  getCtxMethodId;        /* WolfSSLSession->getAssCtxPtr() ID */
 
-    jobject    ctxRef;                /* WolfSSLContext object */
-    jclass     innerCtxClass;         /* WolfSSLContext class */
+    jobject    ctxRef = NULL;         /* WolfSSLContext object */
+    jclass     innerCtxClass = NULL;  /* WolfSSLContext class */
     jmethodID  verifyDecryptMethodId;
 
-    jbyteArray j_decIn;
-    jlongArray j_padSz;
+    jbyteArray j_decIn = NULL;
+    jlongArray j_padSz = NULL;
 
     jobject    decOutBB = NULL;
     jlong      tmpVal = 0;
@@ -3033,6 +3159,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3044,6 +3172,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLSession object reference in "
                 "NativeVerifyDecryptCb");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3055,6 +3185,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLSession class reference in "
             "NativeVerifyDecryptCb");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3071,6 +3203,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext field ID "
             "in NativeVerifyDecryptCb");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3088,6 +3222,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get getAssociatedContextPtr() method ID "
             "in NativeVerifyDecryptCb");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3100,6 +3236,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeVerifyDecryptCb");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3111,7 +3249,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get native WolfSSLContext class reference "
             "in NativeVerifyDecryptCb");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3130,7 +3269,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting internalVerifyDecryptCallback method "
                 "from JNI");
-        (*jenv)->DeleteLocalRef(jenv, ctxRef);
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
         if (needsDetach)
             (*g_vm)->DetachCurrentThread(g_vm);
         return -1;
@@ -3146,7 +3286,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!decOutBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create decOut ByteBuffer");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -3157,8 +3298,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!j_decIn) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create decIn ByteArray");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -3168,9 +3309,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -3182,9 +3322,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         if (!j_padSz) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create padSz longArray");
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -3199,10 +3338,8 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ctxRef);
-            (*jenv)->DeleteLocalRef(jenv, decOutBB);
-            (*jenv)->DeleteLocalRef(jenv, j_decIn);
-            (*jenv)->DeleteLocalRef(jenv, j_padSz);
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+                innerCtxClass, decOutBB, j_decIn, j_padSz);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
@@ -3214,25 +3351,19 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
-                (*jenv)->DeleteLocalRef(jenv, ctxRef);
-                (*jenv)->DeleteLocalRef(jenv, decOutBB);
-                (*jenv)->DeleteLocalRef(jenv, j_decIn);
-                (*jenv)->DeleteLocalRef(jenv, j_padSz);
+                freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass,
+                    ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
                 if (needsDetach)
                     (*g_vm)->DetachCurrentThread(g_vm);
                 return -1;
             }
             *padSz = (unsigned int)tmpVal;
         }
-
-        /* delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, decOutBB);
-        (*jenv)->DeleteLocalRef(jenv, j_decIn);
-        (*jenv)->DeleteLocalRef(jenv, j_padSz);
     }
 
     /* delete local refs, detach JNIEnv from thread */
-    (*jenv)->DeleteLocalRef(jenv, ctxRef);
+    freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+        innerCtxClass, decOutBB, j_decIn, j_padSz);
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
 
