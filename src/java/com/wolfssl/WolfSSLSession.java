@@ -131,6 +131,11 @@ public class WolfSSLSession {
     private static final ThreadLocal<ConcurrentLinkedQueue<ByteBuffer>> directBufferPool =
         ThreadLocal.withInitial(() -> new ConcurrentLinkedQueue<>());
 
+    /* Zero-filled byte array used to overwrite pooled direct ByteBuffers
+     * before reuse. Read-only after being sized, so it is read concurrently
+     * without a lock. Grown under a short class-lock in wipeDirectBuffer(). */
+    private static volatile byte[] directBufferZeroFill = new byte[0];
+
     /**
      * Check if static direct ByteBuffer pool has been disabled for
      * use in read/write() methods.
@@ -257,6 +262,34 @@ public class WolfSSLSession {
     }
 
     /**
+     * Overwrite a direct ByteBuffer's full capacity with zeros so a pooled
+     * or discarded buffer does not retain decrypted plaintext. Leaves the
+     * buffer cleared for reuse. The full-capacity copy runs without the pool
+     * lock to avoid serializing all threads on it.
+     *
+     * @param buffer direct ByteBuffer to wipe
+     */
+    private static void wipeDirectBuffer(ByteBuffer buffer) {
+
+        int cap = buffer.capacity();
+        byte[] zeros = directBufferZeroFill;
+
+        /* Grow the shared zero source under a short lock only when needed */
+        if (zeros.length < cap) {
+            synchronized (WolfSSLSession.class) {
+                if (directBufferZeroFill.length < cap) {
+                    directBufferZeroFill = new byte[cap];
+                }
+                zeros = directBufferZeroFill;
+            }
+        }
+
+        buffer.clear();
+        buffer.put(zeros, 0, cap);
+        buffer.clear();
+    }
+
+    /**
      * Get a DirectByteBuffer from the thread-local pool or allocate a new one
      * if the pool is empty.
      *
@@ -288,20 +321,26 @@ public class WolfSSLSession {
      *
      * @param buffer the buffer to return to the pool
      */
-    private static synchronized void releaseDirectBuffer(ByteBuffer buffer) {
+    private static void releaseDirectBuffer(ByteBuffer buffer) {
 
         if (buffer != null && buffer.isDirect()) {
 
-            buffer.clear();
-            ConcurrentLinkedQueue<ByteBuffer> threadPool =
-                directBufferPool.get();
+            /* Overwrite plaintext before pooling or discarding, done outside
+             * the pool lock so the full-capacity wipe does not serialize
+             * every read()/write() on the class monitor. */
+            wipeDirectBuffer(buffer);
 
-            if (threadPool.size() < MAX_POOL_SIZE) {
-                WolfSSLDebug.log(WolfSSLSession.class,
-                    WolfSSLDebug.Component.JNI, WolfSSLDebug.INFO, 0,
-                    () -> "Returning DirectByteBuffer to thread-local pool, " +
-                    "pool size: " + threadPool.size());
-                threadPool.offer(buffer);
+            synchronized (WolfSSLSession.class) {
+                ConcurrentLinkedQueue<ByteBuffer> threadPool =
+                    directBufferPool.get();
+
+                if (threadPool.size() < MAX_POOL_SIZE) {
+                    WolfSSLDebug.log(WolfSSLSession.class,
+                        WolfSSLDebug.Component.JNI, WolfSSLDebug.INFO, 0,
+                        () -> "Returning DirectByteBuffer to thread-local " +
+                        "pool, pool size: " + threadPool.size());
+                    threadPool.offer(buffer);
+                }
             }
         }
     }
