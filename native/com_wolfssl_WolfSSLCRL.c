@@ -563,6 +563,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1lastUpdate
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_ASN1_TIME* date = NULL;
     char timeStr[CTC_DATE_SIZE];
+    char* dateStr = NULL;
     (void)jcl;
 
     if (jenv == NULL || crl == NULL) {
@@ -571,8 +572,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1lastUpdate
 
     date = wolfSSL_X509_CRL_get_lastUpdate(crl);
     if (date != NULL) {
-        return (*jenv)->NewStringUTF(jenv,
-            wolfSSL_ASN1_TIME_to_string(date, timeStr, sizeof(timeStr)));
+        dateStr = wolfSSL_ASN1_TIME_to_string(date, timeStr, sizeof(timeStr));
+        if (dateStr != NULL) {
+            return (*jenv)->NewStringUTF(jenv, dateStr);
+        }
     }
 
     return NULL;
@@ -591,6 +594,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1nextUpdate
     WOLFSSL_X509_CRL* crl = (WOLFSSL_X509_CRL*)(uintptr_t)crlPtr;
     WOLFSSL_ASN1_TIME* date = NULL;
     char timeStr[CTC_DATE_SIZE];
+    char* dateStr = NULL;
     (void)jcl;
 
     if (jenv == NULL || crl == NULL) {
@@ -599,8 +603,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCRL_X509_1CRL_1get_1nextUpdate
 
     date = wolfSSL_X509_CRL_get_nextUpdate(crl);
     if (date != NULL) {
-        return (*jenv)->NewStringUTF(jenv,
-            wolfSSL_ASN1_TIME_to_string(date, timeStr, sizeof(timeStr)));
+        dateStr = wolfSSL_ASN1_TIME_to_string(date, timeStr, sizeof(timeStr));
+        if (dateStr != NULL) {
+            return (*jenv)->NewStringUTF(jenv, dateStr);
+        }
     }
 
     return NULL;

@@ -1390,6 +1390,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notBefore
 #endif
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     char timeStr[CTC_DATE_SIZE];
+    char* dateStr = NULL;
     (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
@@ -1403,9 +1404,11 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notBefore
 #endif
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
     if (date != NULL) {
-        return (*jenv)->NewStringUTF(jenv,
-                wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date, timeStr,
-                    sizeof(timeStr)));
+        dateStr = wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date,
+            timeStr, sizeof(timeStr));
+        if (dateStr != NULL) {
+            return (*jenv)->NewStringUTF(jenv, dateStr);
+        }
     }
     return NULL;
 }
@@ -1420,6 +1423,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notAfter
 #endif
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     char timeStr[CTC_DATE_SIZE];
+    char* dateStr = NULL;
     (void)jcl;
 
     if (jenv == NULL || x509 == NULL) {
@@ -1433,9 +1437,11 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1notAfter
 #endif
     /* returns string holding date i.e. "Thu Jan 07 08:23:09 MST 2021" */
     if (date != NULL) {
-        return (*jenv)->NewStringUTF(jenv,
-                wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date,
-                    timeStr, sizeof(timeStr)));
+        dateStr = wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)date,
+            timeStr, sizeof(timeStr));
+        if (dateStr != NULL) {
+            return (*jenv)->NewStringUTF(jenv, dateStr);
+        }
     }
     return NULL;
 }
