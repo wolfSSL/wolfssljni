@@ -28,8 +28,10 @@ import org.junit.BeforeClass;
 import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -39,7 +41,10 @@ import java.security.PrivateKey;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.CRLException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509CRL;
 import java.util.Date;
 import java.util.Calendar;
 
@@ -121,6 +126,12 @@ public class WolfSSLCRLTest {
      */
     private WolfSSLCRL generateSignedTestCRL()
         throws WolfSSLException, WolfSSLJNIException, NoSuchAlgorithmException {
+        return generateSignedTestCRL(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+    }
+
+    /* Same as above, revoking the given serial */
+    private WolfSSLCRL generateSignedTestCRL(byte[] serial)
+        throws WolfSSLException, WolfSSLJNIException, NoSuchAlgorithmException {
 
         WolfSSLCRL crl = new WolfSSLCRL();
         crl.setVersion(1);
@@ -134,7 +145,6 @@ public class WolfSSLCRLTest {
         cal.add(Calendar.DAY_OF_YEAR, 30);
         crl.setNextUpdate(cal.getTime());
 
-        byte[] serial = new byte[] { 0x01, 0x02, 0x03, 0x04 };
         crl.addRevoked(serial, new Date());
 
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -341,6 +351,39 @@ public class WolfSSLCRLTest {
         }
 
         crl.free();
+    }
+
+    @Test
+    public void testAddRevokedSerialRoundTrip()
+        throws WolfSSLException, WolfSSLJNIException, NoSuchAlgorithmException,
+               CertificateException, CRLException {
+
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
+
+        /* Second serial has the top bit set, so the DER INTEGER needs a
+         * leading zero to stay positive */
+        byte[][] serials = new byte[][] {
+            { 0x01, 0x02, 0x03, 0x04 },
+            { (byte)0x80, 0x01, 0x02, 0x03 }
+        };
+        for (byte[] serial : serials) {
+            WolfSSLCRL crl = generateSignedTestCRL(serial);
+            byte[] der = null;
+            try {
+                der = crl.getDer();
+            }
+            finally {
+                crl.free();
+            }
+            assertNotNull(der);
+
+            X509CRL decoded = (X509CRL)CertificateFactory.getInstance("X.509")
+                .generateCRL(new ByteArrayInputStream(der));
+            assertNotNull(decoded.getRevokedCertificates());
+            assertEquals(1, decoded.getRevokedCertificates().size());
+            assertNotNull("revoked serial should match the input bytes",
+                decoded.getRevokedCertificate(new BigInteger(1, serial)));
+        }
     }
 
     @Test
