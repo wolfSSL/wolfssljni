@@ -4181,6 +4181,15 @@ public class WolfSSLSession {
     /**
      * Registers CRL callback to be called when CRL lookup fails.
      *
+     * The native wolfSSL missing CRL callback carries only the CRL URL, with
+     * no context or session identity, so wolfJNI keeps a single process-wide
+     * callback for all WolfSSLSession registrations. The most recently
+     * registered callback receives the notifications for every session, and
+     * registering null on any session stops delivery for all of them. This
+     * also replaces any callback registered through
+     * {@link WolfSSLContext#setCRLCb(WolfSSLMissingCRLCallback)} for this
+     * session's context.
+     *
      * @param cb callback to be registered with SSL session, called
      *           when CRL lookup fails.
      * @return   <b><code>SSL_SUCCESS</code></b> upon success,
