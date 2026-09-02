@@ -874,7 +874,8 @@ public class WolfSSLEngineHelper {
         String proto = ssl.getAlpnSelectedString();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "selected ALPN protocol = " + proto);
+            () -> "selected ALPN protocol = " +
+                WolfSSLDebug.sanitizeForLog(proto));
 
         if (proto == null && this.ssl.handshakeDone()) {
             /* ALPN not used if proto is null and handshake is done */

@@ -116,12 +116,14 @@ public class WolfSSLCertManager {
      * Load CA into CertManager from byte array
      *
      * @param in byte array holding X.509 certificate to load
-     * @param sz size of input byte array, bytes
+     * @param sz number of bytes to parse from the start of in.
+     *           Must not exceed in.length.
      * @param format format of input certificate, either
      *               WolfSSL.SSL_FILETYPE_PEM (PEM formatted) or
      *               WolfSSL.SSL_FILETYPE_ASN1 (ASN.1/DER).
      *
-     * @return WolfSSL.SSL_SUCCESS on success, negative on error
+     * @return WolfSSL.SSL_SUCCESS on success, negative on error including
+     *         BAD_FUNC_ARG when sz exceeds in.length
      * @throws IllegalStateException WolfSSLContext has been freed
      */
     public synchronized int CertManagerLoadCABuffer(
@@ -225,13 +227,15 @@ public class WolfSSLCertManager {
      * Verify X.509 certificate held in byte array
      *
      * @param in input X.509 certificate as byte array
-     * @param sz size of input certificate array, bytes
+     * @param sz number of bytes to parse from the start of in.
+     *           Must not exceed in.length.
      * @param format format of input certificate, either
      *               WolfSSL.SSL_FILETYPE_PEM (PEM formatted) or
      *               WolfSSL.SSL_FILETYPE_ASN1 (ASN.1/DER).
      *
      * @return WolfSSL.SSL_SUCCESS on successful verification, otherwise
-     *         negative on error.
+     *         negative on error including BAD_FUNC_ARG when sz exceeds
+     *         in.length.
      * @throws IllegalStateException WolfSSLContext has been freed
      */
     public synchronized int CertManagerVerifyBuffer(

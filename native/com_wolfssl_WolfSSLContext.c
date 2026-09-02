@@ -439,12 +439,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setTmpDHFile
             return (jint)SSL_FAILURE;
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Input WolfSSLContext object was null in "
-                "setTmpDHFile");
+            "Input WolfSSLContext object was null in setTmpDHFile");
         return (jint)SSL_FAILURE;
     }
 
     fname = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (fname == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = wolfSSL_CTX_SetTmpDH_file(ctx, fname, format);
 
@@ -482,13 +484,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateFile
             (*jenv)->ExceptionClear(jenv);
         }
         /* throw NullPointerException */
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input certificate file is NULL");
+        (*jenv)->ThrowNew(jenv, excClass, "Input certificate file is NULL");
 
         return (jint)SSL_FAILURE;
     }
 
     certFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (certFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_certificate_file(ctx, certFile, (int)format);
 
@@ -526,13 +530,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePrivateKeyFile
             (*jenv)->ExceptionClear(jenv);
         }
         /* throw NullPointerException */
-        (*jenv)->ThrowNew(jenv, excClass,
-                "Input private key file is NULL");
+        (*jenv)->ThrowNew(jenv, excClass, "Input private key file is NULL");
 
         return (jint)SSL_FAILURE;
     }
 
     keyFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (keyFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile, (int)format);
 
@@ -579,12 +585,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadVerifyLocations
 
     if (file) {
         caFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+        if (caFile == NULL) {
+            return (jint)SSL_FAILURE;
+        }
     } else {
         caFile = NULL;
     }
 
     if (path) {
         caPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+        if (caPath == NULL) {
+            if (caFile) {
+                (*jenv)->ReleaseStringUTFChars(jenv, file, caFile);
+            }
+            return (jint)SSL_FAILURE;
+        }
     } else {
         caPath = NULL;
     }
@@ -636,6 +651,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_useCertificateChainFile
     }
 
     chainFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (chainFile == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_CTX_use_certificate_chain_file(ctx, chainFile);
 
@@ -2098,6 +2116,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_loadCRL
     }
 
     crlPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+    if (crlPath == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = wolfSSL_CTX_LoadCRL(ctx, crlPath, type, monitor);
 
@@ -2172,6 +2193,31 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setCRLCb
 
 #ifdef HAVE_CRL
 
+/* Delete JNI local references created inside NativeCtxMissingCRLCallback() */
+static void freeCtxMissingCRLCbLocalRefs(JNIEnv* jenv, jclass excClass,
+    jobject crlCbObj, jclass crlClass, jstring missingUrl)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (missingUrl != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, missingUrl);
+    }
+
+    if (crlClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlClass);
+    }
+
+    if (crlCbObj != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlCbObj);
+    }
+
+    if (excClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, excClass);
+    }
+}
+
 void NativeCtxMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
@@ -2224,6 +2270,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
     if (crlCbObj == NULL) {
         /* No Java callback registered, drop silently. */
+        freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+            missingUrl);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -2240,6 +2288,8 @@ void NativeCtxMissingCRLCallback(const char* url)
         if (!crlClass) {
             (*jenv)->ThrowNew(jenv, excClass,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+                missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -2256,6 +2306,8 @@ void NativeCtxMissingCRLCallback(const char* url)
 
             (*jenv)->ThrowNew(jenv, excClass,
                 "Error getting missingCRLCallback method from JNI");
+            freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+                missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -2281,6 +2333,9 @@ void NativeCtxMissingCRLCallback(const char* url)
         (*jenv)->ThrowNew(jenv, excClass,
                 "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    freeCtxMissingCRLCbLocalRefs(jenv, excClass, crlCbObj, crlClass,
+        missingUrl);
 
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
@@ -7093,6 +7148,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_usePskIdentityHint
     }
 
     nativeHint = (*jenv)->GetStringUTFChars(jenv, hint, 0);
+    if (nativeHint == NULL) {
+        return (jint)SSL_FAILURE;
+    }
 
     ret = (jint)wolfSSL_CTX_use_psk_identity_hint(ctx, nativeHint);
 

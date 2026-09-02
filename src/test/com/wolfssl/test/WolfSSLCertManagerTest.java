@@ -565,6 +565,56 @@ public class WolfSSLCertManagerTest {
         }
     }
 
+    /* The buffer load/verify calls must parse exactly sz bytes from the start
+     * of the array. A sz beyond the array is rejected instead of being
+     * ignored and the whole backing array parsed. */
+    @Test
+    public void testCertManagerBufferHonorsSz() throws Exception {
+
+        WolfSSLCertManager cm = null;
+
+        try {
+            byte[] caCertPem =
+                Files.readAllBytes(new File(ocspRootCaCert).toPath());
+            byte[] peerPem = Files.readAllBytes(new File(serverCert).toPath());
+
+            cm = new WolfSSLCertManager();
+
+            /* Exact length is the normal, supported call. */
+            assertEquals("exact-length load should succeed",
+                WolfSSL.SSL_SUCCESS,
+                cm.CertManagerLoadCABuffer(caCertPem, caCertPem.length,
+                    WolfSSL.SSL_FILETYPE_PEM));
+
+            assertEquals("load sz past end of array must be rejected",
+                WolfSSL.BAD_FUNC_ARG,
+                cm.CertManagerLoadCABuffer(caCertPem, caCertPem.length + 1,
+                    WolfSSL.SSL_FILETYPE_PEM));
+
+            assertEquals("verify sz past end of array must be rejected",
+                WolfSSL.BAD_FUNC_ARG,
+                cm.CertManagerVerifyBuffer(peerPem, peerPem.length + 1,
+                    WolfSSL.SSL_FILETYPE_PEM));
+
+            /* A shorter sz must parse only the first sz bytes, not the whole
+             * array. Half the PEM is malformed, so the load must fail. The
+             * old code ignored sz and parsed the full array, succeeding. */
+            assertTrue("a shorter sz must not parse the whole array",
+                cm.CertManagerLoadCABuffer(caCertPem, caCertPem.length / 2,
+                    WolfSSL.SSL_FILETYPE_PEM) != WolfSSL.SSL_SUCCESS);
+
+            /* sz of zero parses nothing and must not succeed. */
+            assertTrue("sz of zero must not succeed",
+                cm.CertManagerLoadCABuffer(caCertPem, 0,
+                    WolfSSL.SSL_FILETYPE_PEM) != WolfSSL.SSL_SUCCESS);
+
+        } finally {
+            if (cm != null) {
+                cm.free();
+            }
+        }
+    }
+
     @Test
     public void testCertManagerCheckOCSPResponse()
         throws Exception {

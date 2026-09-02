@@ -28,6 +28,7 @@ import java.util.logging.*;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * Central location for all debugging messages
@@ -105,6 +106,31 @@ public class WolfSSLDebug {
 
     /** Info level debug message */
     public static final String INFO = "INFO";
+
+    /** Characters removed from externally-influenced log values: CR, LF,
+     * other C0 control characters, DEL, and double quote. */
+    private static final Pattern LOG_UNSAFE_CHARS =
+        Pattern.compile("[\\x00-\\x1F\\x7F\"]");
+
+    /**
+     * Sanitize input string: replaces CR, LF, other C0 control characters,
+     * DEL, and double quote with underscore.
+     *
+     * Used by callers to sanitize values that come from network or remote
+     * peers before placing them in a log message, so uncontrolled input
+     * cannot forge or split log entries.
+     *
+     * @param value string to sanitize, may be null
+     * @return sanitized string, or null if value was null
+     */
+    public static String sanitizeForLog(String value) {
+
+        if (value == null) {
+            return null;
+        }
+
+        return LOG_UNSAFE_CHARS.matcher(value).replaceAll("_");
+    }
 
     /**
      * Native wolfSSL logging callback.
@@ -231,6 +257,47 @@ public class WolfSSLDebug {
     }
 
     /**
+     * Escape a string for safe inclusion as a JSON string value. Handles
+     * backslash, double quote, control characters.
+     *
+     * @param value string to escape, may be null
+     * @return JSON-escaped string, empty string if value was null
+     */
+    private static String jsonEscape(String value) {
+
+        StringBuilder sb;
+
+        if (value == null) {
+            return "";
+        }
+
+        sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '"':  sb.append("\\\""); break;
+                case '\n': sb.append("\\n");  break;
+                case '\r': sb.append("\\r");  break;
+                case '\t': sb.append("\\t");  break;
+                case '\b': sb.append("\\b");  break;
+                case '\f': sb.append("\\f");  break;
+                default:
+                    /* other control chars have no shorthand, emit as a
+                     * unicode escape */
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+            }
+        }
+
+        return sb.toString();
+    }
+
+    /**
      * JSON formatter for wolfSSL logs
      */
     private static class JSONFormatter extends Formatter {
@@ -270,10 +337,10 @@ public class WolfSSLDebug {
                 "    \"thread_id\": \"%d\"\n" +
                 "}\n",
                 TIME_FORMATTER.format(Instant.ofEpochMilli(record.getMillis())),
-                levelStr,
-                component,
-                message,
-                threadName,
+                jsonEscape(levelStr),
+                jsonEscape(component),
+                jsonEscape(message),
+                jsonEscape(threadName),
                 record.getThreadID());
         }
     }

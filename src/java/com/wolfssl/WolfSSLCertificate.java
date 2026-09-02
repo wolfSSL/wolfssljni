@@ -2204,6 +2204,9 @@ public class WolfSSLCertificate implements Serializable {
      * getSubjectAltNamesExtended() which returns the OID and ASN.1
      * encoded value bytes.
      *
+     * A SAN entry whose value contains an embedded null byte is omitted,
+     * so it is never returned truncated at the null.
+     *
      * @return immutable Collection of subject alternative names, or null
      *
      * @throws IllegalStateException if WolfSSLCertificate has been freed.
@@ -2315,6 +2318,9 @@ public class WolfSSLCertificate implements Serializable {
      * }
      * </pre>
      *
+     * A SAN entry whose value contains an embedded null byte is omitted,
+     * so it is never returned truncated at the null.
+     *
      * @return immutable Collection of subject alternative names with extended
      *         data, or null if no SANs present or native method not available
      *
@@ -2399,6 +2405,9 @@ public class WolfSSLCertificate implements Serializable {
      * }
      * </pre>
      *
+     * A SAN entry whose value contains an embedded null byte is omitted,
+     * so it is never returned truncated at the null.
+     *
      * @return array of WolfSSLAltName objects, or null if no SANs present
      *         or native method not available
      *
@@ -2416,7 +2425,7 @@ public class WolfSSLCertificate implements Serializable {
                 () -> "entering getSubjectAltNamesArray()");
 
             WolfSSLAltName[] cached = getAltNamesArrayInternal();
-            if (cached == null) {
+            if (cached == null || cached.length == 0) {
                 return null;
             }
 
@@ -2506,7 +2515,8 @@ public class WolfSSLCertificate implements Serializable {
         }
 
         if (count == 0) {
-            return null;
+            this.altNamesArray = new WolfSSLAltName[0];
+            return this.altNamesArray;
         }
 
         /* Trim array if needed and cache result */

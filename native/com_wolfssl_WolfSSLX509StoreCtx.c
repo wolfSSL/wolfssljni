@@ -63,6 +63,9 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
     skNum = wolfSSL_sk_X509_num(sk);
 
     if (sk == NULL || skNum == 0) {
+        if (sk != NULL) {
+            wolfSSL_sk_X509_pop_free(sk, NULL);
+        }
         return NULL;
     }
 

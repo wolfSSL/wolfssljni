@@ -639,6 +639,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateFile
     }
 
     certFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (certFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_certificate_file(ssl, certFile, (int)format);
 
@@ -673,6 +676,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePrivateKeyFile
     }
 
     keyFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (keyFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_PrivateKey_file(ssl, keyFile, (int)format);
 
@@ -707,6 +713,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_useCertificateChainFile
     }
 
     chainFile = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (chainFile == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint) wolfSSL_use_certificate_chain_file(ssl, chainFile);
 
@@ -2671,6 +2680,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
     }
+    if (addrObj == NULL) {
+        return SSL_FAILURE;
+    }
 
     /* is this a wildcard address, ie: INADDR_ANY? */
     isAnyID = (*jenv)->GetMethodID(jenv, inetaddr, "isAnyLocalAddress", "()Z");
@@ -2706,9 +2718,15 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
+        if (ipAddr == NULL) {
+            return SSL_FAILURE;
+        }
 
         /* convert IP string to char* */
         ipAddress = (*jenv)->GetStringUTFChars(jenv, ipAddr, 0);
+        if (ipAddress == NULL) {
+            return SSL_FAILURE;
+        }
     }
 
     /* build sockaddr_in */
@@ -3647,6 +3665,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_checkDomainName
     }
 
     dname = (*jenv)->GetStringUTFChars(jenv, dn, 0);
+    if (dname == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_check_domain_name(ssl, dname);
 
@@ -3745,6 +3766,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDHFile
     }
 
     fname = (*jenv)->GetStringUTFChars(jenv, file, 0);
+    if (fname == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_SetTmpDH_file(ssl, fname, format);
 
@@ -4016,6 +4040,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_loadCRL
     }
 
     crlPath = (*jenv)->GetStringUTFChars(jenv, path, 0);
+    if (crlPath == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = wolfSSL_LoadCRL(ssl, crlPath, type, monitor);
 
@@ -4096,6 +4123,27 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setCRLCb
 
 #ifdef HAVE_CRL
 
+/* Delete JNI local references created inside NativeMissingCRLCallback() */
+static void freeMissingCRLCbLocalRefs(JNIEnv* jenv, jobject crlCbObj,
+    jclass crlClass, jstring missingUrl)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (missingUrl != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, missingUrl);
+    }
+
+    if (crlClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlClass);
+    }
+
+    if (crlCbObj != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, crlCbObj);
+    }
+}
+
 void NativeMissingCRLCallback(const char* url)
 {
     JNIEnv*   jenv;
@@ -4151,6 +4199,7 @@ void NativeMissingCRLCallback(const char* url)
         if (!crlClass) {
             throwWolfSSLException(jenv,
                 "Can't get native WolfSSLMissingCRLCallback class reference");
+            freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -4167,6 +4216,7 @@ void NativeMissingCRLCallback(const char* url)
 
             throwWolfSSLException(jenv,
                 "Error getting missingCRLCallback method from JNI");
+            freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
             if (needsDetach)
                 (*g_vm)->DetachCurrentThread(g_vm);
             return;
@@ -4191,6 +4241,8 @@ void NativeMissingCRLCallback(const char* url)
         throwWolfSSLException(jenv,
             "Object reference invalid in NativeMissingCRLCallback");
     }
+
+    freeMissingCRLCbLocalRefs(jenv, crlCbObj, crlClass, missingUrl);
 
     if (needsDetach)
         (*g_vm)->DetachCurrentThread(g_vm);
@@ -4926,6 +4978,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_usePskIdentityHint
     }
 
     nativeHint = (*jenv)->GetStringUTFChars(jenv, hint, 0);
+    if (nativeHint == NULL) {
+        return SSL_FAILURE;
+    }
 
     ret = (jint)wolfSSL_use_psk_identity_hint(ssl, nativeHint);
 
