@@ -2425,20 +2425,27 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
         sz = getOBJSize(obj);
 
         ret = (*jenv)->NewByteArray(jenv, sz);
-        if (!ret) {
+        if (ret == NULL) {
             throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native X509_get_extension");
-            return NULL;
         }
-
-        (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)data);
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->DeleteLocalRef(jenv, ret);
-            return NULL;
+        else {
+            (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)data);
+            if ((*jenv)->ExceptionOccurred(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                (*jenv)->DeleteLocalRef(jenv, ret);
+                ret = NULL;
+            }
         }
     }
+
+#if LIBWOLFSSL_VERSION_HEX < 0x04002000
+    /* obj was popped from sk, both are owned here */
+    wolfSSL_ASN1_OBJECT_free(obj);
+    wolfSSL_sk_ASN1_OBJECT_free((WOLFSSL_STACK*)sk);
+#endif
+
     return ret;
 }
 
