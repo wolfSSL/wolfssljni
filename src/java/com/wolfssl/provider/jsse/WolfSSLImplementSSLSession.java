@@ -269,6 +269,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             this.peerCerts = orig.peerCerts.clone();
         }
         this.protocol = orig.protocol;
+        if (orig.sniServerNames != null) {
+            this.sniServerNames = new ArrayList<>(orig.sniServerNames);
+        }
 
         /* This session has been copied and is therefore not inside the
          * WolfSSLAuthStore session cache table currently */
