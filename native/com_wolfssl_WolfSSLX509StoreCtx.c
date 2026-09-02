@@ -60,12 +60,13 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLX509StoreCtx_X509_1STORE_
 
     /* get WOLFSSL_STACK of WOLFSSL_X509 certs */
     sk = wolfSSL_X509_STORE_GetCerts(store);
-    skNum = wolfSSL_sk_X509_num(sk);
+    if (sk == NULL) {
+        return NULL;
+    }
 
-    if (sk == NULL || skNum == 0) {
-        if (sk != NULL) {
-            wolfSSL_sk_X509_pop_free(sk, NULL);
-        }
+    skNum = wolfSSL_sk_X509_num(sk);
+    if (skNum <= 0) {
+        wolfSSL_sk_X509_pop_free(sk, NULL);
         return NULL;
     }
 
