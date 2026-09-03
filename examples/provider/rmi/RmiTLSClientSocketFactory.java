@@ -27,6 +27,7 @@ import java.security.KeyStore;
 import java.net.Socket;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
@@ -47,7 +48,15 @@ public class RmiTLSClientSocketFactory
         }
 
         System.out.println("Creating client Socket");
-        return sf.createSocket(host, port);
+
+        /* Enable endpoint identification to verify the server cert against
+         * host/IP connecting to */
+        SSLSocket s = (SSLSocket)sf.createSocket(host, port);
+        SSLParameters p = s.getSSLParameters();
+        p.setEndpointIdentificationAlgorithm("HTTPS");
+        s.setSSLParameters(p);
+
+        return s;
     }
 
     public int hashCode() {

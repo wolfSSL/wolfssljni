@@ -77,7 +77,7 @@ public class RmiServer extends UnicastRemoteObject implements RmiRemoteInterface
     /* Keystore files and passwords, holding certs/keys/CAs */
     private static String clientJKS = "../provider/client.jks";
     private static String clientCaJKS = "../provider/ca-server.jks";
-    private static String serverJKS = "../provider/server.jks";
+    private static String serverJKS = "../provider/server-rsa.jks";
     private static String serverCaJKS = "../provider/ca-client.jks";
     private static String jksPass = "wolfSSL test";
 
@@ -268,6 +268,10 @@ public class RmiServer extends UnicastRemoteObject implements RmiRemoteInterface
         }
 
         try {
+            /* Export RMI stubs on loopback so address matches a SAN
+             * in the server certificate the client verifies */
+            System.setProperty("java.rmi.server.hostname", "127.0.0.1");
+
             /* Create one SocketFactory for server and one for client */
             SocketFactory cliSF = createClientSocketFactory();
             SSLServerSocketFactory srvSF = createServerSocketFactory();

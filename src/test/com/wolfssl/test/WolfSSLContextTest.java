@@ -30,7 +30,9 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.ServerSocket;
@@ -249,6 +251,43 @@ public class WolfSSLContextTest {
                 fail(name + " threw unexpected NullPointerException");
             }
         }
+    }
+
+    @Test
+    public void test_WolfSSLContext_loadBufferHonorsSz()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        int ret;
+        byte[] caPem = Files.readAllBytes(new File(caCert).toPath());
+
+        /* Exact size loads the CA as a trust anchor. Tolerate
+         * NOT_COMPILED_IN on reduced native builds. */
+        ret = ctx.loadVerifyBuffer(caPem, caPem.length,
+            WolfSSL.SSL_FILETYPE_PEM);
+        if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
+            fail("loadVerifyBuffer failed, ret = " + ret);
+        }
+
+        /* Non-positive and oversized lengths are rejected */
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.loadVerifyBuffer(caPem, -1, WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.loadVerifyBuffer(caPem, 0, WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.loadVerifyBuffer(caPem, caPem.length + 1,
+                WolfSSL.SSL_FILETYPE_PEM));
+
+        /* Same size validation on the sibling buffer loaders */
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.useCertificateBuffer(caPem, 0, WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.usePrivateKeyBuffer(caPem, caPem.length + 1,
+                WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.useCertificateChainBuffer(caPem, -1));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.useCertificateChainBufferFormat(caPem, 0,
+                WolfSSL.SSL_FILETYPE_PEM));
     }
 
     @Test

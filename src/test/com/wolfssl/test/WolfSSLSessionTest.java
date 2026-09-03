@@ -288,6 +288,9 @@ public class WolfSSLSessionTest {
             ssl.usePrivateKeyBuffer(null, 0, WolfSSL.SSL_FILETYPE_PEM));
         assertEquals(WolfSSL.BAD_FUNC_ARG,
             ssl.useCertificateChainBuffer(null, 0));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ssl.useCertificateChainBufferFormat(null, 0,
+                WolfSSL.SSL_FILETYPE_PEM));
         ssl.freeSSL();
 
         /* correct sz loads, zero/oversized rejected, sub-array (sz < len)
@@ -327,6 +330,19 @@ public class WolfSSLSessionTest {
             ssl.useCertificateChainBuffer(certPem, 0));
         assertEquals(WolfSSL.BAD_FUNC_ARG,
             ssl.useCertificateChainBuffer(certPem, certBadSz));
+        ssl.freeSSL();
+
+        /* useCertificateChainBufferFormat: correct sz loads, others rejected */
+        ssl = new WolfSSLSession(ctx);
+        assertUseBufferOk("useCertificateChainBufferFormat",
+            ssl.useCertificateChainBufferFormat(certPem, certPem.length,
+                WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ssl.useCertificateChainBufferFormat(certPem, 0,
+                WolfSSL.SSL_FILETYPE_PEM));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ssl.useCertificateChainBufferFormat(certPem, certBadSz,
+                WolfSSL.SSL_FILETYPE_PEM));
         ssl.freeSSL();
     }
 
