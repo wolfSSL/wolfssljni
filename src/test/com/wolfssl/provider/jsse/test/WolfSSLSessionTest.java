@@ -26,6 +26,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
@@ -48,6 +50,9 @@ import java.security.cert.CertificateException;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
@@ -67,6 +72,7 @@ import org.junit.rules.TestRule;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.provider.jsse.WolfSSLImplementSSLSession;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509X;
 import com.wolfssl.test.TimedTestWatcher;
@@ -1314,6 +1320,35 @@ public class WolfSSLSessionTest {
         if (ret == 0) {
             throw new Exception("SSLSession.getApplicationBufferSize() is 0");
         }
+    }
+
+    @Test
+    public void testCopyConstructorPreservesSNIServerNames()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine engine = ctx.createSSLEngine("localhost", 12345);
+        if (engine == null) {
+            fail("failed to create engine");
+        }
+        engine.setUseClientMode(true);
+
+        /* setSSLParameters() stores server names in the engine session */
+        SSLParameters params = engine.getSSLParameters();
+        params.setServerNames(Arrays.asList(new SNIHostName("localhost")));
+        engine.setSSLParameters(params);
+
+        WolfSSLImplementSSLSession orig =
+            (WolfSSLImplementSSLSession)engine.getSession();
+        assertNotNull(orig);
+        List<SNIServerName> names = orig.getSNIServerNames();
+        assertNotNull(names);
+        assertEquals(1, names.size());
+
+        WolfSSLImplementSSLSession copy = new WolfSSLImplementSSLSession(orig);
+        assertEquals(names, copy.getSNIServerNames());
     }
 
 
