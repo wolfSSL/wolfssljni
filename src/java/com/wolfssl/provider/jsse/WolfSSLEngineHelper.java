@@ -196,7 +196,7 @@ public class WolfSSLEngineHelper {
         this.authStore = store;
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "created new WolfSSLEngineHelper(peer port: " + port +
-            ", peer hostname: " + hostname + ")");
+            ", peer hostname: " + WolfSSLDebug.sanitizeForLog(hostname) + ")");
     }
 
     /**

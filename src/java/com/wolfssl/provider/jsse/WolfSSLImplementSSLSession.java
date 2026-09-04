@@ -169,7 +169,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "created new session (port: " + port + ", host: " +
-            host + ")");
+            WolfSSLDebug.sanitizeForLog(host) + ")");
     }
 
     /**

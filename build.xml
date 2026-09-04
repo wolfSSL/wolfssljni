@@ -103,8 +103,9 @@
 
     <!-- classpath to compiled wolfssl.jar, for running tests -->
     <path id="classpath">
-        <fileset dir="${lib.dir}" includes="*.jar">
+        <fileset dir="${lib.dir}">
             <include name="wolfssl.jar"/>
+            <include name="wolfssl-jsse.jar"/>
         </fileset>
         <fileset dir="${env.JUNIT_HOME}" erroronmissingdir="false">
             <include name="${junit4}"/>

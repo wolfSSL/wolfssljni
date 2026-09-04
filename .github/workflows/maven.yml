@@ -85,6 +85,23 @@ jobs:
       - name: Build JNI library
         run: ./java.sh $GITHUB_WORKSPACE/build-dir
 
+      # Resolve declared dependencies into the local Maven repository so
+      # the test dependency bytes can be verified before any test runs.
+      - name: Resolve Maven dependencies
+        run: mvn -B dependency:resolve
+
+      # Verify the resolved JUnit test dependencies against the same
+      # independently trusted SHA-256 digests pinned in the setup-junit
+      # composite action, before mvn package compiles and runs the tests.
+      - name: Verify test dependency checksums
+        shell: bash
+        run: |
+          M2="$HOME/.m2/repository"
+          echo "8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3  $M2/junit/junit/4.13.2/junit-4.13.2.jar" \
+            | shasum -a 256 -c -
+          echo "4877670629ab96f34f5f90ab283125fcd9acb7e683e66319a68be6eb2cca60de  $M2/org/hamcrest/hamcrest-all/1.3/hamcrest-all-1.3.jar" \
+            | shasum -a 256 -c -
+
       # Maven build. A single mvn package runs the compile, test, and
       # package phases in one lifecycle pass. Separate compile, test,
       # and package steps would run the whole test suite twice, once

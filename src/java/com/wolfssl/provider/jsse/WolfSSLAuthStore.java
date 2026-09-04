@@ -358,8 +358,8 @@ public class WolfSSLAuthStore {
         }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "attempting to look up session (host: " + host +
-            ", port: " + port + ")");
+            () -> "attempting to look up session (host: " +
+            WolfSSLDebug.sanitizeForLog(host) + ", port: " + port + ")");
 
         /* Print current size and contents of SessionStore / LinkedHashMap.
          * Synchronizes on storeLock internally. */
@@ -386,12 +386,12 @@ public class WolfSSLAuthStore {
 
         /* Check conditions where we need to create a new new session:
          *   1. Session not found in cache
-         *   2. Session marked as not resumable
-         *   3. Original session cipher suite not available
-         *   4. Original session protocol version not available
+         *   2. Session has been invalidated
+         *   3. Session marked as not resumable
+         *   4. Original session cipher suite not available
+         *   5. Original session protocol version not available
          */
-        if (ses == null ||
-            !ses.isResumable() ||
+        if (ses == null || !ses.isValid() || !ses.isResumable() ||
             !sessionCipherSuiteAvailable(ses, enabledCipherSuites) ||
             !sessionProtocolAvailable(ses, enabledProtocols)) {
             needNewSession = true;
@@ -401,6 +401,11 @@ public class WolfSSLAuthStore {
             if (ses == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "session not found in cache table, " +
+                    "creating new session");
+            }
+            else if (!ses.isValid()) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "cached session has been invalidated, " +
                     "creating new session");
             }
             else if (!ses.isResumable()) {
@@ -554,7 +559,9 @@ public class WolfSSLAuthStore {
                     () -> "    values: ");
                 for (WolfSSLImplementSSLSession s : values) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "        " + s.getHost() + ": " + s.getPort());
+                        () -> "        " +
+                        WolfSSLDebug.sanitizeForLog(s.getHost()) +
+                        ": " + s.getPort());
                 }
             }
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -690,12 +697,18 @@ public class WolfSSLAuthStore {
         if (haveKey) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "stored session in cache table (host: " +
-                session.getPeerHost() + ", port: " +
-                session.getPeerPort() + ") " + "cacheKey = " + cacheKey +
+                WolfSSLDebug.sanitizeForLog(session.getPeerHost()) +
+                ", port: " +
+                session.getPeerPort() + ") cacheKey = " +
+                WolfSSLDebug.sanitizeForLog(cacheKey) +
                 " side = " + session.getSideString());
 
             /* Lock access to store while adding new session, store is global */
             synchronized (storeLock) {
+                /* Skip caching a session invalidated during setup. */
+                if (!session.isValid()) {
+                    return WolfSSL.SSL_FAILURE;
+                }
                 session.isInTable = true;
                 store.put(cacheKey, session);
             }
