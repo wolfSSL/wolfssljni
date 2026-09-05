@@ -357,7 +357,12 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager {
         for (String current : aliasSet) {
             X509Certificate cert = certificateCache.get(current);
 
-            if (type != null && cert != null &&
+            /* skip aliases without a cached X509Certificate */
+            if (cert == null) {
+                continue;
+            }
+
+            if (type != null &&
                 !keyTypeMatches(type, cert.getPublicKey().getAlgorithm())) {
                 /* different public key type, skip */
                 continue;
@@ -368,21 +373,19 @@ public class WolfSSLKeyX509 extends X509ExtendedKeyManager {
                 ret.add(current);
             }
             else {
-                if (cert != null) {
-                    /* search through issuers for matching issuer name */
-                    for (i = 0; i < issuers.length; i++) {
-                        String certIssuer = cert.getIssuerDN().getName();
-                        String issuerName = issuers[i].getName();
+                /* search through issuers for matching issuer name */
+                for (i = 0; i < issuers.length; i++) {
+                    String certIssuer = cert.getIssuerDN().getName();
+                    String issuerName = issuers[i].getName();
 
-                        /* normalize spaces after commas, needed on some JDKs */
-                        certIssuer = certIssuer.replaceAll(", ", ",");
-                        issuerName = issuerName.replaceAll(", ", ",");
+                    /* normalize spaces after commas, needed on some JDKs */
+                    certIssuer = certIssuer.replaceAll(", ", ",");
+                    issuerName = issuerName.replaceAll(", ", ",");
 
-                        if (certIssuer.equals(issuerName)) {
-                            /* matched issuer, add alias and continue on */
-                            ret.add(current);
-                            break;
-                        }
+                    if (certIssuer.equals(issuerName)) {
+                        /* matched issuer, add alias and continue on */
+                        ret.add(current);
+                        break;
                     }
                 }
             }
