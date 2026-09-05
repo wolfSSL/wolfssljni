@@ -2435,6 +2435,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
     (void)jenv;
     (void)jcl;
 
+    /* Reject timeouts outside unsigned int range accepted by native */
+    if (ssl == NULL || t < 0 || t > (jlong)UINT32_MAX) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
     return wolfSSL_set_timeout(ssl, (unsigned int)t);
 }
 
@@ -3537,7 +3542,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Issuer
     }
 
     issuer = wolfSSL_X509_NAME_oneline(
-            wolfSSL_X509_get_issuer_name(x509), 0, 0);
+        wolfSSL_X509_get_issuer_name(x509), 0, 0);
+    if (issuer == NULL) {
+        return NULL;
+    }
 
     retString = (*jenv)->NewStringUTF(jenv, issuer);
     XFREE(issuer, 0, DYNAMIC_TYPE_OPENSSL);
@@ -3569,7 +3577,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLSession_getPeerX509Subject
     }
 
     subject = wolfSSL_X509_NAME_oneline(
-            wolfSSL_X509_get_subject_name(x509), 0, 0);
+        wolfSSL_X509_get_subject_name(x509), 0, 0);
+    if (subject == NULL) {
+        return NULL;
+    }
 
     retString = (*jenv)->NewStringUTF(jenv, subject);
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);

@@ -2471,9 +2471,11 @@ public class WolfSSLSession {
     /**
      * Sets the timeout in seconds in the given SSL object.
      *
-     * @param t time in seconds to set
+     * @param t time in seconds to set, in the range [0, 4294967295]. A
+     *          value of 0 selects the default session timeout.
      * @throws IllegalStateException WolfSSLSession has been freed
-     * @return WOLFSSL_SUCCESS on success, negative values on failure.
+     * @return WOLFSSL_SUCCESS on success, or BAD_FUNC_ARG if t is outside
+     *         the accepted range.
      * @see         #setSession(long)
      * @see         #getSession(long)
      */

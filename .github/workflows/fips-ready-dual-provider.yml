@@ -143,7 +143,7 @@ jobs:
         working-directory: wolfssljni
         run: |
           java -classpath \
-            lib/wolfssl.jar:lib/wolfssl-jsse.jar:$GITHUB_WORKSPACE/wolfcryptjni/lib/wolfcrypt-jni.jar:examples/provider \
+            examples/provider:lib/wolfssl.jar:lib/wolfssl-jsse.jar:$GITHUB_WORKSPACE/wolfcryptjni/lib/wolfcrypt-jni.jar \
             DualProviderFIPSTest
 
       - name: Show logs on failure
