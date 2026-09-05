@@ -4615,19 +4615,20 @@ public class WolfSSLSession {
 
     /**
      * Allows caller to set the Hmac Inner vector for message sending/receiving.
-     * The result is written to <b>inner</b> which should be at least
-     * getHmacSize() bytes. The size of the message is specified by <b>sz</b>,
-     * <b>content</b> is the type of message, and <b>verify</b> specifies
-     * whether this is a verification of a peer message. Valid for cipher
-     * types excluding <b>WOLFSSL_AEAD_TYPE</b>.
+     * The result is written to <b>inner</b>, which must be at least
+     * WOLFSSL_TLS_HMAC_INNER_SZ (13) bytes. The size of the message is
+     * specified by <b>sz</b>, <b>content</b> is the type of message, and
+     * <b>verify</b> specifies whether this is a verification of a peer
+     * message. Valid for cipher types excluding <b>WOLFSSL_AEAD_TYPE</b>.
      *
      * @param   inner    inner HMAC vector to set
      * @param   sz       size of the message, in bytes
      * @param   content  type of the message
      * @param   verify   specifies if this is a verification of a peer message.
      *
-     * @return  <b><code>1</code></b> upon success,
-     *          <b><code>BAD_FUNC_ARG</code></b> for an error state.
+     * @return  <b><code>0</code></b> on success, or a negative error code
+     *          such as <b><code>BAD_FUNC_ARG</code></b> on error. On error
+     *          <b>inner</b> is left unmodified.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @see    #getBulkCipher()
      * @see    #getHmacType()

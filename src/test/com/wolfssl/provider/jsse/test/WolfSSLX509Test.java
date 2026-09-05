@@ -229,6 +229,35 @@ public class WolfSSLX509Test {
     }
 
     @Test
+    public void testCriticalExtensionOIDsEmptyNotNull() {
+
+        WolfSSLX509 x509;
+        Set<String> crit;
+        Set<String> nonCrit;
+
+        /* skip if wolfSSL compiled with NO_FILESYSTEM */
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        try {
+            /* client-cert.der has non-critical extensions present but none
+             * marked critical. A cert that has extensions must return a
+             * possibly-empty Set from getCriticalExtensionOIDs(), not null. */
+            x509 = new WolfSSLX509(tf.clientCertDer);
+
+            crit = x509.getCriticalExtensionOIDs();
+            assertNotNull(crit);
+            assertTrue(crit.isEmpty());
+
+            nonCrit = x509.getNonCriticalExtensionOIDs();
+            assertNotNull(nonCrit);
+            assertFalse(nonCrit.isEmpty());
+
+        } catch (Exception ex) {
+            fail("unexpected exception found");
+        }
+    }
+
+    @Test
     public void testX509XValidity() {
         WolfSSLX509X x509;
 

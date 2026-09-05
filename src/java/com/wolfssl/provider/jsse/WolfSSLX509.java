@@ -623,48 +623,54 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
 
-    public Set<String> getCriticalExtensionOIDs() {
+    /* Shared impl for the critical/non-critical extension OID getters below.
+     * wantExtSet selects which to collect: 2 critical, 1 non-critical (per
+     * WolfSSLCertificate.getExtensionSet()). Per the X509Certificate contract,
+     * returns null only when no extensions are present, else a possibly-empty
+     * Set. Presence is only detected for the extensionOid list above, so a
+     * cert carrying only other extensions is treated as having none. */
+    private Set<String> getExtensionOIDs(int wantExtSet) {
         int i;
+        int extCount = 0;
         Set<String> ret = new TreeSet<String>();
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "entered getCriticalExtensionOIDs()");
 
         if (this.cert == null) {
             return null;
         }
 
         for (i = 0; i < this.extensionOid.length; i++) {
-            if (this.cert.getExtensionSet(this.extensionOid[i]) == 2) {
+            int extSet = this.cert.getExtensionSet(this.extensionOid[i]);
+            if (extSet == 1 || extSet == 2) {
+                extCount++;
+            }
+            if (extSet == wantExtSet) {
                 ret.add(this.extensionOid[i]);
             }
         }
 
-        if (ret.size() == 0)
+        if (extCount == 0) {
             return null;
+        }
 
         return ret;
     }
 
 
+    public Set<String> getCriticalExtensionOIDs() {
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "entered getCriticalExtensionOIDs()");
+
+        return getExtensionOIDs(2);
+    }
+
+
     public Set<String> getNonCriticalExtensionOIDs() {
-        int i;
-        Set<String> ret = new TreeSet<String>();
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getNonCriticalExtensionOIDs()");
 
-        if (this.cert == null) {
-            return null;
-        }
-
-        for (i = 0; i < this.extensionOid.length; i++) {
-            if (this.cert.getExtensionSet(this.extensionOid[i]) == 1) {
-                ret.add(this.extensionOid[i]);
-            }
-        }
-
-        return ret;
+        return getExtensionOIDs(1);
     }
 
 

@@ -3639,7 +3639,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getCurrentCipher
 
     if (ssl == NULL) {
         throwWolfSSLException(jenv,
-            "Input WolfSSLSession object was null in getVersion");
+            "Input WolfSSLSession object was null in getCurrentCipher");
         return SSL_FAILURE;
     }
 
@@ -4691,15 +4691,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTlsHmacInner
 
     ret = wolfSSL_SetTlsHmacInner(ssl, hmacInner, (long)sz, content, verify);
 
-    /* copy hmacInner back into inner jbyteArray */
-    (*jenv)->SetByteArrayRegion(jenv, inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ,
-            (jbyte*)hmacInner);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        throwWolfSSLException(jenv,
-            "Failed to set byte region in native setTlsHmacInner");
-        return -1;
+    /* Copy hmacInner back only on success, else it is uninitialized. */
+    if (ret == 0) {
+        (*jenv)->SetByteArrayRegion(jenv, inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ,
+                (jbyte*)hmacInner);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            throwWolfSSLException(jenv,
+                "Failed to set byte region in native setTlsHmacInner");
+            return -1;
+        }
     }
 
     return ret;
