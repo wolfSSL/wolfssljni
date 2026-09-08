@@ -107,31 +107,6 @@ public class WolfSSLDebug {
     /** Info level debug message */
     public static final String INFO = "INFO";
 
-    /** Characters removed from externally-influenced log values: CR, LF,
-     * other C0 control characters, DEL, and double quote. */
-    private static final Pattern LOG_UNSAFE_CHARS =
-        Pattern.compile("[\\x00-\\x1F\\x7F\"]");
-
-    /**
-     * Sanitize input string: replaces CR, LF, other C0 control characters,
-     * DEL, and double quote with underscore.
-     *
-     * Used by callers to sanitize values that come from network or remote
-     * peers before placing them in a log message, so uncontrolled input
-     * cannot forge or split log entries.
-     *
-     * @param value string to sanitize, may be null
-     * @return sanitized string, or null if value was null
-     */
-    public static String sanitizeForLog(String value) {
-
-        if (value == null) {
-            return null;
-        }
-
-        return LOG_UNSAFE_CHARS.matcher(value).replaceAll("_");
-    }
-
     /**
      * Native wolfSSL logging callback.
      * Used to print native wolfSSL debug logs when 'wolfssl.debug' System
