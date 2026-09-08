@@ -698,7 +698,7 @@ public class WolfSSLX509 extends X509Certificate {
         private String[] DNs = { "/emailAddress=", "/CN=", "/OU=",
                 "/O=", "/L=", "/ST=", "/C="};
 
-        /* replace the wolfSSL version of the tag. Returns replacement
+        /* Replace the wolfSSL version of the tag. Returns replacement
          * on success. */
         private String getReplace(String in) {
             if (in.equals("/emailAddress=")) {
@@ -725,53 +725,51 @@ public class WolfSSLX509 extends X509Certificate {
             return null;
         }
 
-        /* check if the string starts with an expected tag.
-         * returns index into DNs of tag when found */
-        private int containsDN(String in) {
-            int i;
-            for (i = 0; i < DNs.length; i++) {
-                if (in.startsWith(DNs[i]))
-                    return i;
+        /* Map "TAG=value" component to its JSSE spelling, leaving
+         * unrecognized tags unchanged. */
+        private String mapComponent(String component) {
+            for (int i = 0; i < DNs.length; i++) {
+                /* DNs entries carry a leading '/', drop it to compare */
+                String tag = DNs[i].substring(1);
+                if (component.startsWith(tag)) {
+                    String replace = getReplace(DNs[i]);
+                    if (replace != null) {
+                        return replace.concat(
+                            component.substring(tag.length()));
+                    }
+                }
             }
-            return -1;
+            return component;
         }
 
-        /* convert name from having "/DN=" format to "DN= ," format
+        /* Convert name from having "/DN=" format to "DN= ," format
          * returns the new reformatted string on success */
         private String reformatList(String in) {
-            String[] ret;
-            int i, j;
-            String tmp = in;
-            ArrayList<String> list = new ArrayList<String>();
-
             if (in == null) {
                 return null;
             }
 
-            ret = in.split("/");
-
-            while (tmp.length() > 3) {
-                for (i = tmp.length() - 3; i >= 0; i--) {
-                    if ((j = containsDN(in.substring(i))) >= 0) {
-                        String current = tmp.substring(i, tmp.length());
-                        current = current.replaceAll(DNs[j],
-                                                     getReplace(DNs[j]));
-                        list.add(current);
-                        tmp = tmp.substring(0, i);
-                        break;
-                    }
+            /* Split before each '/' followed by a "TAG=" attribute type,
+             * then reverse the RDN order. wolfSSL does not escape '/', so
+             * '/' inside a value followed by "TAG=" will split too.
+             * Unrecognized RDN types pass through unchanged. */
+            String[] parts = in.split("/(?=[A-Za-z0-9.]+=)");
+            ArrayList<String> list = new ArrayList<String>();
+            for (int i = 0; i < parts.length; i++) {
+                if (!parts[i].isEmpty()) {
+                    list.add(mapComponent(parts[i]));
                 }
             }
 
-            ret = list.toArray(new String[list.size()]);
-            tmp = "";
-            for (i = 0; i < ret.length - 1; i++) {
-                tmp = tmp.concat(ret[i]);
-                tmp = tmp.concat(", ");
+            StringBuilder sb = new StringBuilder();
+            for (int i = list.size() - 1; i >= 0; i--) {
+                sb.append(list.get(i));
+                if (i > 0) {
+                    sb.append(", ");
+                }
             }
-            tmp = tmp.concat(ret[i]);
 
-            return tmp;
+            return sb.toString();
         }
 
         private WolfSSLPrincipal(String in) {

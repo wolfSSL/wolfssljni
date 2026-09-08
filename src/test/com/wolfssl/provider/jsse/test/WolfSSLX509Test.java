@@ -49,6 +49,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Set;
 import java.util.List;
@@ -114,6 +115,62 @@ public class WolfSSLX509Test {
         x509 = new WolfSSLX509(der);
         issuerDN = x509.getIssuerDN();
         subjectDN = x509.getSubjectDN();
+    }
+
+    /* Self-signed cert whose subject and issuer use DC (domainComponent)
+     * RDNs, an attribute type outside the reformat tag table.
+     * DN: DC=com, DC=example, CN=test.example.com */
+    private static final String DC_RDN_CERT_DER =
+        "MIIDczCCAlugAwIBAgIUJvqgr93mm9aonQB+pyzrjyu7TBowDQYJKoZIhvcN" +
+        "AQELBQAwSTETMBEGCgmSJomT8ixkARkWA2NvbTEXMBUGCgmSJomT8ixkARkW" +
+        "B2V4YW1wbGUxGTAXBgNVBAMMEHRlc3QuZXhhbXBsZS5jb20wHhcNMjYwODI0" +
+        "MjA0NjUyWhcNMzYwODIxMjA0NjUyWjBJMRMwEQYKCZImiZPyLGQBGRYDY29t" +
+        "MRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTEZMBcGA1UEAwwQdGVzdC5leGFt" +
+        "cGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALAo9F5Q" +
+        "xsEOHMFK0sNiHi5HUscCQWtFxA5AlH9mqfgSAYbEpm9YmHbvgBH2Mvc5vEZY" +
+        "hB1CRQT7pipS4iXUG+7cnz7M8YyKUuh5TtQTIARaPu2ZpTHOxQ2QMip/eHsI" +
+        "l8IggiVZZuJcnXHj1nrB8pcx4wreXyi+7r7INViffNV61bGOes6ftIH/sptD" +
+        "Sw0CXQUf1KfiM1rXaXw8cezYmmJWFoie0R6tbrMEfTRAKb1j4IEqWa3e7Krq" +
+        "+bZEmiw5kfP2vlEW2w+TylNWOm7uQu742VAJnIqgZ3nnVPxqd/5Ef5E8sMmI" +
+        "Xy/F+rhEFxZtmAiDnBflmPypXSp0w5c01P0CAwEAAaNTMFEwHQYDVR0OBBYE" +
+        "FPHoxpJFtgM3/ntZjdyu3Zy2CtSnMB8GA1UdIwQYMBaAFPHoxpJFtgM3/ntZ" +
+        "jdyu3Zy2CtSnMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB" +
+        "AJvFrnuTfU9MNTRCJGM3JAyex5RK3g5/SOs6uBjM8A1oM5NzTuZrjQzFWMtd" +
+        "srS8HMIoatKOxGYJUU1OHy4JpfF6Rfv38+q6QuugemIGmDjBEqmO100ZoYgF" +
+        "ppujEABELIyMpvqp48e6U8uo1mRoK8BWp4KeZiPo7jzi32HoDkeu+ZUNvn1G" +
+        "0DwgDiYl5ailSofBKplprpI77hx11fypekatWqsfR01Q/0OEkSsj/gO50em1" +
+        "VAMUYB1v8WXAivovfkUjx+J8xaund6Tx595jTHMOpQMckM/4C2ecvmixEKrF" +
+        "uz8gim9WCP+Pe6WZI948Kia+btaslCf58Y6/qrgJTJE=";
+
+    @Test
+    public void testGetSubjectIssuerDNUnrecognizedRdnTerminates()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled());
+
+        byte[] der = Base64.getDecoder().decode(DC_RDN_CERT_DER);
+        final WolfSSLX509 cert = new WolfSSLX509(der);
+
+        /* Reversed DN, matching getSubjectX500Principal() output. */
+        final String expected = "CN=test.example.com, DC=example, DC=com";
+        final String[] result = new String[2];
+
+        /* Run in a worker thread so a non-terminating reformat shows up as
+         * a still-alive thread instead of hanging the whole test run. */
+        Thread worker = new Thread(new Runnable() {
+            public void run() {
+                result[0] = cert.getSubjectDN().getName();
+                result[1] = cert.getIssuerDN().getName();
+            }
+        });
+        worker.setDaemon(true);
+        worker.start();
+        worker.join(5000);
+
+        assertFalse("getSubjectDN/getIssuerDN did not terminate on an " +
+            "unrecognized RDN type", worker.isAlive());
+        assertEquals(expected, result[0]);
+        assertEquals(expected, result[1]);
     }
 
     @Test

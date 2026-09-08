@@ -27,7 +27,7 @@ package com.wolfssl;
  * callback class to be used by wolfSSL during the handshake process.
  * <p>
  * After implementing this interface, it should be passed as a parameter
- * to the {@link WolfSSLContext#setVerify(long, int, WolfSSLVerifyCallback)
+ * to the {@link WolfSSLContext#setVerify(int, WolfSSLVerifyCallback)
  * WolfSSLContext.setVerify()} method to be registered with the native wolfSSL
  * library.
  *
@@ -45,10 +45,9 @@ public interface WolfSSLVerifyCallback {
      *                     already passed. 0 if failed, 1 if passed.
      * @param x509StorePtr pointer to the context used for certificate
      *                     chain verification.
-     * @return             <code>0</code> if the verification process should
-     *                     stop immediately with an error. <code>1</code> if
-     *                     the verification process should continue with the
-     *                     rest of the handshake.
+     * @return             <code>1</code> to accept and continue the handshake.
+     *                     Any other return value or exception thrown is
+     *                     treated as verification failure and aborts handshake.
      */
     public int verifyCallback(int preverify_ok, long x509StorePtr);
 
