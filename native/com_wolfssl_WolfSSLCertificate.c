@@ -2222,6 +2222,9 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
     unsigned int ekuBits = 0;
     int ekuCount = 0;
     int idx = 0;
+    int i = 0;
+    jobjectArray trimmed = NULL;
+    jobject elem = NULL;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
@@ -2274,8 +2277,34 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
     idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN,
         EKU_OCSP_SIGN_OID);
     /* NID_anyExtendedKeyUsage used here since no EKU_*_OID sum for anyEKU */
-    (void)addEkuOid(jenv, ret, idx, ekuBits, XKU_ANYEKU,
+    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_ANYEKU,
         NID_anyExtendedKeyUsage);
+
+    /* Fewer OIDs than counted are written only if a conversion was skipped.
+     * Throw when none converted so this is distinguishable from "not present"
+     * null returned above. Otherwise trim off the trailing nulls. */
+    if (idx == 0) {
+        (*jenv)->DeleteLocalRef(jenv, stringClass);
+        (*jenv)->DeleteLocalRef(jenv, ret);
+        throwWolfSSLJNIException(jenv,
+            "Failed to convert any EKU OID in X509_get_extended_key_usage");
+        return NULL;
+    }
+    if (idx < ekuCount) {
+        trimmed = (*jenv)->NewObjectArray(jenv, idx, stringClass, NULL);
+        if (trimmed == NULL) {
+            (*jenv)->DeleteLocalRef(jenv, stringClass);
+            (*jenv)->DeleteLocalRef(jenv, ret);
+            return NULL;
+        }
+        for (i = 0; i < idx; i++) {
+            elem = (*jenv)->GetObjectArrayElement(jenv, ret, i);
+            (*jenv)->SetObjectArrayElement(jenv, trimmed, i, elem);
+            (*jenv)->DeleteLocalRef(jenv, elem);
+        }
+        (*jenv)->DeleteLocalRef(jenv, ret);
+        ret = trimmed;
+    }
 
     (*jenv)->DeleteLocalRef(jenv, stringClass);
 

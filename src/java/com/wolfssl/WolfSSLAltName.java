@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Represents a Subject Alternative Name (SAN) entry from an X.509 certificate.
@@ -374,18 +375,21 @@ public final class WolfSSLAltName implements Serializable {
             return false;
         }
         WolfSSLAltName other = (WolfSSLAltName) obj;
+
         if (type != other.type) {
             return false;
         }
-        if (stringValue != null) {
-            return stringValue.equals(other.stringValue);
+        if (!Objects.equals(stringValue, other.stringValue)) {
+            return false;
         }
-        if (bytesValue != null) {
-            return Arrays.equals(bytesValue, other.bytesValue);
+        if (!Arrays.equals(bytesValue, other.bytesValue)) {
+            return false;
         }
-        if (otherNameOID != null) {
-            return otherNameOID.equals(other.otherNameOID) &&
-                   Arrays.equals(otherNameValue, other.otherNameValue);
+        if (!Objects.equals(otherNameOID, other.otherNameOID)) {
+            return false;
+        }
+        if (!Arrays.equals(otherNameValue, other.otherNameValue)) {
+            return false;
         }
         return true;
     }

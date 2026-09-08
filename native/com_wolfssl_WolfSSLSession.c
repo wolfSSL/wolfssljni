@@ -6104,6 +6104,23 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessionTicketCb
 #if defined(WOLFSSL_TLS13) && !defined(WOLFCRYPT_ONLY) && \
     defined(HAVE_SECRET_CALLBACK)
 
+/* Delete JNI local references created inside NativeTls13SecretCb() */
+static void freeTls13SecretCbLocalRefs(JNIEnv* jenv, jclass sslClass,
+    jbyteArray secretArr)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (secretArr != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, secretArr);
+    }
+
+    if (sslClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sslClass);
+    }
+}
+
 int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
     int secretSz, void* ctx)
 {
@@ -6113,7 +6130,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
     jint    vmret = 0;
 
     jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
-    jclass    sslClass;             /* WolfSSLSession class */
+    jclass    sslClass = NULL;      /* WolfSSLSession class */
     jmethodID tls13SecretMethodId;  /* internalTls13SecretCallback ID */
     jbyteArray secretArr = NULL;
 
@@ -6144,6 +6161,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
             "NativeTls13SecretCb");
+        freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6156,6 +6174,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession class reference in "
             "NativeTls13SecretCb");
+        freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6172,6 +6191,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
         }
         throwWolfSSLJNIException(jenv,
             "Error getting internalTls13SecretCallback method from JNI");
+        freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6184,6 +6204,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
         if (secretArr == NULL) {
             throwWolfSSLJNIException(jenv,
                 "Error creating new jbyteArray in NativeTls13SecretCb");
+            freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -6195,6 +6216,7 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -6211,17 +6233,16 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
             (*jenv)->ExceptionClear(jenv);
             throwWolfSSLJNIException(jenv,
                 "Exception while calling internalTls13SecretCallback()");
+            freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
             return TLS13_SECRET_CB_E;
         }
-
-        /* Delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, secretArr);
     }
 
-    /* Detach JNIEnv from thread */
+    /* Delete local refs, detach JNIEnv from thread */
+    freeTls13SecretCbLocalRefs(jenv, sslClass, secretArr);
     if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
     }
@@ -6233,6 +6254,23 @@ int NativeTls13SecretCb(WOLFSSL *ssl, int id, const unsigned char* secret,
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
 
+/* Delete JNI local references created inside NativeSessionTicketCb() */
+static void freeSessionTicketCbLocalRefs(JNIEnv* jenv, jclass sslClass,
+    jbyteArray ticketArr)
+{
+    if (jenv == NULL) {
+        return;
+    }
+
+    if (ticketArr != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, ticketArr);
+    }
+
+    if (sslClass != NULL) {
+        (*jenv)->DeleteLocalRef(jenv, sslClass);
+    }
+}
+
 int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     int ticketLen, void* ctx)
 {
@@ -6242,7 +6280,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
     jint    vmret = 0;
 
     jobject*  g_cachedSSLObj;       /* WolfSSLSession cached object */
-    jclass    sslClass;             /* WolfSSLSession class */
+    jclass    sslClass = NULL;      /* WolfSSLSession class */
     jmethodID sessTicketCbMethodId; /* internalSessionTicketCallback ID */
     jbyteArray ticketArr = NULL;
     (void)ctx;
@@ -6274,6 +6312,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession object reference in "
             "NativeSessionTicketCb");
+        freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6286,6 +6325,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         throwWolfSSLJNIException(jenv,
             "Can't get native WolfSSLSession class reference in "
             "NativeSessionTicketCb");
+        freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6302,6 +6342,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         }
         throwWolfSSLJNIException(jenv,
             "Error getting internalSessionTicketCallback method from JNI");
+        freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
         if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
         }
@@ -6314,6 +6355,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         if (ticketArr == NULL) {
             throwWolfSSLJNIException(jenv,
                 "Error creating new jbyteArray in NativeSessionTicketCb");
+            freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -6325,6 +6367,7 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
+            freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
@@ -6340,17 +6383,16 @@ int NativeSessionTicketCb(WOLFSSL* ssl, const unsigned char* ticket,
             (*jenv)->ExceptionClear(jenv);
             throwWolfSSLJNIException(jenv,
                 "Exception while calling internalSessionTicketCallback()");
+            freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
             return -1;
         }
-
-        /* Delete local refs */
-        (*jenv)->DeleteLocalRef(jenv, ticketArr);
     }
 
-    /* Detach JNIEnv from thread */
+    /* Delete local refs, detach JNIEnv from thread */
+    freeSessionTicketCbLocalRefs(jenv, sslClass, ticketArr);
     if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
     }
@@ -6600,7 +6642,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject    directBuf;
     jboolean   useByteBuffer = 0;      /* ByteBuffer or byte[] I/O callbacks */
 
-    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL || sz < 0) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -6776,7 +6818,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     jobject    directBuf;
     jboolean   useByteBuffer = 0;     /* ByteBuffer I/O callbacks */
 
-    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL) {
+    if (g_vm == NULL || ssl == NULL || buf == NULL || ctx == NULL || sz < 0) {
         /* can't throw exception yet, just return error */
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
