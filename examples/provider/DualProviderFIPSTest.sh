@@ -19,5 +19,5 @@
 WOLFCRYPTJNI_DIR="${WOLFCRYPTJNI_DIR:-../../wolfcryptjni}"
 
 java -classpath \
-    lib/wolfssl.jar:lib/wolfssl-jsse.jar:"${WOLFCRYPTJNI_DIR}"/lib/wolfcrypt-jni.jar:examples/provider \
+    examples/provider:lib/wolfssl.jar:lib/wolfssl-jsse.jar:"${WOLFCRYPTJNI_DIR}"/lib/wolfcrypt-jni.jar \
     DualProviderFIPSTest
