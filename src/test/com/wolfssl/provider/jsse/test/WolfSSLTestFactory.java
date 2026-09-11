@@ -88,6 +88,7 @@ class WolfSSLTestFactory {
 
     protected String googleCACert;
     protected String exampleComCert;
+    protected String clientCertDer;
 
     protected final static String jksPassStr = "wolfSSL test";
     protected final static char[] jksPass = jksPassStr.toCharArray();
@@ -136,6 +137,7 @@ class WolfSSLTestFactory {
         /* External CA certificate files */
         googleCACert     = "examples/certs/ca-google-root.der";
         exampleComCert   = "examples/certs/example-com.der";
+        clientCertDer    = "examples/certs/client-cert.der";
 
         /* test if running from IDE directory */
         File f = new File(serverJKS);
@@ -174,6 +176,7 @@ class WolfSSLTestFactory {
 
         googleCACert = in.concat(googleCACert);
         exampleComCert = in.concat(exampleComCert);
+        clientCertDer = in.concat(clientCertDer);
     }
 
     private boolean isIDEFile() {
