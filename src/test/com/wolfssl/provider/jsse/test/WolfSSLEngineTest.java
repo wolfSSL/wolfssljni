@@ -3765,5 +3765,34 @@ public class WolfSSLEngineTest {
         r = server.unwrap(netBuf, outArr, 2, 2);
         assertOffsetUnwrapOk(r, outArr, data);
     }
+
+    @Test
+    public void testSetUseClientModeRejectedAfterHandshakeBegun()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeTrue(protocol != null);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine client = localCtx.createSSLEngine("test", 11111);
+        client.setUseClientMode(true);
+
+        /* Once the handshake has begun, mode changes must be rejected */
+        client.beginHandshake();
+
+        try {
+            client.setUseClientMode(false);
+            fail("setUseClientMode() allowed after handshake began");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        assertTrue(client.getUseClientMode());
+    }
 }
 

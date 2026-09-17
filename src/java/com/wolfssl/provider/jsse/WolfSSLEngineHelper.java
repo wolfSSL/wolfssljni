@@ -102,6 +102,10 @@ public class WolfSSLEngineHelper {
     /* Has setUseClientMode() been called on this object */
     private boolean modeSet = false;
 
+    /* Flag if handshake has been started, set in initHandshakeInternal(),
+     * used to reject setUseClientMode() once handshaking has begun. */
+    private boolean handshakeStarted = false;
+
     /* wolfSSL verification mode, set inside setLocalAuth() */
     private int verifyMask = WolfSSL.SSL_VERIFY_PEER;
 
@@ -746,15 +750,15 @@ public class WolfSSLEngineHelper {
      *
      * @param mode client mode (true/false)
      *
-     * @throws IllegalArgumentException if called after SSL/TLS handshake
-     *         has been completed. Only allowed before.
+     * @throws IllegalArgumentException if called after the SSL/TLS handshake
+     *         has begun. Only allowed before.
      */
     protected synchronized void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
-        if (this.ssl.handshakeDone()) {
+        if (this.handshakeStarted || this.ssl.handshakeDone()) {
             throw new IllegalArgumentException("setUseClientMode() not " +
-                "allowed after handshake is completed");
+                "allowed after handshake has begun");
         }
 
         this.clientMode = mode;
@@ -1959,6 +1963,9 @@ public class WolfSSLEngineHelper {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
         }
+
+        /* Handshake is starting, no more client/server mode changes */
+        this.handshakeStarted = true;
 
         /* If InetAddress was used to create SSLSocket, use IP address for
          * session resumption to avoid DNS lookup with
