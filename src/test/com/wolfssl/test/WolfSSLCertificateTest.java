@@ -892,6 +892,54 @@ public class WolfSSLCertificateTest {
         }
     }
 
+    /* A certificate issued from a non-self-signed intermediate CA takes the
+     * CA subject name as its issuer name, not the CA's own issuer name. */
+    @Test
+    public void testSetIssuerNameUsesIssuerCertSubjectDN()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        String intPath = WolfSSLTestCommon.getPath(
+            "examples/certs/intermediate/ca-int-cert.pem");
+        WolfSSLCertificate intermediate = null;
+        WolfSSLCertificate leaf = null;
+        WolfSSLCertificate leafFromX509 = null;
+
+        try {
+            intermediate =
+                new WolfSSLCertificate(intPath, WolfSSL.SSL_FILETYPE_PEM);
+            assertNotNull(intermediate);
+
+            /* Not self-signed, so its subject and issuer differ. */
+            String caSubject = intermediate.getSubject();
+            String caIssuer = intermediate.getIssuer();
+            assertNotEquals(caSubject, caIssuer);
+
+            leaf = new WolfSSLCertificate();
+            leaf.setIssuerName(intermediate);
+            assertEquals(caSubject, leaf.getIssuer());
+            assertNotEquals(caIssuer, leaf.getIssuer());
+
+            X509Certificate intX509 = intermediate.getX509Certificate();
+            leafFromX509 = new WolfSSLCertificate();
+            leafFromX509.setIssuerName(intX509);
+            assertEquals(caSubject, leafFromX509.getIssuer());
+            assertNotEquals(caIssuer, leafFromX509.getIssuer());
+        } finally {
+            if (leaf != null) {
+                leaf.free();
+            }
+            if (leafFromX509 != null) {
+                leafFromX509.free();
+            }
+            if (intermediate != null) {
+                intermediate.free();
+            }
+        }
+    }
+
     @Test
     public void testCertSignFailureThrows()
         throws WolfSSLException, WolfSSLJNIException, IOException {
