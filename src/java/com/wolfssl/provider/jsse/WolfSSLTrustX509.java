@@ -413,171 +413,174 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                 "Failed to create native WolfSSLCertManager");
         }
 
-        /* load trusted certs from KeyStore */
         try {
-            ret = cm.CertManagerLoadCAKeyStore(this.store);
+            /* load trusted certs from KeyStore */
+            try {
+                ret = cm.CertManagerLoadCAKeyStore(this.store);
+            } catch (WolfSSLException e) {
+                throw new CertificateException(
+                    "Failed to load trusted certs into WolfSSLCertManager", e);
+            }
             if (ret != WolfSSL.SSL_SUCCESS) {
                 throw new CertificateException(
                     "Failed to load trusted certs into WolfSSLCertManager");
             }
-        } catch (WolfSSLException e) {
-            cm.free();
-            throw new CertificateException(
-                "Failed to load trusted certs into WolfSSLCertManager");
-        }
 
-        /* Sort cert chain in order from peer to last intermedate. We
-         * assume cert chain starts with peer certificate (certs[0]). */
-        sortedCerts = sortCertChainBySubjectIssuer(certs);
+            /* Sort cert chain in order from peer to last intermedate. We
+             * assume cert chain starts with peer certificate (certs[0]). */
+            sortedCerts = sortCertChainBySubjectIssuer(certs);
 
-        /* If requested to return full chain, initialize new list and add
-         * peer cert first. Intermediate and root CAs added as verified. */
-        if (returnChain) {
-            fullChain = new ArrayList<X509Certificate>();
-            fullChain.add(sortedCerts[0]); /* Add peer cert */
-        }
+            /* If requested to return full chain, initialize new list and add
+             * peer cert first. Intermediate and root CAs added as verified. */
+            if (returnChain) {
+                fullChain = new ArrayList<X509Certificate>();
+                fullChain.add(sortedCerts[0]); /* Add peer cert */
+            }
 
-        /* Walk backwards down list of intermediate CA certs, verify each one
-         * based on trusted certs we already have loaded in the CertManager,
-         * then once verified load the intermediate into the CertManager
-         * as a root that can be used to verify our peer cert.
-         *
-         * Similarly to native wolfSSL WOLFSSL_ALT_CERT_CHAINS behavior: if a CA
-         * certificate cannot be verified, we skip it and continue building
-         * the chain through other certificates. This allows handling of
-         * cross-signed certificates and extra certificates in the chain.
-         *
-         * When verification fails for a CA cert, we also try to find its
-         * actual issuer in the KeyStore by signature verification. This
-         * handles the case where multiple CAs share the same subject DN
-         * (e.g., cross-signed roots) and the native CA lookup returns the
-         * wrong one first. */
+            /* Walk backwards down list of intermediate CA certs, verify
+             * each one based on trusted certs we already have loaded in
+             * the CertManager, then once verified load the intermediate
+             * into the CertManager as a root that can be used to verify
+             * our peer cert.
+             *
+             * Similarly to native wolfSSL WOLFSSL_ALT_CERT_CHAINS
+             * behavior: if a CA certificate cannot be verified, we skip it
+             * and continue building the chain through other certificates.
+             * This allows handling of cross-signed certificates and extra
+             * certificates in the chain.
+             *
+             * When verification fails for a CA cert, we also try to find
+             * its actual issuer in the KeyStore by signature verification.
+             * This handles the case where multiple CAs share the same
+             * subject DN (ex: cross-signed roots) and the native CA lookup
+             * returns the wrong one first. */
 
-        for (int i = sortedCerts.length-1; i > 0; i--) {
-            final int tmpI = i;
+            for (int i = sortedCerts.length-1; i > 0; i--) {
+                final int tmpI = i;
 
-            /* Verify chain cert */
+                /* Verify chain cert */
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Verifying intermediate chain cert: " +
+                    sortedCerts[tmpI].getSubjectX500Principal().getName());
+
+                byte[] encoded = sortedCerts[tmpI].getEncoded();
+                ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
+                        WolfSSL.SSL_FILETYPE_ASN1);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    /* Verification failed. If this is a CA cert, try to
+                     * find and load its actual issuer from the KeyStore.
+                     * This handles cross-signed certs where multiple CAs
+                     * share the same subject DN but have different keys. */
+                    if (sortedCerts[tmpI].getBasicConstraints() != -1) {
+                        X509Certificate issuer = findIssuerBySignature(
+                            sortedCerts[tmpI], this.store);
+                        if (issuer != null) {
+                            /* Found the actual issuer, load it and retry */
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "Found issuer by signature for: " +
+                                sortedCerts[tmpI].getSubjectX500Principal()
+                                    .getName());
+                            try {
+                                byte[] issuerEnc = issuer.getEncoded();
+                                cm.CertManagerLoadCABuffer(issuerEnc,
+                                    issuerEnc.length,
+                                    WolfSSL.SSL_FILETYPE_ASN1);
+                            } catch (Exception e) {
+                                /* If loading issuer fails, fall through to
+                                 * skip logic below */
+                            }
+                            /* Retry verification after loading issuer */
+                            ret = cm.CertManagerVerifyBuffer(encoded,
+                                encoded.length, WolfSSL.SSL_FILETYPE_ASN1);
+                        }
+                    }
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        if (sortedCerts[tmpI].getBasicConstraints() != -1) {
+                            /* This is a CA certificate, skip it and continue.
+                             * Do not add it to the certificate manager. */
+                            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                                () -> "Using alternate cert chain " +
+                                "(skipping CA): " +
+                                sortedCerts[tmpI].getSubjectX500Principal()
+                                    .getName());
+                            continue;
+                        }
+                        /* Non-CA certificates must verify successfully */
+                        throw new CertificateException(
+                            "Failed to verify intermediate chain cert");
+                    }
+                }
+
+                /* Load chain cert as trusted CA */
+                ret = cm.CertManagerLoadCABuffer(encoded, encoded.length,
+                        WolfSSL.SSL_FILETYPE_ASN1);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    throw new CertificateException(
+                        "Failed to load intermediate CA certificate as " +
+                        "trusted root");
+                }
+
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Loaded intermediate CA: " +
+                    sortedCerts[tmpI].getSubjectX500Principal().getName());
+
+                /* Chain cert verified successfully, add to fullChain if
+                 * requested. Inserting at position 1 maintains peer to root
+                 * order and shifts all other certs in the list down a
+                 * position. */
+                if (returnChain) {
+                    fullChain.add(1, sortedCerts[tmpI]);
+                }
+            }
+
+            /* Verify peer certificate */
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Verifying intermediate chain cert: " +
-                sortedCerts[tmpI].getSubjectX500Principal().getName());
+                () -> "Verifying peer certificate: " +
+                sortedCerts[0].getSubjectX500Principal().getName());
 
-            byte[] encoded = sortedCerts[tmpI].getEncoded();
-            ret = cm.CertManagerVerifyBuffer(encoded, encoded.length,
+            byte[] peer = sortedCerts[0].getEncoded();
+            if (peer == null) {
+                throw new CertificateException(
+                    "Failed to get encoded peer cert");
+            }
+
+            ret = cm.CertManagerVerifyBuffer(peer, peer.length,
                     WolfSSL.SSL_FILETYPE_ASN1);
             if (ret != WolfSSL.SSL_SUCCESS) {
-                /* Verification failed. If this is a CA cert, try to find
-                 * and load its actual issuer from the KeyStore. This handles
-                 * cross-signed certs where multiple CAs share the same
-                 * subject DN but have different keys. */
-                if (sortedCerts[tmpI].getBasicConstraints() != -1) {
-                    X509Certificate issuer = findIssuerBySignature(
-                        sortedCerts[tmpI], this.store);
-                    if (issuer != null) {
-                        /* Found the actual issuer, load it and retry */
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Found issuer by signature for: " +
-                            sortedCerts[tmpI].getSubjectX500Principal()
-                                .getName());
-                        try {
-                            byte[] issuerEnc = issuer.getEncoded();
-                            cm.CertManagerLoadCABuffer(issuerEnc,
-                                issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
-                        } catch (Exception e) {
-                            /* If loading issuer fails, fall through to
-                             * skip logic below */
-                        }
-                        /* Retry verification after loading issuer */
-                        ret = cm.CertManagerVerifyBuffer(encoded,
-                            encoded.length, WolfSSL.SSL_FILETYPE_ASN1);
+                /* Native CA lookup by subject hash may return wrong issuer
+                 * for cross-signed certs. Find correct one by signature,
+                 * reload it, and retry. */
+                X509Certificate issuer = findIssuerBySignature(
+                    sortedCerts[0], this.store);
+                if (issuer != null) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Found issuer by signature for peer: " +
+                        sortedCerts[0].getSubjectX500Principal().getName());
+                    try {
+                        cm.CertManagerUnloadCAs();
+                        byte[] issuerEnc = issuer.getEncoded();
+                        cm.CertManagerLoadCABuffer(issuerEnc,
+                            issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
+                    } catch (Exception e) {
+                        /* Fall through to failure below */
                     }
+                    ret = cm.CertManagerVerifyBuffer(peer, peer.length,
+                        WolfSSL.SSL_FILETYPE_ASN1);
                 }
                 if (ret != WolfSSL.SSL_SUCCESS) {
-                    if (sortedCerts[tmpI].getBasicConstraints() != -1) {
-                        /* This is a CA certificate, skip it and continue.
-                         * Do not add it to the certificate manager. */
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Using alternate cert chain " +
-                            "(skipping CA): " +
-                            sortedCerts[tmpI].getSubjectX500Principal()
-                                .getName());
-                        continue;
-                    }
-                    /* Non-CA certificates must verify successfully */
-                    cm.free();
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "Failed to verify peer certificate");
                     throw new CertificateException(
-                        "Failed to verify intermediate chain cert");
+                        "Failed to verify peer certificate");
                 }
-            }
-
-            /* Load chain cert as trusted CA */
-            ret = cm.CertManagerLoadCABuffer(encoded, encoded.length,
-                    WolfSSL.SSL_FILETYPE_ASN1);
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                cm.free();
-                throw new CertificateException("Failed to load intermediate " +
-                    "CA certificate as trusted root");
             }
 
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "Loaded intermediate CA: " +
-                sortedCerts[tmpI].getSubjectX500Principal().getName());
-
-            /* Chain cert verified successfully, add to fullChain if requested.
-             * Inserting at position 1 maintains peer to root order and shifts
-             * all other certs in the list down a position. */
-            if (returnChain) {
-                fullChain.add(1, sortedCerts[tmpI]);
-            }
-        }
-
-        /* Verify peer certificate */
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "Verifying peer certificate: " +
-            sortedCerts[0].getSubjectX500Principal().getName());
-
-        byte[] peer = sortedCerts[0].getEncoded();
-        if (peer == null) {
+                () -> "Verified peer certificate: " +
+                sortedCerts[0].getSubjectX500Principal().getName());
+        } finally {
             cm.free();
-            throw new CertificateException("Failed to get encoded peer cert");
         }
-
-        ret = cm.CertManagerVerifyBuffer(peer, peer.length,
-                WolfSSL.SSL_FILETYPE_ASN1);
-        if (ret != WolfSSL.SSL_SUCCESS) {
-            /* Native CA lookup by subject hash may return wrong issuer
-             * for cross-signed certs. Find correct one by signature,
-             * reload it, and retry. */
-            X509Certificate issuer = findIssuerBySignature(
-                sortedCerts[0], this.store);
-            if (issuer != null) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Found issuer by signature for peer: " +
-                    sortedCerts[0].getSubjectX500Principal().getName());
-                try {
-                    cm.CertManagerUnloadCAs();
-                    byte[] issuerEnc = issuer.getEncoded();
-                    cm.CertManagerLoadCABuffer(issuerEnc,
-                        issuerEnc.length, WolfSSL.SSL_FILETYPE_ASN1);
-                } catch (Exception e) {
-                    /* Fall through to failure below */
-                }
-                ret = cm.CertManagerVerifyBuffer(peer, peer.length,
-                    WolfSSL.SSL_FILETYPE_ASN1);
-            }
-            if (ret != WolfSSL.SSL_SUCCESS) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Failed to verify peer certificate");
-                cm.free();
-                throw new CertificateException(
-                    "Failed to verify peer certificate");
-            }
-        }
-
-        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-            () -> "Verified peer certificate: " +
-            sortedCerts[0].getSubjectX500Principal().getName());
-
-        cm.free();
 
         if (returnChain) {
             /* Find root CA from KeyStore to append to chain. Use the last

@@ -777,11 +777,17 @@ public class WolfSSLUtil {
 
             stream = new FileInputStream(file);
             ks.load(stream, pass);
-            stream.close();
 
         } catch (KeyStoreException | IOException | NoSuchAlgorithmException |
                  CertificateException e) {
             return null;
+        } finally {
+            try {
+                if (stream != null) {
+                    stream.close();
+                }
+            } catch (IOException e) {
+            }
         }
 
         return ks;

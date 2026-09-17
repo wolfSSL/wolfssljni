@@ -1228,6 +1228,18 @@ public class WolfSSLSocket extends SSLSocket {
                     "not setting");
             }
         }
+        else {
+            /* Unregister the native callback and clear the Java selector. */
+            try {
+                if (this.ssl != null) {
+                    this.ssl.unsetAlpnSelectCb();
+                }
+            } catch (IllegalStateException | WolfSSLJNIException e) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Exception while clearing ALPN select callback");
+            }
+            this.alpnSelector = null;
+        }
     }
 
     /**
@@ -1247,7 +1259,7 @@ public class WolfSSLSocket extends SSLSocket {
             if (alpnSelector == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "alpnSelector null inside ALPNSelectCallback");
-                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+                return WolfSSL.SSL_TLSEXT_ERR_NOACK;
             }
 
             if (!(arg instanceof SSLSocket)) {
@@ -2236,16 +2248,13 @@ public class WolfSSLSocket extends SSLSocket {
                         (this.socket != null && this.socket.isClosed()) ||
                         (this.socket == null && super.isClosed())) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Socket already closed, skipping " +
-                            "TLS shutdown");
-                        /* Mark closed and wake any read()/write() waiters */
-                        this.connectionClosed = true;
-                        handshakeLock.notifyAll();
-                        return;
+                            () -> "transport already closed, skipping TLS " +
+                            "shutdown exchange but continuing cleanup");
                     }
-
-                    /* Get value of handshakeComplete while inside lock */
-                    handshakeFinished = this.handshakeComplete;
+                    else {
+                        /* Get value of handshakeComplete while inside lock */
+                        handshakeFinished = this.handshakeComplete;
+                    }
                 }
 
                 /* Mark close requested before waking I/O threads, so whichever
