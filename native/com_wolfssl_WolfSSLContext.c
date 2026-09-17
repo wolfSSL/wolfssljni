@@ -4432,8 +4432,8 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
             return -1;
         }
 
-        tmpKeyDerSz = wc_EccPublicKeyToDer(&tmpKey, tmpKeyDer, ECC_BUFSIZE, 1);
-        if (tmpKeyDerSz <= 0) {
+        ret = wc_EccPublicKeyToDer(&tmpKey, tmpKeyDer, ECC_BUFSIZE, 1);
+        if (ret <= 0) {
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
             wc_ecc_free(&tmpKey);
@@ -4442,6 +4442,7 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
                 "eccSharedSecret public key to DER", needsDetach);
             return -1;
         }
+        tmpKeyDerSz = (word32)ret;
 
         wc_ecc_free(&tmpKey);
 
