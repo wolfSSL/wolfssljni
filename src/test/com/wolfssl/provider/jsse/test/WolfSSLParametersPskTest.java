@@ -358,6 +358,56 @@ public class WolfSSLParametersPskTest {
     }
 
     @Test
+    public void testPskEngineHandshakeNoServerHint() throws Exception {
+
+        final String[] recvHint = new String[]{ "__unset__" };
+
+        SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
+        ctx.init(null, null, null);
+
+        SSLEngine serverEngine = ctx.createSSLEngine();
+        serverEngine.setUseClientMode(false);
+
+        /* Server does not set an identity hint, which is optional */
+        WolfSSLParameters serverParams = new WolfSSLParameters();
+        serverParams.setPskServerCb(testServerCb);
+        serverParams.setCipherSuites(new String[]{pskCipher});
+        serverEngine.setSSLParameters(serverParams);
+
+        SSLEngine clientEngine = ctx.createSSLEngine("localhost", 0);
+        clientEngine.setUseClientMode(true);
+
+        WolfSSLParameters clientParams = new WolfSSLParameters();
+        clientParams.setPskClientCb(new WolfSSLPskClientCallback() {
+            public long pskClientCallback(WolfSSLSession ssl, String hint,
+                StringBuffer identity, long idMaxLen, byte[] key,
+                long keyMaxLen) {
+
+                recvHint[0] = hint;
+                return testClientCb.pskClientCallback(ssl, hint, identity,
+                    idMaxLen, key, keyMaxLen);
+            }
+        });
+        clientParams.setCipherSuites(new String[]{pskCipher});
+        clientEngine.setSSLParameters(clientParams);
+
+        doInMemoryHandshake(clientEngine, serverEngine);
+
+        assertEquals(HandshakeStatus.NOT_HANDSHAKING,
+            clientEngine.getHandshakeStatus());
+        assertEquals(HandshakeStatus.NOT_HANDSHAKING,
+            serverEngine.getHandshakeStatus());
+
+        /* Absent server hint arrives as an empty String, not a failure */
+        assertNotNull("PSK client callback did not receive a hint",
+            recvHint[0]);
+        assertEquals("", recvHint[0]);
+
+        clientEngine.closeOutbound();
+        serverEngine.closeOutbound();
+    }
+
+    @Test
     public void testPskEngineKeepArrays() throws Exception {
 
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
