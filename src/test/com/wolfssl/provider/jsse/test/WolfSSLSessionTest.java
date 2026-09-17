@@ -25,6 +25,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
@@ -821,6 +822,50 @@ public class WolfSSLSessionTest {
 
         /* @TODO additional tests around setting session cache size */
         context.setSessionCacheSize(2);
+    }
+
+    @Test
+    public void testSessionCacheSizeZeroKeepsSessions()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        /* Make sure the client session cache is not disabled */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        try {
+            SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+
+            /* Zero cache size means unlimited, per SSLSessionContext */
+            SSLSessionContext cctx = ctx.getClientSessionContext();
+            cctx.setSessionCacheSize(0);
+
+            SSLEngine client = ctx.createSSLEngine("server", 12345);
+            SSLEngine server = ctx.createSSLEngine();
+            if (client == null || server == null) {
+                fail("failed to create engine");
+                return;
+            }
+
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            if (tf.testConnection(server, client, null, null,
+                    "cache size zero") != 0) {
+                fail("failed to connect");
+            }
+
+            assertTrue(cctx.getIds().hasMoreElements());
+            /* Hold engine so its session is not GC-invalidated above */
+            assertNotNull(client);
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
     }
 
     @Test
