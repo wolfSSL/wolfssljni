@@ -251,17 +251,13 @@ public class WolfSSLUtil {
             sigAlgList = new ArrayList<String>();
         }
 
-        /* Separate schemes */
-        sigSchemes = sigSchemes.trim();
-        String[] schemes = sigSchemes.split(",");
+        /* Separate schemes, trimming whitespace around each token */
+        String[] schemes = splitCommaList(sigSchemes);
 
         /* Tokenize scheme components and convert to signature algo format */
         for (String scheme : schemes) {
             /* Locale.ROOT for locale-independent case conversion of protocol */
             scheme = scheme.toUpperCase(Locale.ROOT);
-            if (scheme.isEmpty()) {
-                continue;
-            }
 
             String[] schemeComp = scheme.split("_");
             String algorithm = schemeComp[0];
@@ -422,9 +418,6 @@ public class WolfSSLUtil {
         WolfSSLDebug.log(WolfSSLUtil.class, WolfSSLDebug.INFO,
             () -> "jdk.tls." + (clientMode ? "client" : "server")
                 + ".SignatureSchemes: " + tmpSigSchemes);
-
-        /* Remove spaces between colons if present */
-        sigSchemes = sigSchemes.replaceAll(" , ", ",");
 
         return sigSchemes;
     }
