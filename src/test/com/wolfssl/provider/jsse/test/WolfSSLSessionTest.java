@@ -30,6 +30,8 @@ import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Enumeration;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
@@ -860,6 +862,123 @@ public class WolfSSLSessionTest {
             assertTrue(cctx.getIds().hasMoreElements());
             /* Hold engine so its session is not GC-invalidated above */
             assertNotNull(client);
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    private static int countSessionIds(SSLSessionContext context) {
+        int count = 0;
+        Enumeration<byte[]> ids = context.getIds();
+        while (ids.hasMoreElements()) {
+            ids.nextElement();
+            count++;
+        }
+        return count;
+    }
+
+    @Test
+    public void testResizeCacheKeepsExistingSessions()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        /* Make sure the client session cache is not disabled */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        try {
+            SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+            SSLSessionContext cctx = ctx.getClientSessionContext();
+
+            /* Hold engines so cached sessions are not GC-invalidated before
+             * the count is checked */
+            SSLEngine[] clients = new SSLEngine[2];
+
+            /* Cache two client sessions to distinct peers */
+            for (int i = 0; i < clients.length; i++) {
+                SSLEngine client =
+                    ctx.createSSLEngine("server" + i, 11111 + i);
+                SSLEngine server = ctx.createSSLEngine();
+                if (client == null || server == null) {
+                    fail("failed to create engine");
+                    return;
+                }
+
+                server.setUseClientMode(false);
+                server.setNeedClientAuth(false);
+                client.setUseClientMode(true);
+                if (tf.testConnection(server, client, null, null,
+                        "resize keep") != 0) {
+                    fail("failed to connect");
+                }
+                clients[i] = client;
+            }
+
+            int before = countSessionIds(cctx);
+            assertTrue(before >= 2);
+
+            /* Shrinking the cache must not drop already-cached sessions */
+            cctx.setSessionCacheSize(1);
+
+            assertEquals(before, countSessionIds(cctx));
+            assertNotNull(clients[clients.length - 1]);
+        } finally {
+            if (originalProp != null && !originalProp.isEmpty()) {
+                Security.setProperty(
+                    "wolfjsse.clientSessionCache.disabled", originalProp);
+            }
+        }
+    }
+
+    @Test
+    public void testSessionCacheEvictsOldestBeyondLimit()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        /* Make sure the client session cache is not disabled */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        try {
+            SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
+            SSLSessionContext cctx = ctx.getClientSessionContext();
+            cctx.setSessionCacheSize(2);
+
+            /* Hold engines so cached sessions are not GC-invalidated before
+             * the count is checked */
+            SSLEngine[] clients = new SSLEngine[4];
+
+            /* Caching more sessions than the limit must evict the oldest */
+            for (int i = 0; i < clients.length; i++) {
+                SSLEngine client =
+                    ctx.createSSLEngine("server" + i, 11111 + i);
+                SSLEngine server = ctx.createSSLEngine();
+                if (client == null || server == null) {
+                    fail("failed to create engine");
+                    return;
+                }
+
+                server.setUseClientMode(false);
+                server.setNeedClientAuth(false);
+                client.setUseClientMode(true);
+                if (tf.testConnection(server, client, null, null,
+                        "cache evict") != 0) {
+                    fail("failed to connect");
+                }
+                clients[i] = client;
+            }
+
+            int cached = countSessionIds(cctx);
+            assertTrue("cache must be capped at the limit", cached <= 2);
+            assertTrue("sessions should still be cached", cached >= 1);
+            assertNotNull(clients[clients.length - 1]);
         } finally {
             if (originalProp != null && !originalProp.isEmpty()) {
                 Security.setProperty(

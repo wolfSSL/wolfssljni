@@ -295,18 +295,20 @@ public class WolfSSLAuthStore {
     }
 
     /**
-     * Reset the size of the array to cache sessions
-     * @param sz new array size
-     * @param side server/client side for cache resize
+     * Reset the size limit of the session cache.
+     *
+     * The new limit governs future insertions only. Existing cached
+     * sessions are kept, so the live cache may exceed getSessionCacheSize()
+     * until entries age out or are evicted by later insertions. The client
+     * and server contexts share one store, so a limit set on one side
+     * currently applies to both.
+     *
+     * @param sz new cache size limit, or zero for no limit
+     * @param side server/client side, currently unused per the note above
      */
     protected void resizeCache(int sz, int side) {
-        SessionStore<String, WolfSSLImplementSSLSession> newStore =
-                new SessionStore<>(sz);
-
-        /* @TODO check for side server/client, currently a resize is for all */
         synchronized (storeLock) {
-            newStore.putAll(store);
-            store = newStore;
+            store.setMaxSize(sz);
         }
     }
 
@@ -841,13 +843,24 @@ public class WolfSSLAuthStore {
          * user defined ID
          */
         private static final long serialVersionUID = 1L;
-        private final int maxSz;
+        private volatile int maxSz;
 
         /**
          * @param in max size of map before the oldest entry is evicted,
          *        or zero for no limit
          */
         protected SessionStore(int in) {
+            maxSz = in;
+        }
+
+        /**
+         * Update the size limit. Existing entries are kept, only future
+         * insertions are governed by the new limit. Callers must hold
+         * WolfSSLAuthStore.storeLock.
+         *
+         * @param in new max size, or zero for no limit
+         */
+        protected void setMaxSize(int in) {
             maxSz = in;
         }
 
