@@ -742,6 +742,7 @@ public class WolfSSLSession {
     private native int useALPNByteArray(long ssl, byte[] protocols,
             int options);
     private native int setALPNSelectCb(long ssl);
+    private native int unsetALPNSelectCb(long ssl);
     private native int setTls13SecretCb(long ssl);
     private native int setSessionTicketCb(long ssl);
     private native void keepArrays(long ssl);
@@ -5981,6 +5982,38 @@ public class WolfSSLSession {
 
                 /* set ALPN select arg Object, returned to user in callback */
                 this.alpnSelectArg = arg;
+            }
+        }
+
+        return ret;
+    }
+
+    /**
+     * Unregister the ALPN select callback previously set with
+     * setAlpnSelectCb(). With no callback registered, ALPN negotiation falls
+     * back to the protocol list set with useALPN().
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success, otherwise negative
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     * @throws WolfSSLJNIException Internal JNI error
+     */
+    public int unsetAlpnSelectCb()
+        throws IllegalStateException, WolfSSLJNIException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered unsetAlpnSelectCb()");
+
+            ret = unsetALPNSelectCb(this.sslPtr);
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                internAlpnSelectCb = null;
+                this.alpnSelectArg = null;
             }
         }
 

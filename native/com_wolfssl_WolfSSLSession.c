@@ -5667,6 +5667,31 @@ JNIEXPORT int JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
 #endif
 }
 
+JNIEXPORT int JNICALL Java_com_wolfssl_WolfSSLSession_unsetALPNSelectCb
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(HAVE_ALPN) && (LIBWOLFSSL_VERSION_HEX >= 0x05006006)
+    /* wolfSSL_set_alpn_select_cb() added as of wolfSSL 5.6.6 */
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int ret = SSL_SUCCESS;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Clear ALPN select callback so ALPN falls back to the useALPN list */
+    wolfSSL_set_alpn_select_cb(ssl, NULL, NULL);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return NOT_COMPILED_IN;
+#endif
+}
+
 #ifdef HAVE_ALPN
 
 /* Delete JNI local references created inside NativeALPNSelectCb() */

@@ -3206,6 +3206,40 @@ public class WolfSSLSocketTest {
     }
 
     @Test
+    public void testClearHandshakeApplicationProtocolSelector()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        }
+        Assume.assumeNotNull(protocol);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, ctxProvider);
+        SSLSocket sock = (SSLSocket)localCtx.getSocketFactory().createSocket();
+
+        try {
+            /* Install a selector */
+            sock.setHandshakeApplicationProtocolSelector(
+                (s, protos) -> protos.isEmpty() ? "" : protos.get(0));
+
+            /* Skip if the native ALPN select callback is not available */
+            Assume.assumeNotNull(
+                sock.getHandshakeApplicationProtocolSelector());
+
+            /* Passing null must clear the installed selector */
+            sock.setHandshakeApplicationProtocolSelector(null);
+            assertNull(sock.getHandshakeApplicationProtocolSelector());
+        } finally {
+            sock.close();
+        }
+    }
+
+    @Test
     public void testSocketConnectException() throws Exception {
 
         this.ctx = tf.createSSLContext("TLS", ctxProvider);

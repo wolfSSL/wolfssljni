@@ -993,6 +993,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setALPNSelectCb
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    unsetALPNSelectCb
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_unsetALPNSelectCb
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setTls13SecretCb
  * Signature: (J)I
  */

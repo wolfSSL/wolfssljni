@@ -1228,6 +1228,18 @@ public class WolfSSLSocket extends SSLSocket {
                     "not setting");
             }
         }
+        else {
+            /* Unregister the native callback and clear the Java selector. */
+            try {
+                if (this.ssl != null) {
+                    this.ssl.unsetAlpnSelectCb();
+                }
+            } catch (IllegalStateException | WolfSSLJNIException e) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Exception while clearing ALPN select callback");
+            }
+            this.alpnSelector = null;
+        }
     }
 
     /**
@@ -1247,7 +1259,7 @@ public class WolfSSLSocket extends SSLSocket {
             if (alpnSelector == null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "alpnSelector null inside ALPNSelectCallback");
-                return WolfSSL.SSL_TLSEXT_ERR_ALERT_FATAL;
+                return WolfSSL.SSL_TLSEXT_ERR_NOACK;
             }
 
             if (!(arg instanceof SSLSocket)) {
