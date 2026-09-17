@@ -4069,5 +4069,33 @@ public class WolfSSLEngineTest {
          * A still-registered NOACK callback would leave this empty. */
         assertEquals("h2", server.getApplicationProtocol());
     }
-}
 
+    @Test
+    public void testSetUseClientModeRejectedAfterHandshakeBegun()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeTrue(protocol != null);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine client = localCtx.createSSLEngine("test", 11111);
+        client.setUseClientMode(true);
+
+        /* Once the handshake has begun, mode changes must be rejected */
+        client.beginHandshake();
+
+        try {
+            client.setUseClientMode(false);
+            fail("setUseClientMode() allowed after handshake began");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        assertTrue(client.getUseClientMode());
+    }
+}
