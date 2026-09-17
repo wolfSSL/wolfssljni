@@ -4321,6 +4321,75 @@ public class WolfSSLSocketTest {
             "failure: " + growth, growth < 100);
     }
 
+    /* close() over a transport that is already closed must still free the
+     * native session and its interrupt pipe, not skip cleanup and leak them
+     * to finalize(). Linux only, counts /proc/self/fd. */
+    @Test(timeout = 120000)
+    public void testCloseOverClosedTransportDoesNotLeakFds()
+        throws Exception {
+
+        Assume.assumeTrue(new java.io.File("/proc/self/fd").isDirectory());
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeNotNull(protocol);
+
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        final int iterations = 200;
+        final int warmupIterations = 10;
+        long baseline = -1;
+        /* Retain closed sockets so finalize() cannot free a leaked pipe and
+         * mask a reverted build. */
+        final java.util.List<SSLSocket> retained =
+            new java.util.ArrayList<>();
+
+        for (int i = 0; i < iterations; i++) {
+
+            ServerSocket ss = null;
+            Socket plain = null;
+            SSLSocket cs = null;
+
+            try {
+                ss = new ServerSocket(0);
+                plain = new Socket();
+                plain.connect(new InetSocketAddress("127.0.0.1",
+                    ss.getLocalPort()));
+
+                /* autoClose=false so SSLSocket.close() does not close the
+                 * transport. Close it first so close() takes the
+                 * already-closed-transport branch. */
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket(
+                    plain, "127.0.0.1", ss.getLocalPort(), false);
+                plain.close();
+                cs.close();
+            }
+            finally {
+                closeQuietly(cs);
+                closeQuietly(plain);
+                closeQuietly(ss);
+            }
+
+            retained.add(cs);
+
+            if (i == warmupIterations) {
+                baseline = countOpenFds();
+            }
+        }
+
+        assertTrue("fd baseline was never recorded", baseline >= 0);
+        long after = countOpenFds();
+        assertTrue("could not count open fds", after >= 0);
+        assertTrue("retained sockets were collected", retained.size() > 0);
+        long growth = after - baseline;
+        assertTrue("interrupt pipe descriptors leaked closing over a " +
+            "closed transport: " + growth, growth < 100);
+    }
+
     /* Directed test for the deferred free: a reader keeps reading when close()
      * runs, so close() defers freeSSL() to the reader's exit. Checks the
      * reader's exit frees the interrupt pipe, not finalize(). Linux only,

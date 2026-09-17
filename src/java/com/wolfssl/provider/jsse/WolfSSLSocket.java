@@ -2236,16 +2236,13 @@ public class WolfSSLSocket extends SSLSocket {
                         (this.socket != null && this.socket.isClosed()) ||
                         (this.socket == null && super.isClosed())) {
                         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Socket already closed, skipping " +
-                            "TLS shutdown");
-                        /* Mark closed and wake any read()/write() waiters */
-                        this.connectionClosed = true;
-                        handshakeLock.notifyAll();
-                        return;
+                            () -> "transport already closed, skipping TLS " +
+                            "shutdown exchange but continuing cleanup");
                     }
-
-                    /* Get value of handshakeComplete while inside lock */
-                    handshakeFinished = this.handshakeComplete;
+                    else {
+                        /* Get value of handshakeComplete while inside lock */
+                        handshakeFinished = this.handshakeComplete;
+                    }
                 }
 
                 /* Mark close requested before waking I/O threads, so whichever
