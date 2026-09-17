@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.Locale;
 import java.time.Instant;
 import java.time.Duration;
 import java.security.cert.CertificateException;
@@ -937,6 +938,27 @@ public class WolfSSLCertificateTest {
             if (intermediate != null) {
                 intermediate.free();
             }
+        }
+    }
+
+    @Test
+    public void testValidityDatesParseUnderNonEnglishLocale()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        Locale saved = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ru-RU"));
+
+            WolfSSLCertificate cert =
+                new WolfSSLCertificate(caCertPem, WolfSSL.SSL_FILETYPE_PEM);
+            assertNotNull(cert);
+            assertNotNull(cert.notBefore());
+            assertNotNull(cert.notAfter());
+            cert.free();
+        } finally {
+            Locale.setDefault(saved);
         }
     }
 

@@ -29,6 +29,7 @@ import java.nio.charset.Charset;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -1645,8 +1646,9 @@ public class WolfSSLCertificate implements Serializable {
             nb  = X509_notBefore(this.x509Ptr);
         }
         if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {
@@ -1677,8 +1679,9 @@ public class WolfSSLCertificate implements Serializable {
             nb = X509_notAfter(this.x509Ptr);
         }
         if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {

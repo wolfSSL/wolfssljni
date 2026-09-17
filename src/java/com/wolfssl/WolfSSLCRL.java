@@ -720,8 +720,9 @@ public class WolfSSLCRL implements Serializable {
         }
 
         if (date != null) {
-            SimpleDateFormat format =
-                new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(date);
             } catch (ParseException ex) {
@@ -754,8 +755,9 @@ public class WolfSSLCRL implements Serializable {
         }
 
         if (date != null) {
-            SimpleDateFormat format =
-                new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(date);
             } catch (ParseException ex) {
