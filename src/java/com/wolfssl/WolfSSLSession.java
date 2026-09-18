@@ -4522,6 +4522,7 @@ public class WolfSSLSession {
      *          WolfSSL.wolfssl_aes<br>
      *          WolfSSL.wolfssl_aes_gcm<br>
      *          WolfSSL.wolfssl_aes_ccm<br>
+     *          WolfSSL.wolfssl_chacha<br>
      *          WolfSSL.wolfssl_camellia<br>
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.<br>
      * @throws IllegalStateException WolfSSLContext has been freed

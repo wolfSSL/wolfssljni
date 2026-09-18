@@ -68,6 +68,21 @@ public class WolfSSLTest {
     }
 
     @Test
+    public void test_WolfSSL_bulkCipherEnumsDistinct()
+        throws WolfSSLException {
+
+        new WolfSSL();
+
+        /* 3DES must not mirror the DES enum value */
+        assertNotEquals(WolfSSL.wolfssl_des, WolfSSL.wolfssl_triple_des);
+
+        /* ChaCha and Camellia mirrors are populated and distinct from DES */
+        assertNotEquals(WolfSSL.wolfssl_des, WolfSSL.wolfssl_chacha);
+        assertNotEquals(WolfSSL.wolfssl_des, WolfSSL.wolfssl_camellia);
+        assertNotEquals(WolfSSL.wolfssl_chacha, WolfSSL.wolfssl_camellia);
+    }
+
+    @Test
     public void test_WolfSSL_protocol() {
         String[] p = WolfSSL.getProtocols();
         if (p == null) {
