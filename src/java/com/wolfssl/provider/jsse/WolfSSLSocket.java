@@ -75,6 +75,9 @@ public class WolfSSLSocket extends SSLSocket {
     private WolfSSLParameters params = null;
     private WolfSSLEngineHelper EngineHelper = null;
 
+    /* Alias which this socket loaded cert/key from, kept after close() */
+    private String localCertAlias = null;
+
     private Socket socket = null;
     private boolean autoClose;
 
@@ -555,6 +558,8 @@ public class WolfSSLSocket extends SSLSocket {
                     } else {
                         EngineHelper.loadKeyAndCertChain(this, null);
                     }
+                    this.localCertAlias = EngineHelper.getLocalCertAlias();
+
                 } else {
                     throw new WolfSSLException(
                         "EngineHelper null, cannot load key and cert chain");
@@ -1399,6 +1404,23 @@ public class WolfSSLSocket extends SSLSocket {
     }
 
     /**
+     * Create the SSL_NULL_WITH_NULL_NULL session that getSession() returns
+     * when this socket is closed or its handshake failed.
+     *
+     * The session's local certificates are the ones this socket loaded.
+     *
+     * @return new invalid session
+     */
+    private WolfSSLImplementSSLSession createInvalidSession() {
+
+        WolfSSLImplementSSLSession ses =
+            new WolfSSLImplementSSLSession(this.authStore);
+        ses.setLocalCertAlias(this.localCertAlias);
+
+        return ses;
+    }
+
+    /**
      * Returns the SSLSession in use by this SSLSocket.
      *
      * @return SSLSession object, otherwise null if not handshaking or
@@ -1416,7 +1438,7 @@ public class WolfSSLSocket extends SSLSocket {
 
             /* return invalid session object with cipher suite
              * "SSL_NULL_WITH_NULL_NULL" */
-            return new WolfSSLImplementSSLSession(this.authStore);
+            return createInvalidSession();
         }
 
         try {
@@ -1441,7 +1463,7 @@ public class WolfSSLSocket extends SSLSocket {
 
             /* return invalid session object with cipher suite
              * "SSL_NULL_WITH_NULL_NULL" */
-            return new WolfSSLImplementSSLSession(this.authStore);
+            return createInvalidSession();
         }
 
         return EngineHelper.getSession();
