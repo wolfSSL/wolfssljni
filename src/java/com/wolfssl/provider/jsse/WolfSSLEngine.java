@@ -2254,7 +2254,7 @@ public class WolfSSLEngine extends SSLEngine {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getHandshakeSession()");
 
-        if (!this.handshakeFinished) {
+        if (!this.needInit && !this.handshakeFinished) {
             /* Only return handshake session during the handshake */
             return this.engineHelper.getSession();
         }

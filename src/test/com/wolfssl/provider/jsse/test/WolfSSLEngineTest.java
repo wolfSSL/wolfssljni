@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import org.junit.Assume;
 import org.junit.Rule;
@@ -3764,6 +3765,30 @@ public class WolfSSLEngineTest {
         };
         r = server.unwrap(netBuf, outArr, 2, 2);
         assertOffsetUnwrapOk(r, outArr, data);
+    }
+
+    @Test
+    public void testGetHandshakeSessionNullBeforeHandshake()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeTrue(protocol != null);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine engine = localCtx.createSSLEngine("test", 11111);
+
+        /* a fresh engine is not handshaking, so reports no session */
+        assertNull(engine.getHandshakeSession());
+
+        /* once the handshake has begun the session becomes available */
+        engine.setUseClientMode(true);
+        engine.beginHandshake();
+        assertNotNull(engine.getHandshakeSession());
     }
 }
 
