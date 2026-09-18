@@ -4586,11 +4586,15 @@ public class WolfSSLSession {
      *
      * @return  If successful, the call will return one of the following:<br>
      *          WolfSSL.wolfssl_cipher_null<br>
+     *          WolfSSL.wolfssl_rc4<br>
+     *          WolfSSL.wolfssl_rc2<br>
      *          WolfSSL.wolfssl_des<br>
      *          WolfSSL.wolfssl_triple_des<br>
+     *          WolfSSL.wolfssl_des40<br>
      *          WolfSSL.wolfssl_aes<br>
      *          WolfSSL.wolfssl_aes_gcm<br>
      *          WolfSSL.wolfssl_aes_ccm<br>
+     *          WolfSSL.wolfssl_chacha<br>
      *          WolfSSL.wolfssl_camellia<br>
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.<br>
      * @throws IllegalStateException WolfSSLContext has been freed
