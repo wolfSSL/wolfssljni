@@ -807,12 +807,19 @@ public class WolfSSLSessionTest {
             assertEquals(WolfSSL.SSL_SUCCESS, ret);
 
             int err;
-            do {
-                ret = ssl.connect();
-                err = ssl.getError(ret);
-            } while (ret != WolfSSL.SSL_SUCCESS &&
-                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
-                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+            /* Hide the expected callback-exception trace from the test log */
+            PrintStream originalSysErr = System.err;
+            System.setErr(new PrintStream(new ByteArrayOutputStream()));
+            try {
+                do {
+                    ret = ssl.connect();
+                    err = ssl.getError(ret);
+                } while (ret != WolfSSL.SSL_SUCCESS &&
+                         (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                          err == WolfSSL.SSL_ERROR_WANT_WRITE));
+            } finally {
+                System.setErr(originalSysErr);
+            }
 
             assertTrue("handshake must fail closed when the verify callback " +
                 "throws or returns non-success on an untrusted certificate",
@@ -1661,14 +1668,22 @@ public class WolfSSLSessionTest {
          * with the exception pending, and fails the handshake on both peers
          * without crashing the JVM. */
         selected = new String[2];
-        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
-            @Override
-            public int alpnSelectCallback(WolfSSLSession ssl,
-                String[] out, String[] in, Object arg) {
-                throw new RuntimeException(
-                    "test exception from ALPN select callback");
-            }
-        }, new String[] { "http/1.1", "h2" }, selected);
+
+        /* Hide the expected callback-exception trace from the test log */
+        PrintStream originalSysErr = System.err;
+        System.setErr(new PrintStream(new ByteArrayOutputStream()));
+        try {
+            ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+                @Override
+                public int alpnSelectCallback(WolfSSLSession ssl,
+                    String[] out, String[] in, Object arg) {
+                    throw new RuntimeException(
+                        "test exception from ALPN select callback");
+                }
+            }, new String[] { "http/1.1", "h2" }, selected);
+        } finally {
+            System.setErr(originalSysErr);
+        }
 
         assertNotNull(ret);
         assertTrue("server accept() should fail when ALPN callback " +
