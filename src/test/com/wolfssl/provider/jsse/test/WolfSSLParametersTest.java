@@ -22,6 +22,7 @@
 package com.wolfssl.provider.jsse.test;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -88,5 +89,24 @@ public class WolfSSLParametersTest {
         /* an empty array is valid, it has no elements to reject */
         params.setApplicationProtocols(new String[0]);
         assertArrayEquals(new String[0], params.getApplicationProtocols());
+    }
+
+    @Test
+    public void testSetMaximumPacketSizeRejectsNegative() {
+
+        WolfSSLParameters params = new WolfSSLParameters();
+
+        try {
+            params.setMaximumPacketSize(-1);
+            fail("negative maximumPacketSize should throw " +
+                "IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        /* 0 (implicit sizing) and positive values are valid */
+        params.setMaximumPacketSize(0);
+        params.setMaximumPacketSize(1400);
+        assertEquals(1400, params.getMaximumPacketSize());
     }
 }

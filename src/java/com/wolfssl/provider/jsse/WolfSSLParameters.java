@@ -317,6 +317,11 @@ public class WolfSSLParameters extends SSLParameters {
     }
 
     public void setMaximumPacketSize(int maximumPacketSize) {
+
+        if (maximumPacketSize < 0) {
+            throw new IllegalArgumentException(
+                "maximumPacketSize can not be less than 0");
+        }
         this.maxPacketSize = maximumPacketSize;
     }
 
