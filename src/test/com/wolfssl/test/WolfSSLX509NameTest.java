@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
@@ -101,6 +102,30 @@ public class WolfSSLX509NameTest {
             assertEquals("support@wolfssl.com", name.getEmailAddress());
             assertEquals("wolfssl.com", name.getCommonName());
             assertEquals("tester", name.getUserId());
+        } finally {
+            name.free();
+        }
+    }
+
+    @Test
+    public void test_toString_ReturnsPopulatedName()
+        throws WolfSSLException {
+
+        WolfSSLX509Name name =
+            new WolfSSLX509Name("CN=wolfssl.com,O=wolfSSL Inc.,C=US");
+
+        try {
+            String str = name.toString();
+            assertNotNull(str);
+            assertTrue("toString() returned empty for a populated name",
+                !str.isEmpty());
+            assertTrue("toString() missing commonName: " + str,
+                str.contains("wolfssl.com"));
+            assertTrue("toString() missing organizationName: " + str,
+                str.contains("wolfSSL Inc."));
+            assertTrue("toString() missing countryName: " + str,
+                str.contains("US"));
+
         } finally {
             name.free();
         }

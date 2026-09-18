@@ -122,6 +122,12 @@ public class WolfSSLSessionContext implements SSLSessionContext {
 
     @Override
     public void setSessionTimeout(int in) throws IllegalArgumentException {
+
+        if (in < 0) {
+            throw new IllegalArgumentException(
+                "timeout can not be less than 0");
+        }
+
         this.sesTimout = in;
 
         /* check for any new timeouts after timeout has been set */

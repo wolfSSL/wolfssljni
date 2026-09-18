@@ -297,12 +297,19 @@ public class WolfSSLParameters extends SSLParameters {
     }
 
     public synchronized void setApplicationProtocols(String[] protocols) {
+
         if (protocols == null) {
-            this.applicationProtocols = new String[0];
+            throw new IllegalArgumentException(
+                "Application protocols cannot be null");
         }
-        else {
-            this.applicationProtocols = protocols.clone();
+
+        for (String protocol : protocols) {
+            if (protocol == null || protocol.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Application protocol elements cannot be null or empty");
+            }
         }
+        this.applicationProtocols = protocols.clone();
     }
 
     public int getMaximumPacketSize() {
@@ -310,6 +317,11 @@ public class WolfSSLParameters extends SSLParameters {
     }
 
     public void setMaximumPacketSize(int maximumPacketSize) {
+
+        if (maximumPacketSize < 0) {
+            throw new IllegalArgumentException(
+                "maximumPacketSize can not be less than 0");
+        }
         this.maxPacketSize = maximumPacketSize;
     }
 
