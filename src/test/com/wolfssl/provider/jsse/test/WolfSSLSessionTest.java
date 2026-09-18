@@ -24,6 +24,7 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -84,6 +85,7 @@ import org.junit.rules.TestRule;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.provider.jsse.WolfSSLEngine;
 import com.wolfssl.provider.jsse.WolfSSLImplementSSLSession;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509X;
@@ -197,7 +199,7 @@ public class WolfSSLSessionTest {
             "TLSv1.2", engineProvider, clientTm, null);
 
         /* First connection presents the "server" alias */
-        km.setForcedAlias("server");
+        km.setForcedServerAlias("server");
         SSLEngine server1 = serverCtx.createSSLEngine();
         server1.setUseClientMode(false);
         SSLEngine client1 = clientCtx.createSSLEngine("test", 11111);
@@ -206,14 +208,16 @@ public class WolfSSLSessionTest {
             tf.testConnection(server1, client1, cipher, proto, "one"));
         SSLSession session1 = server1.getSession();
 
-        /* Second connection on the same context presents the "client" alias */
-        km.setForcedAlias("client");
+        /* Second connection uses a distinct peer so it does a full handshake
+         * and presents the "client" alias instead of resuming. */
+        km.setForcedServerAlias("client");
         SSLEngine server2 = serverCtx.createSSLEngine();
         server2.setUseClientMode(false);
-        SSLEngine client2 = clientCtx.createSSLEngine("test", 11111);
+        SSLEngine client2 = clientCtx.createSSLEngine("test2", 22222);
         client2.setUseClientMode(true);
         assertEquals(0,
             tf.testConnection(server2, client2, cipher, proto, "two"));
+        assertFalse(((WolfSSLEngine)server2).sessionResumed());
         SSLSession session2 = server2.getSession();
 
         /* The earlier session must still report its own local identity, not
@@ -231,30 +235,120 @@ public class WolfSSLSessionTest {
         assertFalse(c1[0].equals(c2[0]));
     }
 
-    /* X509KeyManager wrapper that forces a chosen server alias, letting a
-     * test drive connections to present different local certificates. */
+    @Test
+    public void testLocalIdentityNullWhenNoX509KeyManager()
+        throws Exception {
+
+        /* A KeyManager array with no X509KeyManager leaves the auth store's
+         * X509KeyManager null. The local-identity accessors then return null
+         * rather than throwing. */
+        KeyManager[] km = new KeyManager[] { new KeyManager() { } };
+        SSLContext ctx =
+            tf.createSSLContext("TLS", engineProvider, null, km);
+        SSLSession session = ctx.createSSLEngine().getSession();
+
+        assertNull(session.getLocalCertificates());
+        assertNull(session.getLocalPrincipal());
+    }
+
+    @Test
+    public void testLocalIdentityNullWhenNoClientAliasSelected()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+
+        String[] cipher = new String[] {
+            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" };
+        String[] proto = new String[] { "TLSv1.2" };
+
+        /* Server presents "server" alias and does not request client auth.
+         * Client's selected alias is controlled by the test. */
+        KeyManager[] serverBase =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        ForcedAliasKeyManager serverKm =
+            new ForcedAliasKeyManager((X509KeyManager)serverBase[0]);
+        serverKm.setForcedServerAlias("server");
+        KeyManager[] clientBase =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        ForcedAliasKeyManager clientKm =
+            new ForcedAliasKeyManager((X509KeyManager)clientBase[0]);
+        TrustManager[] clientTm =
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider);
+
+        SSLContext serverCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, null, new KeyManager[] { serverKm });
+        SSLContext clientCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, clientTm, new KeyManager[] { clientKm });
+
+        /* First connection: client selects no local alias */
+        clientKm.setForcedClientAlias(null);
+        SSLEngine server1 = serverCtx.createSSLEngine();
+        server1.setUseClientMode(false);
+        SSLEngine client1 = clientCtx.createSSLEngine("test", 11111);
+        client1.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server1, client1, cipher, proto, "one"));
+        SSLSession session1 = client1.getSession();
+
+        /* Second connection selects a real alias, changing the shared
+         * auth-store alias. Uses a distinct peer so it does not resume the
+         * first session (which would share the same session object). */
+        clientKm.setForcedClientAlias("client");
+        SSLEngine server2 = serverCtx.createSSLEngine();
+        server2.setUseClientMode(false);
+        SSLEngine client2 = clientCtx.createSSLEngine("test2", 22222);
+        client2.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server2, client2, cipher, proto, "two"));
+
+        /* The first client sent no local certificate, so its session must
+         * report no local identity, not the later connection's alias. */
+        assertNull(session1.getLocalCertificates());
+        assertNull(session1.getLocalPrincipal());
+    }
+
+    /* X509KeyManager wrapper which lets a test force the client/server alias
+     * that a connection presents. Each choose method returns its forced alias
+     * (null = select no local cert). cert and key lookups delegate to base. */
     private static class ForcedAliasKeyManager extends X509ExtendedKeyManager {
         private final X509KeyManager base;
-        private volatile String forcedAlias = null;
+        private volatile String forcedServerAlias = null;
+        private volatile String forcedClientAlias = null;
 
         ForcedAliasKeyManager(X509KeyManager base) {
             this.base = base;
         }
 
-        void setForcedAlias(String alias) {
-            this.forcedAlias = alias;
+        void setForcedServerAlias(String alias) {
+            this.forcedServerAlias = alias;
+        }
+
+        void setForcedClientAlias(String alias) {
+            this.forcedClientAlias = alias;
         }
 
         @Override
         public String chooseEngineServerAlias(String keyType,
             Principal[] issuers, SSLEngine engine) {
-            return this.forcedAlias;
+            return this.forcedServerAlias;
         }
 
         @Override
         public String chooseServerAlias(String keyType, Principal[] issuers,
             Socket socket) {
-            return this.forcedAlias;
+            return this.forcedServerAlias;
+        }
+
+        @Override
+        public String chooseEngineClientAlias(String[] keyType,
+            Principal[] issuers, SSLEngine engine) {
+            return this.forcedClientAlias;
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyType, Principal[] issuers,
+            Socket socket) {
+            return this.forcedClientAlias;
         }
 
         @Override
@@ -275,12 +369,6 @@ public class WolfSSLSessionTest {
         @Override
         public String[] getClientAliases(String keyType, Principal[] issuers) {
             return base.getClientAliases(keyType, issuers);
-        }
-
-        @Override
-        public String chooseClientAlias(String[] keyType, Principal[] issuers,
-            Socket socket) {
-            return base.chooseClientAlias(keyType, issuers, socket);
         }
     }
 
