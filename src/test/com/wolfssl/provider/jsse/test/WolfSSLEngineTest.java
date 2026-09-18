@@ -46,9 +46,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.ArrayList;
 import java.net.Socket;
+import java.security.Principal;
+import java.security.PrivateKey;
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.X509KeyManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
@@ -4069,6 +4073,88 @@ public class WolfSSLEngineTest {
         /* Cleared selector reverts to SSLParameters, so "h2" is negotiated.
          * A still-registered NOACK callback would leave this empty. */
         assertEquals("h2", server.getApplicationProtocol());
+    }
+
+    @Test
+    public void testKeyManagerSeesHandshakeSession() throws Exception {
+
+        final X509KeyManager base = (X509KeyManager)tf.createKeyManager(
+            "SunX509", tf.serverJKS, engineProvider)[0];
+        final SSLSession[] seen = new SSLSession[1];
+        final boolean[] called = new boolean[1];
+
+        /* SunJSSE gives KeyManager callbacks a non-null handshake session,
+         * KeyManagers often read SNI from it */
+        X509ExtendedKeyManager km = new X509ExtendedKeyManager() {
+            @Override
+            public String chooseEngineServerAlias(String keyType,
+                Principal[] issuers, SSLEngine engine) {
+                called[0] = true;
+                seen[0] = engine.getHandshakeSession();
+                return base.chooseServerAlias(keyType, issuers, null);
+            }
+            @Override
+            public String chooseServerAlias(String keyType,
+                Principal[] issuers, Socket socket) {
+                return base.chooseServerAlias(keyType, issuers, socket);
+            }
+            @Override
+            public String chooseClientAlias(String[] keyType,
+                Principal[] issuers, Socket socket) {
+                return base.chooseClientAlias(keyType, issuers, socket);
+            }
+            @Override
+            public String[] getServerAliases(String keyType,
+                Principal[] issuers) {
+                return base.getServerAliases(keyType, issuers);
+            }
+            @Override
+            public String[] getClientAliases(String keyType,
+                Principal[] issuers) {
+                return base.getClientAliases(keyType, issuers);
+            }
+            @Override
+            public X509Certificate[] getCertificateChain(String alias) {
+                return base.getCertificateChain(alias);
+            }
+            @Override
+            public PrivateKey getPrivateKey(String alias) {
+                return base.getPrivateKey(alias);
+            }
+        };
+
+        SSLContext localCtx = tf.createSSLContext(
+            "TLS", engineProvider, null, new KeyManager[] { km });
+        SSLEngine server = localCtx.createSSLEngine();
+        server.setUseClientMode(false);
+        server.beginHandshake();
+
+        assertTrue("chooseEngineServerAlias() not called", called[0]);
+        assertNotNull(seen[0]);
+    }
+
+    @Test
+    public void testGetHandshakeSessionNullBeforeHandshake()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeTrue(protocol != null);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine engine = localCtx.createSSLEngine("test", 11111);
+
+        /* a fresh engine is not handshaking, so reports no session */
+        assertNull(engine.getHandshakeSession());
+
+        /* once the handshake has begun the session becomes available */
+        engine.setUseClientMode(true);
+        engine.beginHandshake();
+        assertNotNull(engine.getHandshakeSession());
     }
 
     @Test

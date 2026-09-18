@@ -78,6 +78,9 @@ public class WolfSSLEngine extends SSLEngine {
 
     /* Does TLS handshake need initialization */
     private boolean needInit = true;
+
+    /* True while LoadCertAndKey() asks the X509KeyManager for an alias */
+    private boolean loadingCertAndKey = false;
     private final Object initLock = new Object();
 
     /* Have cert/key been loaded? */
@@ -270,6 +273,7 @@ public class WolfSSLEngine extends SSLEngine {
         }
 
         try {
+            this.loadingCertAndKey = true;
             this.engineHelper.loadKeyAndCertChain(null, this);
             certKeyLoaded = true;
         } catch (CertificateEncodingException | IOException |
@@ -277,6 +281,8 @@ public class WolfSSLEngine extends SSLEngine {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "failed to load private key and/or cert chain");
             throw new SSLException(e);
+        } finally {
+            this.loadingCertAndKey = false;
         }
     }
 
@@ -2265,8 +2271,10 @@ public class WolfSSLEngine extends SSLEngine {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getHandshakeSession()");
 
-        if (!this.handshakeFinished) {
-            /* Only return handshake session during the handshake */
+        /* Only return handshake session during the handshake, or to the
+         * X509KeyManager choosing this engine's alias */
+        if ((!this.needInit || this.loadingCertAndKey) &&
+            !this.handshakeFinished) {
             return this.engineHelper.getSession();
         }
 
