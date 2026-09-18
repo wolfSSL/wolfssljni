@@ -298,6 +298,10 @@ public class WolfSSL {
     public static int wolfssl_aes_gcm;
     /** Bulk cipher algorithm enum: AES-CCM */
     public static int wolfssl_aes_ccm;
+    /** Bulk cipher algorithm enum: ChaCha */
+    public static int wolfssl_chacha;
+    /** Bulk cipher algorithm enum: Camellia */
+    public static int wolfssl_camellia;
 
     /* wolfSSL error codes, pulled in from wolfssl/error.h wolfSSL_ErrorCodes */
     /** Generate Cookie Error */
@@ -747,10 +751,12 @@ public class WolfSSL {
         wolfssl_rc4         = getBulkCipherAlgorithmEnumRC4();
         wolfssl_rc2         = getBulkCipherAlgorithmEnumRC2();
         wolfssl_des         = getBulkCipherAlgorithmEnumDES();
-        wolfssl_triple_des  = getBulkCipherAlgorithmEnumDES();
+        wolfssl_triple_des  = getBulkCipherAlgorithmEnum3DES();
         wolfssl_des40       = getBulkCipherAlgorithmEnumDES40();
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
+        wolfssl_chacha      = getBulkCipherAlgorithmEnumCHACHA();
+        wolfssl_camellia    = getBulkCipherAlgorithmEnumCAMELLIA();
 
         /* initialize cipher enum values */
         MD5    = getHmacEnumMD5();
