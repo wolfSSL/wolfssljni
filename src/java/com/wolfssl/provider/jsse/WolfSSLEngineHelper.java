@@ -74,6 +74,11 @@ public class WolfSSLEngineHelper {
 
     private volatile WolfSSLSession ssl = null;
     private WolfSSLImplementSSLSession session = null;
+
+    /* Alias selected in loadKeyAndCertChain, copied onto the session at
+     * handshake init so per-session identity survives later connections. */
+    private String localCertAlias = null;
+
     private WolfSSLParameters params = null;
 
     /* Peer hostname, used for session cache lookup (combined with port),
@@ -449,6 +454,7 @@ public class WolfSSLEngineHelper {
          * to load private key / cert chain */
         alias = GetKeyAndCertChainAlias(km, sock, engine);
         authStore.setCertAlias(alias);
+        this.localCertAlias = alias;
 
         /* Load private key into WOLFSSL session */
         PrivateKey privKey = km.getPrivateKey(alias);
@@ -1981,6 +1987,9 @@ public class WolfSSLEngineHelper {
             sessCacheHostname, this.clientMode, getCiphers(), getProtocols());
 
         if (this.session != null) {
+            /* Give the session its own copy of this connection alias. */
+            this.session.setLocalCertAlias(this.localCertAlias);
+
             if (this.clientMode) {
                 this.session.setSessionContext(authStore.getClientContext());
                 this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
@@ -2150,6 +2159,9 @@ public class WolfSSLEngineHelper {
 
             this.session = this.authStore.getSession(ssl, this.clientMode,
                 sessCacheHostname, this.port);
+            if (this.session != null) {
+                this.session.setLocalCertAlias(this.localCertAlias);
+            }
         }
 
         if (this.clientMode) {
