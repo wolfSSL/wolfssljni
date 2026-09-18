@@ -4155,6 +4155,97 @@ public class WolfSSLSessionTest {
         }
     }
 
+    /* Returns a DTLS client method pointer, or 0 if DTLS is unavailable. */
+    private long dtlsClientMethodOrZero() {
+
+        String[] protocols = WolfSSL.getProtocols();
+        String dtlsProto = null;
+
+        for (String p : protocols) {
+            if (p.startsWith("DTLS")) {
+                dtlsProto = p;
+                break;
+            }
+        }
+
+        if (dtlsProto == null) {
+            return 0;
+        }
+
+        if (dtlsProto.equals("DTLSv1.3")) {
+            return WolfSSL.DTLSv1_3_ClientMethod();
+        }
+
+        if (dtlsProto.equals("DTLSv1.2")) {
+            return WolfSSL.DTLSv1_2_ClientMethod();
+        }
+
+        return WolfSSL.DTLSv1_ClientMethod();
+    }
+
+    /* IPv4 DTLS peer round-trips through dtlsSetPeer()/dtlsGetPeer(). */
+    @Test
+    public void test_WolfSSLSession_dtlsSetGetPeerIPv4()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        long method = dtlsClientMethodOrZero();
+        Assume.assumeTrue(method != 0);
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+        try {
+            dtlsCtx = new WolfSSLContext(method);
+            sess = new WolfSSLSession(dtlsCtx);
+
+            assertEquals(WolfSSL.SSL_SUCCESS,
+                sess.dtlsSetPeer(new InetSocketAddress("127.0.0.1", 11111)));
+            InetSocketAddress peer = sess.dtlsGetPeer();
+            assertNotNull(peer);
+            assertEquals("127.0.0.1", peer.getAddress().getHostAddress());
+            assertEquals(11111, peer.getPort());
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
+    /* IPv6 DTLS peer round-trips when native wolfSSL supports IPv6.
+     * dtlsSetPeer() returns failure on builds without it, so skip there. */
+    @Test
+    public void test_WolfSSLSession_dtlsSetGetPeerIPv6()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        long method = dtlsClientMethodOrZero();
+        Assume.assumeTrue(method != 0);
+
+        WolfSSLContext dtlsCtx = null;
+        WolfSSLSession sess = null;
+        try {
+            dtlsCtx = new WolfSSLContext(method);
+            sess = new WolfSSLSession(dtlsCtx);
+
+            int ret = sess.dtlsSetPeer(new InetSocketAddress("::1", 22222));
+            Assume.assumeTrue("wolfSSL built without IPv6",
+                ret == WolfSSL.SSL_SUCCESS);
+
+            InetSocketAddress peer = sess.dtlsGetPeer();
+            assertNotNull(peer);
+            assertTrue(peer.getAddress() instanceof java.net.Inet6Address);
+            assertEquals(22222, peer.getPort());
+        } finally {
+            if (sess != null) {
+                sess.freeSSL();
+            }
+            if (dtlsCtx != null) {
+                dtlsCtx.free();
+            }
+        }
+    }
+
     @Test
     public void test_WolfSSLSession_dtlsCidFunctions()
         throws WolfSSLJNIException, WolfSSLException {

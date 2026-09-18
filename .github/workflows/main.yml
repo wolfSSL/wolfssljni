@@ -141,6 +141,23 @@ jobs:
       jdk_version: ${{ matrix.jdk_version }}
       wolfssl_configure: ${{ matrix.wolfssl_configure }}
 
+  # -------------------- IPv6 sanity check -----------------------
+  # Build native wolfSSL with --enable-ipv6 (-DWOLFSSL_IPV6) to test DTLS
+  # peer IPv6 marshaling path. One Linux/Mac JDK as a sanity check.
+  linux-zulu-ipv6:
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'macos-latest' ]
+        jdk_version: [ '11' ]
+        wolfssl_configure: [ '--enable-jni --enable-ipv6' ]
+    name: ${{ matrix.os }} (Zulu JDK ${{ matrix.jdk_version }}, ${{ matrix.wolfssl_configure}})
+    uses: ./.github/workflows/linux-common.yml
+    with:
+      os: ${{ matrix.os }}
+      jdk_distro: "zulu"
+      jdk_version: ${{ matrix.jdk_version }}
+      wolfssl_configure: ${{ matrix.wolfssl_configure }}
+
   # --------------- PQC (ML-KEM + ML-DSA) sanity check -----------------
   # Builds native wolfSSL master with the standard PQC option set so that
   # ML-KEM standalone groups, the IETF-final ML-KEM PQ/T hybrids

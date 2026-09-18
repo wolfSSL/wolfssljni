@@ -2661,7 +2661,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
 {
     int ret = SSL_SUCCESS;
     jstring ipAddr = NULL;
-    struct sockaddr_in sa;
+    SOCKADDR_S sa;
+    unsigned int peerSz = 0;
     const char* ipAddress = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     jclass inetsockaddr = NULL;
@@ -2766,21 +2767,40 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         }
     }
 
-    /* build sockaddr_in */
-    memset(&sa, 0, sizeof(struct sockaddr_in));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons((int)port);
-    if (isAny) {
-        sa.sin_addr.s_addr = INADDR_ANY;
-    } else {
-        if (XINET_PTON(AF_INET, ipAddress, &sa.sin_addr.s_addr) < 1) {
+    /* Build the peer sockaddr as IPv4 or IPv6 based on the address string */
+    XMEMSET(&sa, 0, sizeof(sa));
+    if (isAny || XSTRSTR(ipAddress, ":") == NULL) {
+        /* IPv4 dotted-decimal address, or the INADDR_ANY wildcard */
+        ((SOCKADDR_IN*)&sa)->sin_family = WOLFSSL_IP4;
+        ((SOCKADDR_IN*)&sa)->sin_port = XHTONS((word16)port);
+        if (isAny) {
+            ((SOCKADDR_IN*)&sa)->sin_addr.s_addr = INADDR_ANY;
+        }
+        else if (XINET_PTON(WOLFSSL_IP4, ipAddress,
+            &(((SOCKADDR_IN*)&sa)->sin_addr)) < 1) {
             ret = SSL_FAILURE;
         }
+        peerSz = (unsigned int)sizeof(SOCKADDR_IN);
+    }
+    else {
+    #ifdef WOLFSSL_IPV6
+        /* IPv6 address, getHostAddress() string contains ':' */
+        ((SOCKADDR_IN6*)&sa)->sin6_family = WOLFSSL_IP6;
+        ((SOCKADDR_IN6*)&sa)->sin6_port = XHTONS((word16)port);
+        if (XINET_PTON(WOLFSSL_IP6, ipAddress,
+            &(((SOCKADDR_IN6*)&sa)->sin6_addr)) < 1) {
+            ret = SSL_FAILURE;
+        }
+        peerSz = (unsigned int)sizeof(SOCKADDR_IN6);
+    #else
+        /* native wolfSSL built without IPv6 support */
+        ret = SSL_FAILURE;
+    #endif
     }
 
     if (ret == SSL_SUCCESS) {
         /* call native wolfSSL function */
-        ret = wolfSSL_dtls_set_peer(ssl, &sa, sizeof(sa));
+        ret = wolfSSL_dtls_set_peer(ssl, &sa, peerSz);
     }
 
     if (!isAny) {
@@ -2797,8 +2817,11 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     int ret, port;
+    int fam = 0;
+    int isWildcard = 0;
+    void* addrPtr = NULL;
     unsigned int peerSz;
-    struct sockaddr_in peer;
+    SOCKADDR_S peer;
 #ifdef USE_WINDOWS_API
     int ipAddrStringSz = MAX_EXPORT_IP;
     WCHAR ipAddrWStr[MAX_EXPORT_IP];
@@ -2818,38 +2841,53 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
         return NULL;
     }
 
-    /* get native sockaddr_in peer */
-    memset(&peer, 0, sizeof(peer));
+    /* get native peer sockaddr */
+    XMEMSET(&peer, 0, sizeof(peer));
     peerSz = sizeof(peer);
     ret = wolfSSL_dtls_get_peer(ssl, &peer, &peerSz);
     if (ret != SSL_SUCCESS) {
         return NULL;
     }
 
+    /* Select address family, address pointer, and port */
+    fam = ((SOCKADDR_S*)&peer)->ss_family;
+    if (fam == WOLFSSL_IP4) {
+        addrPtr = &(((SOCKADDR_IN*)&peer)->sin_addr);
+        port = XNTOHS(((SOCKADDR_IN*)&peer)->sin_port);
+        isWildcard = (((SOCKADDR_IN*)&peer)->sin_addr.s_addr == INADDR_ANY);
+    }
+#ifdef WOLFSSL_IPV6
+    else if (fam == WOLFSSL_IP6) {
+        addrPtr = &(((SOCKADDR_IN6*)&peer)->sin6_addr);
+        port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+    }
+#endif
+    else {
+        return NULL;
+    }
+
     XMEMSET(ipAddrString, 0, sizeof(ipAddrString));
 #ifdef USE_WINDOWS_API
-    if (XINET_NTOP((int)peer.sin_family, &(peer.sin_addr),
-                   ipAddrWStr, INET_ADDRSTRLEN) == NULL) {
+    if (XINET_NTOP(fam, addrPtr, ipAddrWStr, MAX_EXPORT_IP) == NULL) {
         return NULL;
     }
     /* Convert WCHAR to char* */
     if (WideCharToMultiByte(CP_ACP, 0, ipAddrWStr, -1, ipAddrString,
-                            MAX_EXPORT_IP, NULL, NULL) == 0) {
+        MAX_EXPORT_IP, NULL, NULL) == 0) {
         return NULL;
     }
 #else
-    if (XINET_NTOP(AF_INET, &(peer.sin_addr),
-        ipAddrString, INET_ADDRSTRLEN) == NULL) {
+    if (XINET_NTOP(fam, addrPtr, ipAddrString, sizeof(ipAddrString)) == NULL) {
         return NULL;
     }
 #endif
-    port = ntohs(peer.sin_port);
 
     /* create new InetSocketAddress with this IP/port info */
     isa = (*jenv)->FindClass(jenv, "java/net/InetSocketAddress");
     if (!isa) {
-        if ((*jenv)->ExceptionOccurred(jenv))
+        if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionClear(jenv);
+        }
 
         throwWolfSSLException(jenv, "Can't find InetSocketAddress class");
         return NULL;
@@ -2859,13 +2897,14 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
     ipAddr = (*jenv)->NewStringUTF(jenv, ipAddrString);
 
     /* find correct InetSocketAddress constructor */
-    if (peer.sin_addr.s_addr != INADDR_ANY) {
+    if (!isWildcard) {
 
         constr = (*jenv)->GetMethodID(jenv, isa, "<init>",
             "(Ljava/lang/String;I)V");
         if (!constr) {
-            if ((*jenv)->ExceptionOccurred(jenv))
+            if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionClear(jenv);
+            }
 
             throwWolfSSLException(jenv,
                 "Can't find InetSocketAddress(String,port)");
@@ -2876,14 +2915,13 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
 
     } else { /* sockaddr_in was created with INADDR_ANY, use wildcard IP */
 
-        constr = (*jenv)->GetMethodID(jenv, isa, "<init>",
-                "(I)V");
+        constr = (*jenv)->GetMethodID(jenv, isa, "<init>", "(I)V");
         if (!constr) {
-            if ((*jenv)->ExceptionOccurred(jenv))
+            if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionClear(jenv);
+            }
 
-            throwWolfSSLException(jenv,
-                "Can't find InetSocketAddress(port)");
+            throwWolfSSLException(jenv, "Can't find InetSocketAddress(port)");
             return NULL;
         }
 
