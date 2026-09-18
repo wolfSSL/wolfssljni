@@ -82,6 +82,10 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      * sent during the handshake. */
     private X509Certificate[] peerCerts = null;
 
+    /* Cert alias for this session's handshake, recorded for local accessors
+     * to use and not read from the shared overwritable AuthStore alias. */
+    private String localCertAlias = null;
+
     /**
      * Is this object currently inside the WolfSSLAuthStore session cache table?
      *
@@ -641,7 +645,19 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     @Override
     public Certificate[] getLocalCertificates() {
         X509KeyManager km = authStore.getX509KeyManager();
-        return km.getCertificateChain(authStore.getCertAlias());
+        if (km == null) {
+            return null;
+        }
+        return km.getCertificateChain(getLocalAlias());
+    }
+
+    /* This session's captured handshake alias, or the auth store's current
+     * alias if no handshake has captured one for this session yet. */
+    private String getLocalAlias() {
+        if (this.localCertAlias != null) {
+            return this.localCertAlias;
+        }
+        return authStore.getCertAlias();
     }
 
     @SuppressWarnings("removal")
@@ -697,8 +713,11 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         /* Logic needs to be added to check for client auth
          * when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
+        if (km == null) {
+            return null;
+        }
         java.security.cert.X509Certificate[] certs =
-                km.getCertificateChain(authStore.getCertAlias());
+                km.getCertificateChain(getLocalAlias());
         Principal localPrincipal = null;
 
         if (certs == null) {
@@ -1049,6 +1068,14 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      */
     protected void setClientAuthRequested(boolean requested) {
         this.clientAuthRequested = requested;
+    }
+
+    /**
+     * Set the certificate alias selected for this session's handshake.
+     * @param alias KeyStore alias used to load this session's local identity
+     */
+    protected void setLocalCertAlias(String alias) {
+        this.localCertAlias = alias;
     }
 
     /**
