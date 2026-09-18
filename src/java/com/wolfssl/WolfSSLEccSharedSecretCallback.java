@@ -45,8 +45,10 @@ public interface WolfSSLEccSharedSecretCallback {
      *                    callback was initiated.
      * @param otherKey    Other ECC key. On client side, holds other public
      *                    key. On server side, holds private key.
-     * @param pubKeyDer   On client side, output for client to write public key.
-     *                    On server side, input as DER-encoded peer public key.
+     * @param pubKeyDer   On client side, a direct buffer aliasing native
+     *                    memory the client writes its public key into before
+     *                    returning. On server side, a JVM heap copy of the
+     *                    DER-encoded peer public key, valid beyond the call.
      * @param pubKeyDerSz On client side, the size of the public key written
      *                    to pubKeyDer should be placed in the first element
      *                    of the array.

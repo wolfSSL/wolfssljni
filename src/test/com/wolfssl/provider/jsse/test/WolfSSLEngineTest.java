@@ -52,6 +52,7 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIMatcher;
@@ -3764,6 +3765,82 @@ public class WolfSSLEngineTest {
         };
         r = server.unwrap(netBuf, outArr, 2, 2);
         assertOffsetUnwrapOk(r, outArr, data);
+    }
+
+    @Test
+    public void testSetUseClientModeRejectedAfterHandshakeBegun()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeTrue(protocol != null);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine client = localCtx.createSSLEngine("test", 11111);
+        client.setUseClientMode(true);
+
+        /* Once the handshake has begun, mode changes must be rejected */
+        client.beginHandshake();
+
+        try {
+            client.setUseClientMode(false);
+            fail("setUseClientMode() allowed after handshake began");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+
+        assertTrue(client.getUseClientMode());
+    }
+
+    @Test
+    public void testSignatureSchemesCommaSpaceParsedForHandshake()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled() &&
+            WolfSSL.RsaEnabled() && WolfSSL.EccEnabled());
+
+        /* Server offers ECDSA then RSA (comma-space) via the system property,
+         * and its cert is RSA. If the second (RSA) scheme is dropped due to
+         * the leading space, the server has no usable signature algorithm and
+         * cannot sign the ECDHE ServerKeyExchange, so the handshake fails. */
+        String savedProp =
+            System.getProperty("jdk.tls.server.SignatureSchemes");
+        System.setProperty("jdk.tls.server.SignatureSchemes",
+            "ecdsa_secp256r1_sha256, rsa_pkcs1_sha256");
+
+        try {
+            KeyManager[] serverKm = tf.createKeyManager("SunX509",
+                tf.serverRSAJKS, engineProvider);
+            TrustManager[] clientTm = tf.createTrustManager("SunX509",
+                tf.caServerJKS, engineProvider);
+            SSLContext serverCtx = tf.createSSLContext("TLSv1.2",
+                engineProvider, null, serverKm);
+            SSLContext clientCtx = tf.createSSLContext("TLSv1.2",
+                engineProvider, clientTm, null);
+
+            SSLEngine server = serverCtx.createSSLEngine();
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            SSLEngine client = clientCtx.createSSLEngine("test", 11111);
+            client.setUseClientMode(true);
+
+            int ret = tf.testConnection(server, client,
+                new String[] { "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
+                new String[] { "TLSv1.2" }, "sig scheme comma-space");
+            assertEquals("handshake should succeed with the RSA scheme " +
+                "retained after the comma", 0, ret);
+        } finally {
+            if (savedProp != null) {
+                System.setProperty("jdk.tls.server.SignatureSchemes",
+                    savedProp);
+            } else {
+                System.clearProperty("jdk.tls.server.SignatureSchemes");
+            }
+        }
     }
 }
 

@@ -1734,7 +1734,7 @@ public class WolfSSLSocket extends SSLSocket {
      * @param mode true for client mode, false for server mode
      *
      * @throws IllegalArgumentException if caller tries to set the mode
-     *         after handshaking has completed
+     *         after the handshake has begun
      */
     @Override
     public synchronized void setUseClientMode(boolean mode)

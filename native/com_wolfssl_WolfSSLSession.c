@@ -3029,7 +3029,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidSet
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
 
-    if (jenv == NULL || ssl == NULL || cid == NULL || size < 0) {
+    if (jenv == NULL || ssl == NULL || cid == NULL || size < 0 ||
+        size > (jint)(*jenv)->GetArrayLength(jenv, cid)) {
         return (jint)BAD_FUNC_ARG;
     }
 
@@ -3331,7 +3332,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidParseNative
     jbyteArray result = NULL;
     (void)jcl;
 
-    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0) {
+    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0 ||
+        msgSz > (jint)(*jenv)->GetArrayLength(jenv, msg)) {
         return NULL;
     }
 
@@ -7067,7 +7069,8 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_sessionFromDerNative
     const unsigned char* p = NULL;
     (void)jcl;
 
-    if (jenv == NULL || data == NULL || len <= 0) {
+    if (jenv == NULL || data == NULL || len <= 0 ||
+        len > (jint)(*jenv)->GetArrayLength(jenv, data)) {
         return 0;
     }
 
