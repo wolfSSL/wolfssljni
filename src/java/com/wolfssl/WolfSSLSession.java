@@ -3015,11 +3015,16 @@ public class WolfSSLSession {
     /**
      * Sets the DTLS peer.
      *
+     * Both IPv4 and IPv6 peers are supported. For a scoped IPv6 address
+     * (ex: link-local), its scope ID is preserved.
+     *
      * @param peer  DTLS peer's InetSocketAddress
      * @return      <code>SSL_SUCCESS</code> upon success, <code>
      *              SSL_FAILURE</code> upon failure, <code>
      *              SSL_NOT_IMPLEMENTED</code> if wolfSSL was not compiled
-     *              with DTLS support.
+     *              with DTLS support. Returns <code>NOT_COMPILED_IN</code>
+     *              if an IPv6 peer is given but native wolfSSL was not
+     *              built with IPv6 support (--enable-ipv6).
      * @throws IllegalStateException WolfSSLContext has been freed
      * @see    #dtlsGetCurrentTimeout()
      * @see    #dtlsGetPeer()
