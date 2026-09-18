@@ -78,6 +78,30 @@ public class WolfSSLSessionContextTest {
     }
 
     @Test
+    public void testSetSessionTimeoutRejectsNegative()
+        throws Exception {
+
+        SSLContext localCtx = SSLContext.getInstance("TLS", engineProvider);
+        SSLSessionContext serverCtx = localCtx.getServerSessionContext();
+        assertNotNull(serverCtx);
+
+        int before = serverCtx.getSessionTimeout();
+        try {
+            serverCtx.setSessionTimeout(-1);
+            fail("setSessionTimeout(-1) must throw IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            /* expected */
+        }
+        assertEquals("rejected timeout must not change state",
+            before, serverCtx.getSessionTimeout());
+
+        /* 0 (no expiry) and positive values remain valid */
+        serverCtx.setSessionTimeout(0);
+        serverCtx.setSessionTimeout(60);
+        assertEquals(60, serverCtx.getSessionTimeout());
+    }
+
+    @Test
     public void testGetSessionTimeout()
         throws NoSuchProviderException, NoSuchAlgorithmException,
                KeyManagementException, KeyStoreException, CertificateException,
