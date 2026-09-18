@@ -24,6 +24,7 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
@@ -226,6 +227,22 @@ public class WolfSSLSessionTest {
         assertNotNull(c1);
         assertNotNull(c2);
         assertFalse(c1[0].equals(c2[0]));
+    }
+
+    @Test
+    public void testLocalIdentityNullWhenNoX509KeyManager()
+        throws Exception {
+
+        /* A KeyManager array with no X509KeyManager leaves the auth store's
+         * X509KeyManager null. The local-identity accessors then return null
+         * rather than throwing. */
+        KeyManager[] km = new KeyManager[] { new KeyManager() { } };
+        SSLContext ctx =
+            tf.createSSLContext("TLS", engineProvider, null, km);
+        SSLSession session = ctx.createSSLEngine().getSession();
+
+        assertNull(session.getLocalCertificates());
+        assertNull(session.getLocalPrincipal());
     }
 
     /* X509KeyManager wrapper that forces a chosen server alias, letting a

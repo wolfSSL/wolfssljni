@@ -645,6 +645,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     @Override
     public Certificate[] getLocalCertificates() {
         X509KeyManager km = authStore.getX509KeyManager();
+        if (km == null) {
+            return null;
+        }
         return km.getCertificateChain(getLocalAlias());
     }
 
@@ -710,6 +713,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         /* Logic needs to be added to check for client auth
          * when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
+        if (km == null) {
+            return null;
+        }
         java.security.cert.X509Certificate[] certs =
                 km.getCertificateChain(getLocalAlias());
         Principal localPrincipal = null;
