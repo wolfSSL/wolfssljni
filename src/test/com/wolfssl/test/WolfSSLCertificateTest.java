@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.Locale;
 import java.time.Instant;
 import java.time.Duration;
 import java.security.cert.CertificateException;
@@ -889,6 +890,75 @@ public class WolfSSLCertificateTest {
             testCertGen_CASigned_UsingBuffers();
             testCertGen_CASigned_UsingJavaClasses();
             testCertGen_SelfSigned_WithPathLen();
+        }
+    }
+
+    /* A certificate issued from a non-self-signed intermediate CA takes the
+     * CA subject name as its issuer name, not the CA's own issuer name. */
+    @Test
+    public void testSetIssuerNameUsesIssuerCertSubjectDN()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        String intPath = WolfSSLTestCommon.getPath(
+            "examples/certs/intermediate/ca-int-cert.pem");
+        WolfSSLCertificate intermediate = null;
+        WolfSSLCertificate leaf = null;
+        WolfSSLCertificate leafFromX509 = null;
+
+        try {
+            intermediate =
+                new WolfSSLCertificate(intPath, WolfSSL.SSL_FILETYPE_PEM);
+            assertNotNull(intermediate);
+
+            /* Not self-signed, so its subject and issuer differ. */
+            String caSubject = intermediate.getSubject();
+            String caIssuer = intermediate.getIssuer();
+            assertNotEquals(caSubject, caIssuer);
+
+            leaf = new WolfSSLCertificate();
+            leaf.setIssuerName(intermediate);
+            assertEquals(caSubject, leaf.getIssuer());
+            assertNotEquals(caIssuer, leaf.getIssuer());
+
+            X509Certificate intX509 = intermediate.getX509Certificate();
+            leafFromX509 = new WolfSSLCertificate();
+            leafFromX509.setIssuerName(intX509);
+            assertEquals(caSubject, leafFromX509.getIssuer());
+            assertNotEquals(caIssuer, leafFromX509.getIssuer());
+        } finally {
+            if (leaf != null) {
+                leaf.free();
+            }
+            if (leafFromX509 != null) {
+                leafFromX509.free();
+            }
+            if (intermediate != null) {
+                intermediate.free();
+            }
+        }
+    }
+
+    @Test
+    public void testValidityDatesParseUnderNonEnglishLocale()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        Locale saved = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ru-RU"));
+
+            WolfSSLCertificate cert =
+                new WolfSSLCertificate(caCertPem, WolfSSL.SSL_FILETYPE_PEM);
+            assertNotNull(cert);
+            assertNotNull(cert.notBefore());
+            assertNotNull(cert.notAfter());
+            cert.free();
+        } finally {
+            Locale.setDefault(saved);
         }
     }
 

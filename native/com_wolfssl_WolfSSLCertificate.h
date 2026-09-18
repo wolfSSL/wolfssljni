@@ -135,10 +135,10 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_
 
 /*
  * Class:     com_wolfssl_WolfSSLCertificate
- * Method:    X509_get_issuer_name_ptr
+ * Method:    X509_get_subject_name_ptr
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name_1ptr
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1name_1ptr
   (JNIEnv *, jclass, jlong);
 
 /*

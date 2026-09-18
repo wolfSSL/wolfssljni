@@ -141,8 +141,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1set_1issuer_1na
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        /* Returns pointer into WOLFSSL_X509, no free needed on name */
-        name = wolfSSL_X509_get_issuer_name(x509In);
+        /* CA subject name becomes this cert's issuer name. Pointer into
+         * WOLFSSL_X509, no free needed on name. */
+        name = wolfSSL_X509_get_subject_name(x509In);
         if (name == NULL) {
             ret = WOLFSSL_FAILURE;
         }
@@ -1721,7 +1722,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_
     return NULL;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1name_1ptr
+JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1subject_1name_1ptr
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
@@ -1736,7 +1737,7 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1issuer_1n
         return 0;
     }
 
-    name = wolfSSL_X509_get_issuer_name(x509);
+    name = wolfSSL_X509_get_subject_name(x509);
     if (name == NULL) {
         return 0;
     }

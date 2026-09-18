@@ -711,15 +711,7 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             localPrincipal = certs[0].getSubjectX500Principal();
         }
 
-        /* free native resources earlier than garbage collection if
-         * X509Certificate is WolfSSLX509 */
-        for (int i = 0; i < certs.length; i++) {
-            if (certs[i] instanceof WolfSSLX509) {
-                ((WolfSSLX509)certs[i]).free();
-            }
-        }
-
-        /* return principal, or null if not set */
+        /* Do not free certs: the key manager owns and may cache them. */
         return localPrincipal;
     }
 

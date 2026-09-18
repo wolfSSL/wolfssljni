@@ -30,6 +30,8 @@ import static org.junit.Assert.fail;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.Provider;
@@ -39,6 +41,7 @@ import java.security.SignatureException;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.KeyFactory;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.Principal;
@@ -69,6 +72,7 @@ import org.junit.rules.TestRule;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.test.WolfSSLTestCommon;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509;
 import com.wolfssl.provider.jsse.WolfSSLX509X;
@@ -107,6 +111,51 @@ public class WolfSSLX509Test {
         } catch (WolfSSLException e) {
             e.printStackTrace();
         }
+    }
+
+    /* getPublicKey() must handle every public key type the native layer
+     * reports supporting, including EdDSA (Ed25519/Ed448) and RSASSA-PSS. */
+    @Test
+    public void testGetPublicKeyEdDSAAndRsaPss() throws Exception {
+
+        String[][] testCerts = {
+            { "examples/certs/ed25519/server-ed25519.der", "EdDSA" },
+            { "examples/certs/ed448/server-ed448.der", "EdDSA" },
+            { "examples/certs/rsapss/server-rsapss.der", "RSASSA-PSS" },
+        };
+
+        int verified = 0;
+
+        for (String[] c : testCerts) {
+            /* Skip a type whose JCA KeyFactory this JDK lacks */
+            try {
+                KeyFactory.getInstance(c[1]);
+            } catch (NoSuchAlgorithmException e) {
+                continue;
+            }
+
+            byte[] der = Files.readAllBytes(
+                Paths.get(WolfSSLTestCommon.getPath(c[0])));
+
+            WolfSSLX509 x;
+            try {
+                x = new WolfSSLX509(der);
+            } catch (WolfSSLException e) {
+                /* key type not compiled into this wolfSSL build */
+                continue;
+            }
+            try {
+                assertNotNull(c[0], x.getPublicKey());
+                verified++;
+            } finally {
+                x.free();
+            }
+        }
+
+        /* Report skipped, not passed, when no key type could be exercised */
+        Assume.assumeTrue(
+            "no EdDSA or RSASSA-PSS support in this JDK/wolfSSL build",
+            verified > 0);
     }
 
     @Before

@@ -24,11 +24,15 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
@@ -49,7 +53,14 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
 import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.cert.CertificateEncodingException;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
@@ -75,6 +86,7 @@ import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
 import com.wolfssl.provider.jsse.WolfSSLImplementSSLSession;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
+import com.wolfssl.provider.jsse.WolfSSLX509;
 import com.wolfssl.provider.jsse.WolfSSLX509X;
 import com.wolfssl.test.TimedTestWatcher;
 
@@ -158,6 +170,131 @@ public class WolfSSLSessionTest {
             session.getPeerCertificateChain();
         } catch (SSLPeerUnverifiedException e) {
             fail("failed to get peer certificate chain");
+        }
+    }
+
+    /**
+     * X509KeyManager that returns reusable WolfSSLX509 chain instances,
+     * mirroring WolfSSLKeyX509's cached chain. Other operations delegate.
+     */
+    private static class ReusableWolfCertKeyManager
+        implements X509KeyManager {
+
+        private final X509KeyManager delegate;
+        private final Map<String, X509Certificate[]> wolfChains =
+            new HashMap<String, X509Certificate[]>();
+
+        ReusableWolfCertKeyManager(X509KeyManager delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public synchronized X509Certificate[] getCertificateChain(
+            String alias) {
+            X509Certificate[] cached = wolfChains.get(alias);
+            if (cached == null) {
+                X509Certificate[] real = delegate.getCertificateChain(alias);
+                if (real == null) {
+                    return null;
+                }
+                cached = new X509Certificate[real.length];
+                try {
+                    for (int i = 0; i < real.length; i++) {
+                        cached[i] = new WolfSSLX509(real[i].getEncoded());
+                    }
+                } catch (WolfSSLException | CertificateEncodingException e) {
+                    throw new RuntimeException(e);
+                }
+                wolfChains.put(alias, cached);
+            }
+            return cached;
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyType, Principal[] issuers,
+            Socket socket) {
+            return delegate.chooseClientAlias(keyType, issuers, socket);
+        }
+
+        @Override
+        public String chooseServerAlias(String keyType, Principal[] issuers,
+            Socket socket) {
+            return delegate.chooseServerAlias(keyType, issuers, socket);
+        }
+
+        @Override
+        public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return delegate.getClientAliases(keyType, issuers);
+        }
+
+        @Override
+        public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return delegate.getServerAliases(keyType, issuers);
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias) {
+            return delegate.getPrivateKey(alias);
+        }
+
+        synchronized void freeAll() {
+            for (X509Certificate[] chain : wolfChains.values()) {
+                for (X509Certificate cert : chain) {
+                    if (cert instanceof WolfSSLX509) {
+                        ((WolfSSLX509)cert).free();
+                    }
+                }
+            }
+            wolfChains.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("removal")
+    public void testGetLocalPrincipalPreservesKeyManagerChain()
+        throws NoSuchAlgorithmException, KeyManagementException,
+               KeyStoreException, CertificateException, IOException,
+               NoSuchProviderException, UnrecoverableKeyException {
+
+        SSLContext serverCtx = tf.createSSLContext("TLS", engineProvider);
+
+        KeyManager[] baseKm =
+            tf.createKeyManager("SunX509", tf.clientJKS, engineProvider);
+        TrustManager[] clientTm =
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider);
+        ReusableWolfCertKeyManager wolfKmImpl =
+            new ReusableWolfCertKeyManager((X509KeyManager)baseKm[0]);
+        KeyManager[] wolfKm = new KeyManager[] { wolfKmImpl };
+        SSLContext clientCtx = SSLContext.getInstance("TLS", engineProvider);
+        clientCtx.init(wolfKm, clientTm, null);
+
+        try {
+            SSLEngine server = serverCtx.createSSLEngine();
+            SSLEngine client = clientCtx.createSSLEngine("server", 12345);
+            if (client == null || server == null) {
+                fail("failed to create engine");
+                return;
+            }
+
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            if (tf.testConnection(server, client, null, null,
+                    "local principal reuse") != 0) {
+                fail("failed to connect");
+            }
+
+            SSLSession session = client.getSession();
+
+            assertNotNull(session.getLocalPrincipal());
+
+            /* Chain must still be usable after the local-principal query. */
+            Certificate[] local = session.getLocalCertificates();
+            assertNotNull(local);
+            assertTrue(local.length > 0);
+            assertNotNull(local[0].getEncoded());
+        } finally {
+            wolfKmImpl.freeAll();
         }
     }
 
