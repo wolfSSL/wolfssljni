@@ -41,6 +41,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Collection;
@@ -294,18 +295,20 @@ public class WolfSSLAuthStore {
     }
 
     /**
-     * Reset the size of the array to cache sessions
-     * @param sz new array size
-     * @param side server/client side for cache resize
+     * Reset the size limit of the session cache.
+     *
+     * The new limit governs future insertions only. Existing cached
+     * sessions are kept, so the live cache may exceed getSessionCacheSize()
+     * until entries age out or are evicted by later insertions. The client
+     * and server contexts share one store, so a limit set on one side
+     * currently applies to both.
+     *
+     * @param sz new cache size limit, or zero for no limit
+     * @param side server/client side, currently unused per the note above
      */
     protected void resizeCache(int sz, int side) {
-        SessionStore<String, WolfSSLImplementSSLSession> newStore =
-                new SessionStore<>(sz);
-
-        /* @TODO check for side server/client, currently a resize is for all */
         synchronized (storeLock) {
-            newStore.putAll(store);
-            store = newStore;
+            store.setMaxSize(sz);
         }
     }
 
@@ -794,14 +797,13 @@ public class WolfSSLAuthStore {
         long now = currentDate.getTime();
 
         synchronized (storeLock) {
-            for (Object obj : store.values()) {
-                long diff;
-                WolfSSLImplementSSLSession current =
-                    (WolfSSLImplementSSLSession)obj;
+            Iterator<WolfSSLImplementSSLSession> it = store.values().iterator();
+            while (it.hasNext()) {
+                WolfSSLImplementSSLSession current = it.next();
 
                 if (current.getSide() == side) {
                     /* difference in seconds */
-                    diff = (now - current.creation.getTime()) / 1000;
+                    long diff = (now - current.creation.getTime()) / 1000;
 
                     if (diff < 0) {
                         /* Session creation time in the future. Invalidate so
@@ -824,6 +826,13 @@ public class WolfSSLAuthStore {
                                 e.getMessage());
                         current.invalidate();
                     }
+
+                    if (!current.isValid()) {
+                        /* Drop invalid/expired sessions so an unlimited cache
+                         * stays bounded by the timeout. The finalizer frees
+                         * the native session on garbage collection. */
+                        it.remove();
+                    }
                 }
             }
         }
@@ -834,17 +843,33 @@ public class WolfSSLAuthStore {
          * user defined ID
          */
         private static final long serialVersionUID = 1L;
-        private final int maxSz;
+        private volatile int maxSz;
 
         /**
-         * @param in max size of hash map before oldest entry is overwritten
+         * @param in max size of map before the oldest entry is evicted,
+         *        or zero for no limit
          */
         protected SessionStore(int in) {
             maxSz = in;
         }
 
+        /**
+         * Update the size limit. Existing entries are kept, only future
+         * insertions are governed by the new limit. Callers must hold
+         * WolfSSLAuthStore.storeLock.
+         *
+         * @param in new max size, or zero for no limit
+         */
+        protected void setMaxSize(int in) {
+            maxSz = in;
+        }
+
         @Override
         protected boolean removeEldestEntry(Map.Entry<K, V> oldest) {
+            /* zero means no cache-size limit, per SSLSessionContext */
+            if (maxSz <= 0) {
+                return false;
+            }
             return size() > maxSz;
         }
     }
