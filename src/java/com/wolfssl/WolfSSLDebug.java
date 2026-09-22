@@ -398,13 +398,15 @@ public class WolfSSLDebug {
     public static synchronized void refreshDebugFlags() {
         boolean oldDebug = DEBUG;
         boolean oldDebugJNI = DEBUG_JNI;
+        boolean oldDebugJSON = DEBUG_JSON;
 
         DEBUG = checkJSSEDebugProperty();
         DEBUG_JNI = checkJNIDebugProperty();
         DEBUG_JSON = jsonOutEnabled();
 
-        /* Only reconfigure if debug state has changed */
-        if (oldDebug != DEBUG || oldDebugJNI != DEBUG_JNI) {
+        /* Reconfigure on enablement change, or format change while enabled */
+        if (oldDebug != DEBUG || oldDebugJNI != DEBUG_JNI ||
+            ((DEBUG || DEBUG_JNI) && oldDebugJSON != DEBUG_JSON)) {
             configureLoggers();
         }
     }
