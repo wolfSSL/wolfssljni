@@ -3206,6 +3206,40 @@ public class WolfSSLSocketTest {
     }
 
     @Test
+    public void testClearHandshakeApplicationProtocolSelector()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        }
+        Assume.assumeNotNull(protocol);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, ctxProvider);
+        SSLSocket sock = (SSLSocket)localCtx.getSocketFactory().createSocket();
+
+        try {
+            /* Install a selector */
+            sock.setHandshakeApplicationProtocolSelector(
+                (s, protos) -> protos.isEmpty() ? "" : protos.get(0));
+
+            /* Skip if the native ALPN select callback is not available */
+            Assume.assumeNotNull(
+                sock.getHandshakeApplicationProtocolSelector());
+
+            /* Passing null must clear the installed selector */
+            sock.setHandshakeApplicationProtocolSelector(null);
+            assertNull(sock.getHandshakeApplicationProtocolSelector());
+        } finally {
+            sock.close();
+        }
+    }
+
+    @Test
     public void testSocketConnectException() throws Exception {
 
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
@@ -4319,6 +4353,75 @@ public class WolfSSLSocketTest {
         long growth = after - baseline;
         assertTrue("interrupt pipe descriptors leaked after handshake " +
             "failure: " + growth, growth < 100);
+    }
+
+    /* close() over a transport that is already closed must still free the
+     * native session and its interrupt pipe, not skip cleanup and leak them
+     * to finalize(). Linux only, counts /proc/self/fd. */
+    @Test(timeout = 120000)
+    public void testCloseOverClosedTransportDoesNotLeakFds()
+        throws Exception {
+
+        Assume.assumeTrue(new java.io.File("/proc/self/fd").isDirectory());
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeNotNull(protocol);
+
+        this.ctx = tf.createSSLContext(protocol, ctxProvider);
+
+        final int iterations = 200;
+        final int warmupIterations = 10;
+        long baseline = -1;
+        /* Retain closed sockets so finalize() cannot free a leaked pipe and
+         * mask a reverted build. */
+        final java.util.List<SSLSocket> retained =
+            new java.util.ArrayList<>();
+
+        for (int i = 0; i < iterations; i++) {
+
+            ServerSocket ss = null;
+            Socket plain = null;
+            SSLSocket cs = null;
+
+            try {
+                ss = new ServerSocket(0);
+                plain = new Socket();
+                plain.connect(new InetSocketAddress("127.0.0.1",
+                    ss.getLocalPort()));
+
+                /* autoClose=false so SSLSocket.close() does not close the
+                 * transport. Close it first so close() takes the
+                 * already-closed-transport branch. */
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket(
+                    plain, "127.0.0.1", ss.getLocalPort(), false);
+                plain.close();
+                cs.close();
+            }
+            finally {
+                closeQuietly(cs);
+                closeQuietly(plain);
+                closeQuietly(ss);
+            }
+
+            retained.add(cs);
+
+            if (i == warmupIterations) {
+                baseline = countOpenFds();
+            }
+        }
+
+        assertTrue("fd baseline was never recorded", baseline >= 0);
+        long after = countOpenFds();
+        assertTrue("could not count open fds", after >= 0);
+        assertTrue("retained sockets were collected", retained.size() > 0);
+        long growth = after - baseline;
+        assertTrue("interrupt pipe descriptors leaked closing over a " +
+            "closed transport: " + growth, growth < 100);
     }
 
     /* Directed test for the deferred free: a reader keeps reading when close()

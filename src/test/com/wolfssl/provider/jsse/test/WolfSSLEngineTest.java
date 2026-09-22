@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import org.junit.Assume;
 import org.junit.Rule;
@@ -3764,6 +3765,82 @@ public class WolfSSLEngineTest {
         };
         r = server.unwrap(netBuf, outArr, 2, 2);
         assertOffsetUnwrapOk(r, outArr, data);
+    }
+
+    @Test
+    public void testClearHandshakeApplicationProtocolSelector()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        }
+        Assume.assumeNotNull(protocol);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine engine = localCtx.createSSLEngine();
+
+        /* Install a selector */
+        engine.setHandshakeApplicationProtocolSelector(
+            (e, protos) -> protos.isEmpty() ? "" : protos.get(0));
+
+        /* Skip if the native ALPN select callback is not available */
+        Assume.assumeNotNull(
+            engine.getHandshakeApplicationProtocolSelector());
+
+        /* Passing null must clear the installed selector */
+        engine.setHandshakeApplicationProtocolSelector(null);
+        assertNull(engine.getHandshakeApplicationProtocolSelector());
+    }
+
+    @Test
+    public void testClearedAlpnSelectorRevertsToSSLParameters()
+        throws Exception {
+
+        String protocol = null;
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv13Enabled()) {
+            protocol = "TLSv1.3";
+        }
+        Assume.assumeNotNull(protocol);
+
+        SSLContext localCtx = tf.createSSLContext(protocol, engineProvider);
+        SSLEngine server = localCtx.createSSLEngine();
+        SSLEngine client = localCtx.createSSLEngine("test", 11111);
+        server.setUseClientMode(false);
+        client.setUseClientMode(true);
+
+        String[] protos = new String[] { "h2" };
+
+        /* Server offers "h2" via SSLParameters, installs a selector, then
+         * clears it. ALPN must fall back to the SSLParameters list. */
+        SSLParameters sp = server.getSSLParameters();
+        sp.setApplicationProtocols(protos);
+        server.setSSLParameters(sp);
+
+        server.setHandshakeApplicationProtocolSelector((e, p) -> "h2");
+        /* Skip if the native ALPN select callback is not available */
+        Assume.assumeNotNull(
+            server.getHandshakeApplicationProtocolSelector());
+        server.setHandshakeApplicationProtocolSelector(null);
+
+        SSLParameters cp = client.getSSLParameters();
+        cp.setApplicationProtocols(protos);
+        client.setSSLParameters(cp);
+
+        if (tf.testConnection(server, client, null, null,
+                "alpn revert") != 0) {
+            fail("failed to complete handshake");
+        }
+
+        /* Cleared selector reverts to SSLParameters, so "h2" is negotiated.
+         * A still-registered NOACK callback would leave this empty. */
+        assertEquals("h2", server.getApplicationProtocol());
     }
 }
 
