@@ -293,6 +293,41 @@ public class WolfSSLCertificateTest {
         return fBytes;
     }
 
+    /* getX509Certificate() must surface errors, not return null: a valid
+     * cert converts, and an unavailable DER raises CertificateException. */
+    @Test
+    public void test_getX509Certificate()
+        throws WolfSSLException, CertificateException, IOException,
+               WolfSSLJNIException {
+
+        byte[] der = fileToByteArray(cliCertDer);
+
+        WolfSSLCertificate valid = new WolfSSLCertificate(der);
+        try {
+            assertNotNull(valid.getX509Certificate());
+        }
+        finally {
+            valid.free();
+        }
+
+        WolfSSLCertificate noDer = new WolfSSLCertificate(der) {
+            @Override
+            public byte[] getDer() {
+                return null;
+            }
+        };
+        try {
+            noDer.getX509Certificate();
+            fail("expected CertificateException when DER unavailable");
+        }
+        catch (CertificateException e) {
+            /* expected */
+        }
+        finally {
+            noDer.free();
+        }
+    }
+
 
     public void test_getSerial() {
         byte[] expected = new byte[] {

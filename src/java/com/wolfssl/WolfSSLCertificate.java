@@ -2621,8 +2621,8 @@ public class WolfSSLCertificate implements Serializable {
         throws IllegalStateException, CertificateException, IOException,
                WolfSSLJNIException {
 
+        byte[] der = null;
         X509Certificate cert = null;
-        InputStream in = null;
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
         confirmObjectIsActive();
@@ -2633,16 +2633,14 @@ public class WolfSSLCertificate implements Serializable {
                 () -> "entering getX509Certificate()");
         }
 
-        try {
-            in = new ByteArrayInputStream(this.getDer());
-            cert = (X509Certificate)cf.generateCertificate(in);
-            in.close();
+        der = this.getDer();
+        if (der == null) {
+            throw new CertificateException(
+                "DER encoding not available for this certificate");
+        }
 
-        } catch (Exception e) {
-            if (in != null) {
-                in.close();
-                throw e;
-            }
+        try (InputStream in = new ByteArrayInputStream(der)) {
+            cert = (X509Certificate)cf.generateCertificate(in);
         }
 
         return cert;
