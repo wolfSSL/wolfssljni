@@ -12,6 +12,7 @@ concurrency:
 jobs:
   check-file-lists:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     name: Check build file lists in sync
 
     steps:

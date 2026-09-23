@@ -23,6 +23,7 @@ jobs:
         os: [ 'ubuntu-latest' ]
         jdk_version: [ '11', '17', '21' ]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     name: Module Test (JDK ${{ matrix.jdk_version }})
 
     steps:
@@ -204,6 +205,7 @@ jobs:
   # This ensures the conditional compilation works correctly for Java 8 users
   java8-no-module-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     name: Java 8 No Module Test
 
     steps:

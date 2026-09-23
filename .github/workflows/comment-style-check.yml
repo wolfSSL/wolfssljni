@@ -16,6 +16,7 @@ concurrency:
 jobs:
   check-comment-style:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     name: Check Multi-line Comment Style
 
     steps:

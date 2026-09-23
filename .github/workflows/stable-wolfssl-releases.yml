@@ -13,6 +13,7 @@ jobs:
   # First job: dynamically fetch the last 5 stable wolfSSL release tags
   get-stable-releases:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       versions: ${{ steps.get-versions.outputs.versions }}
     steps:
@@ -33,6 +34,7 @@ jobs:
   test-stable-release:
     needs: get-stable-releases
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

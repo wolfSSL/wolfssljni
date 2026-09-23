@@ -17,6 +17,7 @@ jobs:
   # Tests JNI pointer handling and 32-bit specific code paths
   linux-32bit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         jdk_version: [ '17' ]

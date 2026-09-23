@@ -16,6 +16,7 @@ jobs:
   # Run UBSan build and test on Linux only for undefined behavior detection
   ubsan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         jdk_version: [ '21' ]
