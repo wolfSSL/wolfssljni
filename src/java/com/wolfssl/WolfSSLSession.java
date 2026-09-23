@@ -409,7 +409,7 @@ public class WolfSSLSession {
     public WolfSSLSession(WolfSSLContext ctx, boolean setupIOPipe)
         throws WolfSSLException {
 
-        sslPtr = newSSL(ctx.getContextPtr(), false);
+        sslPtr = newSSL(ctx.getContextPtr(), setupIOPipe);
         if (sslPtr == 0) {
             throw new WolfSSLException("Failed to create SSL Object");
         }

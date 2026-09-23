@@ -479,7 +479,6 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     private KeyStore LoadAndroidSystemCertsManually(String requiredType) {
 
         int aliasCnt = 0;
-        byte[] derArray = null;
         KeyStore sysStore = null;
         CertificateFactory cfactory = null;
         ByteArrayInputStream bis = null;
@@ -572,6 +571,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     continue;
                 }
 
+                byte[] derArray = null;
                 try {
                     derArray = certPem.getDer();
                 } catch (WolfSSLJNIException e) {
@@ -579,8 +579,13 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "Error getting DER from PEM cert, skipping: " +
                         tmpPath);
+                    continue;
                 } finally {
                     certPem.free();
+                }
+
+                if (derArray == null) {
+                    continue;
                 }
 
                 bis = new ByteArrayInputStream(derArray);
