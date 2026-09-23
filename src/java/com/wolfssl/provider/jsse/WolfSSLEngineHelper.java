@@ -2003,12 +2003,12 @@ public class WolfSSLEngineHelper {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "session creation not allowed");
 
-                /* send CloseNotify */
-                /* TODO: SunJSSE sends a Handshake Failure alert instead here */
-                try {
-                    this.ssl.shutdownSSL();
-                } catch (SocketException | SocketTimeoutException e) {
-                    throw new SSLException(e);
+                /* TODO: SunJSSE sends a Handshake Failure alert instead here.
+                 * SSLEngine can not deliver alerts from here, since wrap()
+                 * throws this same exception on every call. Buffered alerts
+                 * would also keep isOutboundDone() false. */
+                if (engine == null) {
+                    cancelHandshake();
                 }
 
                 throw new SSLHandshakeException("Session creation not allowed");
@@ -2016,6 +2016,76 @@ public class WolfSSLEngineHelper {
         }
 
         this.setLocalParams(socket, engine);
+    }
+
+    /**
+     * Shut down a connection whose handshake has not finished, making sure
+     * close_notify is sent, so peer is not left waiting on a response.
+     *
+     * Native wolfSSL releases after 5.9.2 do not send close_notify from
+     * shutdownSSL() while a handshake is still in progress. If shutdownSSL()
+     * did not send it for that reason, cancel the handshake with
+     * sendUserCanceled() instead, which sends a user_canceled alert followed
+     * by close_notify. Older native wolfSSL sends close_notify from
+     * shutdownSSL(), so nothing else is sent.
+     *
+     * @param ssl WolfSSLSession to shut down
+     *
+     * @return return value of shutdownSSL(), or of sendUserCanceled() if
+     *         called
+     * @throws SocketException if shutdownSSL() encounters a socket error
+     * @throws SocketTimeoutException if shutdownSSL() times out
+     */
+    protected static int shutdownBeforeHandshakeDone(WolfSSLSession ssl)
+        throws SocketException, SocketTimeoutException {
+
+        int ret = ssl.shutdownSSL();
+        int err = ssl.getError(ret);
+
+        /* Handshake still in progress, not failed, and no close_notify
+         * sent by shutdownSSL() */
+        if (((ssl.getShutdown() & WolfSSL.SSL_SENT_SHUTDOWN) == 0) &&
+            (err == WolfSSL.SSL_ERROR_NONE ||
+             err == WolfSSL.SSL_ERROR_WANT_READ ||
+             err == WolfSSL.SSL_ERROR_WANT_WRITE)) {
+            int cancelRet = ssl.sendUserCanceled();
+            if (cancelRet == WolfSSL.NOT_COMPILED_IN) {
+                /* Native wolfSSL older than 5.7.2, keep shutdownSSL() ret */
+                return ret;
+            }
+            ret = cancelRet;
+
+            /* Finish sending a buffered close_notify. If user_canceled is
+             * still buffered instead, calling this again finishes, which
+             * SSLEngine does on the next wrap(). SSLSocket calls this
+             * before any handshake data is sent. */
+            if ((ssl.getError(ret) == WolfSSL.SSL_ERROR_WANT_WRITE) &&
+                ((ssl.getShutdown() & WolfSSL.SSL_SENT_SHUTDOWN) != 0)) {
+                ret = ssl.shutdownSSL();
+            }
+        }
+
+        return ret;
+    }
+
+    /**
+     * Cancel a handshake that has not finished, letting the peer know so it
+     * is not left waiting on a response.
+     *
+     * @throws SSLException if shutting down hits a socket error or times out
+     */
+    private void cancelHandshake() throws SSLException {
+
+        final int ret;
+
+        try {
+            ret = shutdownBeforeHandshakeDone(this.ssl);
+        } catch (SocketException | SocketTimeoutException e) {
+            throw new SSLException(e);
+        }
+
+        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+            () -> "cancelled handshake, shutdown ret: " + ret);
     }
 
     /**
@@ -2054,13 +2124,8 @@ public class WolfSSLEngineHelper {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "session creation not allowed");
 
-            try {
-                /* send CloseNotify */
-                /* TODO: SunJSSE sends a Handshake Failure alert instead here */
-                this.ssl.shutdownSSL();
-            } catch (SocketException | SocketTimeoutException e) {
-                throw new SSLException(e);
-            }
+            /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+            cancelHandshake();
 
             return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
@@ -2074,12 +2139,7 @@ public class WolfSSLEngineHelper {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "session creation not allowed");
 
-                try {
-                    /* send CloseNotify so peer is not left hanging */
-                    this.ssl.shutdownSSL();
-                } catch (SocketException | SocketTimeoutException e) {
-                    throw new SSLException(e);
-                }
+                cancelHandshake();
 
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
             }

@@ -153,6 +153,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    sendUserCanceled
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendUserCanceled
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    getError
  * Signature: (JI)I
  */

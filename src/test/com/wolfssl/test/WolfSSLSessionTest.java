@@ -5819,5 +5819,361 @@ public class WolfSSLSessionTest {
             ssl.freeSSL();
         }
     }
+
+    /**
+     * Calling shutdownSSL() after connect() timed out mid-handshake must
+     * return instead of waiting forever on the socket.
+     *
+     * Native wolfSSL after 5.9.2 does not send close_notify before the
+     * handshake has finished, and leaves the WANT_READ from the handshake as
+     * the current error. shutdownSSL() used to poll the socket for that
+     * WANT_READ with an infinite timeout, blocking forever against a silent
+     * peer, or spinning once the socket became readable.
+     */
+    @Test
+    public void test_WolfSSLSession_shutdownBeforeHandshakeDone()
+        throws Exception {
+
+        ServerSocket srvSocket = null;
+        Socket cliSock = null;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession ssl = null;
+        ExecutorService srvEs = null;
+        ExecutorService cliEs = null;
+        boolean shutdownHung = false;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+
+        /* setFd() leaves the socket blocking on Windows, so connect() can
+         * not time out mid-handshake */
+        Assume.assumeFalse("setFd() socket is blocking on Windows",
+            WolfSSLTestCommon.isWindows());
+
+        try {
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket srv = srvSocket;
+
+            /* Plain TCP server that accepts, then never responds */
+            srvEs = Executors.newSingleThreadExecutor();
+            Future<Void> srvFuture = srvEs.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    Socket s = srv.accept();
+                    try {
+                        clientDone.await(30, TimeUnit.SECONDS);
+                    } finally {
+                        s.close();
+                    }
+                    return null;
+                }
+            });
+
+            cliCtx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSocket.getLocalPort());
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.setFd(cliSock));
+
+            try {
+                ssl.connect(500);
+                fail("connect() should time out against a silent server");
+            } catch (SocketTimeoutException e) {
+                /* expected, server never sends a ServerHello */
+            }
+
+            /* Daemon thread so a regression does not keep the JVM alive */
+            cliEs = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r);
+                t.setDaemon(true);
+                return t;
+            });
+            final WolfSSLSession cliSsl = ssl;
+            Future<Integer> shutdownFuture = cliEs.submit(
+                () -> cliSsl.shutdownSSL());
+
+            int ret = 0;
+            try {
+                ret = shutdownFuture.get(10, TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException e) {
+                shutdownHung = true;
+                fail("shutdownSSL() did not return after connect() " +
+                    "timed out mid-handshake");
+            }
+
+            /* Older native wolfSSL sends close_notify and returns
+             * SSL_SHUTDOWN_NOT_DONE, newer returns SSL_FATAL_ERROR. Neither
+             * completes the shutdown. */
+            assertNotEquals(WolfSSL.SSL_SUCCESS, ret);
+
+            clientDone.countDown();
+            srvFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            clientDone.countDown();
+            /* Hung shutdownSSL() still holds the session lock and native
+             * pointer, leak both rather than block or free under it */
+            if (ssl != null && !shutdownHung) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (cliCtx != null && !shutdownHung) {
+                cliCtx.free();
+            }
+            if (cliEs != null) {
+                cliEs.shutdownNow();
+            }
+            if (srvEs != null) {
+                srvEs.shutdownNow();
+            }
+        }
+    }
+
+    /* I/O callbacks that record sent bytes. Sends return WANT_WRITE once
+     * the given number of sends have succeeded, until unblock() is called.
+     * Receives always return WANT_READ. */
+    private static class BlockingSendCb
+        implements WolfSSLByteBufferIOSendCallback,
+                   WolfSSLByteBufferIORecvCallback {
+
+        private final int sendsBeforeBlock;
+        private int sends = 0;
+        private boolean blocked = true;
+        private final ByteArrayOutputStream sent =
+            new ByteArrayOutputStream();
+
+        BlockingSendCb(int sendsBeforeBlock) {
+            this.sendsBeforeBlock = sendsBeforeBlock;
+        }
+
+        synchronized void unblock() {
+            this.blocked = false;
+        }
+
+        @Override
+        public synchronized int sendCallback(WolfSSLSession ssl,
+            ByteBuffer buf, int sz, Object ctx) {
+
+            if (blocked && sends == sendsBeforeBlock) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+
+            byte[] data = new byte[sz];
+            buf.get(data);
+            sent.write(data, 0, sz);
+            sends++;
+            return sz;
+        }
+
+        @Override
+        public int receiveCallback(WolfSSLSession ssl, ByteBuffer buf,
+            int sz, Object ctx) {
+
+            return WolfSSL.WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+
+        /* Alert descriptions of the plaintext TLS alert records sent */
+        synchronized int[] alertDescriptions() {
+
+            byte[] data = sent.toByteArray();
+            assertEquals("expected only 7 byte alert records",
+                0, data.length % 7);
+            int[] descs = new int[data.length / 7];
+            for (int i = 0; i < descs.length; i++) {
+                assertEquals("expected alert record", 21, data[i * 7]);
+                descs[i] = data[i * 7 + 6];
+            }
+            return descs;
+        }
+    }
+
+    /**
+     * sendUserCanceled() hitting WANT_WRITE can be finished once the I/O is
+     * ready, as documented: call shutdownSSL(), then sendUserCanceled() again
+     * if SSL_SENT_SHUTDOWN is still not set.
+     */
+    @Test
+    public void test_WolfSSLSession_sendUserCanceledWantWrite()
+        throws Exception {
+
+        final int userCanceled = 90;
+        final int closeNotify = 0;
+        int ret;
+        int[] descs;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession ssl = null;
+
+        try {
+            cliCtx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+
+            /* user_canceled blocked */
+            ssl = new WolfSSLSession(cliCtx);
+            BlockingSendCb cb = new BlockingSendCb(0);
+            ssl.setIOSendByteBuffer(cb);
+            ssl.setIORecvByteBuffer(cb);
+            ret = ssl.sendUserCanceled();
+            Assume.assumeTrue("wolfSSL_SendUserCanceled() not compiled in",
+                ret != WolfSSL.NOT_COMPILED_IN);
+            assertEquals(WolfSSL.SSL_ERROR_WANT_WRITE, ssl.getError(ret));
+            assertEquals("close_notify should not be buffered", 0,
+                ssl.getShutdown() & WolfSSL.SSL_SENT_SHUTDOWN);
+            cb.unblock();
+            ssl.shutdownSSL();
+            if ((ssl.getShutdown() & WolfSSL.SSL_SENT_SHUTDOWN) == 0) {
+                /* wolfSSL after 5.9.2 does not flush it from shutdownSSL() */
+                ssl.sendUserCanceled();
+            }
+            descs = cb.alertDescriptions();
+            assertEquals(userCanceled, descs[0]);
+            assertEquals(closeNotify, descs[descs.length - 1]);
+            ssl.freeSSL();
+            ssl = null;
+
+            /* close_notify blocked. wolfSSL before 5.8.4 can not flush a
+             * buffered close_notify from shutdownSSL() */
+            if (WolfSSL.getLibVersionHex() >= 0x05008004L) {
+                ssl = new WolfSSLSession(cliCtx);
+                cb = new BlockingSendCb(1);
+                ssl.setIOSendByteBuffer(cb);
+                ssl.setIORecvByteBuffer(cb);
+                ret = ssl.sendUserCanceled();
+                assertEquals(WolfSSL.SSL_ERROR_WANT_WRITE, ssl.getError(ret));
+                assertTrue("close_notify should be buffered",
+                    (ssl.getShutdown() & WolfSSL.SSL_SENT_SHUTDOWN) != 0);
+                cb.unblock();
+                ssl.shutdownSSL();
+                assertArrayEquals(new int[] {userCanceled, closeNotify},
+                    cb.alertDescriptions());
+            }
+
+        } finally {
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_sendUserCanceled_AfterFree_Throws()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+        ssl.freeSSL();
+
+        try {
+            ssl.sendUserCanceled();
+            fail("sendUserCanceled() after freeSSL() should throw " +
+                 "IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+    }
+
+    /**
+     * sendUserCanceled() before the handshake must send the alerts, so a
+     * client waiting on a ServerHello fails instead of waiting forever.
+     *
+     * Falls back to shutdownSSL() when native wolfSSL is older than 5.7.2,
+     * which sends close_notify before the handshake has finished.
+     */
+    @Test
+    public void test_WolfSSLSession_sendUserCanceledBeforeHandshake()
+        throws Exception {
+
+        ServerSocket srvSocket = null;
+        Socket cliSock = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession ssl = null;
+        ExecutorService es = null;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+
+        try {
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket srv = srvSocket;
+
+            srvCtx = createAndSetupWolfSSLContext(
+                srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.SSLv23_ServerMethod());
+            final WolfSSLContext sCtx = srvCtx;
+
+            /* Server cancels the handshake instead of calling accept() */
+            es = Executors.newSingleThreadExecutor();
+            Future<Integer> srvFuture = es.submit(new Callable<Integer>() {
+                @Override
+                public Integer call() throws Exception {
+                    WolfSSLSession srvSes = null;
+                    try (Socket s = srv.accept()) {
+                        srvSes = new WolfSSLSession(sCtx);
+                        assertEquals(WolfSSL.SSL_SUCCESS, srvSes.setFd(s));
+                        if (srvSes.sendUserCanceled() ==
+                                WolfSSL.NOT_COMPILED_IN) {
+                            srvSes.shutdownSSL();
+                        }
+                        int shutdown = srvSes.getShutdown();
+
+                        /* Keep socket open until client has read the
+                         * alerts, closing with unread data sends a reset */
+                        clientDone.await(30, TimeUnit.SECONDS);
+                        return shutdown;
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                    }
+                }
+            });
+
+            cliCtx = new WolfSSLContext(WolfSSL.SSLv23_ClientMethod());
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSocket.getLocalPort());
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.setFd(cliSock));
+
+            try {
+                int ret = ssl.connect(10000);
+                assertNotEquals("Handshake should fail after server " +
+                    "cancels it", WolfSSL.SSL_SUCCESS, ret);
+            } catch (SocketTimeoutException e) {
+                fail("Client did not receive alerts from server " +
+                    "cancelling the handshake");
+            }
+            clientDone.countDown();
+
+            int shutdown = srvFuture.get(10, TimeUnit.SECONDS);
+            assertTrue("close_notify should be sent before handshake",
+                (shutdown & WolfSSL.SSL_SENT_SHUTDOWN) != 0);
+
+        } finally {
+            clientDone.countDown();
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (es != null) {
+                es.shutdown();
+                es.awaitTermination(10, TimeUnit.SECONDS);
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+    }
 }
 

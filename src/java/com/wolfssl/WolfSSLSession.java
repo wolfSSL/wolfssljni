@@ -630,6 +630,7 @@ public class WolfSSLSession {
     private native int accept(long ssl, int timeout);
     private native void freeSSL(long ssl);
     private native int shutdownSSL(long ssl, int timeout);
+    private native int sendUserCanceled(long ssl);
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
@@ -1880,6 +1881,14 @@ public class WolfSSLSession {
      * to <code>getError()</code> will yield either <b>SSL_ERROR_WANT_READ</b>
      * or <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat
      * the call to <code>shutdownSSL()</code> when the underlying I/O is ready.
+     * wolfSSL before 5.8.4 does not retry a "close notify" that returned
+     * SSL_ERROR_WANT_WRITE.
+     * <p>
+     * wolfSSL after 5.9.2 does not send "close notify" if the handshake has
+     * not finished, and <code>getError()</code> may still return the
+     * SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE left by the handshake.
+     * Retrying will not help. Use <code>sendUserCanceled()</code> to cancel
+     * a handshake in progress instead.
      *
      * @return <code>SSL_SUCCESS</code> on success,
      *         <code>SSL_FATAL_ERROR</code> upon failure. Call <code>
@@ -1918,6 +1927,14 @@ public class WolfSSLSession {
      * to <code>getError()</code> will yield either <b>SSL_ERROR_WANT_READ</b>
      * or <b>SSL_ERROR_WANT_WRITE</b>. The calling process must then repeat
      * the call to <code>shutdownSSL()</code> when the underlying I/O is ready.
+     * wolfSSL before 5.8.4 does not retry a "close notify" that returned
+     * SSL_ERROR_WANT_WRITE.
+     * <p>
+     * wolfSSL after 5.9.2 does not send "close notify" if the handshake has
+     * not finished, and <code>getError()</code> may still return the
+     * SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE left by the handshake.
+     * Retrying will not help. Use <code>sendUserCanceled()</code> to cancel
+     * a handshake in progress instead.
      *
      * @param timeout read timeout, milliseconds.
      *
@@ -1950,6 +1967,57 @@ public class WolfSSLSession {
         }
 
         throwExceptionFromIOReturnValue(ret, "wolfSSL_shutdown()");
+
+        return ret;
+    }
+
+    /**
+     * Sends a "user canceled" alert to the peer, followed by a "close notify"
+     * alert, then shuts down the SSL/TLS connection.
+     * <p>
+     * Unlike <code>shutdownSSL()</code>, this can be used before the
+     * handshake has finished, to cancel a handshake and let the peer know
+     * it will not continue. wolfSSL after 5.9.2 fails
+     * <code>shutdownSSL()</code> without sending "close notify" if the
+     * handshake has not finished.
+     * <p>
+     * This function does not wait on the underlying I/O. If
+     * <code>getError()</code> returns SSL_ERROR_WANT_WRITE, call
+     * <code>shutdownSSL()</code> once the I/O is ready to finish sending the
+     * alerts. If <code>getShutdown()</code> still does not include
+     * SSL_SENT_SHUTDOWN after that, "user canceled" is still buffered, which
+     * wolfSSL after 5.9.2 does not send from <code>shutdownSSL()</code>.
+     * Call <code>sendUserCanceled()</code> again instead, which also sends a
+     * second "user canceled" alert. wolfSSL before 5.8.4 does not retry a
+     * "close notify" that returned SSL_ERROR_WANT_WRITE.
+     *
+     * @return <code>SSL_SUCCESS</code> if the shutdown is complete,
+     *         <code>SSL_SHUTDOWN_NOT_DONE</code> if the alerts were sent but
+     *         the peer's "close notify" has not been received,
+     *         <code>NOT_COMPILED_IN</code> if native wolfSSL is older than
+     *         5.7.2, or <code>SSL_FAILURE</code> or
+     *         <code>SSL_FATAL_ERROR</code> on error. Call
+     *         <code>getError()</code> for a more specific error code.
+     * @throws IllegalStateException WolfSSLContext has been freed
+     * @see    #shutdownSSL()
+     */
+    public int sendUserCanceled() throws IllegalStateException {
+
+        int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered sendUserCanceled()");
+
+            ret = sendUserCanceled(this.sslPtr);
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "sendUserCanceled() ret: " + ret);
+        }
 
         return ret;
     }

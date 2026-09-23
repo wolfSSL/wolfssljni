@@ -3587,6 +3587,233 @@ public class WolfSSLEngineTest {
         assertTrue(e.isInboundDone());
     }
 
+    /* closeOutbound() during handshake must still produce close_notify from
+     * wrap(), otherwise isOutboundDone() never returns true and the peer is
+     * left waiting. Native wolfSSL after 5.9.2 does not send close_notify from
+     * wolfSSL_shutdown() before the handshake finishes. */
+    @Test
+    public void testCloseOutboundDuringHandshake() throws Exception {
+
+        int loops;
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setUseClientMode(false);
+        client.setUseClientMode(true);
+
+        int netSz = 4 * Math.max(server.getSession().getPacketBufferSize(),
+            client.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(netSz);
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(netSz);
+        ByteBuffer serPlain = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+
+        /* ClientHello to server, server sends its flight which the client
+         * never receives */
+        client.wrap(empty, cliToSer);
+        cliToSer.flip();
+        server.unwrap(cliToSer, serPlain);
+        cliToSer.clear();
+        server.wrap(empty, serToCli);
+        assertEquals(HandshakeStatus.NEED_UNWRAP, client.getHandshakeStatus());
+
+        /* Client gives up on the handshake */
+        client.closeOutbound();
+        loops = 0;
+        while (!client.isOutboundDone() && loops++ < 10) {
+            SSLEngineResult r = client.wrap(empty, cliToSer);
+            assertEquals(SSLEngineResult.Status.CLOSED, r.getStatus());
+        }
+        assertTrue("isOutboundDone() should be true after closeOutbound() " +
+            "during handshake", client.isOutboundDone());
+        assertTrue("wrap() should produce close_notify",
+            cliToSer.position() > 0);
+
+        /* Server should see the connection closed, not keep waiting. It may
+         * fail the handshake on the alerts, TLS 1.3 servers expect encrypted
+         * records at this point. */
+        cliToSer.flip();
+        loops = 0;
+        try {
+            while (!server.isInboundDone() && cliToSer.hasRemaining() &&
+                   loops++ < 10) {
+                server.unwrap(cliToSer, serPlain);
+            }
+        } catch (SSLHandshakeException e) {
+            /* expected, peer closed during handshake */
+        }
+        assertTrue("server should read the client alerts",
+            cliToSer.position() > 0);
+        assertTrue("server isInboundDone() should be true after " +
+            "client closed during handshake", server.isInboundDone());
+    }
+
+    /* DTLS SSLEngine wrap() produces one record per call. Closing during
+     * handshake can queue two alerts (user_canceled then close_notify),
+     * close_notify must still be produced before isOutboundDone() is true. */
+    @Test
+    public void testDTLSCloseOutboundDuringHandshake() throws Exception {
+
+        int loops = 0;
+        boolean gotCloseNotify = false;
+
+        Assume.assumeTrue(enabledProtocols.contains("DTLSv1.3"));
+
+        this.ctx = tf.createSSLContext("DTLSv1.3", engineProvider);
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        client.setUseClientMode(true);
+
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer out = ByteBuffer.allocateDirect(
+            client.getSession().getPacketBufferSize());
+
+        /* ClientHello, client never receives a response */
+        client.wrap(empty, out);
+        client.closeOutbound();
+
+        while (!client.isOutboundDone() && loops++ < 10) {
+            out.clear();
+            SSLEngineResult r = client.wrap(empty, out);
+            assertEquals(SSLEngineResult.Status.CLOSED, r.getStatus());
+            out.flip();
+            if (out.remaining() > 0) {
+                /* One plaintext alert record: 13 byte DTLS header, then alert
+                 * level and description */
+                assertEquals("wrap() should produce one DTLS record", 15,
+                    out.remaining());
+                assertEquals("record should be an alert", 21, out.get(0));
+                if (out.get(14) == 0) {
+                    gotCloseNotify = true;
+                }
+            }
+        }
+        assertTrue("isOutboundDone() should be true after closeOutbound() " +
+            "during handshake", client.isOutboundDone());
+        assertTrue("wrap() should produce close_notify", gotCloseNotify);
+    }
+
+    /* Return true if data holds a plaintext close_notify alert record.
+     * Record header is 5 bytes for TLS, 13 bytes for DTLS. */
+    private static boolean hasCloseNotify(ByteBuffer data, int hdrSz) {
+
+        int pos = 0;
+
+        while (pos + hdrSz <= data.limit()) {
+            int type = data.get(pos) & 0xff;
+            int len = ((data.get(pos + hdrSz - 2) & 0xff) << 8) |
+                (data.get(pos + hdrSz - 1) & 0xff);
+            if (type == 21 && len == 2 && pos + hdrSz + 2 <= data.limit() &&
+                data.get(pos + hdrSz + 1) == 0) {
+                return true;
+            }
+            pos += hdrSz + len;
+        }
+        return false;
+    }
+
+    /* closeOutbound() during handshake, then unwrap() of the peer's flight
+     * before wrap(), as a loop following NEED_UNWRAP would do. unwrap() must
+     * not fail, and later wrap() calls must still produce close_notify. */
+    @Test
+    public void testCloseOutboundDuringHandshakeUnwrapFirst()
+        throws Exception {
+
+        List<String> protocols = new ArrayList<String>();
+        protocols.add("TLS");
+        if (enabledProtocols.contains("DTLSv1.3")) {
+            protocols.add("DTLSv1.3");
+        }
+
+        for (String proto : protocols) {
+            int loops = 0;
+            int hdrSz = proto.startsWith("DTLS") ? 13 : 5;
+            this.ctx = tf.createSSLContext(proto, engineProvider);
+            SSLEngine server = this.ctx.createSSLEngine();
+            SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+            server.setUseClientMode(false);
+            client.setUseClientMode(true);
+
+            int netSz = 4 * Math.max(
+                server.getSession().getPacketBufferSize(),
+                client.getSession().getPacketBufferSize());
+            ByteBuffer empty = ByteBuffer.allocate(0);
+            ByteBuffer cliToSer = ByteBuffer.allocateDirect(netSz);
+            ByteBuffer serToCli = ByteBuffer.allocateDirect(netSz);
+            ByteBuffer plain = ByteBuffer.allocate(Math.max(
+                server.getSession().getApplicationBufferSize(),
+                client.getSession().getApplicationBufferSize()));
+
+            /* ClientHello to server, server flight back to client */
+            client.wrap(empty, cliToSer);
+            cliToSer.flip();
+            server.unwrap(cliToSer, plain);
+            cliToSer.clear();
+            server.wrap(empty, serToCli);
+            serToCli.flip();
+
+            /* Client gives up, then unwraps the server flight first */
+            client.closeOutbound();
+            client.unwrap(serToCli, plain);
+
+            while (!client.isOutboundDone() && loops++ < 10) {
+                SSLEngineResult r = client.wrap(empty, cliToSer);
+                assertEquals(proto, SSLEngineResult.Status.CLOSED,
+                    r.getStatus());
+            }
+            assertTrue(proto + ": isOutboundDone() should be true after " +
+                "closeOutbound() and unwrap() during handshake",
+                client.isOutboundDone());
+            cliToSer.flip();
+            assertTrue(proto + ": wrap() should produce close_notify",
+                hasCloseNotify(cliToSer, hdrSz));
+        }
+    }
+
+    /* Server SSLEngine with session creation disabled and no cached session
+     * fails the handshake. Closing it afterwards must let isOutboundDone()
+     * return true instead of leaving undeliverable alerts buffered. */
+    @Test
+    public void testSessionCreationDisabledThenClose() throws Exception {
+
+        int loops;
+        this.ctx = tf.createSSLContext("TLS", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        server.setUseClientMode(false);
+        client.setUseClientMode(true);
+        server.setEnableSessionCreation(false);
+
+        int netSz = 4 * Math.max(server.getSession().getPacketBufferSize(),
+            client.getSession().getPacketBufferSize());
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer cliToSer = ByteBuffer.allocateDirect(netSz);
+        ByteBuffer serToCli = ByteBuffer.allocateDirect(netSz);
+        ByteBuffer serPlain = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+
+        client.wrap(empty, cliToSer);
+        cliToSer.flip();
+        try {
+            server.unwrap(cliToSer, serPlain);
+            fail("unwrap() should fail when session creation is disabled");
+        } catch (SSLHandshakeException e) {
+            /* expected, new session not allowed */
+        }
+
+        server.closeOutbound();
+        loops = 0;
+        while (!server.isOutboundDone() && loops++ < 10) {
+            try {
+                server.wrap(empty, serToCli);
+            } catch (SSLHandshakeException e) {
+                break;
+            }
+        }
+        assertTrue("isOutboundDone() should be true after closeOutbound() " +
+            "on failed handshake", server.isOutboundDone());
+    }
+
     /* Regression for wrap(ByteBuffer[], ofst, len, out) when ofst > 0:
      * pos[]/limit[] OOB and null-check loop bound. */
     @Test
