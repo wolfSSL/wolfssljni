@@ -68,6 +68,7 @@ public class WolfSSLX509Name {
     static native void X509_NAME_free(long x509Name);
     static native int X509_NAME_add_entry_by_txt(long x509Name, String field,
         int type, byte[] entry, int len, int loc, int set);
+    static native String X509_NAME_oneline(long x509Name);
 
     /**
      * Create new empty WolfSSLX509Name object.
@@ -1414,10 +1415,12 @@ public class WolfSSLX509Name {
             if (this.active == false) {
                 return "";
             }
-        }
 
-        /* TODO: wrap wolfSSL_X509_NAME_oneline() */
-        return "";
+            synchronized (x509NameLock) {
+                String name = X509_NAME_oneline(this.x509NamePtr);
+                return (name == null) ? "" : name;
+            }
+        }
     }
 
     /**

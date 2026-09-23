@@ -3379,6 +3379,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setMTU
     (void)jenv;
     (void)jcl;
 
+    /* Reject values out of range of short cast below */
+    if (mtu < 0 || mtu > 65535) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
     /* wolfSSL_dtls_set_mtu() checks ssl for NULL */
     return (jint)wolfSSL_dtls_set_mtu(ssl, (unsigned short)mtu);
 #else

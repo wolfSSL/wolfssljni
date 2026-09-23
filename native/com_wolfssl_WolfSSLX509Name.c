@@ -129,3 +129,34 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1add_1entry_1
 #endif
 }
 
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1oneline
+  (JNIEnv* jenv, jclass jcl, jlong x509NamePtr)
+{
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509_NAME* ptr = (WOLFSSL_X509_NAME*)(uintptr_t)x509NamePtr;
+    char* name = NULL;
+    jstring ret = NULL;
+    (void)jcl;
+
+    if (jenv == NULL || ptr == NULL) {
+        return NULL;
+    }
+
+    name = wolfSSL_X509_NAME_oneline(ptr, NULL, 0);
+    if (name == NULL) {
+        return NULL;
+    }
+
+    ret = (*jenv)->NewStringUTF(jenv, name);
+    XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    return ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)x509NamePtr;
+    return NULL;
+#endif
+}
+

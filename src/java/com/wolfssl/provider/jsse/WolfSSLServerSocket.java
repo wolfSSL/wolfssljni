@@ -388,6 +388,8 @@ public class WolfSSLServerSocket extends SSLServerSocket {
     @Override
     synchronized public Socket accept() throws IOException {
 
+        boolean wrapped = false;
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered accept()");
 
@@ -400,13 +402,24 @@ public class WolfSSLServerSocket extends SSLServerSocket {
             sock.getInetAddress().getHostAddress() + ", port: " +
             sock.getPort());
 
-        /* create new WolfSSLSocket wrapping connected Socket */
-        WolfSSLSocket socket = new WolfSSLSocket(context, authStore, params,
-            clientMode, sock, true);
+        /* Wrap the accepted Socket. Close it if wrapping fails, since
+         * ownership only transfers to the WolfSSLSocket on success. */
+        try {
+            WolfSSLSocket socket = new WolfSSLSocket(context, authStore,
+                params, clientMode, sock, true);
+            socket.setEnableSessionCreation(enableSessionCreation);
+            wrapped = true;
+            return socket;
 
-        socket.setEnableSessionCreation(enableSessionCreation);
-
-        return socket;
+        } finally {
+            if (!wrapped) {
+                try {
+                    sock.close();
+                } catch (IOException e) {
+                    /* ignore, already returning on an error path */
+                }
+            }
+        }
     }
 }
 

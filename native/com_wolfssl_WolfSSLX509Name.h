@@ -33,6 +33,14 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1free
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1add_1entry_1by_1txt
   (JNIEnv *, jclass, jlong, jstring, jint, jbyteArray, jint, jint, jint);
 
+/*
+ * Class:     com_wolfssl_WolfSSLX509Name
+ * Method:    X509_NAME_oneline
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1oneline
+  (JNIEnv *, jclass, jlong);
+
 #ifdef __cplusplus
 }
 #endif
