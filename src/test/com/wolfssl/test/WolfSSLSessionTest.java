@@ -43,6 +43,9 @@ import java.net.ConnectException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
+import java.util.logging.Handler;
+import java.util.logging.Logger;
+import java.util.logging.StreamHandler;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
@@ -2538,6 +2541,99 @@ public class WolfSSLSessionTest {
                 fail("Debug output did not contain accept() success:\n" +
                      debugOutput);
             }
+        }
+    }
+
+    /* A wolfjsse.debugFormat-only change applied via refreshDebugFlags()
+     * must switch the installed log formatter. The formatter is installed
+     * when handlers are configured, not chosen per record. */
+    @Test
+    public void test_WolfSSLSession_debugFormatChangeApplied() {
+
+        String probe = "wolfsslDebugFormatProbe";
+        String origDebug = System.getProperty("wolfjsse.debug");
+        String origFormat = System.getProperty("wolfjsse.debugFormat");
+        PrintStream origErr = System.err;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        try {
+            /* Handlers bind to System.err when configureLoggers() runs,
+             * redirect before refreshing. */
+            System.setErr(new PrintStream(out));
+
+            /* Enable JSSE debug with the default format. */
+            System.setProperty("wolfjsse.debug", "false");
+            System.clearProperty("wolfjsse.debugFormat");
+            WolfSSLDebug.refreshDebugFlags();
+            System.setProperty("wolfjsse.debug", "true");
+            WolfSSLDebug.refreshDebugFlags();
+
+            /* Switch only the format to JSON, leaving debug enabled. */
+            System.setProperty("wolfjsse.debugFormat", "JSON");
+            WolfSSLDebug.refreshDebugFlags();
+
+            WolfSSLDebug.log(WolfSSLSessionTest.class, WolfSSLDebug.INFO,
+                () -> probe);
+
+            String output = out.toString();
+            assertTrue("expected debug output for probe message",
+                output.contains(probe));
+            /* "@timestamp" appears only in the JSON formatter output */
+            assertTrue("format change to JSON was not applied",
+                output.contains("\"@timestamp\""));
+        }
+        finally {
+            /* Restore System.err, then toggle debug off and reconfigure so no
+             * handler keeps writing to the local buffer. Debug is on here, so
+             * the toggle always runs configureLoggers(). */
+            System.setErr(origErr);
+            System.setProperty("wolfjsse.debug", "false");
+            WolfSSLDebug.refreshDebugFlags();
+
+            restoreProperty("wolfjsse.debug", origDebug);
+            restoreProperty("wolfjsse.debugFormat", origFormat);
+            WolfSSLDebug.refreshDebugFlags();
+        }
+    }
+
+    /* A format change with debug off must keep app-added logger handlers */
+    @Test
+    public void test_WolfSSLSession_debugFormatChangeWhileDisabled() {
+
+        String origDebug = System.getProperty("wolfjsse.debug");
+        String origJniDebug = System.getProperty("wolfssljni.debug");
+        String origFormat = System.getProperty("wolfjsse.debugFormat");
+        Logger jsseLogger = Logger.getLogger("com.wolfssl.jsse");
+        Handler appHandler = new StreamHandler();
+
+        try {
+            System.setProperty("wolfjsse.debug", "false");
+            System.setProperty("wolfssljni.debug", "false");
+            System.clearProperty("wolfjsse.debugFormat");
+            WolfSSLDebug.refreshDebugFlags();
+            jsseLogger.addHandler(appHandler);
+
+            System.setProperty("wolfjsse.debugFormat", "JSON");
+            WolfSSLDebug.refreshDebugFlags();
+
+            assertTrue("format change with debug off reconfigured loggers",
+                Arrays.asList(jsseLogger.getHandlers()).contains(appHandler));
+        }
+        finally {
+            jsseLogger.removeHandler(appHandler);
+            restoreProperty("wolfjsse.debug", origDebug);
+            restoreProperty("wolfssljni.debug", origJniDebug);
+            restoreProperty("wolfjsse.debugFormat", origFormat);
+            WolfSSLDebug.refreshDebugFlags();
+        }
+    }
+
+    private static void restoreProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        }
+        else {
+            System.setProperty(key, value);
         }
     }
 

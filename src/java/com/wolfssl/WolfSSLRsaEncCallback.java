@@ -54,7 +54,7 @@ public interface WolfSSLRsaEncCallback {
      *                  for storage.
      * @param keyDer    RSA Public key in ASN1 format
      * @param keySz     length of the key, <b>keyDer</b>, in bytes
-     * @param ctx       custom user-registered ECC signing context
+     * @param ctx       custom user-registered RSA public encrypt context
      * @return          <b><code>0</code></b> upon success,
      *                  otherwise a negative value on error.
      */

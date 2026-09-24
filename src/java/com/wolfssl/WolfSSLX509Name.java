@@ -417,9 +417,9 @@ public class WolfSSLX509Name {
                 "Invalid DN: no RDNs found at position " + pos);
         }
 
-        /* Reverse to insertion order matching the conventional X.509
-         * subject encoding order (least significant first, e.g. C, O, OU,
-         * CN for input "CN=foo,O=bar,OU=baz,C=US"). */
+        /* RFC 2253 lists RDNs leaf-to-root, the reverse of X.509 SEQUENCE
+         * order. Reverse so "CN=foo,OU=baz,O=bar,C=US" ([CN, OU, O, C])
+         * is returned root first as [C, O, OU, CN]. */
         Collections.reverse(rdns);
 
         return rdns;

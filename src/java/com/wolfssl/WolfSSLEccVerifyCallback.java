@@ -53,7 +53,7 @@ public interface WolfSSLEccVerifyCallback {
      *                  should be stored, <b>1</b> for success, <b>0</b> for
      *                  failure. Use the first element of the array for
      *                  storage.
-     * @param ctx       custom user-registered ECC signing context
+     * @param ctx       custom user-registered ECC verify context
      * @return          <b><code>0</code></b> upon success,
      *                  otherwise a negative value on error.
      */

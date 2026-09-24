@@ -50,7 +50,7 @@ public interface WolfSSLRsaVerifyCallback {
      * @param outSz     size of the output buffer, <b>out</b>
      * @param keyDer    the RSA Public key in ASN1 format
      * @param keySz     the length of the key, <b>keyDer</b>, in bytes
-     * @param ctx       custom user-registered ECC signing context
+     * @param ctx       custom user-registered RSA verify context
      * @return          <b><code>0</code></b> upon success,
      *                  otherwise a negative value on error.
      */

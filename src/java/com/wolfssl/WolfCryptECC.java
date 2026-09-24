@@ -51,7 +51,8 @@ public class WolfCryptECC {
      * @param hashLen size of input hash, bytes
      * @param keyDer public key to use for verify, DER format
      * @param keySz size of keyDer, bytes
-     * @param result first array element set to 0 on successful verify
+     * @param result first array element set to 1 for a valid signature, 0
+     *               for invalid
      *
      * @return 0 on success, negative on error.
      */
