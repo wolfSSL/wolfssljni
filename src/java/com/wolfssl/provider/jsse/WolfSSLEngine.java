@@ -539,9 +539,13 @@ public class WolfSSLEngine extends SSLEngine {
         /* In SSLEngine mode, native shutdown flags can be set before the
          * close_notify bytes are surfaced to Java for wrap(). Map
          * closeNotifySent to observable SSLEngine output state and defer
-         * SENT until data is pending to wrap (or already recorded). */
+         * SENT until data is pending to wrap (or already recorded). With DTLS,
+         * pending data may be an earlier record while close_notify still waits
+         * in native wolfSSL, so also defer while native wolfSSL has data
+         * waiting to be sent. */
         if (nativeSent && !this.closeNotifySent &&
-            this.internalIOSendBufOffset == 0) {
+            (this.internalIOSendBufOffset == 0 ||
+             this.nativeWantsToWrite != 0)) {
             nativeSent = false;
         }
 
@@ -635,7 +639,14 @@ public class WolfSSLEngine extends SSLEngine {
 
         /* send/recv close_notify as needed */
         synchronized (ioLock) {
-            ret = ssl.shutdownSSL();
+            if (this.handshakeFinished) {
+                ret = ssl.shutdownSSL();
+            }
+            else {
+                /* Closing during handshake, make sure close_notify is sent
+                 * so isOutboundDone() can be true */
+                ret = WolfSSLEngineHelper.shutdownBeforeHandshakeDone(ssl);
+            }
             if (ssl.getError(ret) == WolfSSL.SSL_ERROR_ZERO_RETURN) {
                 /* got close_notify alert, reset ret to SSL_SUCCESS to continue
                  * and let corresponding close_notify to be sent */

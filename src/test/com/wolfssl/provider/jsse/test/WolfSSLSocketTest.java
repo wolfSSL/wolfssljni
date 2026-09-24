@@ -1472,6 +1472,9 @@ public class WolfSSLSocketTest {
             }
         });
 
+        /* Fail instead of hanging if the server does not send an alert */
+        cs.setSoTimeout(10000);
+
         try {
             cs.startHandshake();
             fail();

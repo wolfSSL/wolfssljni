@@ -1997,10 +1997,47 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeSSL
     ssl = 0;
 }
 
+/**
+ * Check if wolfSSL_shutdown() can make progress once the socket is ready, if
+ * it has a WANT_READ or WANT_WRITE error set. If so, callers know it is worth
+ * waiting on.
+ *
+ * In wolfSSL after 5.9.2, if wolfSSL_shutdown() is called before the handshake
+ * has finished, it fails without doing any I/O. This leaves WANT_READ /
+ * WANT_WRITE from the handshake as the current error. Waiting for that on the
+ * socket blocks forever, or spins once the socket is ready. Once close_notify
+ * has been sent or queued, WANT_READ/WANT_WRITE are returned from
+ * wolfSSL_shutdown() itself.
+ *
+ * Must be called while holding the session I/O lock.
+ *
+ * @param ssl  WOLFSSL session that wolfSSL_shutdown() was called on
+ * @param err  wolfSSL_get_error() value after wolfSSL_shutdown()
+ *
+ * @return 1 if wolfSSL_shutdown() should be retried once the socket is
+ *         ready, otherwise 0.
+ */
+static int shutdownCanProgress(WOLFSSL* ssl, int err)
+{
+    if ((wolfSSL_get_shutdown(ssl) & WOLFSSL_SENT_SHUTDOWN) != 0) {
+        return 1;
+    }
+
+    /* Older wolfSSL can return WANT_WRITE before it marks close_notify sent,
+     * or when flushing earlier output. Only wait on the WANT_WRITE after the
+     * handshake finishes, since the handshake may have left it stale. */
+    if ((err == SSL_ERROR_WANT_WRITE) && wolfSSL_is_init_finished(ssl)) {
+        return 1;
+    }
+
+    return 0;
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint timeout)
 {
     int ret = 0, err, sockfd;
+    int canProgress = 0;
     int pollRx = 0;
 #if !defined(WOLFJNI_USE_IO_SELECT) && !defined(USE_WINDOWS_API)
     int pollTx = 0;
@@ -2046,6 +2083,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
 
         ret = wolfSSL_shutdown(ssl);
         err = wolfSSL_get_error(ssl, ret);
+        canProgress = shutdownCanProgress(ssl, err);
 
         /* release I/O lock */
         if (wc_UnLockMutex(jniSessLock) != 0) {
@@ -2055,6 +2093,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
 
         if (ret < 0 && ((err == SSL_ERROR_WANT_READ) ||
                         (err == SSL_ERROR_WANT_WRITE))) {
+
+            if (!canProgress) {
+                /* Shutdown did not start, retrying will not help */
+                break;
+            }
 
             sockfd = wolfSSL_get_fd(ssl);
             if (sockfd == -1) {
@@ -2106,6 +2149,60 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_shutdownSSL
     }
 
     return ret;
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendUserCanceled
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+/* wolfSSL_SendUserCanceled() was added in wolfSSL 5.7.2 */
+#if LIBWOLFSSL_VERSION_HEX >= 0x05007002
+    int ret;
+    wolfSSL_Mutex* jniSessLock;
+    SSLAppData* appData = NULL;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jcl;
+
+    if (jenv == NULL || ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* get session mutex from SSL app data */
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
+    if (appData == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    jniSessLock = appData->jniSessLock;
+    if (jniSessLock == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* get I/O lock */
+    if (wc_LockMutex(jniSessLock) != 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_SendUserCanceled(ssl);
+
+    /* release I/O lock */
+    if (wc_UnLockMutex(jniSessLock) != 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* check for exceptions from I/O callbacks before returning */
+    if ((*jenv)->ExceptionCheck(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        return SSL_FAILURE;
+    }
+
+    return (jint)ret;
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getError
