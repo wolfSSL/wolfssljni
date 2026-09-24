@@ -22,6 +22,7 @@ on:
 jobs:
   windows-vs-build:
     runs-on: windows-latest
+    timeout-minutes: 30
     name: Windows Visual Studio (Normal wolfSSL non-FIPS)
 
     steps:

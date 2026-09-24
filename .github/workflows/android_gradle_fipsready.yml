@@ -13,6 +13,7 @@ concurrency:
 jobs:
   build_wolfssljni_fipsready:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Clone wolfssljni
         uses: actions/checkout@v4

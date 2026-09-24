@@ -19,6 +19,7 @@ on:
 jobs:
   build_wolfssljni_asan:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 30
     # Full effective wolfSSL configure string, defined once so the
     # build step and the cache key below cannot drift apart.
     env:
