@@ -2881,11 +2881,9 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             return -1;
         }
 
-        /* create ByteBuffer to wrap encIn - use encOut b/c it's not a
-         * const, but points to same memory. This will be important
-         * in Java-land in order to have an updated encIn array after
-         * doing the MAC operation. */
-        encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
+        /* create ByteBuffer to wrap encIn, direct so Java sees the MAC
+         * written to macOut, which lies within encIn */
+        encInBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)encIn, encSz);
         if (!encInBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create encIn ByteBuffer");
