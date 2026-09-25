@@ -44,7 +44,8 @@ public interface WolfSSLPskClientCallback {
      * @param hint      client hint
      * @param identity  client identity
      * @param idMaxLen  maximum size in characters that identity can be
-     * @param key       client key
+     * @param key       array to write the client key into. It is zeroed
+     *                  after this method returns, so do not retain it.
      * @param keyMaxLen maximum size in bytes that client key can be
      *
      * @return          length of key in octets or 0 for error
