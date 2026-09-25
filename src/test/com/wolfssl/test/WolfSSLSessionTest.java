@@ -349,6 +349,47 @@ public class WolfSSLSessionTest {
         ssl.freeSSL();
     }
 
+    @Test
+    public void test_WolfSSLSession_setTmpDHRejectsBadSz()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        byte[][] dh = WolfSSLTestCommon.getFfdhe2048Params();
+        byte[] p = dh[0];
+        byte[] g = dh[1];
+
+        /* Server side, clients get SIDE_ERROR for valid sizes */
+        WolfSSLContext srvCtx =
+            new WolfSSLContext(WolfSSL.SSLv23_ServerMethod());
+        WolfSSLSession ssl = new WolfSSLSession(srvCtx);
+
+        try {
+            int ret = ssl.setTmpDH(p, -1, g, g.length);
+            Assume.assumeTrue("DH not compiled in",
+                ret != WolfSSL.NOT_COMPILED_IN);
+
+            /* Non-positive and oversized lengths are rejected */
+            assertEquals(WolfSSL.BAD_FUNC_ARG, ret);
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ssl.setTmpDH(p, 0, g, g.length));
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ssl.setTmpDH(p, p.length + 1, g, g.length));
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ssl.setTmpDH(p, p.length, g, 0));
+            assertEquals(WolfSSL.BAD_FUNC_ARG,
+                ssl.setTmpDH(p, p.length, g, g.length + 1));
+
+            /* Exact lengths, and lens shorter than the array, are accepted */
+            assertEquals(WolfSSL.SSL_SUCCESS,
+                ssl.setTmpDH(p, p.length, g, g.length));
+            assertEquals(WolfSSL.SSL_SUCCESS,
+                ssl.setTmpDH(Arrays.copyOf(p, p.length + 1), p.length,
+                    Arrays.copyOf(g, g.length + 1), g.length));
+        } finally {
+            ssl.freeSSL();
+            srvCtx.free();
+        }
+    }
+
     class TestPskClientCb implements WolfSSLPskClientCallback
     {
         public long pskClientCallback(WolfSSLSession ssl, String hint,

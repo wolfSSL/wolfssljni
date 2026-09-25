@@ -3842,6 +3842,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
         return SSL_FAILURE;
     }
 
+    if (pSz <= 0 || pSz > (*jenv)->GetArrayLength(jenv, p) ||
+        gSz <= 0 || gSz > (*jenv)->GetArrayLength(jenv, g)) {
+        return BAD_FUNC_ARG;
+    }
+
     pBuf = (unsigned char*)XMALLOC((int)pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (pBuf == NULL) {
         return MEMORY_E;
