@@ -6499,7 +6499,7 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* call internal ECC verify callback */
+    /* call internal RSA dec callback */
     rsaDecMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
             "internalRsaDecCallback",
             "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
