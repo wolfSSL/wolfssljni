@@ -90,20 +90,23 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLX509Name_X509_1NAME_1add_1entry_1
     int ret = WOLFSSL_FAILURE;
     int len = 0;
     (void)jcl;
-    (void)entryLen;
 
     if (jenv == NULL || fieldStr == NULL || entryArr == NULL) {
         return ret;
     }
 
+    len = (*jenv)->GetArrayLength(jenv, entryArr);
+    if (entryLen <= 0 || entryLen > len) {
+        return ret;
+    }
+
     field = (*jenv)->GetStringUTFChars(jenv, fieldStr, 0);
     entry = (unsigned char*)(*jenv)->GetByteArrayElements(jenv, entryArr, NULL);
-    len = (*jenv)->GetArrayLength(jenv, entryArr);
 
-    if (entry != NULL && len > 0 && field != NULL) {
+    if (entry != NULL && field != NULL) {
 
         ret = wolfSSL_X509_NAME_add_entry_by_txt(ptr, field, (int)type,
-                entry, len, (int)loc, (int)set);
+                entry, (int)entryLen, (int)loc, (int)set);
     }
 
     if (entry != NULL) {

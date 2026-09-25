@@ -1552,6 +1552,11 @@ public class WolfSSLSession {
             () -> "entered read(offset: " + readOff + ", sz: " + tmpReadSz +
             ", timeout: " + readTimeout + ")");
 
+        if (data == null || offset < 0 || sz < 0 ||
+            (offset > (data.length - sz))) {
+            return WolfSSL.BAD_FUNC_ARG;
+        }
+
         /* Use a DirectByteBuffer from the pool to avoid unaligned
          * memory access. Otherwise our native JNI code may need to
          * do "buffer + offset" and end up with unaligned memory which

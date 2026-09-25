@@ -23,9 +23,12 @@ package com.wolfssl.provider.jsse.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.Provider;
@@ -37,10 +40,13 @@ import java.security.KeyManagementException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
+import java.util.Collections;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509ExtendedKeyManager;
 
@@ -1039,6 +1045,73 @@ public class WolfSSLKeyX509Test {
             new String[] { "RSA" }, null, null);
         if (alias != null && x509km.getPrivateKey(alias) == null) {
             fail("chooseEngineClientAlias returned alias without private key");
+        }
+    }
+
+    @Test
+    public void testKeyManagerFactoryCopiesPassword() throws Exception {
+
+        char[] pass = WolfSSLTestFactory.jksPassStr.toCharArray();
+        KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+        try (InputStream in = new FileInputStream(tf.serverJKS)) {
+            ks.load(in, pass);
+        }
+
+        KeyManagerFactory kmf =
+            KeyManagerFactory.getInstance("SunX509", provider);
+        kmf.init(ks, pass);
+
+        /* Caller clears its password after init */
+        Arrays.fill(pass, (char)0);
+
+        X509KeyManager km = (X509KeyManager)kmf.getKeyManagers()[0];
+        int keys = 0;
+        for (String alias : Collections.list(ks.aliases())) {
+            if (ks.isKeyEntry(alias)) {
+                assertNotNull("No private key for " + alias,
+                    km.getPrivateKey(alias));
+                keys++;
+            }
+        }
+        assertTrue("No key entries in " + tf.serverJKS, keys > 0);
+    }
+
+    @Test
+    public void testKeyManagerFactoryReinitKeepsEarlierKeyManager()
+        throws Exception {
+
+        char[] pass = WolfSSLTestFactory.jksPassStr.toCharArray();
+        KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+        try (InputStream in = new FileInputStream(tf.serverJKS)) {
+            ks.load(in, pass);
+        }
+
+        String original =
+            Security.getProperty("wolfjsse.X509KeyManager.disableCache");
+        try {
+            /* Re-init zeroes the factory's old password copy, key managers
+             * already returned must not depend on it */
+            for (String disabled : new String[] { "false", "true" }) {
+                Security.setProperty(
+                    "wolfjsse.X509KeyManager.disableCache", disabled);
+
+                KeyManagerFactory kmf =
+                    KeyManagerFactory.getInstance("SunX509", provider);
+                kmf.init(ks, pass);
+                X509KeyManager km = (X509KeyManager)kmf.getKeyManagers()[0];
+                kmf.init(ks, pass);
+
+                for (String alias : Collections.list(ks.aliases())) {
+                    if (ks.isKeyEntry(alias)) {
+                        assertNotNull("No private key for " + alias +
+                            ", disableCache=" + disabled,
+                            km.getPrivateKey(alias));
+                    }
+                }
+            }
+        } finally {
+            Security.setProperty("wolfjsse.X509KeyManager.disableCache",
+                original != null ? original : "");
         }
     }
 }
