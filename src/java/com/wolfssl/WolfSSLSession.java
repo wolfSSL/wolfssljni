@@ -1302,6 +1302,11 @@ public class WolfSSLSession {
             () -> "entered write(offset: " + offset + ", length: " +
             length + ", timeout: " + timeout + ")");
 
+        if (data == null || offset < 0 || length < 0 ||
+            (offset > (data.length - length))) {
+            return WolfSSL.BAD_FUNC_ARG;
+        }
+
         /* Use a direct ByteBuffer from the pool to avoid unaligned
          * memory access. Otherwise our native JNI code may need to do
          * "buffer + offset" and end up with unaligned memory which
@@ -1357,12 +1362,8 @@ public class WolfSSLSession {
                 WolfSSLDebug.ERROR, localPtr,
                 () -> "write() falling back to use byte[]");
 
-            /* Reset to starting values */
-            totalWritten = 0;
-            remaining = length;
-
-            /* Fall back to original implementation on exception (write not
-             * done yet at this point in JNI call above) */
+            /* Fall back to original impl on exception, continuing after any
+             * bytes already sent so none written twice */
             while (remaining > 0) {
                 int writeSize = Math.min(remaining, WolfSSL.MAX_RECORD_SIZE);
 
