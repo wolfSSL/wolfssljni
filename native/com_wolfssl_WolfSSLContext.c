@@ -6348,7 +6348,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaDecCb
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
     if(ctx != NULL) {
-        /* set RSA encrypt callback */
+        /* set RSA decrypt callback */
         wolfSSL_CTX_SetRsaDecCb(ctx, NativeRsaDecCb);
 
     } else {
