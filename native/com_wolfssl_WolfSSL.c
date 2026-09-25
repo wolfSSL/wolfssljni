@@ -2268,11 +2268,16 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return SSL_FAILURE;
+            ret = SSL_FAILURE;
         }
     }
 
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(memBuf, (int)sz);
+    #else
+        XMEMSET(memBuf, 0, (int)sz);
+    #endif
     XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
@@ -2314,6 +2319,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memrestoreSessionCache
         ret = wolfSSL_memrestore_session_cache(memBuf, sz);
     }
 
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(memBuf, (int)sz);
+    #else
+        XMEMSET(memBuf, 0, (int)sz);
+    #endif
     XFREE(memBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
