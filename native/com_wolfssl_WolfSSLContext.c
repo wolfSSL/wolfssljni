@@ -7104,7 +7104,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     jclass      innerCtxClass;        /* WolfSSLContext class */
     jmethodID   pskServerMethodId;    /* internalPskServerCallback ID */
 
-    jstring     identityString;       /* String, for 'hint' */
+    jstring     identityString;       /* String, for 'identity' */
     jbyteArray  keyArray;             /* byte[] for key in/out */
 
     /* Note: since this is called from C, not the JVM, we need to explicitly
