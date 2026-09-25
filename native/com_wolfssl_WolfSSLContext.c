@@ -3698,7 +3698,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* call internal decrypt/verify callback */
+    /* call internal ECC sign callback */
     eccSignMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
             "internalEccSignCallback",
             "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
