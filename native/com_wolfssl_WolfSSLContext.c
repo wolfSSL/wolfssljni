@@ -7608,7 +7608,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setDevId
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
 
-    /* wolfSSL_CTX_SetDevId() checks ssl for NULL */
+    /* wolfSSL_CTX_SetDevId() checks ctx for NULL */
     if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
