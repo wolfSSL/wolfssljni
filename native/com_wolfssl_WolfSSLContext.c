@@ -2713,8 +2713,9 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         (*jenv)->ExceptionClear(jenv);
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -2722,12 +2723,13 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession object reference in "
-                "NativeMacEncryptCb");
+            "Can't get native WolfSSLSession object reference in "
+            "NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -2739,33 +2741,33 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             "NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* lookup WolfSSLContext private member fieldID */
     ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-            "Lcom/wolfssl/WolfSSLContext;");
+        "Lcom/wolfssl/WolfSSLContext;");
     if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-            "Can't get native WolfSSLContext field ID in "
-            "NativeMacEncryptCb");
+            "Can't get native WolfSSLContext field ID in NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* find getContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-        "getAssociatedContextPtr",
-        "()Lcom/wolfssl/WolfSSLContext;");
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -2776,23 +2778,24 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             "NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* get WolfSSLContext ctx object from Java land */
-    ctxRef = (*jenv)->CallObjectMethod(jenv,
-            (jobject)(*g_cachedSSLObj),
-            getCtxMethodId);
+    ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
+        getCtxMethodId);
     CheckException(jenv);
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -2804,16 +2807,17 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             "NativeMacEncryptCb");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* get ref to internal MAC encrypt callback */
     macEncryptMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-            "internalMacEncryptCallback",
-            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
-            "[BJIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;J)I");
+        "internalMacEncryptCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
+        "[BJIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;J)I");
 
     if (!macEncryptMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -2824,101 +2828,100 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
                 "Error getting internalMacEncryptCallback method from JNI");
         freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
-    if (retval == 0)
-    {
-        hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
+    hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
 
-        /* create ByteBuffer to wrap macOut */
-        macOutBB = (*jenv)->NewDirectByteBuffer(jenv, macOut, hmacSize);
-        if (!macOutBB) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create macOut ByteBuffer");
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create ByteBuffer to wrap macOut */
+    macOutBB = (*jenv)->NewDirectByteBuffer(jenv, macOut, hmacSize);
+    if (!macOutBB) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create macOut ByteBuffer");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        /* create jbyteArray to hold macIn, since macIn is read-only */
-        j_macIn = (*jenv)->NewByteArray(jenv, macInSz);
-        if (!j_macIn) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create macIn ByteBuffer");
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create jbyteArray to hold macIn, since macIn is read-only */
+    j_macIn = (*jenv)->NewByteArray(jenv, macInSz);
+    if (!j_macIn) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create macIn ByteBuffer");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        (*jenv)->SetByteArrayRegion(jenv, j_macIn, 0, macInSz,
-                (jbyte*)macIn);
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    (*jenv)->SetByteArrayRegion(jenv, j_macIn, 0, macInSz, (jbyte*)macIn);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        /* create ByteBuffer to wrap encOut */
-        encOutBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
-        if (!encOutBB) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create encOut ByteBuffer");
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create ByteBuffer to wrap encOut */
+    encOutBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
+    if (!encOutBB) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create encOut ByteBuffer");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        /* create ByteBuffer to wrap encIn - use encOut b/c it's not a
-         * const, but points to same memory. This will be important
-         * in Java-land in order to have an updated encIn array after
-         * doing the MAC operation. */
-        encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
-        if (!encInBB) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create encIn ByteBuffer");
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create ByteBuffer to wrap encIn - use encOut b/c it's not a const,
+     * but points to same memory. This will be important in Java-land in order
+     * to have an updated encIn array after doing the MAC operation. */
+    encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
+    if (!encInBB) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create encIn ByteBuffer");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        /* call Java MAC/encrypt callback */
-        retval = (*jenv)->CallIntMethod(jenv, ctxRef, macEncryptMethodId,
-                (jobject)(*g_cachedSSLObj), macOutBB, j_macIn, (jlong)macInSz,
-                macContent, macVerify, encOutBB, encInBB, (jlong)encSz);
+    /* call Java MAC/encrypt callback */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, macEncryptMethodId,
+        (jobject)(*g_cachedSSLObj), macOutBB, j_macIn, (jlong)macInSz,
+        macContent, macVerify, encOutBB, encInBB, (jlong)encSz);
 
-        if ((*jenv)->ExceptionOccurred(jenv) || retval != 0) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            (*jenv)->ThrowNew(jenv, excClass,
-                "Call to Java callback failed in NativeMacEncryptCb");
-            freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    if ((*jenv)->ExceptionOccurred(jenv) || retval != 0) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        (*jenv)->ThrowNew(jenv, excClass,
+            "Call to Java callback failed in NativeMacEncryptCb");
+        freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
     }
 
     /* delete local refs, detach JNIEnv from thread */
     freeMacEncryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
         innerCtxClass, macOutBB, j_macIn, encOutBB, encInBB);
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
@@ -3016,8 +3019,9 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ExceptionClear(jenv);
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3025,12 +3029,13 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession object reference in "
-                "NativeDecryptVerifyCb");
+            "Can't get native WolfSSLSession object reference in "
+            "NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3042,14 +3047,15 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             "NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* lookup WolfSSLContext private member fieldID */
     ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-            "Lcom/wolfssl/WolfSSLContext;");
+        "Lcom/wolfssl/WolfSSLContext;");
     if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -3060,15 +3066,15 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* find getContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-        "getAssociatedContextPtr",
-        "()Lcom/wolfssl/WolfSSLContext;");
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -3079,22 +3085,24 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
-            getCtxMethodId);
+        getCtxMethodId);
     CheckException(jenv);
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3106,15 +3114,16 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeDecryptVerifyCb");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* call internal decrypt/verify callback */
     decryptVerifyMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-            "internalDecryptVerifyCallback",
-            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
+        "internalDecryptVerifyCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
 
     if (!decryptVerifyMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -3122,102 +3131,103 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting internalDecryptVerifyCallback method "
-                "from JNI");
+            "Error getting internalDecryptVerifyCallback method from JNI");
         freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
-    if (retval == 0)
-    {
-        /* create ByteBuffer to wrap decOut */
-        decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut, decSz);
-        if (!decOutBB) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create decOut ByteBuffer");
-            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create ByteBuffer to wrap decOut */
+    decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut, decSz);
+    if (!decOutBB) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create decOut ByteBuffer");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        /* create jbyteArray to hold decIn */
-        j_decIn = (*jenv)->NewByteArray(jenv, decSz);
-        if (!j_decIn) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create decIn ByteArray");
-            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
+    /* create jbyteArray to hold decIn */
+    j_decIn = (*jenv)->NewByteArray(jenv, decSz);
+    if (!j_decIn) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create decIn ByteArray");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
         }
+        return -1;
+    }
 
-        (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+    (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create jlongArray to hold padSz, since we need to use it as
+     * an OUTPUT parameter from Java. Only needs to have 1 element */
+    j_padSz = (*jenv)->NewLongArray(jenv, 1);
+    if (!j_padSz) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create padSz longArray");
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call Java decrypt/verify callback, java layer handles
+     * adding decrypt/verify CTX reference */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, decryptVerifyMethodId,
+        (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
+        content, verify, j_padSz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    if (retval == 0) {
+        /* copy j_padSz into padSz */
+        (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
+            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass,
+                ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        /* create jlongArray to hold padSz, since we need to use it as
-         * an OUTPUT parameter from Java. Only needs to have 1 element */
-        j_padSz = (*jenv)->NewLongArray(jenv, 1);
-        if (!j_padSz) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create padSz longArray");
-            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        /* call Java decrypt/verify callback, java layer handles
-         * adding decrypt/verify CTX reference */
-        retval = (*jenv)->CallIntMethod(jenv, ctxRef, decryptVerifyMethodId,
-                (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
-                content, verify, j_padSz);
-
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        if (retval == 0) {
-            /* copy j_padSz into padSz */
-            (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass,
-                    ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
-                if (needsDetach)
-                    (*g_vm)->DetachCurrentThread(g_vm);
-                return -1;
             }
-            *padSz = (unsigned int)tmpVal;
+            return -1;
         }
+        *padSz = (unsigned int)tmpVal;
     }
 
     /* delete local refs, detach JNIEnv from thread */
     freeDecryptVerifyCbLocalRefs(jenv, excClass, sessClass, ctxRef,
         innerCtxClass, decOutBB, j_decIn, j_padSz);
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }
@@ -3316,8 +3326,9 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         (*jenv)->ExceptionClear(jenv);
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3325,12 +3336,13 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
     g_cachedSSLObj = (jobject*) wolfSSL_get_jobject((WOLFSSL*)ssl);
     if (!g_cachedSSLObj) {
         (*jenv)->ThrowNew(jenv, excClass,
-                "Can't get native WolfSSLSession object reference in "
-                "NativeVerifyDecryptCb");
+            "Can't get native WolfSSLSession object reference in "
+            "NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3342,14 +3354,15 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             "NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* lookup WolfSSLContext private member fieldID */
     ctxFid = (*jenv)->GetFieldID(jenv, sessClass, "ctx",
-            "Lcom/wolfssl/WolfSSLContext;");
+        "Lcom/wolfssl/WolfSSLContext;");
     if (!ctxFid) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -3360,15 +3373,15 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* find getContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
-        "getAssociatedContextPtr",
-        "()Lcom/wolfssl/WolfSSLContext;");
+        "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
@@ -3379,22 +3392,24 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* get WolfSSLContext ctx object from Java land */
     ctxRef = (*jenv)->CallObjectMethod(jenv, (jobject)(*g_cachedSSLObj),
-            getCtxMethodId);
+        getCtxMethodId);
     CheckException(jenv);
     if (!ctxRef) {
         (*jenv)->ThrowNew(jenv, excClass,
             "Can't get WolfSSLContext object in NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
@@ -3406,15 +3421,16 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             "in NativeVerifyDecryptCb");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     /* call internal verify/decrypt callback */
     verifyDecryptMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
-            "internalVerifyDecryptCallback",
-            "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
+        "internalVerifyDecryptCallback",
+        "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;[BJII[J)I");
 
     if (!verifyDecryptMethodId) {
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -3422,105 +3438,106 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             (*jenv)->ExceptionClear(jenv);
         }
         (*jenv)->ThrowNew(jenv, excClass,
-                "Error getting internalVerifyDecryptCallback method "
-                "from JNI");
+            "Error getting internalVerifyDecryptCallback method from JNI");
         freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
             innerCtxClass, decOutBB, j_decIn, j_padSz);
-        if (needsDetach)
+        if (needsDetach) {
             (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* Get WOLFSSL HMAC digest size, decOut holds decSz + hmacSize */
+    hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
+
+    /* create ByteBuffer to wrap decOut */
+    decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut, decSz + hmacSize);
+    if (!decOutBB) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create decOut ByteBuffer");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create jbyteArray to hold decIn */
+    j_decIn = (*jenv)->NewByteArray(jenv, decSz);
+    if (!j_decIn) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create decIn ByteArray");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* create jlongArray to hold padSz, since we need to use it as
+     * an OUTPUT parameter from Java. Only needs to have 1 element */
+    j_padSz = (*jenv)->NewLongArray(jenv, 1);
+    if (!j_padSz) {
+        (*jenv)->ThrowNew(jenv, excClass, "failed to create padSz longArray");
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
+        return -1;
+    }
+
+    /* call Java verify/decrypt callback, java layer handles
+     * adding verify/decrypt CTX reference */
+    retval = (*jenv)->CallIntMethod(jenv, ctxRef, verifyDecryptMethodId,
+        (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
+        content, macVerify, j_padSz);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+        (*jenv)->ExceptionDescribe(jenv);
+        (*jenv)->ExceptionClear(jenv);
+        freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
+            innerCtxClass, decOutBB, j_decIn, j_padSz);
+        if (needsDetach) {
+            (*g_vm)->DetachCurrentThread(g_vm);
+        }
         return -1;
     }
 
     if (retval == 0) {
-
-        /* Get WOLFSSL HMAC digest size, decOut holds decSz + hmacSize */
-        hmacSize = wolfSSL_GetHmacSize((WOLFSSL*)ssl);
-
-        /* create ByteBuffer to wrap decOut */
-        decOutBB = (*jenv)->NewDirectByteBuffer(jenv, decOut, decSz + hmacSize);
-        if (!decOutBB) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create decOut ByteBuffer");
-            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        /* create jbyteArray to hold decIn */
-        j_decIn = (*jenv)->NewByteArray(jenv, decSz);
-        if (!j_decIn) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create decIn ByteArray");
-            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        (*jenv)->SetByteArrayRegion(jenv, j_decIn, 0, decSz, (jbyte*)decIn);
+        /* copy j_padSz into padSz */
+        (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
+            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass,
+                ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
+            if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        /* create jlongArray to hold padSz, since we need to use it as
-         * an OUTPUT parameter from Java. Only needs to have 1 element */
-        j_padSz = (*jenv)->NewLongArray(jenv, 1);
-        if (!j_padSz) {
-            (*jenv)->ThrowNew(jenv, excClass,
-                    "failed to create padSz longArray");
-            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        /* call Java verify/decrypt callback, java layer handles
-         * adding verify/decrypt CTX reference */
-        retval = (*jenv)->CallIntMethod(jenv, ctxRef, verifyDecryptMethodId,
-                (jobject)(*g_cachedSSLObj), decOutBB, j_decIn, (jlong)decSz,
-                content, macVerify, j_padSz);
-
-        if ((*jenv)->ExceptionOccurred(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
-            (*jenv)->ExceptionClear(jenv);
-            freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
-                innerCtxClass, decOutBB, j_decIn, j_padSz);
-            if (needsDetach)
-                (*g_vm)->DetachCurrentThread(g_vm);
-            return -1;
-        }
-
-        if (retval == 0) {
-            /* copy j_padSz into padSz */
-            (*jenv)->GetLongArrayRegion(jenv, j_padSz, 0, 1, &tmpVal);
-            if ((*jenv)->ExceptionOccurred(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
-                (*jenv)->ExceptionClear(jenv);
-                freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass,
-                    ctxRef, innerCtxClass, decOutBB, j_decIn, j_padSz);
-                if (needsDetach)
-                    (*g_vm)->DetachCurrentThread(g_vm);
-                return -1;
             }
-            *padSz = (unsigned int)tmpVal;
+            return -1;
         }
+        *padSz = (unsigned int)tmpVal;
     }
 
     /* delete local refs, detach JNIEnv from thread */
     freeVerifyDecryptCbLocalRefs(jenv, excClass, sessClass, ctxRef,
         innerCtxClass, decOutBB, j_decIn, j_padSz);
-    if (needsDetach)
+    if (needsDetach) {
         (*g_vm)->DetachCurrentThread(g_vm);
+    }
 
     return retval;
 }

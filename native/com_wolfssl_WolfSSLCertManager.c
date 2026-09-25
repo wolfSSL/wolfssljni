@@ -262,7 +262,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertManager_CertManagerCheckOCSPR
     if (ret == 0) {
         ret = wolfSSL_CertManagerEnableOCSP(cm, 0);
         if (ret != WOLFSSL_SUCCESS) {
-            ret = WOLFSSL_FAILURE;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         else {
             ret = 0;

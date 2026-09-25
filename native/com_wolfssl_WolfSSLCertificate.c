@@ -1904,7 +1904,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubk
     ret = (*jenv)->NewByteArray(jenv, sz);
     if (!ret) {
         throwWolfSSLJNIException(jenv,
-            "Failed to create byte array in native X509_get_signature");
+            "Failed to create byte array in native X509_get_pubkey");
         return NULL;
     }
 
