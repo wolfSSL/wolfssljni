@@ -382,6 +382,9 @@ public class WolfSSLSocketTest {
             fail("Expected server preference cipher (AES_256), got " + chosen1);
         }
 
+        /* Case 2 may bind this same port again, so invalidate the session
+         * to keep case 2 from resuming it with the server-order cipher. */
+        cs1.getSession().invalidate();
         cs1.close();
         server1.close();
         ss1.close();

@@ -82,6 +82,13 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      * sent during the handshake. */
     private X509Certificate[] peerCerts = null;
 
+    /* Cert alias for this session's handshake, recorded for local accessors
+     * to use and not read from the shared overwritable AuthStore alias. */
+    private volatile String localCertAlias = null;
+
+    /* True once handshake has stored this session's alias. */
+    private volatile boolean localCertAliasCaptured = false;
+
     /**
      * Is this object currently inside the WolfSSLAuthStore session cache table?
      *
@@ -265,6 +272,8 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         }
         this.side = orig.side;
         this.clientAuthRequested = orig.clientAuthRequested;
+        this.localCertAlias = orig.localCertAlias;
+        this.localCertAliasCaptured = orig.localCertAliasCaptured;
         if (orig.peerCerts != null) {
             this.peerCerts = orig.peerCerts.clone();
         }
@@ -641,7 +650,22 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     @Override
     public Certificate[] getLocalCertificates() {
         X509KeyManager km = authStore.getX509KeyManager();
-        return km.getCertificateChain(authStore.getCertAlias());
+        String alias = getLocalAlias();
+        if (km == null || alias == null) {
+            return null;
+        }
+        return km.getCertificateChain(alias);
+    }
+
+    /* This session's captured handshake alias, or the auth store's current
+     * alias if no handshake has captured one for this session yet. Fallback
+     * is intentional, which lets local identity be introspected before the
+     * handshake has selected one. */
+    private String getLocalAlias() {
+        if (this.localCertAliasCaptured) {
+            return this.localCertAlias;
+        }
+        return authStore.getCertAlias();
     }
 
     @SuppressWarnings("removal")
@@ -697,8 +721,12 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         /* Logic needs to be added to check for client auth
          * when wrapper is made TODO */
         X509KeyManager km = authStore.getX509KeyManager();
+        String alias = getLocalAlias();
+        if (km == null || alias == null) {
+            return null;
+        }
         java.security.cert.X509Certificate[] certs =
-                km.getCertificateChain(authStore.getCertAlias());
+                km.getCertificateChain(alias);
         Principal localPrincipal = null;
 
         if (certs == null) {
@@ -1049,6 +1077,22 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
      */
     protected void setClientAuthRequested(boolean requested) {
         this.clientAuthRequested = requested;
+    }
+
+    /**
+     * Record cert alias selected for this session's handshake.
+     *
+     * The first captured alias is kept, so a resumed session (which sends no
+     * Certificate) keeps the local identity from its original handshake.
+     *
+     * @param alias KeyStore alias used to load this session's local identity
+     */
+    protected void setLocalCertAlias(String alias) {
+        if (this.localCertAliasCaptured) {
+            return;
+        }
+        this.localCertAlias = alias;
+        this.localCertAliasCaptured = true;
     }
 
     /**

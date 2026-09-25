@@ -2758,7 +2758,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
 {
     int ret = SSL_SUCCESS;
     jstring ipAddr = NULL;
-    struct sockaddr_in sa;
+    SOCKADDR_S sa;
+    unsigned int peerSz = 0;
     const char* ipAddress = NULL;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     jclass inetsockaddr = NULL;
@@ -2768,6 +2769,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
     jmethodID isAnyID = NULL;
     jmethodID ipAddrID = NULL;
     jobject addrObj = NULL;
+    jclass inet6addr = NULL;
+    jboolean isIPv6 = JNI_FALSE;
     jboolean isAny;
     jint port = 0;
     (void)jcl;
@@ -2818,11 +2821,24 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         return SSL_FAILURE;
     }
 
-    /* is this a wildcard address, ie: INADDR_ANY? */
+    /* Determine address family from InetAddress subtype */
+    inet6addr = (*jenv)->FindClass(jenv, "java/net/Inet6Address");
+    if (inet6addr == NULL) {
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionClear(jenv);
+        }
+
+        throwWolfSSLException(jenv, "Can't find Inet6Address class");
+        return SSL_FAILURE;
+    }
+    isIPv6 = (*jenv)->IsInstanceOf(jenv, addrObj, inet6addr);
+
+    /* Is this a wildcard address, ie: INADDR_ANY? */
     isAnyID = (*jenv)->GetMethodID(jenv, inetaddr, "isAnyLocalAddress", "()Z");
     if (!isAnyID) {
-        if ((*jenv)->ExceptionOccurred(jenv))
+        if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionClear(jenv);
+        }
 
         throwWolfSSLException(jenv, "Can't get isAnyLocalAddress() method ID");
         return SSL_FAILURE;
@@ -2835,13 +2851,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         (*jenv)->ExceptionClear(jenv);
     }
 
-    /* get IP address as a String */
+    /* Get IP address as a String */
     if (!isAny) {
         ipAddrID = (*jenv)->GetMethodID(jenv, inetaddr,
                 "getHostAddress", "()Ljava/lang/String;");
         if (!ipAddrID) {
-            if ((*jenv)->ExceptionOccurred(jenv))
+            if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionClear(jenv);
+            }
 
             throwWolfSSLException(jenv, "Can't get getHostAddress() method ID");
             return SSL_FAILURE;
@@ -2863,21 +2880,82 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
         }
     }
 
-    /* build sockaddr_in */
-    memset(&sa, 0, sizeof(struct sockaddr_in));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons((int)port);
-    if (isAny) {
-        sa.sin_addr.s_addr = INADDR_ANY;
-    } else {
-        if (XINET_PTON(AF_INET, ipAddress, &sa.sin_addr.s_addr) < 1) {
+#ifndef WOLFSSL_IPV6
+    /* IPv6 not compiled in, map IPv6 wildcard (::) to the IPv4 wildcard so
+     * InetSocketAddress(port) still works when the JVM defaults to IPv6 */
+    if (isIPv6 && isAny) {
+        isIPv6 = JNI_FALSE;
+    }
+#endif
+
+    /* Build the peer sockaddr as IPv4 or IPv6 based on the address family */
+    XMEMSET(&sa, 0, sizeof(sa));
+    if (!isIPv6) {
+        /* IPv4 address, or the IPv4 wildcard (INADDR_ANY) */
+        ((SOCKADDR_IN*)&sa)->sin_family = WOLFSSL_IP4;
+        ((SOCKADDR_IN*)&sa)->sin_port = XHTONS((word16)port);
+        if (isAny) {
+            ((SOCKADDR_IN*)&sa)->sin_addr.s_addr = INADDR_ANY;
+        }
+        else if (XINET_PTON(WOLFSSL_IP4, ipAddress,
+            &(((SOCKADDR_IN*)&sa)->sin_addr)) < 1) {
             ret = SSL_FAILURE;
         }
+        peerSz = (unsigned int)sizeof(SOCKADDR_IN);
+    }
+    else {
+    #ifdef WOLFSSL_IPV6
+        jmethodID scopeIdID = NULL;
+        jint scopeId = 0;
+        char ip6Buf[INET6_ADDRSTRLEN];
+        const char* zone = NULL;
+        size_t ip6Len = 0;
+
+        /* Link-local scope ID, stored host-order in sin6_scope_id. */
+        scopeIdID = (*jenv)->GetMethodID(jenv, inet6addr, "getScopeId", "()I");
+        if (scopeIdID != NULL) {
+            scopeId = (*jenv)->CallIntMethod(jenv, addrObj, scopeIdID);
+        }
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionClear(jenv);
+            scopeId = 0;
+        }
+
+        /* IPv6 address, or IPv6 wildcard. XMEMSET above already left sin6_addr
+         * as in6addr_any for wildcard case. */
+        ((SOCKADDR_IN6*)&sa)->sin6_family = WOLFSSL_IP6;
+        ((SOCKADDR_IN6*)&sa)->sin6_port = XHTONS((word16)port);
+        ((SOCKADDR_IN6*)&sa)->sin6_scope_id = (word32)scopeId;
+        if (!isAny) {
+            /* getHostAddress() may append "%zone", which inet_pton() rejects.
+             * Parse only up to '%'. */
+            zone = XSTRSTR(ipAddress, "%");
+            if (zone != NULL) {
+                ip6Len = (size_t)(zone - ipAddress);
+            }
+            else {
+                ip6Len = XSTRLEN(ipAddress);
+            }
+            if (ip6Len >= sizeof(ip6Buf)) {
+                ip6Len = sizeof(ip6Buf) - 1;
+            }
+            XMEMCPY(ip6Buf, ipAddress, ip6Len);
+            ip6Buf[ip6Len] = '\0';
+            if (XINET_PTON(WOLFSSL_IP6, ip6Buf,
+                &(((SOCKADDR_IN6*)&sa)->sin6_addr)) < 1) {
+                ret = SSL_FAILURE;
+            }
+        }
+        peerSz = (unsigned int)sizeof(SOCKADDR_IN6);
+    #else
+        /* native wolfSSL built without IPv6 support */
+        ret = NOT_COMPILED_IN;
+    #endif
     }
 
     if (ret == SSL_SUCCESS) {
         /* call native wolfSSL function */
-        ret = wolfSSL_dtls_set_peer(ssl, &sa, sizeof(sa));
+        ret = wolfSSL_dtls_set_peer(ssl, &sa, peerSz);
     }
 
     if (!isAny) {
@@ -2890,18 +2968,29 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_dtlsSetPeer
 /* max IP size IPv4 mapped IPv6 */
 #define MAX_EXPORT_IP 46
 
+/* MAX_EXPORT_IP plus room for "%<scope>" suffix (a 32-bit scope id is at most
+ * 10 decimal digits). */
+#define MAX_EXPORT_IP_SCOPE (MAX_EXPORT_IP + 11)
+
 JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
   (JNIEnv* jenv, jobject jcl, jlong sslPtr)
 {
     int ret, port;
+    int fam = 0;
+    int isWildcard = 0;
+    void* addrPtr = NULL;
     unsigned int peerSz;
-    struct sockaddr_in peer;
+    SOCKADDR_S peer;
+#ifdef WOLFSSL_IPV6
+    word32 scopeId = 0;
+    size_t addrLen = 0;
+#endif
 #ifdef USE_WINDOWS_API
     int ipAddrStringSz = MAX_EXPORT_IP;
     WCHAR ipAddrWStr[MAX_EXPORT_IP];
-    char ipAddrString[MAX_EXPORT_IP];
+    char ipAddrString[MAX_EXPORT_IP_SCOPE];
 #else
-    char ipAddrString[MAX_EXPORT_IP];
+    char ipAddrString[MAX_EXPORT_IP_SCOPE];
 #endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
@@ -2915,38 +3004,64 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
         return NULL;
     }
 
-    /* get native sockaddr_in peer */
-    memset(&peer, 0, sizeof(peer));
+    /* get native peer sockaddr */
+    XMEMSET(&peer, 0, sizeof(peer));
     peerSz = sizeof(peer);
     ret = wolfSSL_dtls_get_peer(ssl, &peer, &peerSz);
     if (ret != SSL_SUCCESS) {
         return NULL;
     }
 
+    /* Select address family, address pointer, and port */
+    fam = peer.ss_family;
+    if (fam == WOLFSSL_IP4) {
+        addrPtr = &(((SOCKADDR_IN*)&peer)->sin_addr);
+        port = XNTOHS(((SOCKADDR_IN*)&peer)->sin_port);
+        isWildcard = (((SOCKADDR_IN*)&peer)->sin_addr.s_addr == INADDR_ANY);
+    }
+#ifdef WOLFSSL_IPV6
+    else if (fam == WOLFSSL_IP6) {
+        addrPtr = &(((SOCKADDR_IN6*)&peer)->sin6_addr);
+        port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+        scopeId = ((SOCKADDR_IN6*)&peer)->sin6_scope_id;
+    }
+#endif
+    else {
+        return NULL;
+    }
+
     XMEMSET(ipAddrString, 0, sizeof(ipAddrString));
 #ifdef USE_WINDOWS_API
-    if (XINET_NTOP((int)peer.sin_family, &(peer.sin_addr),
-                   ipAddrWStr, INET_ADDRSTRLEN) == NULL) {
+    if (XINET_NTOP(fam, addrPtr, ipAddrWStr, MAX_EXPORT_IP) == NULL) {
         return NULL;
     }
     /* Convert WCHAR to char* */
     if (WideCharToMultiByte(CP_ACP, 0, ipAddrWStr, -1, ipAddrString,
-                            MAX_EXPORT_IP, NULL, NULL) == 0) {
+        MAX_EXPORT_IP, NULL, NULL) == 0) {
         return NULL;
     }
 #else
-    if (XINET_NTOP(AF_INET, &(peer.sin_addr),
-        ipAddrString, INET_ADDRSTRLEN) == NULL) {
+    if (XINET_NTOP(fam, addrPtr, ipAddrString, sizeof(ipAddrString)) == NULL) {
         return NULL;
     }
 #endif
-    port = ntohs(peer.sin_port);
+
+#ifdef WOLFSSL_IPV6
+    /* Preserve scope for link-local addresses by appending "%<scope>",
+     * which InetSocketAddress parses back into the scope ID. */
+    if (fam == WOLFSSL_IP6 && scopeId != 0) {
+        addrLen = XSTRLEN(ipAddrString);
+        XSNPRINTF(ipAddrString + addrLen, sizeof(ipAddrString) - addrLen,
+            "%%%u", (unsigned int)scopeId);
+    }
+#endif
 
     /* create new InetSocketAddress with this IP/port info */
     isa = (*jenv)->FindClass(jenv, "java/net/InetSocketAddress");
     if (!isa) {
-        if ((*jenv)->ExceptionOccurred(jenv))
+        if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionClear(jenv);
+        }
 
         throwWolfSSLException(jenv, "Can't find InetSocketAddress class");
         return NULL;
@@ -2956,13 +3071,14 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
     ipAddr = (*jenv)->NewStringUTF(jenv, ipAddrString);
 
     /* find correct InetSocketAddress constructor */
-    if (peer.sin_addr.s_addr != INADDR_ANY) {
+    if (!isWildcard) {
 
         constr = (*jenv)->GetMethodID(jenv, isa, "<init>",
             "(Ljava/lang/String;I)V");
         if (!constr) {
-            if ((*jenv)->ExceptionOccurred(jenv))
+            if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionClear(jenv);
+            }
 
             throwWolfSSLException(jenv,
                 "Can't find InetSocketAddress(String,port)");
@@ -2973,14 +3089,13 @@ JNIEXPORT jobject JNICALL Java_com_wolfssl_WolfSSLSession_dtlsGetPeer
 
     } else { /* sockaddr_in was created with INADDR_ANY, use wildcard IP */
 
-        constr = (*jenv)->GetMethodID(jenv, isa, "<init>",
-                "(I)V");
+        constr = (*jenv)->GetMethodID(jenv, isa, "<init>", "(I)V");
         if (!constr) {
-            if ((*jenv)->ExceptionOccurred(jenv))
+            if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionClear(jenv);
+            }
 
-            throwWolfSSLException(jenv,
-                "Can't find InetSocketAddress(port)");
+            throwWolfSSLException(jenv, "Can't find InetSocketAddress(port)");
             return NULL;
         }
 
