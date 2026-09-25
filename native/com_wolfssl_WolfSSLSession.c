@@ -3428,7 +3428,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidParseNative
     jbyteArray result = NULL;
     (void)jcl;
 
-    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0) {
+    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0 ||
+        msgSz > (*jenv)->GetArrayLength(jenv, msg)) {
         return NULL;
     }
 
