@@ -2248,6 +2248,66 @@ public class WolfSSLTrustX509Test {
         }
     }
 
+    /* A basic X509TrustManager leaves hostname checks to wolfJSSE. LDAPS must
+     * reject a partial left-most wildcard that HTTPS accepts. */
+    @Test
+    public void testBasicX509TrustManagerLDAPSLeftMostWildcardOnly()
+        throws Exception {
+
+        KeyStore partial = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "f*.example.com", true);
+        KeyStore full = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "*.example.com", true);
+
+        /* Distinct ports so no connection resumes an earlier session */
+        assertEquals(0, connectWithBasicTrustManager(partial, "HTTPS", 11111));
+        assertNotEquals(0,
+            connectWithBasicTrustManager(partial, "LDAPS", 11112));
+        assertEquals(0, connectWithBasicTrustManager(full, "LDAPS", 11113));
+    }
+
+    /* Connect to foo.example.com with a client TrustManager that implements
+     * only X509TrustManager. */
+    private int connectWithBasicTrustManager(KeyStore srvCertStore,
+        String endpointIdAlgo, int port) throws Exception {
+
+        final X509TrustManager realTm = (X509TrustManager)tf.createTrustManager(
+            "SunX509", srvCertStore, provider)[0];
+
+        TrustManager[] basicTm = { new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                realTm.checkClientTrusted(chain, authType);
+            }
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain,
+                String authType) throws CertificateException {
+                realTm.checkServerTrusted(chain, authType);
+            }
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return realTm.getAcceptedIssuers();
+            }
+        }};
+
+        SSLContext srvCtx = tf.createSSLContext("TLS", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", srvCertStore, provider));
+        SSLContext cliCtx = tf.createSSLContext("TLS", provider, basicTm, null);
+
+        SSLEngine server = srvCtx.createSSLEngine();
+        SSLEngine client = cliCtx.createSSLEngine("foo.example.com", port);
+        server.setUseClientMode(false);
+        client.setUseClientMode(true);
+
+        SSLParameters cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm(endpointIdAlgo);
+        client.setSSLParameters(cliParams);
+
+        return tf.testConnection(server, client, null, null, endpointIdAlgo);
+    }
+
     private void testX509ExtTrustMgrSSLEngineEndpointAlgFail()
         throws CertificateException, IOException, Exception {
 
