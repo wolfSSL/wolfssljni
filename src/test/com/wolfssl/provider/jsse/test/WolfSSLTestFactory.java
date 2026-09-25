@@ -1016,6 +1016,73 @@ class WolfSSLTestFactory {
     }
 
     /**
+     * Generate a new RSA 2048-bit certificate with basicConstraints set.
+     *
+     * @param commonName subject common name
+     * @param isCA true to set CA:TRUE, false to set CA:FALSE
+     * @param issuer entry whose key signs the new cert, or null to self sign
+     *
+     * @return new private key and certificate
+     */
+    protected KeyStore.PrivateKeyEntry generateCert(String commonName,
+        boolean isCA, KeyStore.PrivateKeyEntry issuer)
+        throws CertificateException, WolfSSLException,
+        NoSuchAlgorithmException, IOException, WolfSSLJNIException {
+
+        WolfSSLCertificate x509 = null;
+        WolfSSLCertificate issuerCert = null;
+        WolfSSLX509Name subjectName = null;
+        WolfSSLX509Name issuerName = null;
+        X509Certificate cert = null;
+
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair keyPair = kpg.generateKeyPair();
+
+        try {
+            x509 = new WolfSSLCertificate();
+            Instant now = Instant.now();
+            x509.setNotBefore(Date.from(now));
+            x509.setNotAfter(Date.from(now.plus(Duration.ofDays(365))));
+            x509.setSerialNumber(
+                BigInteger.valueOf(System.nanoTime() & Long.MAX_VALUE));
+
+            subjectName = generateTestSubjectName(commonName);
+            x509.setSubjectName(subjectName);
+            if (issuer != null) {
+                /* setIssuerName(X509Certificate) copies that cert issuer,
+                 * use subject so non-self-signed issuers work */
+                issuerCert = new WolfSSLCertificate(
+                    issuer.getCertificate().getEncoded());
+                issuerName = new WolfSSLX509Name(issuerCert.getSubject());
+                x509.setIssuerName(issuerName);
+            }
+            x509.setPublicKey(keyPair.getPublic());
+            x509.addExtension(WolfSSL.NID_basic_constraints, isCA, true);
+            x509.signCert((issuer != null) ? issuer.getPrivateKey() :
+                keyPair.getPrivate(), "SHA256");
+
+            cert = x509.getX509Certificate();
+        } finally {
+            if (issuerName != null) {
+                issuerName.free();
+            }
+            if (issuerCert != null) {
+                issuerCert.free();
+            }
+            if (subjectName != null) {
+                subjectName.free();
+            }
+            if (x509 != null) {
+                x509.free();
+            }
+        }
+
+        return new KeyStore.PrivateKeyEntry(keyPair.getPrivate(),
+            new X509Certificate[] { cert });
+    }
+
+    /**
      * Alias used for the leaf entry in the KeyStore returned by
      * generateLargeLeafChain().
      */

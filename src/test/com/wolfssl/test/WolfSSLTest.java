@@ -740,4 +740,26 @@ public class WolfSSLTest {
             fail("WolfSSL.setFIPSCb(null) returned: " + ret);
         }
     }
+
+    /* memsaveSessionCache() with sz smaller than the cache must fail without
+     * copying anything into the array, even when the array is large enough. */
+    @Test
+    public void test_WolfSSL_memsaveSessionCacheShortSize() {
+
+        int cacheSz = WolfSSL.getSessionCacheMemsize();
+        Assume.assumeTrue(cacheSz > 1);
+
+        byte[] mem = new byte[cacheSz];
+        Arrays.fill(mem, (byte)0x5A);
+        assertNotEquals(WolfSSL.SSL_SUCCESS,
+            WolfSSL.memsaveSessionCache(mem, cacheSz - 1));
+        for (int i = 0; i < mem.length; i++) {
+            if (mem[i] != (byte)0x5A) {
+                fail("mem[" + i + "] modified by failed memsaveSessionCache");
+            }
+        }
+
+        assertEquals(WolfSSL.SSL_SUCCESS,
+            WolfSSL.memsaveSessionCache(mem, cacheSz));
+    }
 }

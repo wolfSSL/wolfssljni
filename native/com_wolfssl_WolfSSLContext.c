@@ -2881,11 +2881,9 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             return -1;
         }
 
-        /* create ByteBuffer to wrap encIn - use encOut b/c it's not a
-         * const, but points to same memory. This will be important
-         * in Java-land in order to have an updated encIn array after
-         * doing the MAC operation. */
-        encInBB = (*jenv)->NewDirectByteBuffer(jenv, encOut, encSz);
+        /* create ByteBuffer to wrap encIn, direct so Java sees the MAC
+         * written to macOut, which lies within encIn */
+        encInBB = (*jenv)->NewDirectByteBuffer(jenv, (void*)encIn, encSz);
         if (!encInBB) {
             (*jenv)->ThrowNew(jenv, excClass,
                     "failed to create encIn ByteBuffer");
@@ -6620,6 +6618,24 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setPskClientCb
 
 #ifndef NO_PSK
 
+static void zeroPskKeyArray(JNIEnv* jenv, jbyteArray keyArray)
+{
+    /* 64 matches wolfSSL MAX_PSK_KEY_LEN */
+    static const jbyte zeros[64] = { 0 };
+    jsize len = (*jenv)->GetArrayLength(jenv, keyArray);
+    jsize off = 0;
+    jsize chunk;
+
+    while (off < len) {
+        chunk = len - off;
+        if (chunk > (jsize)sizeof(zeros)) {
+            chunk = (jsize)sizeof(zeros);
+        }
+        (*jenv)->SetByteArrayRegion(jenv, keyArray, off, chunk, zeros);
+        off += chunk;
+    }
+}
+
 unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         unsigned int id_max_len, unsigned char* key, unsigned int max_key_len)
 {
@@ -6920,6 +6936,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -6937,6 +6954,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -6955,12 +6973,14 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
             }
             return 0;
         }
+        zeroPskKeyArray(jenv, keyArray);
 
         /* get the String from the StringBuffer */
         toStringId = (*jenv)->GetMethodID(jenv, strBufClass,
@@ -7032,6 +7052,7 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
         (*jenv)->DeleteLocalRef(jenv, bufString);
     }
     else {
+        zeroPskKeyArray(jenv, keyArray);
         retval = 0;
     }
 
@@ -7314,6 +7335,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -7329,6 +7351,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -7346,6 +7369,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, identityString);
+            zeroPskKeyArray(jenv, keyArray);
             (*jenv)->DeleteLocalRef(jenv, keyArray);
             if (needsDetach) {
                 (*g_vm)->DetachCurrentThread(g_vm);
@@ -7358,6 +7382,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     }
 
     /* delete local obj refs, detach JNIEnv from thread */
+    zeroPskKeyArray(jenv, keyArray);
     (*jenv)->DeleteLocalRef(jenv, ctxRef);
     (*jenv)->DeleteLocalRef(jenv, identityString);
     (*jenv)->DeleteLocalRef(jenv, keyArray);
