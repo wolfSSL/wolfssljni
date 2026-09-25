@@ -3428,7 +3428,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_dtlsCidParseNative
     jbyteArray result = NULL;
     (void)jcl;
 
-    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0) {
+    if (jenv == NULL || msg == NULL || msgSz <= 0 || cidSz < 0 ||
+        msgSz > (*jenv)->GetArrayLength(jenv, msg)) {
         return NULL;
     }
 
@@ -3840,6 +3841,11 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTmpDH
         throwWolfSSLException(jenv,
             "Input WolfSSLSession object was null in setTmpDH");
         return SSL_FAILURE;
+    }
+
+    if (pSz <= 0 || pSz > (*jenv)->GetArrayLength(jenv, p) ||
+        gSz <= 0 || gSz > (*jenv)->GetArrayLength(jenv, g)) {
+        return BAD_FUNC_ARG;
     }
 
     pBuf = (unsigned char*)XMALLOC((int)pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7133,6 +7139,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sessionToDerNative
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
     unsigned char* buf = NULL;
     unsigned char* bufStart = NULL;
+    int bufSz = 0;
     int len = 0;
     jbyteArray result = NULL;
     (void)jcl;
@@ -7142,13 +7149,13 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sessionToDerNative
     }
 
     /* Get required buffer size */
-    len = wolfSSL_i2d_SSL_SESSION(session, NULL);
-    if (len <= 0) {
+    bufSz = wolfSSL_i2d_SSL_SESSION(session, NULL);
+    if (bufSz <= 0) {
         printf("Length less than or equal to 0\n");
         return NULL;
     }
 
-    buf = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = (unsigned char*)XMALLOC(bufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
         return NULL;
     }
@@ -7156,25 +7163,25 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_sessionToDerNative
     bufStart = buf;
 
     len = wolfSSL_i2d_SSL_SESSION(session, &buf);
-    if (len <= 0) {
-        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return NULL;
+    if (len > 0 && len <= bufSz) {
+        result = (*jenv)->NewByteArray(jenv, len);
     }
 
-    result = (*jenv)->NewByteArray(jenv, len);
-    if (result == NULL) {
-        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return NULL;
+    if (result != NULL) {
+        (*jenv)->SetByteArrayRegion(jenv, result, 0, len, (jbyte*)bufStart);
+        if ((*jenv)->ExceptionOccurred(jenv)) {
+            (*jenv)->ExceptionDescribe(jenv);
+            (*jenv)->ExceptionClear(jenv);
+            result = NULL;
+        }
     }
 
-    (*jenv)->SetByteArrayRegion(jenv, result, 0, len, (jbyte*)bufStart);
-    if ((*jenv)->ExceptionOccurred(jenv)) {
-        (*jenv)->ExceptionDescribe(jenv);
-        (*jenv)->ExceptionClear(jenv);
-        XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return NULL;
-    }
-
+#if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+    !defined(WOLFSSL_NO_FORCE_ZERO)
+    wc_ForceZero(bufStart, (word32)bufSz);
+#else
+    XMEMSET(bufStart, 0, (word32)bufSz);
+#endif
     XFREE(bufStart, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return result;
 #else

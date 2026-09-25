@@ -3790,7 +3790,9 @@ public class WolfSSLSession {
      * @return      <code>SSL_SUCCESS</code> on success. <code>MEMORY_E
      *              </code> if a memory error was encountered. <code>
      *              SIDE_ERROR</code> if this function is called on an
-     *              SSL client instead of an SSL server.
+     *              SSL client instead of an SSL server. <code>BAD_FUNC_ARG
+     *              </code> if <code>p</code> or <code>g</code> is null, or
+     *              a size is not positive or larger than its array.
      * @throws IllegalStateException WolfSSLContext has been freed
      * @throws WolfSSLJNIException Internal JNI error
      * @see    #accept()
