@@ -43,6 +43,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -305,6 +306,37 @@ public class WolfSSLContextTest {
         assertEquals(WolfSSL.BAD_FUNC_ARG,
             ctx.useCertificateChainBufferFormat(caPem, 0,
                 WolfSSL.SSL_FILETYPE_PEM));
+    }
+
+    @Test
+    public void test_WolfSSLContext_setTmpDHRejectsBadSz()
+        throws WolfSSLException, WolfSSLJNIException {
+
+        byte[][] dh = WolfSSLTestCommon.getFfdhe2048Params();
+        byte[] p = dh[0];
+        byte[] g = dh[1];
+
+        int ret = ctx.setTmpDH(p, -1, g, g.length);
+        Assume.assumeTrue("DH not compiled in",
+            ret != WolfSSL.NOT_COMPILED_IN);
+
+        /* Non-positive and oversized lengths are rejected */
+        assertEquals(WolfSSL.BAD_FUNC_ARG, ret);
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.setTmpDH(p, 0, g, g.length));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.setTmpDH(p, p.length + 1, g, g.length));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.setTmpDH(p, p.length, g, 0));
+        assertEquals(WolfSSL.BAD_FUNC_ARG,
+            ctx.setTmpDH(p, p.length, g, g.length + 1));
+
+        /* Exact lengths, and lengths shorter than the array, are accepted */
+        assertEquals(WolfSSL.SSL_SUCCESS,
+            ctx.setTmpDH(p, p.length, g, g.length));
+        assertEquals(WolfSSL.SSL_SUCCESS,
+            ctx.setTmpDH(Arrays.copyOf(p, p.length + 1), p.length,
+                Arrays.copyOf(g, g.length + 1), g.length));
     }
 
     @Test
