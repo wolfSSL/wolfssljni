@@ -3788,7 +3788,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     }
 
     /* call Java ECC sign callback, java layer handles
-     * adding decrypt/verify CTX reference */
+     * adding ECC sign CTX reference */
     retval = (*jenv)->CallIntMethod(jenv, ctxRef, eccSignMethodId,
             (jobject)(*g_cachedSSLObj), inBB, (jlong)inSz, outBB, j_outSz,
             keyDerBB, (jlong)keySz);
