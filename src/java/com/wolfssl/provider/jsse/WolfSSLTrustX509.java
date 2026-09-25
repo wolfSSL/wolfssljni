@@ -723,74 +723,82 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             throw new CertificateException(e);
         }
 
-        /* Try verifying hostname against SNI name, if HTTPS type */
-        if (isClient && (type == HOSTNAME_TYPE_HTTPS)) {
-            if (sniHostName != null) {
-                final String tmpSniName = sniHostName;
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "trying hostname verification against SNI: " +
-                    tmpSniName);
-
-                ret = WolfSSLUtil.verifyHostnameOrIp(peerCert, sniHostName, 0);
-                if (ret == WolfSSL.SSL_SUCCESS) {
-                    /* Hostname successfully verified against SNI name */
+        try {
+            /* Try verifying hostname against SNI name, if HTTPS type */
+            if (isClient && (type == HOSTNAME_TYPE_HTTPS)) {
+                if (sniHostName != null) {
+                    final String tmpSniName = sniHostName;
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "successfully verified X509 hostname using " +
-                        "SNI name");
-                    return;
+                        () -> "trying hostname verification against SNI: " +
+                        tmpSniName);
+
+                    ret = WolfSSLUtil.verifyHostnameOrIp(peerCert,
+                        sniHostName, 0);
+                    if (ret == WolfSSL.SSL_SUCCESS) {
+                        /* Hostname successfully verified against SNI name */
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "successfully verified X509 hostname using " +
+                            "SNI name");
+                        return;
+                    }
+                    else {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            () -> "hostname match with SNI failed");
+                    }
                 }
                 else {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "hostname match with SNI failed");
+                        () -> "no provided SNI name found");
                 }
             }
-            else {
+
+            /* Try verifying hostname against peerHost from
+             * SSLSocket/SSLEngine */
+            if (peerHost != null) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "no provided SNI name found");
+                    () -> "trying hostname verification against peer host: " +
+                    peerHost);
+
+                /* LDAPS requires wildcard left-most matching only. IP literals
+                 * are matched against iPAddress SANs only, handled inside
+                 * verifyHostnameOrIp(). */
+                long flags = (type == HOSTNAME_TYPE_LDAPS) ?
+                    WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY : 0;
+                ret = WolfSSLUtil.verifyHostnameOrIp(peerCert, peerHost, flags);
+                if (ret == WolfSSL.SSL_SUCCESS) {
+                    /* Hostname successfully verified against peer host name */
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "successfully verified X509 hostname using " +
+                        "SSLSession getPeerHost()");
+                    return;
+                }
             }
-        }
 
-        /* Try verifying hostname against peerHost from SSLSocket/SSLEngine */
-        if (peerHost != null) {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "trying hostname verification against peer host: " +
-                peerHost);
-
-            /* LDAPS requires wildcard left-most matching only. IP literals
-             * are matched against iPAddress SANs only, handled inside
-             * verifyHostnameOrIp(). */
-            long flags = (type == HOSTNAME_TYPE_LDAPS) ?
-                WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY : 0;
-            ret = WolfSSLUtil.verifyHostnameOrIp(peerCert, peerHost, flags);
-            if (ret == WolfSSL.SSL_SUCCESS) {
-                /* Hostname successfully verified against peer host name */
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "successfully verified X509 hostname using " +
-                    "SSLSession getPeerHost()");
-                return;
-            }
-        }
-
-        final String tmpSniName = sniHostName;
-        final String tmpPeerHost = peerHost;
-        if (isClient) {
-            if (type == HOSTNAME_TYPE_HTTPS) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "hostname verification failed for server peer " +
-                    "cert, tried SNI (" + tmpSniName + "), peer host (" +
-                    tmpPeerHost + ")\n" + peerCert);
+            final String tmpSniName = sniHostName;
+            final String tmpPeerHost = peerHost;
+            if (isClient) {
+                if (type == HOSTNAME_TYPE_HTTPS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "hostname verification failed for server peer " +
+                        "cert, tried SNI (" + tmpSniName + "), peer host (" +
+                        tmpPeerHost + ")\n" + peerCert);
+                } else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        () -> "hostname verification failed for server peer " +
+                        "cert, peer host (" + tmpPeerHost + ")\n" + peerCert);
+                }
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "hostname verification failed for server peer " +
-                    "cert, peer host (" + tmpPeerHost + ")\n" + peerCert);
+                    () -> "hostname verification failed for client peer " +
+                    "cert, tried peer host (" + tmpPeerHost + ")\n" +
+                    peerCert);
             }
-        } else {
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                () -> "hostname verification failed for client peer cert, " +
-                "tried peer host (" + tmpPeerHost + ")\n" + peerCert);
-        }
 
-        throw new CertificateException("Hostname verification failed");
+            throw new CertificateException("Hostname verification failed");
+
+        } finally {
+            peerCert.free();
+        }
     }
 
     /**
