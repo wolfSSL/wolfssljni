@@ -353,6 +353,12 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                     continue;
                 }
 
+                /* Only CAs may act as issuers, unless peer certs are trusted */
+                if (candidate.getBasicConstraints() < 0 &&
+                    !WolfSSL.trustPeerCertEnabled()) {
+                    continue;
+                }
+
                 /* Check subject DN matches cert's issuer DN */
                 if (!candidate.getSubjectX500Principal().equals(issuerDN)) {
                     continue;
