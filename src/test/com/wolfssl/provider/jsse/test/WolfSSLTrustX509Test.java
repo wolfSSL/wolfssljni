@@ -3954,6 +3954,61 @@ public class WolfSSLTrustX509Test {
 
     }
 
+    /* Without trusted peer certs, a non-CA KeyStore entry is not a trust
+     * anchor and must not become the issuer of another certificate through
+     * the issuer-by-signature fallback. */
+    @Test
+    public void testNonCaKeyStoreEntryNotUsedAsIssuer() throws Exception {
+
+        Assume.assumeFalse(WolfSSL.trustPeerCertEnabled());
+
+        KeyStore.PrivateKeyEntry ca = tf.generateCert("Test CA", true, null);
+        KeyStore.PrivateKeyEntry nonCa =
+            tf.generateCert("Test non-CA", false, null);
+        X509Certificate good = (X509Certificate)tf.generateCert(
+            "good.example.com", false, ca).getCertificate();
+        X509Certificate bad = (X509Certificate)tf.generateCert(
+            "bad.example.com", false, nonCa).getCertificate();
+
+        /* KeyStore holds a real CA, so initial CA load succeeds */
+        KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+        ks.load(null, null);
+        ks.setCertificateEntry("ca", ca.getCertificate());
+        ks.setCertificateEntry("nonca", nonCa.getCertificate());
+        X509TrustManager tm = (X509TrustManager)tf.createTrustManager(
+            "SunX509", ks, provider)[0];
+
+        tm.checkServerTrusted(new X509Certificate[] { good }, "RSA");
+        try {
+            tm.checkServerTrusted(new X509Certificate[] { bad }, "RSA");
+            fail("Cert issued by a non-CA KeyStore entry was trusted");
+        } catch (CertificateException e) {
+            /* expected */
+        }
+
+        /* Same through a CA intermediate, goodInter confirms a two-level
+         * chain verifies when issued by the real CA */
+        KeyStore.PrivateKeyEntry goodInter =
+            tf.generateCert("Good Inter", true, ca);
+        KeyStore.PrivateKeyEntry badInter =
+            tf.generateCert("Bad Inter", true, nonCa);
+        X509Certificate goodLeaf = (X509Certificate)tf.generateCert(
+            "good2.example.com", false, goodInter).getCertificate();
+        X509Certificate badLeaf = (X509Certificate)tf.generateCert(
+            "bad2.example.com", false, badInter).getCertificate();
+
+        tm.checkServerTrusted(new X509Certificate[] {
+            goodLeaf, (X509Certificate)goodInter.getCertificate() }, "RSA");
+        try {
+            tm.checkServerTrusted(new X509Certificate[] {
+                badLeaf, (X509Certificate)badInter.getCertificate() }, "RSA");
+            fail("Intermediate issued by a non-CA KeyStore entry was " +
+                "trusted");
+        } catch (CertificateException e) {
+            /* expected */
+        }
+    }
+
     /**
      * Test that when checkServerTrusted() returns the cert chain, it excludes
      * CA certificates that were skipped during verification due to alternate
