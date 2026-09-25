@@ -27,6 +27,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.util.Arrays;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactorySpi;
 import javax.net.ssl.ManagerFactoryParameters;
@@ -42,6 +43,14 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
 
     /** Default WolfSSLKeyManager constructor */
     public WolfSSLKeyManager() { }
+
+    /* Replace retained KeyStore password, zeroing the previous copy */
+    private void setPassword(char[] password) {
+        if (this.pswd != null) {
+            Arrays.fill(this.pswd, (char)0);
+        }
+        this.pswd = password;
+    }
 
     /**
      * Try to load KeyStore from System properties if set.
@@ -88,7 +97,7 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "javax.net.ssl.keyStorePassword system property " +
                     "set, using password");
-                this.pswd = pass.toCharArray();
+                setPassword(pass.toCharArray());
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "javax.net.ssl.keyStorePassword system property " +
@@ -157,9 +166,11 @@ public class WolfSSLKeyManager extends KeyManagerFactorySpi {
             throws KeyStoreException, NoSuchAlgorithmException,
             UnrecoverableKeyException {
 
-        this.pswd = password;
         KeyStore certs = store;
         final String requiredType;
+
+        /* Copy password so caller can clear theirs after init */
+        setPassword((password != null) ? password.clone() : null);
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entering engineInit(KeyStore store, char[] password)");
