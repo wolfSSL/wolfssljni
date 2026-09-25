@@ -42,7 +42,8 @@ public interface WolfSSLPskServerCallback {
      * @param ssl       the current SSL session object from which the
      *                  callback was initiated.
      * @param identity  client identity
-     * @param key       server key
+     * @param key       array to write the server key into. It is zeroed
+     *                  after this method returns, so do not retain it.
      * @param keyMaxLen maximum size in bytes that server key can be
      *
      * @return          length of key in octets or 0 for error

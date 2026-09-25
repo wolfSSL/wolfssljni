@@ -48,6 +48,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -402,6 +403,119 @@ public class WolfSSLParametersPskTest {
         assertNotNull("PSK client callback did not receive a hint",
             recvHint[0]);
         assertEquals("", recvHint[0]);
+
+        clientEngine.closeOutbound();
+        serverEngine.closeOutbound();
+    }
+
+    @Test
+    public void testPskKeyArrayZeroedAfterCallback() throws Exception {
+
+        final byte[][] cliKey = new byte[1][];
+        final byte[][] srvKey = new byte[1][];
+
+        SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
+        ctx.init(null, null, null);
+
+        SSLEngine serverEngine = ctx.createSSLEngine();
+        serverEngine.setUseClientMode(false);
+
+        /* Callbacks retain the key array they fill */
+        WolfSSLParameters serverParams = new WolfSSLParameters();
+        serverParams.setPskServerCb(new WolfSSLPskServerCallback() {
+            public long pskServerCallback(WolfSSLSession ssl,
+                String identity, byte[] key, long keyMaxLen) {
+
+                srvKey[0] = key;
+                return testServerCb.pskServerCallback(ssl, identity,
+                    key, keyMaxLen);
+            }
+        });
+        serverParams.setCipherSuites(new String[]{pskCipher});
+        serverEngine.setSSLParameters(serverParams);
+
+        SSLEngine clientEngine = ctx.createSSLEngine("localhost", 0);
+        clientEngine.setUseClientMode(true);
+
+        WolfSSLParameters clientParams = new WolfSSLParameters();
+        clientParams.setPskClientCb(new WolfSSLPskClientCallback() {
+            public long pskClientCallback(WolfSSLSession ssl, String hint,
+                StringBuffer identity, long idMaxLen, byte[] key,
+                long keyMaxLen) {
+
+                cliKey[0] = key;
+                return testClientCb.pskClientCallback(ssl, hint, identity,
+                    idMaxLen, key, keyMaxLen);
+            }
+        });
+        clientParams.setCipherSuites(new String[]{pskCipher});
+        clientEngine.setSSLParameters(clientParams);
+
+        doInMemoryHandshake(clientEngine, serverEngine);
+
+        assertEquals(HandshakeStatus.NOT_HANDSHAKING,
+            clientEngine.getHandshakeStatus());
+        assertEquals(HandshakeStatus.NOT_HANDSHAKING,
+            serverEngine.getHandshakeStatus());
+
+        assertNotNull(cliKey[0]);
+        assertNotNull(srvKey[0]);
+        assertArrayEquals(new byte[cliKey[0].length], cliKey[0]);
+        assertArrayEquals(new byte[srvKey[0].length], srvKey[0]);
+
+        clientEngine.closeOutbound();
+        serverEngine.closeOutbound();
+    }
+
+    @Test
+    public void testPskKeyArrayZeroedOnCallbackFailure() throws Exception {
+
+        final byte[][] cliKey = new byte[1][];
+        boolean handshakeSucceeded = false;
+
+        SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
+        ctx.init(null, null, null);
+
+        SSLEngine serverEngine = ctx.createSSLEngine();
+        serverEngine.setUseClientMode(false);
+
+        WolfSSLParameters serverParams = new WolfSSLParameters();
+        serverParams.setPskServerCb(testServerCb);
+        serverParams.setCipherSuites(new String[]{pskCipher});
+        serverEngine.setSSLParameters(serverParams);
+
+        SSLEngine clientEngine = ctx.createSSLEngine("localhost", 0);
+        clientEngine.setUseClientMode(true);
+
+        /* Fill the key but return failure */
+        WolfSSLParameters clientParams = new WolfSSLParameters();
+        clientParams.setPskClientCb(new WolfSSLPskClientCallback() {
+            public long pskClientCallback(WolfSSLSession ssl, String hint,
+                StringBuffer identity, long idMaxLen, byte[] key,
+                long keyMaxLen) {
+
+                cliKey[0] = key;
+                testClientCb.pskClientCallback(ssl, hint, identity,
+                    idMaxLen, key, keyMaxLen);
+                return 0;
+            }
+        });
+        clientParams.setCipherSuites(new String[]{pskCipher});
+        clientEngine.setSSLParameters(clientParams);
+
+        try {
+            doInMemoryHandshake(clientEngine, serverEngine);
+            handshakeSucceeded = true;
+        } catch (Exception e) {
+            /* Expected: client PSK callback failed */
+        } catch (AssertionError e) {
+            /* Expected: doInMemoryHandshake loop exhausted */
+        }
+
+        assertFalse("PSK handshake should fail when client callback " +
+            "returns 0", handshakeSucceeded);
+        assertNotNull(cliKey[0]);
+        assertArrayEquals(new byte[cliKey[0].length], cliKey[0]);
 
         clientEngine.closeOutbound();
         serverEngine.closeOutbound();
