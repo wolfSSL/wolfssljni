@@ -2262,8 +2262,13 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_memsaveSessionCache
     /* how much data do we need to write? */
     cacheSz = wolfSSL_get_session_cache_memsize();
 
+    /* Make sure size is inside memBuf bounds */
+    if (ret == SSL_SUCCESS && (cacheSz < 0 || cacheSz > sz)) {
+        ret = SSL_FAILURE;
+    }
+
     /* set jbyteArray for return */
-    if (cacheSz >= 0) {
+    if (ret == SSL_SUCCESS) {
         (*jenv)->SetByteArrayRegion(jenv, mem, 0, cacheSz, (jbyte*)memBuf);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
