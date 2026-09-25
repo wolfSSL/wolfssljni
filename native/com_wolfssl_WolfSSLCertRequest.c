@@ -343,7 +343,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertRequest_X509_1REQ_1sign
         wolfSSL_EVP_PKEY_free(priv);
     }
     if (derAllocated == 1 && derBuf != NULL) {
+    #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+        !defined(WOLFSSL_NO_FORCE_ZERO)
+        wc_ForceZero(derBuf, derSz);
+    #else
         XMEMSET(derBuf, 0, derSz);
+    #endif
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (keyBuf != NULL) {
