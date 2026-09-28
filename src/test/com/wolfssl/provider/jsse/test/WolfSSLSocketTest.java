@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -51,6 +52,7 @@ import java.io.FileInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.net.Socket;
 import java.net.ServerSocket;
@@ -1078,6 +1080,124 @@ public class WolfSSLSocketTest {
         cArgs.setExpectedAlpn(greaseString);
         alpnClientServerRunner(sArgs, cArgs, false);
 
+        /* Successful test:
+         * ALPN callback selects non-ASCII GREASE value */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback(greaseString);
+        sArgs.setExpectedAlpn(greaseString);
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {greaseString, "h2"});
+        cArgs.setExpectedAlpn(greaseString);
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Successful test:
+         * ALPN callback selects max length (255 byte) non-ASCII name */
+        char[] maxChars = new char[255];
+        Arrays.fill(maxChars, '\u00FA');
+        String maxName = new String(maxChars);
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback(maxName);
+        sArgs.setExpectedAlpn(maxName);
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", maxName});
+        cArgs.setExpectedAlpn(maxName);
+        alpnClientServerRunner(sArgs, cArgs, false);
+
+        /* Failure test:
+         * ALPN callback selects char above U+00FF */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("\u0100");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        alpnClientServerRunner(sArgs, cArgs, true);
+
+        /* Failure test:
+         * ALPN callback selects a prefix of an offered name */
+        sArgs = new TestArgs(null, null, true, true, true, null);
+        sArgs.setAlpnForCallback("h");
+        cArgs = new TestArgs(null, null, false, false, true, null);
+        cArgs.setAlpnList(new String[] {"h2", "http/1.1"});
+        alpnClientServerRunner(sArgs, cArgs, true);
+    }
+
+    @Test
+    public void testAlpnSelectCallbackOpaqueNamesFromSunJSSE()
+        throws Exception {
+
+        /* Needs wolfSSL_set_alpn_select_cb() (5.6.6) and a SunJSSE client,
+         * which unlike wolfSSL can send commas and NUL bytes */
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() >= 0x05006006);
+        Assume.assumeTrue("SunJSSE not available",
+            Security.getProvider("SunJSSE") != null);
+
+        /* SunJSSE ALPN charset, ISO-8859-1 since JDK 17, 11.0.12, 8u301 */
+        String alpnCharset = Security.getProperty("jdk.tls.alpnCharset");
+        Assume.assumeTrue("SunJSSE not using ISO-8859-1 for ALPN",
+            alpnCharset != null && Charset.forName(alpnCharset).equals(
+                StandardCharsets.ISO_8859_1));
+
+        final String grease = new String(
+            new byte[] { (byte)0x8A, (byte)0x8A },
+            StandardCharsets.ISO_8859_1);
+        final String[] offered = { "a,b", "x\u0000y", grease, "h2", "h2" };
+
+        /* Selecting the NUL name must fail, wolfSSL can't send it whole */
+        for (final String choice : new String[] { "a,b", grease, "x\u0000y" }) {
+            final boolean expectFail = choice.indexOf('\u0000') >= 0;
+            SSLContext srvCtx = tf.createSSLContext("TLS", ctxProvider);
+            SSLContext cliCtx = tf.createSSLContext("TLS", "SunJSSE");
+            final SSLServerSocket ss = (SSLServerSocket)srvCtx
+                .getServerSocketFactory().createServerSocket(0);
+            final AtomicReference<List<String>> seen =
+                new AtomicReference<List<String>>();
+            final AtomicReference<Exception> srvErr =
+                new AtomicReference<Exception>();
+
+            Thread server = new Thread(() -> {
+                try (SSLSocket s = (SSLSocket)ss.accept()) {
+                    s.setHandshakeApplicationProtocolSelector(
+                        (sock, protos) -> {
+                            seen.set(new ArrayList<String>(protos));
+                            return choice;
+                        });
+                    s.startHandshake();
+                    s.getOutputStream().write('A');
+                } catch (Exception e) {
+                    srvErr.set(e);
+                }
+            });
+            server.start();
+
+            try (SSLSocket c = (SSLSocket)cliCtx.getSocketFactory()
+                    .createSocket("localhost", ss.getLocalPort())) {
+                c.setSoTimeout(10000);
+                SSLParameters params = c.getSSLParameters();
+                params.setApplicationProtocols(offered);
+                c.setSSLParameters(params);
+                if (expectFail) {
+                    try {
+                        c.startHandshake();
+                        fail("Selecting ALPN name with NUL should fail");
+                    } catch (SSLException e) {
+                        assertTrue(e.getMessage(), e.getMessage().contains(
+                            "no_application_protocol"));
+                    }
+                }
+                else {
+                    c.startHandshake();
+                    assertEquals('A', c.getInputStream().read());
+                    assertEquals(choice, c.getApplicationProtocol());
+                }
+            } finally {
+                server.join(10000);
+                ss.close();
+            }
+
+            if (!expectFail) {
+                assertNull("Server error: " + srvErr.get(), srvErr.get());
+            }
+            assertEquals(Arrays.asList(offered), seen.get());
+        }
     }
 
     /**

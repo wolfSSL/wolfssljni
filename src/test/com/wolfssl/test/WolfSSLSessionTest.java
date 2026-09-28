@@ -1678,6 +1678,83 @@ public class WolfSSLSessionTest {
             "throws exception", ret[0] != WolfSSL.SSL_SUCCESS);
         assertTrue("client connect() should fail when ALPN callback " +
             "throws exception", ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 6: callback returns OK without setting out[0], fails */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "returns OK with no selection", ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "returns OK with no selection", ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 7: callback selects empty String, fails */
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                out[0] = "";
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "selects empty String", ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "selects empty String", ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 8: callback selects String over 255 chars, fails */
+        final char[] longChars = new char[256];
+        Arrays.fill(longChars, 'a');
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                out[0] = new String(longChars);
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { "http/1.1", "h2" }, selected);
+
+        assertNotNull(ret);
+        assertTrue("server accept() should fail when ALPN callback " +
+            "selects too long String", ret[0] != WolfSSL.SSL_SUCCESS);
+        assertTrue("client connect() should fail when ALPN callback " +
+            "selects too long String", ret[1] != WolfSSL.SSL_SUCCESS);
+
+        /* Scenario 9: non-ASCII GREASE name round-trips byte for byte */
+        final String grease = new String(
+            new byte[] { (byte)0x8A, (byte)0x8A },
+            StandardCharsets.ISO_8859_1);
+        final String[][] peerList = new String[1][];
+        selected = new String[2];
+        ret = runAlpnSelectHandshake(new WolfSSLALPNSelectCallback() {
+            @Override
+            public int alpnSelectCallback(WolfSSLSession ssl,
+                String[] out, String[] in, Object arg) {
+                peerList[0] = in.clone();
+                out[0] = grease;
+                return WolfSSL.SSL_TLSEXT_ERR_OK;
+            }
+        }, new String[] { grease, "h2" }, selected);
+
+        assertNotNull(ret);
+        assertEquals("server accept() failed selecting GREASE ALPN",
+            WolfSSL.SSL_SUCCESS, ret[0]);
+        assertEquals("client connect() failed selecting GREASE ALPN",
+            WolfSSL.SSL_SUCCESS, ret[1]);
+        assertArrayEquals(new String[] { grease, "h2" }, peerList[0]);
+        assertEquals(grease, selected[0]);
+        assertEquals(grease, selected[1]);
     }
 
     @Test
