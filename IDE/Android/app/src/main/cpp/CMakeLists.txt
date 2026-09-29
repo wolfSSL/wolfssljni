@@ -15,6 +15,12 @@ set(wolfssl_DIR    ${CMAKE_SOURCE_DIR}/wolfssl/)
 # in production apps/environments.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
+# Align ELF LOAD segments to 16 KB so the shared libraries load on devices using 16 KB memory
+# pages (Android 15+). NDK r28 and later do this by default, older NDKs need it set explicitly.
+# See: https://developer.android.com/guide/practices/page-sizes
+set(CMAKE_SHARED_LINKER_FLAGS
+    "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+
 # ------------------------- wolfSSL Normal vs. FIPS Ready Selection --------------------------------
 # Select if wolfSSL is normal ("normal") or FIPS Ready ("fipsready")
 # wolfSSL FIPS Ready is available for download on the wolfssl.com download page. For more
@@ -117,19 +123,25 @@ elseif("${WOLFSSL_PKG_TYPE}" MATCHES "fipsready")
         # application and run into the scenario where the verifyCore[] hash output
         # at runtime is empty, consider checking/increasing the size of the
         # MAX_FIPS_DATA_SZ define in 'wolfcrypt/src/fips_test.c'.
+        #
+        # NOTE: The length of the hash depends on the FIPS version. FIPS v7 (HAVE_FIPS_VERSION=7,
+        # used below) computes the in-core integrity check with HMAC-SHA-512, so the value must be
+        # 128 hex characters. FIPS v5/v6 use HMAC-SHA-256 and expect 64 hex characters. A length
+        # mismatch fails the build at the verifyCore[] size static assert in
+        # 'wolfcrypt/src/fips_test.c'.
 
         if("${ANDROID_ABI}" MATCHES "arm64-v8a")
                 # https://developer.android.com/ndk/guides/abis#arm64-v8a
-                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=0C1CB1086D64FCD5AB5F7A0A8127244CE8D891CA5542B02FA4B9D81FD35C5C8A)
+                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=442668F77898A0DCFB45B75E291A60803575A580A360CCCF19F38AB0D93CBB4A914C4AF1F392A88374EAE6724C4238BD2A6D94C829259FA21448DD25C4984190)
         elseif("${ANDROID_ABI}" MATCHES "armeabi-v7a")
                 # https://developer.android.com/ndk/guides/abis#v7a
-                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=0C1CB1086D64FCD5AB5F7A0A8127244CE8D891CA5542B02FA4B9D81FD35C5C8A)
+                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=442668F77898A0DCFB45B75E291A60803575A580A360CCCF19F38AB0D93CBB4A914C4AF1F392A88374EAE6724C4238BD2A6D94C829259FA21448DD25C4984190)
         elseif("${ANDROID_ABI}" MATCHES "x86_64")
                 # https://developer.android.com/ndk/guides/abis#86-64
-                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=0C1CB1086D64FCD5AB5F7A0A8127244CE8D891CA5542B02FA4B9D81FD35C5C8A)
+                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=442668F77898A0DCFB45B75E291A60803575A580A360CCCF19F38AB0D93CBB4A914C4AF1F392A88374EAE6724C4238BD2A6D94C829259FA21448DD25C4984190)
         elseif("${ANDROID_ABI}" MATCHES "x86")
                 # https://developer.android.com/ndk/guides/abis#x86
-                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=0C1CB1086D64FCD5AB5F7A0A8127244CE8D891CA5542B02FA4B9D81FD35C5C8A)
+                add_definitions(-DWOLFCRYPT_FIPS_CORE_HASH_VALUE=442668F77898A0DCFB45B75E291A60803575A580A360CCCF19F38AB0D93CBB4A914C4AF1F392A88374EAE6724C4238BD2A6D94C829259FA21448DD25C4984190)
         endif()
 
         # Add preprocessor defines to CFLAGS, these match those placed into
@@ -170,7 +182,7 @@ elseif("${WOLFSSL_PKG_TYPE}" MATCHES "fipsready")
                 -DHAVE_ECC521 -DWOLFSSL_ECDSA_SET_K -DWOLFSSL_VALIDATE_ECC_IMPORT
                 -DWOLFSSL_VALIDATE_ECC_KEYGEN
 
-                -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q -DHAVE_FFDHE_2048
+                -DHAVE_DH -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q -DHAVE_FFDHE_2048
                 -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192
                 -DHAVE_DH_DEFAULT_PARAMS
 

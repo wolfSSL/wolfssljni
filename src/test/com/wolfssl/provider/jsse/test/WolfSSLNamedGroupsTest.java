@@ -30,6 +30,7 @@ import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.test.TimedTestWatcher;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.security.NoSuchProviderException;
 import java.security.Security;
 import java.security.cert.Certificate;
@@ -379,7 +380,7 @@ public class WolfSSLNamedGroupsTest {
 
         synchronized (WolfSSLPQCTestUtil.GROUP_PROP_LOCK) {
             Assume.assumeTrue("TLS 1.2 FFDHE handshakes not supported by " +
-                "native wolfSSL build", tls12FfdheHandshakeSupported());
+                "native wolfSSL build", ffdheHandshakeSupported("TLSv1.2"));
 
             String prevWolf =
                 WolfSSLPQCTestUtil.setCurvesProperty(null);
@@ -449,30 +450,34 @@ public class WolfSSLNamedGroupsTest {
         return matched.toArray(new String[matched.size()]);
     }
 
-    /* Cached result of tls12FfdheHandshakeSupported() */
-    private static Boolean tls12FfdheCapable = null;
+    /* Cached results of ffdheHandshakeSupported(), keyed by protocol */
+    private static final HashMap<String, Boolean> ffdheCapable =
+        new HashMap<>();
 
     /**
-     * True when this environment can complete a TLS 1.2 handshake with
-     * FFDHE-only named groups at all, probed with an RSA-only server
-     * KeyStore so that certificate selection plays no part.
+     * True when this environment can complete a handshake of the given
+     * protocol with FFDHE-only named groups.
      *
      * Caller must hold WolfSSLPQCTestUtil.GROUP_PROP_LOCK.
+     *
+     * @param protocol "TLSv1.2" or "TLSv1.3"
      */
-    private static boolean tls12FfdheHandshakeSupported() throws Exception {
+    private static boolean ffdheHandshakeSupported(String protocol)
+        throws Exception {
 
-        if (tls12FfdheCapable != null) {
-            return tls12FfdheCapable.booleanValue();
+        Boolean capable = ffdheCapable.get(protocol);
+        if (capable != null) {
+            return capable.booleanValue();
         }
 
         String prevJdk =
             WolfSSLPQCTestUtil.setJdkNamedGroupsProperty("ffdhe2048");
 
         try {
-            SSLContext srvCtx = tf.createSSLContext("TLSv1.2", PROVIDER,
+            SSLContext srvCtx = tf.createSSLContext(protocol, PROVIDER,
                 tf.createTrustManager("SunX509", tf.caClientJKS, PROVIDER),
                 tf.createKeyManager("SunX509", tf.serverRSAJKS, PROVIDER));
-            SSLContext cliCtx = tf.createSSLContext("TLSv1.2", PROVIDER,
+            SSLContext cliCtx = tf.createSSLContext(protocol, PROVIDER,
                 tf.createTrustManager("SunX509", tf.caServerJKS, PROVIDER),
                 tf.createKeyManager("SunX509", tf.clientRSAJKS, PROVIDER));
 
@@ -483,16 +488,23 @@ public class WolfSSLNamedGroupsTest {
                 cliCtx.createSSLEngine("wolfSSL named groups test", 11111);
             client.setUseClientMode(true);
 
-            int ret = tf.testConnection(server, client,
-                suitesMatching("TLS_DHE_RSA_"),
-                new String[] { "TLSv1.2" }, APP_DATA);
-            tls12FfdheCapable = Boolean.valueOf(ret == 0);
+            /* TLS 1.2 needs a DHE suite to use FFDHE, TLS 1.3 negotiates
+             * the group independently of the cipher suite */
+            String[] suites = null;
+            if (protocol.equals("TLSv1.2")) {
+                suites = suitesMatching("TLS_DHE_RSA_");
+            }
+
+            int ret = tf.testConnection(server, client, suites,
+                new String[] { protocol }, APP_DATA);
+            capable = Boolean.valueOf(ret == 0);
+            ffdheCapable.put(protocol, capable);
         }
         finally {
             WolfSSLPQCTestUtil.restoreJdkNamedGroupsProperty(prevJdk);
         }
 
-        return tls12FfdheCapable.booleanValue();
+        return capable.booleanValue();
     }
 
     /**
@@ -553,7 +565,7 @@ public class WolfSSLNamedGroupsTest {
 
         synchronized (WolfSSLPQCTestUtil.GROUP_PROP_LOCK) {
             Assume.assumeTrue("TLS 1.2 FFDHE handshakes not supported by " +
-                "native wolfSSL build", tls12FfdheHandshakeSupported());
+                "native wolfSSL build", ffdheHandshakeSupported("TLSv1.2"));
 
             String prevJdk =
                 WolfSSLPQCTestUtil.setJdkNamedGroupsProperty(null);
@@ -610,7 +622,7 @@ public class WolfSSLNamedGroupsTest {
 
         synchronized (WolfSSLPQCTestUtil.GROUP_PROP_LOCK) {
             Assume.assumeTrue("TLS 1.2 FFDHE handshakes not supported by " +
-                "native wolfSSL build", tls12FfdheHandshakeSupported());
+                "native wolfSSL build", ffdheHandshakeSupported("TLSv1.2"));
 
             String prevWolf =
                 WolfSSLPQCTestUtil.setCurvesProperty(null);
@@ -666,6 +678,9 @@ public class WolfSSLNamedGroupsTest {
             ffdhe2048GroupSupported());
 
         synchronized (WolfSSLPQCTestUtil.GROUP_PROP_LOCK) {
+            Assume.assumeTrue("TLS 1.3 FFDHE handshakes not supported by " +
+                "native wolfSSL build", ffdheHandshakeSupported("TLSv1.3"));
+
             String prevWolf =
                 WolfSSLPQCTestUtil.setCurvesProperty(null);
             String prevJdk =

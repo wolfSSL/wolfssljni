@@ -128,7 +128,9 @@ jobs:
 
       # Launch app briefly to capture FIPS in-core hash from logcat.
       # The FIPS error callback prints the expected verifyCore hash on
-      # startup if there is a mismatch.
+      # startup if there is a mismatch. The hash is 64 hex chars for FIPS
+      # v5/v6 (HMAC-SHA-256) and 128 for FIPS v7 (HMAC-SHA-512), so match
+      # 64 or more to capture the full value.
       - name: Capture FIPS in-core hash
         id: fips-hash
         uses: reactivecircus/android-emulator-runner@v2.37.0
@@ -145,9 +147,9 @@ jobs:
             adb logcat -c
             cd IDE/Android && ./gradlew installDebug --no-daemon --no-watch-fs
             adb shell am start -W -n com.example.wolfssl/.MainActivity
-            for i in 1 2 3 4 5 6; do sleep 5; adb logcat -d | grep -q 'hash = [A-Fa-f0-9]\{64\}' && break; echo "Waiting for FIPS hash ($i/6)..."; done
+            for i in 1 2 3 4 5 6; do sleep 5; adb logcat -d | grep -q 'hash = [A-Fa-f0-9]\{64,\}' && break; echo "Waiting for FIPS hash ($i/6)..."; done
             adb logcat -d > /tmp/logcat_hash.txt 2>&1
-            HASH=$(grep -o 'hash = [A-Fa-f0-9]\{64\}' /tmp/logcat_hash.txt | head -1 | sed 's/hash = //'); if [ -n "$HASH" ]; then echo "Captured FIPS hash: $HASH"; echo "hash=$HASH" >> $GITHUB_OUTPUT; else echo "No FIPS hash found in logcat, assuming existing hash is correct"; echo "hash=" >> $GITHUB_OUTPUT; fi
+            HASH=$(grep -o 'hash = [A-Fa-f0-9]\{64,\}' /tmp/logcat_hash.txt | head -1 | sed 's/hash = //'); if [ -n "$HASH" ]; then echo "Captured FIPS hash: $HASH"; echo "hash=$HASH" >> $GITHUB_OUTPUT; else echo "No FIPS hash found in logcat, assuming existing hash is correct"; echo "hash=" >> $GITHUB_OUTPUT; fi
 
       # Update FIPS hash in CMakeLists.txt and rebuild if needed
       - name: Rebuild with correct FIPS hash
