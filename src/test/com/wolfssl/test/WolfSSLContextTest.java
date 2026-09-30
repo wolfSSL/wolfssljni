@@ -37,6 +37,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
+import javax.crypto.KeyAgreement;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -60,7 +66,14 @@ import com.wolfssl.WolfSSLRsaSignCallback;
 import com.wolfssl.WolfSSLRsaVerifyCallback;
 import com.wolfssl.WolfSSLRsaPssSignCallback;
 import com.wolfssl.WolfSSLRsaPssVerifyCallback;
+import com.wolfssl.WolfSSLRsaEncCallback;
+import com.wolfssl.WolfSSLRsaDecCallback;
 import com.wolfssl.WolfCryptRSA;
+import com.wolfssl.WolfCryptECC;
+import com.wolfssl.WolfCryptEccKey;
+import com.wolfssl.WolfSSLEccSignCallback;
+import com.wolfssl.WolfSSLEccVerifyCallback;
+import com.wolfssl.WolfSSLEccSharedSecretCallback;
 
 public class WolfSSLContextTest {
 
@@ -72,6 +85,8 @@ public class WolfSSLContextTest {
     public static String svrCert    = "examples/certs/server-cert.pem";
     public static String svrKey     = "examples/certs/server-key.pem";
     public static String svrCertEcc = "examples/certs/server-ecc.pem";
+    public static String svrKeyEcc  = "examples/certs/ecc-key.pem";
+    public static String caCertEcc  = "examples/certs/ca-ecc-cert.pem";
     public static String caCert     = "examples/certs/ca-cert.pem";
     public static String dhParams   = "examples/certs/dh2048.pem";
     public final static String bogusFile = "/dev/null";
@@ -103,6 +118,8 @@ public class WolfSSLContextTest {
         svrCert = WolfSSLTestCommon.getPath(svrCert);
         svrKey = WolfSSLTestCommon.getPath(svrKey);
         svrCertEcc = WolfSSLTestCommon.getPath(svrCertEcc);
+        svrKeyEcc = WolfSSLTestCommon.getPath(svrKeyEcc);
+        caCertEcc = WolfSSLTestCommon.getPath(caCertEcc);
         caCert = WolfSSLTestCommon.getPath(caCert);
         dhParams = WolfSSLTestCommon.getPath(dhParams);
     }
@@ -1424,6 +1441,440 @@ public class WolfSSLContextTest {
         /* TLS 1.3 handshake with RSA-PSS PK callbacks */
         if (WolfSSL.TLSv13Enabled() && WolfSSL.RsaPssEnabled()) {
             rsaCbHandshakeTls13();
+        }
+    }
+
+    /* Accept or connect until the handshake finishes, returns final ret */
+    private static int pkCbHandshakeLoop(WolfSSLSession ses, boolean client)
+        throws Exception {
+
+        int ret;
+        int err;
+        do {
+            ret = client ? ses.connect() : ses.accept();
+            err = ses.getError(ret);
+        } while (ret != WolfSSL.SSL_SUCCESS &&
+            (err == WolfSSL.SSL_ERROR_WANT_READ ||
+             err == WolfSSL.SSL_ERROR_WANT_WRITE));
+        return ret;
+    }
+
+    /* Run one localhost handshake, returns { accept() ret, connect() ret } */
+    private int[] runPkCbHandshake(final WolfSSLContext srvCtx,
+        WolfSSLContext cliCtx) throws Exception {
+
+        ServerSocket srvSocket = null;
+        ExecutorService es = null;
+        int cliRet;
+
+        try {
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket fSrvSock = srvSocket;
+            es = Executors.newSingleThreadExecutor();
+            Future<Integer> srv = es.submit(() -> {
+                try (Socket sock = fSrvSock.accept()) {
+                    sock.setSoTimeout(10000);
+                    WolfSSLSession ses = new WolfSSLSession(srvCtx);
+                    try {
+                        int ret = ses.setFd(sock);
+                        if (ret != WolfSSL.SSL_SUCCESS) {
+                            throw new Exception("srv setFd fail: " + ret);
+                        }
+                        return pkCbHandshakeLoop(ses, false);
+                    } finally {
+                        ses.freeSSL();
+                    }
+                }
+            });
+
+            try (Socket sock = new Socket("localhost",
+                    srvSocket.getLocalPort())) {
+                sock.setSoTimeout(10000);
+                WolfSSLSession ses = new WolfSSLSession(cliCtx);
+                try {
+                    int ret = ses.setFd(sock);
+                    if (ret != WolfSSL.SSL_SUCCESS) {
+                        throw new Exception("cli setFd fail: " + ret);
+                    }
+                    cliRet = pkCbHandshakeLoop(ses, true);
+                } finally {
+                    ses.freeSSL();
+                }
+            }
+            return new int[] { srv.get(10, TimeUnit.SECONDS), cliRet };
+        } finally {
+            if (es != null) {
+                es.shutdownNow();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+        }
+    }
+
+    /* Skip the calling test if PK callbacks are not compiled in */
+    private static void assumePkCallbacks(WolfSSLJNIException e)
+        throws WolfSSLJNIException {
+
+        Assume.assumeFalse("PK callbacks not compiled in",
+            e.getMessage() != null && e.getMessage().contains("PK Callback"));
+        throw e;
+    }
+
+    /* RSA sign callbacks reporting an invalid signature length, through
+     * outSz or a positive return, must fail before wolfSSL uses it */
+    @Test
+    public void test_WolfSSLContext_rsaSignCbOversizedOutSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+
+        /* 0: outSz too large, 1: return too large, 2: negative outSz */
+        for (final int mode : new int[] { 0, 1, 2 }) {
+            final int[] outCap = new int[1];
+            final int[] signRet = { -1 };
+            final long[] maxCheckSz = new long[1];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                try {
+                    srvCtx.setRsaSignCb(new WolfSSLRsaSignCallback() {
+                        public int rsaSignCallback(WolfSSLSession ssl,
+                            ByteBuffer in, long inSz, ByteBuffer out,
+                            int[] outSz, ByteBuffer keyDer, long keySz,
+                            Object ctx) {
+                            outCap[0] = outSz[0];
+                            signRet[0] = new WolfCryptRSA().doSign(in, inSz,
+                                out, outSz, keyDer, keySz);
+                            if (signRet[0] != 0) {
+                                return signRet[0];
+                            }
+                            if (mode == 1) {
+                                return outCap[0] + 1;
+                            }
+                            outSz[0] = (mode == 2) ? -1 : outCap[0] + 1;
+                            return 0;
+                        }
+                    });
+                    srvCtx.setRsaSignCheckCb(new WolfSSLRsaVerifyCallback() {
+                        public int rsaVerifyCallback(WolfSSLSession ssl,
+                            ByteBuffer sig, long sigSz, ByteBuffer out,
+                            long outSz, ByteBuffer keyDer, long keySz,
+                            Object ctx) {
+                            maxCheckSz[0] = Math.max(maxCheckSz[0], sigSz);
+                            return new WolfCryptRSA().doVerify(sig, sigSz,
+                                out, outSz, keyDer, keySz);
+                        }
+                    });
+                    if (WolfSSL.RsaPssEnabled()) {
+                        srvCtx.setRsaPssSignCb(
+                            new WolfSSLRsaPssSignCallback() {
+                            public int rsaPssSignCallback(WolfSSLSession ssl,
+                                ByteBuffer in, long inSz, ByteBuffer out,
+                                int[] outSz, int hash, int mgf,
+                                ByteBuffer keyDer, long keySz, Object ctx) {
+                                outCap[0] = outSz[0];
+                                signRet[0] = new WolfCryptRSA().doPssSign(in,
+                                    inSz, out, outSz, hash, mgf, keyDer,
+                                    keySz);
+                                if (signRet[0] != 0) {
+                                    return signRet[0];
+                                }
+                                if (mode == 1) {
+                                    return outCap[0] + 1;
+                                }
+                                outSz[0] = (mode == 2) ? -1 : outCap[0] + 1;
+                                return 0;
+                            }
+                        });
+                        srvCtx.setRsaPssSignCheckCb(
+                            new WolfSSLRsaPssVerifyCallback() {
+                            public int rsaPssVerifyCallback(
+                                WolfSSLSession ssl, ByteBuffer sig,
+                                long sigSz, ByteBuffer out, long outSz,
+                                int hash, int mgf, ByteBuffer keyDer,
+                                long keySz, Object ctx) {
+                                maxCheckSz[0] =
+                                    Math.max(maxCheckSz[0], sigSz);
+                                return new WolfCryptRSA().doPssVerify(sig,
+                                    sigSz, out, outSz, hash, mgf, keyDer,
+                                    keySz);
+                            }
+                        });
+                    }
+                } catch (WolfSSLJNIException e) {
+                    assumePkCallbacks(e);
+                }
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertEquals("RSA sign failed", 0, signRet[0]);
+                assertTrue("server accept() should fail",
+                    ret[0] != WolfSSL.SSL_SUCCESS);
+                assertTrue("sign check got sigSz " + maxCheckSz[0] +
+                    " > out buffer " + outCap[0], maxCheckSz[0] <= outCap[0]);
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
+        }
+    }
+
+    /* RSA encrypt callback reporting output longer than the out buffer,
+     * through outSz or a positive return, must fail before the client sends
+     * ClientKeyExchange */
+    @Test
+    public void test_WolfSSLContext_rsaEncCbOversizedOutSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+
+        /* 0: outSz too large, 1: return too large */
+        for (final int mode : new int[] { 0, 1 }) {
+            final int[] encRet = { -1 };
+            final boolean[] srvDecCalled = new boolean[1];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                /* Static RSA key exchange, needs WOLFSSL_STATIC_RSA */
+                Assume.assumeTrue("Static RSA cipher suites not compiled in",
+                    cliCtx.setCipherList("AES128-GCM-SHA256") ==
+                    WolfSSL.SSL_SUCCESS);
+                try {
+                    cliCtx.setRsaEncCb(new WolfSSLRsaEncCallback() {
+                        public int rsaEncCallback(WolfSSLSession ssl,
+                            ByteBuffer in, long inSz, ByteBuffer out,
+                            int[] outSz, ByteBuffer keyDer, long keySz,
+                            Object ctx) {
+                            int cap = outSz[0];
+                            encRet[0] = new WolfCryptRSA().doEnc(in, inSz,
+                                out, outSz, keyDer, keySz);
+                            if (encRet[0] != 0) {
+                                return encRet[0];
+                            }
+                            if (mode == 1) {
+                                return cap + 1;
+                            }
+                            outSz[0] = cap + 1;
+                            return 0;
+                        }
+                    });
+                    /* Server only calls this on ClientKeyExchange */
+                    srvCtx.setRsaDecCb(new WolfSSLRsaDecCallback() {
+                        public int rsaDecCallback(WolfSSLSession ssl,
+                            ByteBuffer in, long inSz, ByteBuffer out,
+                            long outSz, ByteBuffer keyDer, long keySz,
+                            Object ctx) {
+                            srvDecCalled[0] = true;
+                            return -1;
+                        }
+                    });
+                } catch (WolfSSLJNIException e) {
+                    assumePkCallbacks(e);
+                }
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertEquals("RSA encrypt failed, mode " + mode, 0,
+                    encRet[0]);
+                assertTrue("client connect() should fail, mode " + mode,
+                    ret[1] != WolfSSL.SSL_SUCCESS);
+                assertFalse("client sent ClientKeyExchange, mode " + mode,
+                    srvDecCalled[0]);
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
+        }
+    }
+
+    /* ECC sign callback reporting a signature longer than the out buffer
+     * must fail before wolfSSL sends it to the peer */
+    @Test
+    public void test_WolfSSLContext_eccSignCbOversizedOutSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.EccEnabled() && WolfSSL.RsaEnabled() &&
+            WolfSSL.FileSystemEnabled());
+
+        final long[] outCap = new long[1];
+        final int[] signRet = { -1 };
+        final long[] maxVerifySz = new long[1];
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+
+        try {
+            srvCtx = createCtx(svrCertEcc, svrKeyEcc, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createCtx(cliCert, cliKey, caCertEcc,
+                WolfSSL.TLSv1_2_ClientMethod());
+            try {
+                srvCtx.setEccSignCb(new WolfSSLEccSignCallback() {
+                    public int eccSignCallback(WolfSSLSession ssl,
+                        ByteBuffer in, long inSz, ByteBuffer out,
+                        long[] outSz, ByteBuffer keyDer, long keySz,
+                        Object ctx) {
+                        outCap[0] = outSz[0];
+                        signRet[0] = new WolfCryptECC().doSign(in, inSz,
+                            out, outSz, keyDer, keySz);
+                        outSz[0] = outCap[0] + 1;
+                        return signRet[0];
+                    }
+                });
+                /* Client records the signature size it receives */
+                cliCtx.setEccVerifyCb(new WolfSSLEccVerifyCallback() {
+                    public int eccVerifyCallback(WolfSSLSession ssl,
+                        ByteBuffer sig, long sigSz, ByteBuffer hash,
+                        long hashSz, ByteBuffer keyDer, long keySz,
+                        int[] result, Object ctx) {
+                        maxVerifySz[0] = Math.max(maxVerifySz[0], sigSz);
+                        return new WolfCryptECC().doVerify(sig, sigSz, hash,
+                            hashSz, keyDer, keySz, result);
+                    }
+                });
+            } catch (WolfSSLJNIException e) {
+                assumePkCallbacks(e);
+            }
+
+            int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+            assertEquals("ECC sign failed", 0, signRet[0]);
+            assertTrue("server accept() should fail",
+                ret[0] != WolfSSL.SSL_SUCCESS);
+            assertTrue("client got sigSz " + maxVerifySz[0] +
+                " > out buffer " + outCap[0], maxVerifySz[0] <= outCap[0]);
+        } finally {
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+    }
+
+    /* ECC shared secret callback succeeds with valid sizes and fails when
+     * outSz or pubKeyDerSz is larger than its buffer */
+    @Test
+    public void test_WolfSSLContext_eccSharedSecretCbOutSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.EccEnabled() && WolfSSL.RsaEnabled() &&
+            WolfSSL.FileSystemEnabled());
+
+        /* 0: valid sizes, 1: outSz too large, 2: pubKeyDerSz too large */
+        for (final int mode : new int[] { 0, 1, 2 }) {
+            final int[] cbRet = { -1 };
+            final boolean[] srvCbCalled = new boolean[1];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                /* ECDHE over P-256 so the ECC shared secret callback runs */
+                Assume.assumeTrue(cliCtx.setCipherList(
+                    "ECDHE-RSA-AES128-GCM-SHA256") == WolfSSL.SSL_SUCCESS);
+                Assume.assumeTrue(cliCtx.useSupportedCurves(
+                    new String[] { "secp256r1" }) == WolfSSL.SSL_SUCCESS);
+                try {
+                    cliCtx.setEccSharedSecretCb(
+                        new WolfSSLEccSharedSecretCallback() {
+                        public int eccSharedSecretCallback(
+                            WolfSSLSession ssl, WolfCryptEccKey otherKey,
+                            ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+                            ByteBuffer out, long[] outSz, int side,
+                            Object ctx) {
+                            try {
+                                KeyFactory kf = KeyFactory.getInstance("EC");
+                                ECPublicKey peer = (ECPublicKey)
+                                    kf.generatePublic(new X509EncodedKeySpec(
+                                        otherKey.getPublicKeyDer()));
+                                KeyPairGenerator kpg =
+                                    KeyPairGenerator.getInstance("EC");
+                                kpg.initialize(peer.getParams());
+                                KeyPair kp = kpg.generateKeyPair();
+                                KeyAgreement ka =
+                                    KeyAgreement.getInstance("ECDH");
+                                ka.init(kp.getPrivate());
+                                ka.doPhase(peer, true);
+                                byte[] secret = ka.generateSecret();
+                                byte[] pub = kp.getPublic().getEncoded();
+
+                                pubKeyDer.put(pub);
+                                pubKeyDerSz[0] = (mode == 2) ?
+                                    pubKeyDer.capacity() + 1 : pub.length;
+                                out.put(secret);
+                                outSz[0] = (mode == 1) ?
+                                    out.capacity() + 1 : secret.length;
+                                cbRet[0] = 0;
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            return cbRet[0];
+                        }
+                    });
+                    if (mode != 0) {
+                        /* Server only calls this on ClientKeyExchange */
+                        srvCtx.setEccSharedSecretCb(
+                            new WolfSSLEccSharedSecretCallback() {
+                            public int eccSharedSecretCallback(
+                                WolfSSLSession ssl, WolfCryptEccKey otherKey,
+                                ByteBuffer pubKeyDer, long[] pubKeyDerSz,
+                                ByteBuffer out, long[] outSz, int side,
+                                Object ctx) {
+                                srvCbCalled[0] = true;
+                                return -1;
+                            }
+                        });
+                    }
+                } catch (WolfSSLJNIException e) {
+                    assumePkCallbacks(e);
+                }
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertEquals("ECC shared secret callback failed, mode " +
+                    mode, 0, cbRet[0]);
+                if (mode == 0) {
+                    assertEquals(WolfSSL.SSL_SUCCESS, ret[0]);
+                    assertEquals(WolfSSL.SSL_SUCCESS, ret[1]);
+                }
+                else {
+                    assertTrue("client connect() should fail, mode " + mode,
+                        ret[1] != WolfSSL.SSL_SUCCESS);
+                    assertFalse("client sent ClientKeyExchange, mode " + mode,
+                        srvCbCalled[0]);
+                }
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
         }
     }
 

@@ -3838,7 +3838,13 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
-        *outSz = (unsigned int)tmpVal;
+        /* *outSz still holds the out buffer size */
+        if (tmpVal < 0 || tmpVal > (jlong)*outSz) {
+            retval = -1;
+        }
+        else {
+            *outSz = (unsigned int)tmpVal;
+        }
     }
 
     /* delete local refs */
@@ -4558,9 +4564,10 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     }
 
     if (retval == 0) {
-        /* copy j_outSz into outlen, j_pubKeyDerSz into pubKeySz */
+        /* copy j_outSz into outlen, j_pubKeyDerSz into pubKeySz.
+         * *outlen and *pubKeySz still hold the sizes wolfSSL passed in */
         (*jenv)->GetLongArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
-        if (CheckException(jenv)) {
+        if (CheckException(jenv) || (tmpVal < 0) || (tmpVal > (jlong)*outlen)) {
             (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
             (*jenv)->DeleteLocalRef(jenv, j_outSz);
             (*jenv)->DeleteLocalRef(jenv, outBB);
@@ -4572,7 +4579,8 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
 
         if (side == WOLFSSL_CLIENT_END) {
             (*jenv)->GetLongArrayRegion(jenv, j_pubKeyDerSz, 0, 1, &tmpVal);
-            if (CheckException(jenv)) {
+            if (CheckException(jenv) || (tmpVal < 0) ||
+                (tmpVal > (jlong)*pubKeySz)) {
                 (*jenv)->DeleteLocalRef(jenv, j_pubKeyDerSz);
                 (*jenv)->DeleteLocalRef(jenv, j_outSz);
                 (*jenv)->DeleteLocalRef(jenv, outBB);
@@ -4888,7 +4896,11 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    if (retval == 0) {
+    if ((retval > 0) && ((unsigned int)retval > *outSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
+    }
+    else if (retval == 0) {
         /* copy j_outSz into outSz */
         (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -4903,7 +4915,13 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
-        *outSz = tmpVal;
+        /* *outSz still holds the out buffer size */
+        if ((tmpVal < 0) || ((unsigned int)tmpVal > *outSz)) {
+            retval = -1;
+        }
+        else {
+            *outSz = tmpVal;
+        }
     }
 
     /* delete local refs */
@@ -5204,7 +5222,11 @@ int NativeRsaPssSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    if (retval == 0) {
+    if ((retval > 0) && ((unsigned int)retval > *outSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
+    }
+    else if (retval == 0) {
         /* copy j_outSz into outSz */
         (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -5220,7 +5242,13 @@ int NativeRsaPssSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
             }
             return -1;
         }
-        *outSz = tmpVal;
+        /* *outSz still holds the out buffer size */
+        if ((tmpVal < 0) || ((unsigned int)tmpVal > *outSz)) {
+            retval = -1;
+        }
+        else {
+            *outSz = tmpVal;
+        }
     }
 
     /* delete local refs */
@@ -6314,7 +6342,11 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    if (retval == 0) {
+    if ((retval > 0) && ((unsigned int)retval > *outSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
+    }
+    else if (retval == 0) {
         /* copy j_outSz into outSz */
         (*jenv)->GetIntArrayRegion(jenv, j_outSz, 0, 1, &tmpVal);
         if ((*jenv)->ExceptionOccurred(jenv)) {
@@ -6329,7 +6361,13 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
                 (*g_vm)->DetachCurrentThread(g_vm);
             return -1;
         }
-        *outSz = tmpVal;
+        /* *outSz still holds the out buffer size */
+        if ((tmpVal < 0) || ((unsigned int)tmpVal > *outSz)) {
+            retval = -1;
+        }
+        else {
+            *outSz = tmpVal;
+        }
     }
 
     /* delete local refs */
