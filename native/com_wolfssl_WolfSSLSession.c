@@ -2995,6 +2995,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     byte* secretBuf = NULL;
     word32 secretSz = 0;
+    jboolean isCopy = JNI_FALSE;
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
 
@@ -3003,13 +3004,21 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_sendHrrCookie
     }
 
     if (secret != NULL) {
-        secretBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, secret, NULL);
+        secretBuf = (byte*)(*jenv)->GetByteArrayElements(jenv, secret, &isCopy);
         secretSz = (*jenv)->GetArrayLength(jenv, secret);
     }
 
     ret = wolfSSL_send_hrr_cookie(ssl, secretBuf, secretSz);
 
     if (secret != NULL && secretBuf != NULL) {
+        if (isCopy == JNI_TRUE) {
+        #if (LIBWOLFSSL_VERSION_HEX >= 0x05008004) && \
+            !defined(WOLFSSL_NO_FORCE_ZERO)
+            wc_ForceZero(secretBuf, secretSz);
+        #else
+            XMEMSET(secretBuf, 0, secretSz);
+        #endif
+        }
         (*jenv)->ReleaseByteArrayElements(jenv, secret,
             (jbyte*)secretBuf, JNI_ABORT);
     }
