@@ -3969,6 +3969,152 @@ public class WolfSSLSessionTest {
         }
     }
 
+    /* With ByteBuffer pool, a write() whose first chunk is in range but length
+     * runs past the array must be rejected before sending. */
+    @Test
+    public void test_WolfSSLSession_writeOutOfBoundsSendsNothing()
+        throws Exception {
+
+        final ServerSocket srvSocket = new ServerSocket(0);
+        final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
+            srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
+            WolfSSL.SSLv23_ServerMethod());
+        WolfSSLContext cliCtx = createAndSetupWolfSSLContext(
+            cliCert, cliKey, WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.SSLv23_ClientMethod());
+        final byte[] marker = "marker".getBytes();
+
+        /* Server returns the first application data it receives */
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        Future<byte[]> srv = es.submit(() -> {
+            WolfSSLSession ss = null;
+            try (Socket s = srvSocket.accept()) {
+                ss = new WolfSSLSession(srvCtx);
+                if (ss.setFd(s) != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception("server setFd() failed");
+                }
+                int r;
+                int e;
+                do {
+                    r = ss.accept();
+                    e = ss.getError(r);
+                } while (r != WolfSSL.SSL_SUCCESS &&
+                        (e == WolfSSL.SSL_ERROR_WANT_READ ||
+                         e == WolfSSL.SSL_ERROR_WANT_WRITE));
+                if (r != WolfSSL.SSL_SUCCESS) {
+                    throw new Exception("server accept() failed: " + e);
+                }
+                byte[] buf = new byte[64];
+                int n = ss.read(buf, buf.length, 5000);
+                ss.shutdownSSL();
+                return Arrays.copyOf(buf, Math.max(n, 0));
+            } finally {
+                if (ss != null) {
+                    ss.freeSSL();
+                }
+            }
+        });
+
+        Socket cliSock = null;
+        WolfSSLSession cliSes = null;
+        try {
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSocket.getLocalPort());
+            cliSes = newSessionWithPool(cliCtx, true);
+            assertEquals(WolfSSL.SSL_SUCCESS, cliSes.setFd(cliSock));
+            int r;
+            int e;
+            do {
+                r = cliSes.connect();
+                e = cliSes.getError(r);
+            } while (r != WolfSSL.SSL_SUCCESS &&
+                    (e == WolfSSL.SSL_ERROR_WANT_READ ||
+                     e == WolfSSL.SSL_ERROR_WANT_WRITE));
+            assertEquals("connect() failed: " + e, WolfSSL.SSL_SUCCESS, r);
+
+            /* First 16k chunk is within the array, the rest is not */
+            byte[] big = new byte[20000];
+            assertEquals(WolfSSL.BAD_FUNC_ARG, cliSes.write(big, 0, 40000, 0));
+
+            assertEquals(marker.length, cliSes.write(marker, marker.length, 0));
+            assertArrayEquals(marker, srv.get(10, TimeUnit.SECONDS));
+
+            cliSes.shutdownSSL();
+        } finally {
+            if (cliSes != null) {
+                cliSes.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            /* Let the server task finish before freeing its context */
+            try {
+                srv.get(10, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+                /* Result checked above, do not mask an earlier failure */
+            }
+            es.shutdownNow();
+            srvSocket.close();
+            cliCtx.free();
+            srvCtx.free();
+        }
+    }
+
+    /* write() returns BAD_FUNC_ARG for bad arguments before any I/O, with
+     * the ByteBuffer pool enabled or disabled. */
+    @Test
+    public void test_WolfSSLSession_writeBadArgs() throws Exception {
+
+        WolfSSLContext ctx = createAndSetupWolfSSLContext(
+            cliCert, cliKey, WolfSSL.SSL_FILETYPE_PEM, caCert,
+            WolfSSL.SSLv23_ClientMethod());
+        byte[] buf = new byte[16];
+
+        try {
+            for (boolean pool : new boolean[] { true, false }) {
+                WolfSSLSession ses = newSessionWithPool(ctx, pool);
+                try {
+                    assertEquals(WolfSSL.BAD_FUNC_ARG,
+                        ses.write(null, 0, 1, 0));
+                    assertEquals(WolfSSL.BAD_FUNC_ARG,
+                        ses.write(buf, -1, 1, 0));
+                    assertEquals(WolfSSL.BAD_FUNC_ARG,
+                        ses.write(buf, 0, -1, 0));
+                    assertEquals(WolfSSL.BAD_FUNC_ARG,
+                        ses.write(buf, buf.length + 1, 0, 0));
+                    assertEquals(WolfSSL.BAD_FUNC_ARG,
+                        ses.write(buf, 1, buf.length, 0));
+                    /* Zero-length write at the end of the array is valid */
+                    assertEquals(0, ses.write(buf, buf.length, 0, 0));
+                } finally {
+                    ses.freeSSL();
+                }
+            }
+        } finally {
+            ctx.free();
+        }
+    }
+
+    /* Create a WolfSSLSession with the read/write ByteBuffer pool enabled or
+     * disabled, restoring the Security property afterward. */
+    private WolfSSLSession newSessionWithPool(WolfSSLContext ctx,
+        boolean enabled) throws WolfSSLException {
+
+        synchronized (byteBufferPoolPropertyLock) {
+            String origProp = Security.getProperty(
+                "wolfssl.readWriteByteBufferPool.disabled");
+            Security.setProperty("wolfssl.readWriteByteBufferPool.disabled",
+                enabled ? "false" : "true");
+            try {
+                return new WolfSSLSession(ctx);
+            } finally {
+                Security.setProperty(
+                    "wolfssl.readWriteByteBufferPool.disabled",
+                    (origProp == null) ? "" : origProp);
+            }
+        }
+    }
+
     @Test
     public void test_WolfSSLSession_sessionToDerFromDer() throws Exception {
 

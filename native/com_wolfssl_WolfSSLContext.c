@@ -3715,7 +3715,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* call internal decrypt/verify callback */
+    /* call internal ECC sign callback */
     eccSignMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
             "internalEccSignCallback",
             "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
@@ -3805,7 +3805,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
     }
 
     /* call Java ECC sign callback, java layer handles
-     * adding decrypt/verify CTX reference */
+     * adding ECC sign CTX reference */
     retval = (*jenv)->CallIntMethod(jenv, ctxRef, eccSignMethodId,
             (jobject)(*g_cachedSSLObj), inBB, (jlong)inSz, outBB, j_outSz,
             keyDerBB, (jlong)keySz);
@@ -6365,7 +6365,7 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLContext_setRsaDecCb
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(NO_RSA)
     if(ctx != NULL) {
-        /* set RSA encrypt callback */
+        /* set RSA decrypt callback */
         wolfSSL_CTX_SetRsaDecCb(ctx, NativeRsaDecCb);
 
     } else {
@@ -6516,7 +6516,7 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* call internal ECC verify callback */
+    /* call internal RSA dec callback */
     rsaDecMethodId = (*jenv)->GetMethodID(jenv, innerCtxClass,
             "internalRsaDecCallback",
             "(Lcom/wolfssl/WolfSSLSession;Ljava/nio/ByteBuffer;"
@@ -7121,7 +7121,7 @@ unsigned int NativePskServerCb(WOLFSSL* ssl, const char* identity,
     jclass      innerCtxClass;        /* WolfSSLContext class */
     jmethodID   pskServerMethodId;    /* internalPskServerCallback ID */
 
-    jstring     identityString;       /* String, for 'hint' */
+    jstring     identityString;       /* String, for 'identity' */
     jbyteArray  keyArray;             /* byte[] for key in/out */
 
     /* Note: since this is called from C, not the JVM, we need to explicitly
@@ -7625,7 +7625,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLContext_setDevId
     WOLFSSL_CTX* ctx = (WOLFSSL_CTX*)(uintptr_t)ctxPtr;
     (void)jcl;
 
-    /* wolfSSL_CTX_SetDevId() checks ssl for NULL */
+    /* wolfSSL_CTX_SetDevId() checks ctx for NULL */
     if (jenv == NULL) {
         return BAD_FUNC_ARG;
     }
