@@ -295,7 +295,10 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         WolfSSLCertificate wCert = null;
         try {
             wCert = new WolfSSLCertificate(peer.getEncoded());
-            int ret = WolfSSLUtil.verifyHostnameOrIp(wCert, peerHost, 0);
+            /* LDAPS requires wildcard left-most matching only */
+            long flags = endpointIdAlgo.equals("LDAPS") ?
+                WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY : 0;
+            int ret = WolfSSLUtil.verifyHostnameOrIp(wCert, peerHost, flags);
             if (ret == WolfSSL.SSL_SUCCESS) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "Provider-level hostname verification passed for: " +

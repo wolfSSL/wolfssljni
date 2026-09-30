@@ -30,21 +30,36 @@ extern JavaVM* g_vm;
 /* Cache static jmethodIDs for performance, since they are guaranteed to be the
  * same across all threads once cached. Initialized in JNI_OnLoad() and freed in
  * JNI_OnUnload(). */
-extern jmethodID g_sslIORecvMethodId;              /* WolfSSLSession.internalIOSSLRecvCallback */
-extern jmethodID g_sslIORecvMethodId_BB;           /* WolfSSLSession.internalIOSSLRecvCallback_BB */
-extern jmethodID g_sslIOSendMethodId;              /* WolfSSLSession.internalIOSSLSendCallback */
-extern jmethodID g_sslIOSendMethodId_BB;           /* WolfSSLSession.internalIOSSLSendCallback_BB */
-extern jmethodID g_isArrayIORecvCallbackSet;       /* WolfSSL.isArrayIORecvCallbackSet */
-extern jmethodID g_isArrayIOSendCallbackSet;       /* WolfSSL.isArrayIOSendCallbackSet */
-extern jmethodID g_isByteBufferIORecvCallbackSet;  /* WolfSSL.isByteBufferIORecvCallbackSet */
-extern jmethodID g_isByteBufferIOSendCallbackSet;  /* WolfSSL.isByteBufferIOSendCallbackSet */
-extern jmethodID g_bufferPositionMethodId;         /* ByteBuffer.position() */
-extern jmethodID g_bufferLimitMethodId;            /* ByteBuffer.limit() */
-extern jmethodID g_bufferHasArrayMethodId;         /* ByteBuffer.hasArray() */
-extern jmethodID g_bufferArrayMethodId;            /* ByteBuffer.array() */
-extern jmethodID g_bufferArrayOffsetMethodId;     /* ByteBuffer.arrayOffset() */
-extern jmethodID g_bufferSetPositionMethodId;      /* ByteBuffer.position(int) */
-extern jmethodID g_verifyCallbackMethodId;         /* WolfSSLVerifyCallback.verifyCallback */
+
+/* WolfSSLSession methods
+ *     internalIOSSLRecvCallback
+ *     internalIOSSLRecvCallback_BB
+ *     internalIOSSLSendCallback
+ *     internalIOSSLSendCallback_BB
+ *     isArrayIORecvCallbackSet
+ *     isArrayIOSendCallbackSet
+ *     isByteBufferIORecvCallbackSet
+ *     isByteBufferIOSendCallbackSet
+ */
+extern jmethodID g_sslIORecvMethodId;
+extern jmethodID g_sslIORecvMethodId_BB;
+extern jmethodID g_sslIOSendMethodId;
+extern jmethodID g_sslIOSendMethodId_BB;
+extern jmethodID g_isArrayIORecvCallbackSet;
+extern jmethodID g_isArrayIOSendCallbackSet;
+extern jmethodID g_isByteBufferIORecvCallbackSet;
+extern jmethodID g_isByteBufferIOSendCallbackSet;
+
+/* ByteBuffer methods */
+extern jmethodID g_bufferPositionMethodId;      /* position() */
+extern jmethodID g_bufferLimitMethodId;         /* limit() */
+extern jmethodID g_bufferHasArrayMethodId;      /* hasArray() */
+extern jmethodID g_bufferArrayMethodId;         /* array() */
+extern jmethodID g_bufferArrayOffsetMethodId;   /* arrayOffset() */
+extern jmethodID g_bufferSetPositionMethodId;   /* position(int) */
+
+/* WolfSSLVerifyCallback methods */
+extern jmethodID g_verifyCallbackMethodId;      /* verifyCallback */
 
 /* WOLFSSL_CTX ex_data index used to store the per-WolfSSLContext jobject ref
  * to the user WolfSSLVerifyCallback. Allocated once in
