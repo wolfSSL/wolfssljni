@@ -44,6 +44,7 @@ import java.security.cert.CRLException;
 import java.security.cert.CertificateException;
 import java.util.Date;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.math.BigInteger;
 import java.security.cert.CertificateFactory;
@@ -273,6 +274,34 @@ public class WolfSSLCRLTest {
         }
 
         crl.free();
+    }
+
+    @Test
+    public void testUpdateDatesParseUnderNonEnglishLocale()
+        throws WolfSSLException, WolfSSLJNIException, IOException,
+               CertificateException {
+
+        Assume.assumeTrue(WolfSSL.CrlGenerationEnabled());
+
+        Locale saved = Locale.getDefault();
+        WolfSSLCRL crl = null;
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ru-RU"));
+
+            crl = new WolfSSLCRL();
+            Calendar cal = Calendar.getInstance();
+            crl.setLastUpdate(cal.getTime());
+            cal.add(Calendar.DAY_OF_YEAR, 30);
+            crl.setNextUpdate(cal.getTime());
+
+            assertNotNull(crl.getLastUpdate());
+            assertNotNull(crl.getNextUpdate());
+        } finally {
+            if (crl != null) {
+                crl.free();
+            }
+            Locale.setDefault(saved);
+        }
     }
 
     @Test

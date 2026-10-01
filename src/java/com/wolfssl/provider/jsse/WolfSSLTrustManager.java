@@ -195,11 +195,16 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
      *        java.security if wolfjsse.keystore.type.required property
      *        has been set.
      *
-     * @return KeyStore object loaded with CA certs from jssecacerts, or
-     *         null if not able to find KeyStore or load certs
+     * @return KeyStore loaded with CA certs, or null if the bundle is
+     *         missing or unreadable so the caller tries the next source
+     *
+     * @throws KeyStoreException if a present, readable bundle fails to
+     *         load (ex: corrupt or wrong password), matching SunJSSE so
+     *         trust is not silently widened to a lower-priority store
      */
     private KeyStore LoadJavaSystemCerts(String jh, boolean wksAvailable,
-        String tsPass, String certBundleName, String requiredType) {
+        String tsPass, String certBundleName, String requiredType)
+        throws KeyStoreException {
 
         char[] passArr = null;
         KeyStore sysStore = null;
@@ -285,6 +290,7 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "Not able to open KeyStore file for reading: " +
                     absPath);
+                return null;
             }
 
             try {
@@ -292,9 +298,9 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
 
             } catch (IOException | NoSuchAlgorithmException |
                      CertificateException e) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    () -> "Not able to load KeyStore with file stream: " +
-                    absPath);
+                /* Readable store that fails to load is fatal */
+                throw new KeyStoreException(
+                    "Failed to load system trust store: " + absPath, e);
 
             } finally {
                 try {
@@ -315,14 +321,14 @@ public class WolfSSLTrustManager extends TrustManagerFactorySpi {
     }
 
     private KeyStore LoadSystemJsseCaCerts(String jh, boolean wksAvailable,
-        String tsPass, String requiredType) {
+        String tsPass, String requiredType) throws KeyStoreException {
 
         return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "jssecacerts",
             requiredType);
     }
 
     private KeyStore LoadSystemCaCerts(String jh, boolean wksAvailable,
-        String tsPass, String requiredType) {
+        String tsPass, String requiredType) throws KeyStoreException {
 
         return LoadJavaSystemCerts(jh, wksAvailable, tsPass, "cacerts",
             requiredType);

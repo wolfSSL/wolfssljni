@@ -29,6 +29,7 @@ import java.nio.charset.Charset;
 import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -94,7 +95,7 @@ public class WolfSSLCertificate implements Serializable {
     static native int X509_get_isCA(long x509);
     static native String X509_get_subject_name(long x509);
     static native String X509_get_issuer_name(long x509);
-    static native long X509_get_issuer_name_ptr(long x509);
+    static native long X509_get_subject_name_ptr(long x509);
     static native byte[] X509_get_subject_name_DER(long x509);
     static native byte[] X509_get_issuer_name_DER(long x509);
     static native byte[] X509_get_pubkey(long x509);
@@ -475,9 +476,8 @@ public class WolfSSLCertificate implements Serializable {
 
     /**
      * Set the Issuer Name to be used with this WolfSSLCertificate.
-     * This method copies the issuer name from the existing populated
-     * WolfSSLCertificate object, which would commonly be initialized
-     * from a CA certificate file or byte array.
+     * Copies the supplied CA certificate's subject name to use as this cert's
+     * issuer name.
      *
      * @param cert Initialized and populated WolfSSLCertificate to be set into
      *        Issuer Name of this WolfSSLCertificate for cert generation.
@@ -499,10 +499,10 @@ public class WolfSSLCertificate implements Serializable {
                 () -> "entering setIssuerName(" + cert + ")");
         }
 
-        x509NamePtr = X509_get_issuer_name_ptr(cert.getX509Ptr());
+        x509NamePtr = X509_get_subject_name_ptr(cert.getX509Ptr());
         if (x509NamePtr == 0) {
             throw new WolfSSLException(
-                "Error getting issuer name from WolfSSLCertificate");
+                "Error getting subject name from WolfSSLCertificate");
         }
 
         synchronized (x509Lock) {
@@ -518,8 +518,8 @@ public class WolfSSLCertificate implements Serializable {
 
     /**
      * Set the Issuer Name to be used with this WolfSSLCertificate.
-     * This method copies the issuer name from the existing populated
-     * X509Certificate object.
+     * Copies the supplied CA certificate's subject name to use as this
+     * certificate's issuer name.
      *
      * @param cert Initialized and populated X509Certificate to be used to set
      *        Issuer Name of this WolfSSLCertificate for cert generation.
@@ -1646,8 +1646,9 @@ public class WolfSSLCertificate implements Serializable {
             nb  = X509_notBefore(this.x509Ptr);
         }
         if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {
@@ -1678,8 +1679,9 @@ public class WolfSSLCertificate implements Serializable {
             nb = X509_notAfter(this.x509Ptr);
         }
         if (nb != null) {
-            SimpleDateFormat format =
-                    new SimpleDateFormat("MMM dd HH:mm:ss yyyy zzz");
+            /* wolfSSL outputs English month names, parse in a fixed locale */
+            SimpleDateFormat format = new SimpleDateFormat(
+                "MMM dd HH:mm:ss yyyy zzz", Locale.US);
             try {
                 return format.parse(nb);
             } catch (ParseException ex) {
