@@ -4328,6 +4328,10 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     jobject    outBB = NULL;
     jlong      tmpVal = 0;
 
+    jbyteArray pubKeyDerArr = NULL;   /* JVM-owned copy of tmpKeyDer */
+    jclass     bbClass = NULL;        /* java.nio.ByteBuffer */
+    jmethodID  bbWrap = NULL;         /* ByteBuffer.wrap([B) */
+
     (void)ctx;
 
     if (!g_vm || !ssl || !otherKey || !publicKeyDer || !pubKeySz ||
@@ -4463,9 +4467,26 @@ int  NativeEccSharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
 
         wc_ecc_free(&tmpKey);
 
-        pubKeyDerBB = (*jenv)->NewDirectByteBuffer(jenv, tmpKeyDer,
-                                                   tmpKeyDerSz);
+        /* Copy public key DER into a JVM-owned heap ByteBuffer. */
+        pubKeyDerArr = (*jenv)->NewByteArray(jenv, (jsize)tmpKeyDerSz);
+        if (pubKeyDerArr != NULL) {
+            (*jenv)->SetByteArrayRegion(jenv, pubKeyDerArr, 0,
+                (jsize)tmpKeyDerSz, (const jbyte*)tmpKeyDer);
+            bbClass = (*jenv)->FindClass(jenv, "java/nio/ByteBuffer");
+            if (bbClass != NULL) {
+                bbWrap = (*jenv)->GetStaticMethodID(jenv, bbClass,
+                    "wrap", "([B)Ljava/nio/ByteBuffer;");
+                if (bbWrap != NULL) {
+                    pubKeyDerBB = (*jenv)->CallStaticObjectMethod(jenv,
+                        bbClass, bbWrap, pubKeyDerArr);
+                }
+                (*jenv)->DeleteLocalRef(jenv, bbClass);
+            }
+            (*jenv)->DeleteLocalRef(jenv, pubKeyDerArr);
+        }
+
         if (!pubKeyDerBB) {
+            CheckException(jenv);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, eccKeyObject);
             XFREE(tmpKeyDer, otherKey->heap, DYNAMIC_TYPE_TMP_BUFFER);

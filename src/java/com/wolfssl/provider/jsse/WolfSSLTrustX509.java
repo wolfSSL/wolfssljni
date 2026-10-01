@@ -103,8 +103,8 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
             throw new CertificateException("Input cert chain null");
         }
 
-        /* If certs array is only one cert (peer), just return copy of it */
-        if (certs.length == 1) {
+        /* If chain is empty or only the peer cert, return a copy as-is */
+        if (certs.length <= 1) {
             return certs.clone();
         }
 
