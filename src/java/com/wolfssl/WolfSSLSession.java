@@ -3021,11 +3021,18 @@ public class WolfSSLSession {
     /**
      * Sets the DTLS peer.
      *
+     * Both IPv4 and IPv6 peers are supported. For a scoped IPv6 address
+     * (ex: link-local), its scope ID is preserved.
+     *
      * @param peer  DTLS peer's InetSocketAddress
      * @return      <code>SSL_SUCCESS</code> upon success, <code>
      *              SSL_FAILURE</code> upon failure, <code>
      *              SSL_NOT_IMPLEMENTED</code> if wolfSSL was not compiled
-     *              with DTLS support.
+     *              with DTLS support. Returns <code>NOT_COMPILED_IN</code>
+     *              if an IPv6 peer is given but native wolfSSL was not built
+     *              with IPv6 support (--enable-ipv6). The IPv6 wildcard
+     *              address (::) is the exception. On those builds it is
+     *              mapped to the IPv4 wildcard (INADDR_ANY).
      * @throws IllegalStateException WolfSSLContext has been freed
      * @see    #dtlsGetCurrentTimeout()
      * @see    #dtlsGetPeer()
@@ -4592,11 +4599,15 @@ public class WolfSSLSession {
      *
      * @return  If successful, the call will return one of the following:<br>
      *          WolfSSL.wolfssl_cipher_null<br>
+     *          WolfSSL.wolfssl_rc4<br>
+     *          WolfSSL.wolfssl_rc2<br>
      *          WolfSSL.wolfssl_des<br>
      *          WolfSSL.wolfssl_triple_des<br>
+     *          WolfSSL.wolfssl_des40<br>
      *          WolfSSL.wolfssl_aes<br>
      *          WolfSSL.wolfssl_aes_gcm<br>
      *          WolfSSL.wolfssl_aes_ccm<br>
+     *          WolfSSL.wolfssl_chacha<br>
      *          WolfSSL.wolfssl_camellia<br>
      *          <b><code>BAD_FUNC_ARG</code></b> for an error state.<br>
      * @throws IllegalStateException WolfSSLContext has been freed

@@ -24,7 +24,9 @@ package com.wolfssl.provider.jsse.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -38,6 +40,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -55,6 +59,7 @@ import java.security.cert.CertificateException;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.ServerSocket;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
@@ -63,6 +68,9 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.X509ExtendedTrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLParameters;
@@ -85,6 +93,7 @@ import org.junit.rules.TestRule;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.provider.jsse.WolfSSLEngine;
 import com.wolfssl.provider.jsse.WolfSSLImplementSSLSession;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLX509;
@@ -296,6 +305,526 @@ public class WolfSSLSessionTest {
             assertNotNull(local[0].getEncoded());
         } finally {
             wolfKmImpl.freeAll();
+        }
+    }
+
+    @Test
+    public void testLocalIdentityIsPerSessionNotContextWide()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+
+        String[] cipher =
+            new String[] { "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" };
+        String[] proto = new String[] { "TLSv1.2" };
+
+        /* Server KeyManager over a multi-alias store, wrapped so each
+         * connection can be forced to present a chosen alias. */
+        KeyManager[] baseKm =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        ForcedAliasKeyManager km =
+            new ForcedAliasKeyManager((X509KeyManager)baseKm[0]);
+        TrustManager[] clientTm =
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider);
+
+        SSLContext serverCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, null, new KeyManager[] { km });
+        SSLContext clientCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, clientTm, null);
+
+        /* First connection presents the "server" alias */
+        km.setForcedServerAlias("server");
+        SSLEngine server1 = serverCtx.createSSLEngine();
+        server1.setUseClientMode(false);
+        SSLEngine client1 = clientCtx.createSSLEngine("test", 11111);
+        client1.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server1, client1, cipher, proto, "one"));
+        SSLSession session1 = server1.getSession();
+
+        /* Second connection uses a distinct peer so it does a full handshake
+         * and presents the "client" alias instead of resuming. */
+        km.setForcedServerAlias("client");
+        SSLEngine server2 = serverCtx.createSSLEngine();
+        server2.setUseClientMode(false);
+        SSLEngine client2 = clientCtx.createSSLEngine("test2", 22222);
+        client2.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server2, client2, cipher, proto, "two"));
+        assertFalse(((WolfSSLEngine)server2).sessionResumed());
+        SSLSession session2 = server2.getSession();
+
+        /* The earlier session must still report its own local identity, not
+         * the alias the later connection selected from the shared store. */
+        Principal p1 = session1.getLocalPrincipal();
+        Principal p2 = session2.getLocalPrincipal();
+        assertNotNull(p1);
+        assertNotNull(p2);
+        assertNotEquals(p1, p2);
+
+        Certificate[] c1 = session1.getLocalCertificates();
+        Certificate[] c2 = session2.getLocalCertificates();
+        assertNotNull(c1);
+        assertNotNull(c2);
+        assertFalse(c1[0].equals(c2[0]));
+    }
+
+    @Test
+    public void testLocalIdentityNullWhenNoX509KeyManager()
+        throws Exception {
+
+        /* A KeyManager array with no X509KeyManager leaves the auth store's
+         * X509KeyManager null. The local-identity accessors then return null
+         * rather than throwing. */
+        KeyManager[] km = new KeyManager[] { new KeyManager() { } };
+        SSLContext ctx =
+            tf.createSSLContext("TLS", engineProvider, null, km);
+        SSLSession session = ctx.createSSLEngine().getSession();
+
+        assertNull(session.getLocalCertificates());
+        assertNull(session.getLocalPrincipal());
+    }
+
+    @Test
+    public void testLocalIdentityNullWhenNoClientAliasSelected()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+
+        String[] cipher = new String[] {
+            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" };
+        String[] proto = new String[] { "TLSv1.2" };
+
+        /* Server presents "server" alias and does not request client auth.
+         * Client's selected alias is controlled by the test. */
+        KeyManager[] serverBase =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        ForcedAliasKeyManager serverKm =
+            new ForcedAliasKeyManager((X509KeyManager)serverBase[0]);
+        serverKm.setForcedServerAlias("server");
+        KeyManager[] clientBase =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        ForcedAliasKeyManager clientKm =
+            new ForcedAliasKeyManager((X509KeyManager)clientBase[0]);
+        TrustManager[] clientTm =
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider);
+
+        SSLContext serverCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, null, new KeyManager[] { serverKm });
+        SSLContext clientCtx = tf.createSSLContext(
+            "TLSv1.2", engineProvider, clientTm, new KeyManager[] { clientKm });
+
+        /* First connection: client selects no local alias */
+        clientKm.setForcedClientAlias(null);
+        SSLEngine server1 = serverCtx.createSSLEngine();
+        server1.setUseClientMode(false);
+        SSLEngine client1 = clientCtx.createSSLEngine("test", 11111);
+        client1.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server1, client1, cipher, proto, "one"));
+        SSLSession session1 = client1.getSession();
+
+        /* Second connection selects a real alias, changing the shared
+         * auth-store alias. Uses a distinct peer so it does not resume the
+         * first session (which would share the same session object). */
+        clientKm.setForcedClientAlias("client");
+        SSLEngine server2 = serverCtx.createSSLEngine();
+        server2.setUseClientMode(false);
+        SSLEngine client2 = clientCtx.createSSLEngine("test2", 22222);
+        client2.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server2, client2, cipher, proto, "two"));
+
+        /* The first client sent no local certificate, so its session must
+         * report no local identity, not the later connection's alias. */
+        assertNull(session1.getLocalCertificates());
+        assertNull(session1.getLocalPrincipal());
+    }
+
+    @Test
+    public void testLocalIdentityUpdatedWhenResumptionDeclined()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled() && WolfSSL.RsaEnabled());
+
+        /* Second connection selects a different alias, or none */
+        checkDeclinedResumptionEngine("resume-declined", "server");
+        checkDeclinedResumptionEngine("resume-declined-none", null);
+    }
+
+    @Test
+    public void testLocalIdentityUpdatedWhenResumptionDeclinedSocket()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled() && WolfSSL.RsaEnabled());
+
+        ForcedAliasKeyManager serverKm = forcedAliasKm();
+        serverKm.setForcedServerAlias("server");
+        ForcedAliasKeyManager clientKm = forcedAliasKm();
+        CountingTrustManager clientTm = countingTm();
+        SSLContext serverCtx = serverCtx(serverKm);
+        SSLContext serverCtx2 = serverCtx(serverKm);
+        SSLContext clientCtx = clientCtx(clientKm, clientTm);
+
+        /* One listening port keeps the client session cache key the same,
+         * each accepted socket is wrapped with the chosen server context */
+        try (ServerSocket listener = new ServerSocket(0)) {
+            listener.setSoTimeout(10000);
+
+            clientKm.setForcedClientAlias("client");
+            socketConnection(listener, serverCtx, clientCtx);
+
+            clientKm.setForcedClientAlias("server");
+            int checks = clientTm.serverChecks;
+            SSLSession session2 =
+                socketConnection(listener, serverCtx2, clientCtx);
+            assertTrue("second handshake was resumed",
+                clientTm.serverChecks > checks);
+            assertLocalIdentity(session2, clientKm, "server");
+
+            clientKm.setForcedClientAlias("client");
+            checks = clientTm.serverChecks;
+            SSLSession session3 =
+                socketConnection(listener, serverCtx2, clientCtx);
+            assertEquals("third handshake was not resumed", checks,
+                clientTm.serverChecks);
+            assertLocalIdentity(session3, clientKm, "server");
+        }
+    }
+
+    @Test
+    public void testPlaceholderSessionReportsOwnLocalIdentity()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled());
+
+        ForcedAliasKeyManager km = forcedAliasKm();
+        SSLContext ctx = tf.createSSLContext(
+            "TLS", engineProvider, null, new KeyManager[] { km });
+
+        /* getSession() before a handshake loads each engine's alias */
+        km.setForcedServerAlias("server");
+        SSLEngine a = ctx.createSSLEngine();
+        a.setUseClientMode(false);
+        a.getSession();
+
+        km.setForcedServerAlias("client");
+        SSLEngine b = ctx.createSSLEngine();
+        b.setUseClientMode(false);
+        b.getSession();
+
+        assertLocalIdentity(a.getSession(), km, "server");
+        assertLocalIdentity(b.getSession(), km, "client");
+    }
+
+    @Test
+    public void testClosedSocketSessionReportsOwnLocalIdentity()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled());
+
+        ForcedAliasKeyManager km = forcedAliasKm();
+        km.setForcedServerAlias("server");
+        final SSLContext ctx = tf.createSSLContext(
+            "TLS", engineProvider, null, new KeyManager[] { km });
+        SSLContext clientCtx = tf.createSSLContext("TLS", engineProvider,
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider), null);
+        final AtomicReference<SSLSocket> serverSock =
+            new AtomicReference<SSLSocket>();
+
+        /* Server socket loads "server" and completes a handshake */
+        try (ServerSocket listener = new ServerSocket(0)) {
+            listener.setSoTimeout(10000);
+            final int port = listener.getLocalPort();
+            ExecutorService es = Executors.newSingleThreadExecutor();
+            try {
+                Future<Void> srv = es.submit(() -> {
+                    Socket plain = listener.accept();
+                    SSLSocket s = (SSLSocket)ctx.getSocketFactory()
+                        .createSocket(plain, "localhost", port, true);
+                    serverSock.set(s);
+                    s.setUseClientMode(false);
+                    s.startHandshake();
+                    s.getOutputStream().write('A');
+                    s.getInputStream().read();
+                    s.close();
+                    return null;
+                });
+                try (SSLSocket c = (SSLSocket)clientCtx.getSocketFactory()
+                        .createSocket("localhost", port)) {
+                    c.setSoTimeout(10000);
+                    assertEquals('A', c.getInputStream().read());
+                }
+                srv.get(10, TimeUnit.SECONDS);
+            } finally {
+                es.shutdownNow();
+            }
+        }
+
+        /* Another connection on this context then loads "client" */
+        km.setForcedServerAlias("client");
+        SSLEngine engine = ctx.createSSLEngine();
+        engine.setUseClientMode(false);
+        engine.getSession();
+
+        /* Closed socket keeps its own identity */
+        SSLSession closed = serverSock.get().getSession();
+        assertEquals("SSL_NULL_WITH_NULL_NULL", closed.getCipherSuite());
+        assertLocalIdentity(closed, km, "server");
+
+        /* Socket that never loaded a key reports none */
+        SSLSocket unused = (SSLSocket)ctx.getSocketFactory().createSocket();
+        unused.close();
+        assertLocalIdentity(unused.getSession(), km, null);
+    }
+
+    /* SSLEngine connections to one peer: 1 caches a session with "client",
+     * 2 offers it to a new server context that can't resume it and selects
+     * alias2, 3 resumes session 2 while selecting "client". Sessions 2 and
+     * 3 must both report alias2's identity. */
+    private void checkDeclinedResumptionEngine(String host, String alias2)
+        throws Exception {
+
+        String[] proto = new String[] { "TLSv1.3" };
+        ForcedAliasKeyManager serverKm = forcedAliasKm();
+        serverKm.setForcedServerAlias("server");
+        ForcedAliasKeyManager clientKm = forcedAliasKm();
+        CountingTrustManager clientTm = countingTm();
+        SSLContext serverCtx = serverCtx(serverKm);
+        SSLContext serverCtx2 = serverCtx(serverKm);
+        SSLContext clientCtx = clientCtx(clientKm, clientTm);
+
+        clientKm.setForcedClientAlias("client");
+        SSLEngine server1 = serverCtx.createSSLEngine();
+        server1.setUseClientMode(false);
+        SSLEngine client1 = clientCtx.createSSLEngine(host, 33333);
+        client1.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server1, client1, null, proto, "one"));
+
+        /* A resumed session skips server cert verification */
+        clientKm.setForcedClientAlias(alias2);
+        int checks = clientTm.serverChecks;
+        SSLEngine server2 = serverCtx2.createSSLEngine();
+        server2.setUseClientMode(false);
+        SSLEngine client2 = clientCtx.createSSLEngine(host, 33333);
+        client2.setUseClientMode(true);
+        assertEquals(0,
+            tf.testConnection(server2, client2, null, proto, "two"));
+        assertTrue("second handshake was resumed",
+            clientTm.serverChecks > checks);
+        assertLocalIdentity(client2.getSession(), clientKm, alias2);
+
+        /* beginHandshake() updates session values mid-handshake */
+        clientKm.setForcedClientAlias("client");
+        checks = clientTm.serverChecks;
+        SSLEngine server3 = serverCtx2.createSSLEngine();
+        server3.setUseClientMode(false);
+        SSLEngine client3 = clientCtx.createSSLEngine(host, 33333);
+        client3.setUseClientMode(true);
+        client3.beginHandshake();
+        assertEquals(0,
+            tf.testConnection(server3, client3, null, proto, "three"));
+        assertEquals("third handshake was not resumed", checks,
+            clientTm.serverChecks);
+        assertLocalIdentity(client3.getSession(), clientKm, alias2);
+    }
+
+    /* One SSLSocket handshake on the next accepted connection. The client
+     * reads a byte so any session ticket is processed before close. */
+    private SSLSession socketConnection(final ServerSocket listener,
+        final SSLContext srvCtx, SSLContext cliCtx) throws Exception {
+
+        final int port = listener.getLocalPort();
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        SSLSession session;
+
+        try {
+            Future<Void> srv = es.submit(() -> {
+                try (Socket plain = listener.accept();
+                    SSLSocket s = (SSLSocket)srvCtx.getSocketFactory()
+                        .createSocket(plain, "localhost", port, true)) {
+                    s.setUseClientMode(false);
+                    s.startHandshake();
+                    s.getOutputStream().write('A');
+                    s.getOutputStream().flush();
+                    s.getInputStream().read();
+                }
+                return null;
+            });
+
+            try (SSLSocket c = (SSLSocket)cliCtx.getSocketFactory()
+                    .createSocket("localhost", port)) {
+                c.setSoTimeout(10000);
+                c.startHandshake();
+                assertEquals('A', c.getInputStream().read());
+                session = c.getSession();
+            }
+            srv.get(10, TimeUnit.SECONDS);
+        } finally {
+            es.shutdownNow();
+        }
+        return session;
+    }
+
+    /* Session reports alias's cert and principal, or none if alias is null */
+    private static void assertLocalIdentity(SSLSession session,
+        X509KeyManager km, String alias) {
+
+        if (alias == null) {
+            assertNull(session.getLocalCertificates());
+            assertNull(session.getLocalPrincipal());
+            return;
+        }
+        X509Certificate expected = km.getCertificateChain(alias)[0];
+        Certificate[] local = session.getLocalCertificates();
+        assertNotNull(local);
+        assertEquals(expected, local[0]);
+        assertEquals(expected.getSubjectX500Principal(),
+            session.getLocalPrincipal());
+    }
+
+    private ForcedAliasKeyManager forcedAliasKm() throws Exception {
+        KeyManager[] base =
+            tf.createKeyManager("SunX509", tf.allJKS, engineProvider);
+        return new ForcedAliasKeyManager((X509KeyManager)base[0]);
+    }
+
+    private CountingTrustManager countingTm() throws Exception {
+        return new CountingTrustManager((X509TrustManager)
+            tf.createTrustManager("SunX509", tf.caJKS, engineProvider)[0]);
+    }
+
+    private SSLContext serverCtx(ForcedAliasKeyManager km) throws Exception {
+        return tf.createSSLContext(
+            "TLSv1.3", engineProvider, null, new KeyManager[] { km });
+    }
+
+    private SSLContext clientCtx(ForcedAliasKeyManager km,
+        CountingTrustManager tm) throws Exception {
+        return tf.createSSLContext("TLSv1.3", engineProvider,
+            new TrustManager[] { tm }, new KeyManager[] { km });
+    }
+
+    /* X509TrustManager wrapper counting server cert checks, which only happen
+     * on a full handshake. */
+    private static class CountingTrustManager
+        extends X509ExtendedTrustManager {
+
+        private final X509TrustManager base;
+        private volatile int serverChecks = 0;
+
+        CountingTrustManager(X509TrustManager base) {
+            this.base = base;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType)
+            throws CertificateException {
+            base.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType)
+            throws CertificateException {
+            serverChecks++;
+            base.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType,
+            Socket socket) throws CertificateException {
+            base.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType,
+            Socket socket) throws CertificateException {
+            serverChecks++;
+            base.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType,
+            SSLEngine engine) throws CertificateException {
+            base.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType,
+            SSLEngine engine) throws CertificateException {
+            serverChecks++;
+            base.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return base.getAcceptedIssuers();
+        }
+    }
+
+    /* X509KeyManager wrapper which lets a test force the client/server alias
+     * that a connection presents. Each choose method returns its forced alias
+     * (null = select no local cert). cert and key lookups delegate to base. */
+    private static class ForcedAliasKeyManager extends X509ExtendedKeyManager {
+        private final X509KeyManager base;
+        private volatile String forcedServerAlias = null;
+        private volatile String forcedClientAlias = null;
+
+        ForcedAliasKeyManager(X509KeyManager base) {
+            this.base = base;
+        }
+
+        void setForcedServerAlias(String alias) {
+            this.forcedServerAlias = alias;
+        }
+
+        void setForcedClientAlias(String alias) {
+            this.forcedClientAlias = alias;
+        }
+
+        @Override
+        public String chooseEngineServerAlias(String keyType,
+            Principal[] issuers, SSLEngine engine) {
+            return this.forcedServerAlias;
+        }
+
+        @Override
+        public String chooseServerAlias(String keyType, Principal[] issuers,
+            Socket socket) {
+            return this.forcedServerAlias;
+        }
+
+        @Override
+        public String chooseEngineClientAlias(String[] keyType,
+            Principal[] issuers, SSLEngine engine) {
+            return this.forcedClientAlias;
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyType, Principal[] issuers,
+            Socket socket) {
+            return this.forcedClientAlias;
+        }
+
+        @Override
+        public X509Certificate[] getCertificateChain(String alias) {
+            return base.getCertificateChain(alias);
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias) {
+            return base.getPrivateKey(alias);
+        }
+
+        @Override
+        public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return base.getServerAliases(keyType, issuers);
+        }
+
+        @Override
+        public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return base.getClientAliases(keyType, issuers);
         }
     }
 
