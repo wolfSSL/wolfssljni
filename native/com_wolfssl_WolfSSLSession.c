@@ -5856,20 +5856,19 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
 
     int ret = SSL_TLSEXT_ERR_OK;
     unsigned int idx = 0;
+    int i = 0;
+    int arrIdx = 0;
     int peerProtoCount = 0;
-    char* peerProtos = NULL;
-    char* peerProtosCopy = NULL;
+    unsigned char protoLen = 0;
+    jchar protoChars[WOLFSSL_MAX_ALPN_PROTO_NAME_LEN];
+    unsigned char selected[WOLFSSL_MAX_ALPN_PROTO_NAME_LEN];
+    jsize selectedSz = 0;
     (void)arg;
-    word16 peerProtosSz = 0;
-    char* curr = NULL;
-    char* ptr = NULL;
     jobjectArray peerProtosArr = NULL;
     jobjectArray outProtoArr = NULL;
     int outProtoArrSz = 0;
     jstring protoStr = NULL;
     jstring selectedProto = NULL;
-    const char* selectedProtoCharArr = NULL;
-    int selectedProtoCharArrSz = 0;
 
     if (g_vm == NULL || ssl == NULL || out == NULL || outlen == NULL ||
         in == NULL) {
@@ -5930,47 +5929,14 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     }
 
     if (ret == SSL_TLSEXT_ERR_OK) {
-        /* Use wolfSSL_ALPN_GetPeerProtocol() here to get ALPN protocols sent
-         * by the peer instead of directly using in/inlen, since this API
-         * splits/formats into a comma-separated list. peerProtosSz does not
-         * include the null terminator byte in the size. It is only the size of
-         * the ALPN list chars proper. */
-        if (wolfSSL_ALPN_GetPeerProtocol(ssl, &peerProtos,
-                &peerProtosSz) != WOLFSSL_SUCCESS) {
-            throwWolfSSLJNIException(jenv,
-                "Error in wolfSSL_ALPN_GetPeerProtocol()");
-            ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-    }
-
-    if (ret == SSL_TLSEXT_ERR_OK) {
-        /* Make a copy of peer protos since we have to scan through it first
-         * to get total number of tokens. Allocate peerProtosSz+1 to make sure
-         * our list is null terminated for XSTRTOK(). */
-        peerProtosCopy = (char*)XMALLOC(peerProtosSz + 1, NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (peerProtosCopy == NULL) {
-            throwWolfSSLJNIException(jenv,
-                "Error allocating memory for peer protocols array");
-            ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-    }
-
-    if (ret == SSL_TLSEXT_ERR_OK) {
-        XMEMSET(peerProtosCopy, 0, peerProtosSz + 1);
-        XMEMCPY(peerProtosCopy, peerProtos, peerProtosSz);
-
-        /* get count of protocols, used to create Java array of proper size */
-        curr = XSTRTOK(peerProtosCopy, ",", &ptr);
-        while (curr != NULL) {
+        /* Count protocols in peer wire list, LEN|PROTO|LEN|PROTO|... */
+        idx = 0;
+        while (idx < inlen) {
+            idx += 1 + in[idx];
             peerProtoCount++;
-            curr = XSTRTOK(NULL, ",", &ptr);
         }
-        XFREE(peerProtosCopy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        peerProtosCopy = NULL;
-
-        if (peerProtoCount == 0) {
-            throwWolfSSLJNIException(jenv, "ALPN peer protocol list size is 0");
+        if (peerProtoCount == 0 || idx != inlen) {
+            throwWolfSSLJNIException(jenv, "Invalid ALPN peer protocol list");
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
     }
@@ -6005,10 +5971,14 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     }
 
     if (ret == SSL_TLSEXT_ERR_OK) {
-        /* add each char* to String[] for call to Java callback method */
-        curr = XSTRTOK(peerProtos, ",", &ptr);
-        while (curr != NULL) {
-            protoStr = (*jenv)->NewStringUTF(jenv, curr);
+        /* ALPN names are opaque bytes, one byte per char (ISO-8859-1) */
+        idx = 0;
+        while (idx < inlen) {
+            protoLen = in[idx];
+            for (i = 0; i < protoLen; i++) {
+                protoChars[i] = (jchar)in[idx + 1 + i];
+            }
+            protoStr = (*jenv)->NewString(jenv, protoChars, protoLen);
             if (protoStr == NULL) {
                 if ((*jenv)->ExceptionCheck(jenv)) {
                     (*jenv)->ExceptionDescribe(jenv);
@@ -6020,7 +5990,7 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
                 break;
             }
 
-            (*jenv)->SetObjectArrayElement(jenv, peerProtosArr, idx++,
+            (*jenv)->SetObjectArrayElement(jenv, peerProtosArr, arrIdx++,
                 protoStr);
             (*jenv)->DeleteLocalRef(jenv, protoStr);
             protoStr = NULL;
@@ -6033,13 +6003,8 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
                 break;
             }
 
-            curr = XSTRTOK(NULL, ",", &ptr);
+            idx += 1 + protoLen;
         }
-    }
-
-    /* free native peer protocol list, no longer needed */
-    if (peerProtos != NULL) {
-        wolfSSL_ALPN_FreePeerProtocol(ssl, &peerProtos);
     }
 
     if (ret == SSL_TLSEXT_ERR_OK) {
@@ -6101,37 +6066,50 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
     }
 
     if (ret == SSL_TLSEXT_ERR_OK) {
-        /* get char* from jstring */
-        selectedProtoCharArr = (*jenv)->GetStringUTFChars(jenv,
-            selectedProto, 0);
-        /* see if selected ALPN protocol is in original sent list.
-         * Wire format is length-prefixed: (LEN|PROTO|LEN|PROTO|...) */
-        if (selectedProtoCharArr != NULL) {
-            selectedProtoCharArrSz = (int)XSTRLEN(selectedProtoCharArr);
-            idx = 0;
-            while (idx < inlen) {
-                unsigned char protoLen = in[idx];
-                if (idx + 1 + protoLen > inlen) {
-                    ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-                    break;
-                }
-                if (protoLen == selectedProtoCharArrSz &&
-                    XMEMCMP(in + idx + 1, selectedProtoCharArr,
-                        selectedProtoCharArrSz) == 0) {
-                    *out = in + idx + 1;
-                    *outlen = protoLen;
-                    break;
-                }
-                idx += 1 + protoLen;
-            }
-            if (idx >= inlen && ret != SSL_TLSEXT_ERR_ALERT_FATAL) {
-                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-            }
-            (*jenv)->ReleaseStringUTFChars(jenv, selectedProto,
-                selectedProtoCharArr);
+        /* convert selected String back to bytes, one byte per char */
+        selectedSz = (*jenv)->GetStringLength(jenv, selectedProto);
+        if (selectedSz <= 0 || selectedSz > (jsize)sizeof(selected)) {
+            WOLFSSL_MSG("Selected ALPN protocol length invalid");
+            ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
         else {
-            /* Not able to get selected ALPN protocol from Java, fatal error */
+            (*jenv)->GetStringRegion(jenv, selectedProto, 0, selectedSz,
+                protoChars);
+            if ((*jenv)->ExceptionCheck(jenv)) {
+                (*jenv)->ExceptionDescribe(jenv);
+                (*jenv)->ExceptionClear(jenv);
+                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+        }
+        /* NUL rejected too, wolfSSL would send the name cut at the NUL */
+        for (i = 0; ret == SSL_TLSEXT_ERR_OK && i < selectedSz; i++) {
+            if (protoChars[i] == 0 || protoChars[i] > 0xFF) {
+                WOLFSSL_MSG("Selected ALPN protocol has NUL or char > 0xFF");
+                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+            selected[i] = (unsigned char)protoChars[i];
+        }
+    }
+
+    if (ret == SSL_TLSEXT_ERR_OK) {
+        /* see if selected ALPN protocol is in original sent list.
+         * Wire format is length-prefixed: (LEN|PROTO|LEN|PROTO|...) */
+        idx = 0;
+        while (idx < inlen) {
+            protoLen = in[idx];
+            if (idx + 1 + protoLen > inlen) {
+                ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+                break;
+            }
+            if (protoLen == selectedSz &&
+                XMEMCMP(in + idx + 1, selected, selectedSz) == 0) {
+                *out = in + idx + 1;
+                *outlen = protoLen;
+                break;
+            }
+            idx += 1 + protoLen;
+        }
+        if (idx >= inlen && ret != SSL_TLSEXT_ERR_ALERT_FATAL) {
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
     }

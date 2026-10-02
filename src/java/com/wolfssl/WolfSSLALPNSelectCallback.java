@@ -47,7 +47,9 @@ public interface WolfSSLALPNSelectCallback {
      * @param out output array; the selected ALPN protocol should be placed as
      *            a String into the first array element, ie out[0].
      * @param in  input array containing the ALPN values sent by the client
-     *            in the ClientHello message.
+     *            in the ClientHello message, one char per byte (ISO-8859-1).
+     *            out[0] is converted back the same way, so a NUL char or a
+     *            char above U+00FF fails the handshake.
      * @param arg Object set by user when registering callback, passed back
      *            to user inside callback in case needed to select ALPN.
      * @return WolfSSL.SSL_TLSEXT_ERR_OK if ALPN protocol has been selected,
