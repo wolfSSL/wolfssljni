@@ -398,8 +398,9 @@ public class WolfSSLX509 extends X509Certificate {
             () -> "entered getBasicConstraints()");
 
         if (this.cert == null) {
-            return 0;
+            return -1;
         }
+
         if (this.cert.isCA() == 1) {
             int pLen = this.cert.getPathLen();
             if (pLen == -1) { /* if not set then return max int value */
@@ -407,6 +408,7 @@ public class WolfSSLX509 extends X509Certificate {
             }
             return pLen;
         }
+
         return -1;
     }
 

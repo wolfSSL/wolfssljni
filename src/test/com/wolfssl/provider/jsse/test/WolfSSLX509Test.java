@@ -223,6 +223,17 @@ public class WolfSSLX509Test {
     }
 
     @Test
+    public void testFreedCertNotReportedAsCA() throws Exception {
+
+        WolfSSLX509 ca = new WolfSSLX509(tf.getCert("ca"));
+        assertTrue("CA cert not reported as CA",
+            ca.getBasicConstraints() >= 0);
+
+        ca.free();
+        assertEquals(-1, ca.getBasicConstraints());
+    }
+
+    @Test
     public void testServerParsing() {
         try {
             X509Certificate x509, ca;
