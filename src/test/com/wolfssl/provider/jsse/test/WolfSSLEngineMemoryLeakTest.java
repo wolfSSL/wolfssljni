@@ -102,6 +102,11 @@ public class WolfSSLEngineMemoryLeakTest {
          * accounting for JVM differences. */
         final double maxAcceptableGrowthMB = 80.0;
 
+        /* One SSLContext for all engines. The leaks tested are per engine,
+         * and each new context reloads the trusted CA certs. */
+        SSLContext sslContext = SSLContext.getInstance("TLS", "wolfJSSE");
+        sslContext.init(null, null, null);
+
         /* Measure baseline memory - use aggressive GC */
         for (int i = 0; i < 3; i++) {
             System.gc();
@@ -112,7 +117,7 @@ public class WolfSSLEngineMemoryLeakTest {
 
         /* Create and abandon many SSLEngine instances */
         for (int i = 0; i < numEngines; i++) {
-            createAndAbandonSSLEngine();
+            createAndAbandonSSLEngine(sslContext);
         }
 
         /* Force aggressive garbage collection and finalization.
@@ -152,6 +157,10 @@ public class WolfSSLEngineMemoryLeakTest {
         final int numEngines = 100;
         final double maxAcceptableGrowthMB = 20.0;
 
+        /* One SSLContext for all engines, the leaks tested are per engine */
+        SSLContext sslContext = SSLContext.getInstance("TLS", "wolfJSSE");
+        sslContext.init(null, null, null);
+
         System.gc();
         System.gc();
         Thread.sleep(100);
@@ -159,10 +168,6 @@ public class WolfSSLEngineMemoryLeakTest {
 
         /* Create engines and explicitly close them */
         for (int i = 0; i < numEngines; i++) {
-            SSLContext sslContext =
-                SSLContext.getInstance("TLS", "wolfJSSE");
-            sslContext.init(null, null, null);
-
             SSLEngine engine =
                 sslContext.createSSLEngine("example.com", 443);
             engine.setUseClientMode(true);
@@ -206,13 +211,8 @@ public class WolfSSLEngineMemoryLeakTest {
      * - Exceptions occur during handshake
      * - Applications don't properly close engines
      */
-    private void createAndAbandonSSLEngine() throws Exception {
-
-        /* Create SSLContext using WolfSSL provider */
-        SSLContext sslContext = SSLContext.getInstance("TLS", "wolfJSSE");
-
-        /* Initialize with null (will use default trust/key managers) */
-        sslContext.init(null, null, null);
+    private void createAndAbandonSSLEngine(SSLContext sslContext)
+        throws Exception {
 
         /* Create SSLEngine in client mode */
         SSLEngine engine = sslContext.createSSLEngine("wolfssl.com", 443);
