@@ -2925,9 +2925,71 @@ public class WolfSSLSessionTest {
             WolfSSLSession.freeSession(sesDup);
             sesDup = 0;
 
+            /* Test sessionSetTimeout() */
+            ret = WolfSSLSession.sessionSetTimeout(0, 10);
+            if (ret != WolfSSL.JNI_SESSION_UNAVAILABLE) {
+                throw new Exception(
+                    "sessionSetTimeout() with null session: " + ret);
+            }
+            ret = WolfSSLSession.sessionSetTimeout(sessionPtr, -1);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                throw new Exception(
+                    "sessionSetTimeout() with negative timeout: " + ret);
+            }
+            ret = WolfSSLSession.sessionSetTimeout(sessionPtr,
+                Integer.MAX_VALUE + 1L);
+            if (ret != WolfSSL.BAD_FUNC_ARG) {
+                throw new Exception(
+                    "sessionSetTimeout() over Integer.MAX_VALUE: " + ret);
+            }
+            ret = WolfSSLSession.sessionSetTimeout(sessionPtr, 1234);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("sessionSetTimeout() failed: " + ret);
+            }
+            if (WolfSSLSession.sessionGetTimeout(0) !=
+                    WolfSSL.JNI_SESSION_UNAVAILABLE) {
+                throw new Exception("sessionGetTimeout() with null session");
+            }
+            if (WolfSSLSession.sessionGetTimeout(sessionPtr) != 1234) {
+                throw new Exception(
+                    "sessionSetTimeout() not applied to session: " +
+                    WolfSSLSession.sessionGetTimeout(sessionPtr));
+            }
+
+            /* Test sessionSetMaxTimeout() */
+            ret = WolfSSLSession.sessionSetMaxTimeout(0);
+            if (ret != WolfSSL.JNI_SESSION_UNAVAILABLE) {
+                throw new Exception(
+                    "sessionSetMaxTimeout() with null session: " + ret);
+            }
+            ret = WolfSSLSession.sessionSetMaxTimeout(sessionPtr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception("sessionSetMaxTimeout() failed: " + ret);
+            }
+            if (WolfSSLSession.sessionGetTimeout(sessionPtr) <= 1234 ||
+                WolfSSLSession.sessionGetTimeout(sessionPtr) >
+                    Integer.MAX_VALUE) {
+                throw new Exception(
+                    "sessionSetMaxTimeout() set unexpected timeout: " +
+                    WolfSSLSession.sessionGetTimeout(sessionPtr));
+            }
+
             cliSes.shutdownSSL();
             cliSes.freeSSL();
             cliSes = null;
+
+            /* Usable after freeSSL(), session must still resume below */
+            ret = WolfSSLSession.sessionSetTimeout(sessionPtr, 600);
+            if (ret != WolfSSL.SSL_SUCCESS ||
+                WolfSSLSession.sessionGetTimeout(sessionPtr) != 600) {
+                throw new Exception(
+                    "sessionSetTimeout() after freeSSL() failed: " + ret);
+            }
+            ret = WolfSSLSession.sessionSetMaxTimeout(sessionPtr);
+            if (ret != WolfSSL.SSL_SUCCESS) {
+                throw new Exception(
+                    "sessionSetMaxTimeout() after freeSSL() failed: " + ret);
+            }
             cliSock.close();
             cliSock = null;
 

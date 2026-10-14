@@ -269,7 +269,15 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getTimeout
  * Signature: (JJ)I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
-  (JNIEnv *, jobject, jlong, jlong);
+  (JNIEnv *, jclass, jlong, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setSessMaxTimeout
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessMaxTimeout
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
@@ -277,7 +285,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSessTimeout
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

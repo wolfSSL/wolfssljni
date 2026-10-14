@@ -2629,17 +2629,46 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
-  (JNIEnv* jenv, jobject jcl, jlong sessionPtr, jlong sz)
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr, jlong sz)
 {
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
     (void)jenv;
     (void)jcl;
 
+    /* Native takes a long, 32 bits on some platforms (ex: Windows) */
+    if (session == NULL || sz < 0 || sz > (jlong)INT32_MAX) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
     return wolfSSL_SSL_SESSION_set_timeout(session, (long)sz);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessMaxTimeout
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    word32 bornOn = 0;
+    word32 maxTimeout = 0;
+    (void)jenv;
+    (void)jcl;
+
+    if (session == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    /* Largest timeout where 32-bit bornOn + timeout does not wrap, capped
+     * like setSessTimeout() */
+    bornOn = (word32)wolfSSL_SESSION_get_time(session);
+    maxTimeout = WOLFSSL_MAX_32BIT - bornOn;
+    if (maxTimeout > (word32)INT32_MAX) {
+        maxTimeout = (word32)INT32_MAX;
+    }
+
+    return wolfSSL_SSL_SESSION_set_timeout(session, (long)maxTimeout);
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSessTimeout
-  (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
 {
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
     (void)jenv;

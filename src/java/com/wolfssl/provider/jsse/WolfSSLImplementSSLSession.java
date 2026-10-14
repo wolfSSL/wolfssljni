@@ -70,8 +70,11 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     String cipherSuite = null; /* cipher suite used for this session */
     Date creation = null;
     Date accessed = null; /* when new connection was made using session */
-    byte[] pseudoSessionID = null; /* used with TLS 1.3*/
+    byte[] pseudoSessionID = null; /* used with TLS 1.3 */
     private int side = 0;
+
+    /* Last ID read by getId(), returned once WOLFSSL is freed */
+    private byte[] sessionId = null;
 
     /* Track if client auth was requested, for getPeerCertificates() behavior */
     private volatile boolean clientAuthRequested = false;
@@ -273,6 +276,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
         if (orig.pseudoSessionID != null) {
             this.pseudoSessionID = orig.pseudoSessionID.clone();
         }
+        if (orig.sessionId != null) {
+            this.sessionId = orig.sessionId.clone();
+        }
         this.side = orig.side;
         this.clientAuthRequested = orig.clientAuthRequested;
         this.localCertAlias = orig.localCertAlias;
@@ -312,35 +318,53 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     /**
      * Get session ID for this session
      *
+     * Returns the last ID read once the wrapped WolfSSLSession is freed
+     * (ex: connection closed).
+     *
      * @return session ID as byte array, empty byte array if wrapped
-     *         com.wolfssl.WolfSSLSession is null, or null if inner
-     *         IllegalStateException or WolfSSLJNIException are thrown
+     *         WolfSSLSession is null, or null if no ID is available or a
+     *         WolfSSLJNIException is thrown
      */
     public synchronized byte[] getId() {
+
+        byte[] id;
+
         if (ssl == null) {
             return new byte[0];
         }
+
         try {
             /* use pseudo session ID if session tickets are being used */
             if (this.ssl.getVersion().equals("TLSv1.3") ||
                 this.ssl.sessionTicketsEnabled()) {
-                 return this.pseudoSessionID.clone();
+                 id = this.pseudoSessionID.clone();
             }
             else {
-                return this.ssl.getSessionID();
+                id = this.ssl.getSessionID();
             }
 
         } catch (IllegalStateException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 () -> "In getId(), WolfSSLSession has been freed, " +
-                "returning null");
-            return null;
+                "returning last known session ID");
+
+            if (this.sessionId == null) {
+                return null;
+            }
+
+            return this.sessionId.clone();
 
         } catch (WolfSSLJNIException e) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.ERROR,
                 () -> "In getId(), JNI error: " + e.getMessage());
             return null;
         }
+
+        if (id != null) {
+            this.sessionId = id.clone();
+        }
+
+        return id;
     }
 
     /**
@@ -972,6 +996,9 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
                 () -> "Not able to update stored WOLFSSL protocol");
         }
 
+        /* Cache session ID for getId() after close */
+        getId();
+
         /* After a full handshake, use this connection's alias. A resumed
          * session keeps the alias from the handshake that created it. */
         try {
@@ -1042,11 +1069,45 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
     }
 
     /**
-     * Sets the native WOLFSSL_SESSION timeout
+     * Sets the native timeout of the stored WOLFSSL_SESSION and, if not yet
+     * freed, the connection's session. A timeout of 0 (no limit) uses
+     * WolfSSLSession.sessionSetMaxTimeout(), since native treats 0 as expired.
+     *
      * @param in timeout in seconds
      */
     protected synchronized void setNativeTimeout(long in) {
-        ssl.setSessTimeout(in);
+
+        long connSesPtr = 0;
+
+        synchronized (sesPtrLock) {
+            if (this.sesPtr != 0) {
+                applyNativeTimeout(this.sesPtr, in);
+            }
+        }
+
+        if (this.ssl != null) {
+            try {
+                connSesPtr = this.ssl.getSession();
+                if (connSesPtr != 0) {
+                    applyNativeTimeout(connSesPtr, in);
+                }
+            } catch (IllegalStateException e) {
+                /* WOLFSSL freed on connection close */
+            } finally {
+                /* Release getSession() reference, no-op if 0 */
+                WolfSSLSession.freeSession(connSesPtr);
+            }
+        }
+    }
+
+    /* Set native session timeout, mapping 0 (no limit) to max timeout */
+    private static void applyNativeTimeout(long session, long in) {
+        if (in <= 0) {
+            WolfSSLSession.sessionSetMaxTimeout(session);
+        }
+        else {
+            WolfSSLSession.sessionSetTimeout(session, in);
+        }
     }
 
 
@@ -1237,6 +1298,11 @@ public class WolfSSLImplementSSLSession extends ExtendedSSLSession {
             }
         } catch (IllegalArgumentException e) {
             throw new UnsupportedOperationException(e);
+
+        } catch (IllegalStateException e) {
+            /* WOLFSSL freed on close, use cached SNI names below */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                () -> "WolfSSLSession freed, returning cached SNI names");
         }
 
         if (this.sniServerNames != null && !this.sniServerNames.isEmpty()) {

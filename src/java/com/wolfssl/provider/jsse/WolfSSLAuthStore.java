@@ -815,17 +815,9 @@ public class WolfSSLAuthStore {
                     else if (in > 0 && diff >= in) {
                         current.invalidate();
                     }
-                    try {
-                        current.setNativeTimeout(in);
-                    } catch (IllegalStateException e) {
-                        /* Native WolfSSLSession has been freed,
-                         * invalidate this session entry */
-                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            () -> "Native session freed while updating " +
-                                "timeout, invalidating cache entry: " +
-                                e.getMessage());
-                        current.invalidate();
-                    }
+
+                    /* Sessions of closed connections stay resumable */
+                    current.setNativeTimeout(in);
 
                     if (!current.isValid()) {
                         /* Drop invalid/expired sessions so an unlimited cache
