@@ -60,10 +60,12 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
     private KeyStore store = null;
 
+    /** Endpoint Identification Algorithm not supported */
+    static final int HOSTNAME_TYPE_UNSUPPORTED = 0;
     /** X509ExtendedTrustManager hostname type HTTPS */
-    private static int HOSTNAME_TYPE_HTTPS = 1;
+    static final int HOSTNAME_TYPE_HTTPS = 1;
     /** X509ExtendedTrustManager hostname type LDAPS */
-    private static int HOSTNAME_TYPE_LDAPS = 2;
+    static final int HOSTNAME_TYPE_LDAPS = 2;
 
     /**
      * Create new WolfSSLTrustX509 object
@@ -802,6 +804,28 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
     }
 
     /**
+     * Get hostname verification type for an Endpoint Identification
+     * Algorithm name. Names are matched case-insensitively.
+     *
+     * @param endpointIdAlgo Endpoint Identification Algorithm name
+     *
+     * @return HOSTNAME_TYPE_HTTPS, HOSTNAME_TYPE_LDAPS, or
+     *         HOSTNAME_TYPE_UNSUPPORTED if name is not supported
+     */
+    static int getHostnameType(String endpointIdAlgo) {
+
+        if ("HTTPS".equalsIgnoreCase(endpointIdAlgo)) {
+            return HOSTNAME_TYPE_HTTPS;
+        }
+
+        if ("LDAPS".equalsIgnoreCase(endpointIdAlgo)) {
+            return HOSTNAME_TYPE_LDAPS;
+        }
+
+        return HOSTNAME_TYPE_UNSUPPORTED;
+    }
+
+    /**
      * Verify hostname of certificate.
      *
      * @param cert peer certificate
@@ -839,25 +863,14 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
             /* If endpoint ID algo is null or empty, skips hostname verify */
             if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
-                if (endpointIdAlgo.equals("HTTPS")) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "verifying hostname, endpoint identification " +
-                        "algorithm = HTTPS");
-                    verifyHostnameByType(cert, (SSLSocket)socket,
-                        null, isClient, HOSTNAME_TYPE_HTTPS);
-                }
-                else if (endpointIdAlgo.equals("LDAPS")) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "verifying hostname, endpoint identification " +
-                        "algorithm = LDAPS");
-                    verifyHostnameByType(cert, (SSLSocket)socket,
-                        null, isClient, HOSTNAME_TYPE_LDAPS);
-                }
-                else {
+                int type = getHostnameType(endpointIdAlgo);
+                if (type == HOSTNAME_TYPE_UNSUPPORTED) {
                     throw new CertificateException(
                         "Unsupported Endpoint Identification Algorithm: " +
                         endpointIdAlgo);
                 }
+                verifyHostnameByType(cert, (SSLSocket)socket, null,
+                    isClient, type);
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -879,25 +892,13 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
 
             /* If endpoint ID algo is null or empty, skips hostname verify */
             if (endpointIdAlgo != null && !endpointIdAlgo.isEmpty()) {
-                if (endpointIdAlgo.equals("HTTPS")) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "verifying hostname, endpoint identification " +
-                        "algorithm = HTTPS");
-                    verifyHostnameByType(cert, null, engine, isClient,
-                        HOSTNAME_TYPE_HTTPS);
-                }
-                else if (endpointIdAlgo.equals("LDAPS")) {
-                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        () -> "verifying hostname, endpoint identification " +
-                        "algorithm = LDAPS");
-                    verifyHostnameByType(cert, null, engine, isClient,
-                        HOSTNAME_TYPE_LDAPS);
-                }
-                else {
+                int type = getHostnameType(endpointIdAlgo);
+                if (type == HOSTNAME_TYPE_UNSUPPORTED) {
                     throw new CertificateException(
                         "Unsupported Endpoint Identification Algorithm: " +
                         endpointIdAlgo);
                 }
+                verifyHostnameByType(cert, null, engine, isClient, type);
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -954,8 +955,9 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
      *
      * Does hostname verification internally if Endpoint Identification
      * Algorithm has been set by application in SSLParameters, and that
-     * Algorithm matches "HTTPS" or "LDAPS". If "HTTPS" is set, hostname
-     * verification is done using SNI first then peer host value.
+     * Algorithm matches "HTTPS" or "LDAPS" (case-insensitive). If "HTTPS"
+     * is set, hostname verification is done using SNI first then peer host
+     * value.
      *
      * Other Endpoint Identification Algorithms besides "HTTPS" and "LDAPS"
      * are not currently supported.

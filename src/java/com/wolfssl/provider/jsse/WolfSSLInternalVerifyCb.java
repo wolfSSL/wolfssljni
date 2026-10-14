@@ -192,6 +192,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
      */
     private int verifyHostnameForExternalTM(X509Certificate peer) {
 
+        int type;
         String endpointIdAlgo = null;
         String peerHost = null;
         SSLSession session = null;
@@ -209,8 +210,8 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
 
         /* Only HTTPS and LDAPS are supported. Fail if endpoint ID was
          * explicitly set to something else (typo or unsupported algo). */
-        if (!endpointIdAlgo.equals("HTTPS") &&
-            !endpointIdAlgo.equals("LDAPS")) {
+        type = WolfSSLTrustX509.getHostnameType(endpointIdAlgo);
+        if (type == WolfSSLTrustX509.HOSTNAME_TYPE_UNSUPPORTED) {
             final String tmpAlgoUnsup = endpointIdAlgo;
             this.verifyException = new CertificateException(
                 "Unsupported endpoint identification algorithm: " +
@@ -296,7 +297,7 @@ public class WolfSSLInternalVerifyCb implements WolfSSLVerifyCallback {
         try {
             wCert = new WolfSSLCertificate(peer.getEncoded());
             /* LDAPS requires wildcard left-most matching only */
-            long flags = endpointIdAlgo.equals("LDAPS") ?
+            long flags = (type == WolfSSLTrustX509.HOSTNAME_TYPE_LDAPS) ?
                 WolfSSL.WOLFSSL_LEFT_MOST_WILDCARD_ONLY : 0;
             int ret = WolfSSLUtil.verifyHostnameOrIp(wCert, peerHost, flags);
             if (ret == WolfSSL.SSL_SUCCESS) {
