@@ -2629,17 +2629,46 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessTimeout
-  (JNIEnv* jenv, jobject jcl, jlong sessionPtr, jlong sz)
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr, jlong sz)
 {
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
     (void)jenv;
     (void)jcl;
 
+    /* Native takes a long, 32 bits on some platforms (ex: Windows) */
+    if (session == NULL || sz < 0 || sz > (jlong)INT32_MAX) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
     return wolfSSL_SSL_SESSION_set_timeout(session, (long)sz);
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSessMaxTimeout
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    word32 bornOn = 0;
+    word32 maxTimeout = 0;
+    (void)jenv;
+    (void)jcl;
+
+    if (session == NULL) {
+        return (jint)BAD_FUNC_ARG;
+    }
+
+    /* Largest timeout where 32-bit bornOn + timeout does not wrap, capped
+     * like setSessTimeout() */
+    bornOn = (word32)wolfSSL_SESSION_get_time(session);
+    maxTimeout = WOLFSSL_MAX_32BIT - bornOn;
+    if (maxTimeout > (word32)INT32_MAX) {
+        maxTimeout = (word32)INT32_MAX;
+    }
+
+    return wolfSSL_SSL_SESSION_set_timeout(session, (long)maxTimeout);
+}
+
 JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSessTimeout
-  (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
 {
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
     (void)jenv;
@@ -3719,6 +3748,8 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificat
     jbyteArray derArr = NULL;
     unsigned char* der = NULL;
     int chainSz = 0;
+    int certCount = 0;
+    int idx = 0;
     int derSz = 0;
     int i = 0;
     (void)jcl;
@@ -3737,12 +3768,25 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificat
         return NULL;
     }
 
+    /* Certs of MAX_X509_SIZE or larger are not stored. Newer wolfSSL leaves
+     * an empty slot for them, skip those. */
+    for (i = 0; i < chainSz; i++) {
+        if (wolfSSL_get_chain_cert(chain, i) != NULL &&
+            wolfSSL_get_chain_length(chain, i) > 0) {
+            certCount++;
+        }
+    }
+
+    if (certCount == 0) {
+        return NULL;
+    }
+
     byteArrayClass = (*jenv)->FindClass(jenv, "[B");
     if (byteArrayClass == NULL) {
         return NULL;
     }
 
-    chainArr = (*jenv)->NewObjectArray(jenv, chainSz, byteArrayClass, NULL);
+    chainArr = (*jenv)->NewObjectArray(jenv, certCount, byteArrayClass, NULL);
     if (chainArr == NULL) {
         return NULL;
     }
@@ -3750,14 +3794,13 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificat
     /* Appended in wire order, peer cert first. Native wolfSSL drops certs
      * of MAX_X509_SIZE or larger and anything past MAX_CHAIN_DEPTH, so the
      * chain can be incomplete and may not start with the peer cert. */
-    for (i = 0; i < chainSz; i++) {
+    for (i = 0; i < chainSz && idx < certCount; i++) {
 
         der = wolfSSL_get_chain_cert(chain, i);
         derSz = wolfSSL_get_chain_length(chain, i);
 
         if (der == NULL || derSz <= 0) {
-            /* Chain not usable if any entry is missing */
-            return NULL;
+            continue;
         }
 
         derArr = (*jenv)->NewByteArray(jenv, derSz);
@@ -3770,11 +3813,16 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLSession_getPeerCertificat
             return NULL;
         }
 
-        (*jenv)->SetObjectArrayElement(jenv, chainArr, i, derArr);
+        (*jenv)->SetObjectArrayElement(jenv, chainArr, idx++, derArr);
         (*jenv)->DeleteLocalRef(jenv, derArr);
         if ((*jenv)->ExceptionCheck(jenv)) {
             return NULL;
         }
+    }
+
+    if (idx != certCount) {
+        /* Avoid trailing NULL entries */
+        return NULL;
     }
 
     return chainArr;

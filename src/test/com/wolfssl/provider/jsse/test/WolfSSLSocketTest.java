@@ -32,6 +32,7 @@ import com.wolfssl.test.TimedTestWatcher;
 
 import java.util.List;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Collection;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
@@ -65,6 +66,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
@@ -108,6 +110,7 @@ import java.util.Base64;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.provider.jsse.WolfSSLSocketFactory;
 import com.wolfssl.provider.jsse.WolfSSLSocket;
+import com.wolfssl.provider.jsse.WolfSSLImplementSSLSession;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
@@ -2949,7 +2952,9 @@ public class WolfSSLSocketTest {
 
         byte[] sessionIdAa = null;
         byte[] sessionIdColliding = null;
-        byte[] sessionIdAaResume = null;
+        boolean collidingResumed = false;
+        SSLSession sesAa = null;
+        SSLSession sesBb = null;
         String protocol = null;
 
         /* TLS 1.2/1.1/1.0 resume via session ID or ticket. TLS 1.3 is
@@ -2993,13 +2998,13 @@ public class WolfSSLSocketTest {
 
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
-            /* Server accepts three sequential handshakes. */
+            /* Server accepts two sequential handshakes. */
             es = Executors.newSingleThreadExecutor();
             serverFuture = es.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
                     try {
-                        for (int i = 0; i < 3; i++) {
+                        for (int i = 0; i < 2; i++) {
                             SSLSocket server = (SSLSocket)fss.accept();
                             server.startHandshake();
                             server.close();
@@ -3026,14 +3031,7 @@ public class WolfSSLSocketTest {
                 cs.connect(new InetSocketAddress(hostBb, port));
                 cs.startHandshake();
                 sessionIdColliding = cs.getSession().getId();
-                cs.close();
-
-                /* #3: reconnect "Aa...". Its cached session must still be
-                 * present (not evicted by BB) and resume. */
-                cs = (SSLSocket)cliFactory.createSocket();
-                cs.connect(new InetSocketAddress(hostAa, port));
-                cs.startHandshake();
-                sessionIdAaResume = cs.getSession().getId();
+                collidingResumed = ((WolfSSLSocket)cs).sessionResumed();
                 cs.close();
 
             } catch (SSLHandshakeException e) {
@@ -3044,15 +3042,25 @@ public class WolfSSLSocketTest {
              * cannot hang the suite. */
             serverFuture.get(10, TimeUnit.SECONDS);
 
-            /* Colliding host must get its own session, not Aa's. */
-            if (Arrays.equals(sessionIdAa, sessionIdColliding)) {
+            /* Colliding host must not resume Aa's session */
+            if (collidingResumed ||
+                Arrays.equals(sessionIdAa, sessionIdColliding)) {
                 fail("colliding host resumed victim host's session");
             }
 
-            /* Same host still resumes, so the String key does not break
-             * legitimate resumption and BB did not evict Aa's entry. */
-            if (!Arrays.equals(sessionIdAa, sessionIdAaResume)) {
-                fail("same host failed to resume after colliding host connect");
+            /* BB must not evict Aa from the client cache. Checked directly,
+             * since reconnecting also needs Aa's native server cache entry,
+             * which in-process client sessions can evict. */
+            SSLSessionContext cliSesCtx = ctx.getClientSessionContext();
+            sesAa = cliSesCtx.getSession(sessionIdAa);
+            sesBb = cliSesCtx.getSession(sessionIdColliding);
+            if (sesAa == null ||
+                !"Aa.corp.internal".equals(sesAa.getPeerHost())) {
+                fail("colliding host connect evicted victim host's session");
+            }
+            if (sesBb == null ||
+                !"BB.corp.internal".equals(sesBb.getPeerHost())) {
+                fail("colliding host session not cached under its own host");
             }
 
         } finally {
@@ -3075,6 +3083,192 @@ public class WolfSSLSocketTest {
             /* Restore the original property state. */
             Security.setProperty("wolfjsse.clientSessionCache.disabled",
                 originalProp == null ? "" : originalProp);
+        }
+    }
+
+    /* Run between the two connections of connectTwiceWithClosedSession() */
+    private interface ClosedSessionCheck {
+        void run(SSLSessionContext cliSesCtx, SSLSession closedSes,
+            byte[] closedId) throws Exception;
+    }
+
+    /* Connect twice to a named loopback host, running check after the first
+     * connection closes. Returns true if the second one resumed. TLS 1.3 is
+     * excluded as in testSessionResumption(). */
+    private boolean connectTwiceWithClosedSession(ClosedSessionCheck check)
+        throws Exception {
+
+        boolean resumed = false;
+        byte[] id1 = null;
+        SSLSession ses1 = null;
+        SSLSessionContext cliSesCtx = null;
+        String protocol = null;
+
+        if (WolfSSL.TLSv12Enabled()) {
+            protocol = "TLSv1.2";
+        } else if (WolfSSL.TLSv11Enabled()) {
+            protocol = "TLSv1.1";
+        } else if (WolfSSL.TLSv1Enabled()) {
+            protocol = "TLSv1.0";
+        }
+        Assume.assumeNotNull(protocol);
+
+        /* Named host, so the session is cached by host:port */
+        InetAddress host = InetAddress.getByAddress("closed.corp.internal",
+            new byte[]{127, 0, 0, 1});
+
+        /* Enable client session cache */
+        String originalProp = Security.getProperty(
+            "wolfjsse.clientSessionCache.disabled");
+        Security.setProperty("wolfjsse.clientSessionCache.disabled", "false");
+
+        SSLServerSocket ss = null;
+        ExecutorService es = null;
+        Future<Void> serverFuture = null;
+
+        try {
+            this.ctx = tf.createSSLContext(protocol, ctxProvider);
+            cliSesCtx = ctx.getClientSessionContext();
+
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                    .createServerSocket(0);
+            final int port = ss.getLocalPort();
+            final SSLServerSocket fss = ss;
+
+            SSLSocketFactory cliFactory = ctx.getSocketFactory();
+
+            es = Executors.newSingleThreadExecutor();
+            serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    try {
+                        for (int i = 0; i < 2; i++) {
+                            SSLSocket server = (SSLSocket)fss.accept();
+                            server.startHandshake();
+                            server.close();
+                        }
+                    } catch (SSLException e) {
+                        fail();
+                    }
+                    return null;
+                }
+            });
+
+            try {
+                /* #1: full handshake, cached on close */
+                SSLSocket cs = (SSLSocket)cliFactory.createSocket();
+                cs.connect(new InetSocketAddress(host, port));
+                cs.startHandshake();
+                ses1 = cs.getSession();
+                id1 = ses1.getId();
+                cs.close();
+
+                check.run(cliSesCtx, ses1, id1);
+
+                /* #2: same host. Uses sessionResumed() since with tickets
+                 * getId() is a pseudo ID, equal even after a full handshake */
+                cs = (SSLSocket)cliFactory.createSocket();
+                cs.connect(new InetSocketAddress(host, port));
+                cs.startHandshake();
+                resumed = ((WolfSSLSocket)cs).sessionResumed();
+                cs.close();
+
+            } catch (SSLHandshakeException e) {
+                fail();
+            }
+
+            /* Surface server thread failures */
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            /* Close server socket first to unblock any pending accept() */
+            if (ss != null && !ss.isClosed()) {
+                try {
+                    ss.close();
+                } catch (IOException e) {
+                    /* ignore */
+                }
+            }
+            if (serverFuture != null) {
+                serverFuture.cancel(true);
+            }
+            if (es != null) {
+                es.shutdownNow();
+            }
+            Security.setProperty("wolfjsse.clientSessionCache.disabled",
+                originalProp == null ? "" : originalProp);
+        }
+
+        return resumed;
+    }
+
+    /* getIds() and getSession(byte[]) must find a closed connection's
+     * session and keep it resumable. These used to drop sessions whose
+     * WOLFSSL was freed on close. */
+    @Test
+    public void testSessionContextLookupKeepsClosedClientSession()
+        throws Exception {
+
+        boolean resumed = connectTwiceWithClosedSession(
+            (cliSesCtx, closedSes, closedId) -> {
+                boolean idListed = false;
+                Enumeration<byte[]> listed = null;
+                WolfSSLImplementSSLSession copy = null;
+                SSLSession found = null;
+                List<SNIServerName> sni = null;
+
+                /* ID survives close, also in a copy */
+                if (!Arrays.equals(closedId, closedSes.getId())) {
+                    fail("session ID not available after connection closed");
+                }
+                copy = new WolfSSLImplementSSLSession(
+                    (WolfSSLImplementSSLSession)closedSes);
+                if (!Arrays.equals(closedId, copy.getId())) {
+                    fail("copied session lost ID after connection closed");
+                }
+
+                listed = cliSesCtx.getIds();
+                while (listed.hasMoreElements()) {
+                    if (Arrays.equals(closedId, listed.nextElement())) {
+                        idListed = true;
+                    }
+                }
+                if (!idListed) {
+                    fail("closed connection session missing from getIds()");
+                }
+                found = cliSesCtx.getSession(closedId);
+                if (found == null) {
+                    fail("closed connection session not found by ID");
+                }
+
+                sni = ((WolfSSLImplementSSLSession)found)
+                    .getRequestedServerNames();
+                if (sni.isEmpty() || !"closed.corp.internal".equals(
+                        ((SNIHostName)sni.get(0)).getAsciiName())) {
+                    fail("closed connection session SNI names not kept");
+                }
+            });
+
+        if (!resumed) {
+            fail("session context lookup stopped session resumption");
+        }
+    }
+
+    /* setSessionTimeout(0) means no limit, but native wolfSSL treats 0 as
+     * expired. A closed connection's session must still resume, also once an
+     * earlier, shorter timeout has passed. */
+    @Test
+    public void testSessionTimeoutZeroKeepsResumption() throws Exception {
+
+        boolean resumed = connectTwiceWithClosedSession(
+            (cliSesCtx, closedSes, closedId) -> {
+                cliSesCtx.setSessionTimeout(2);
+                Thread.sleep(3000);
+                cliSesCtx.setSessionTimeout(0);
+            });
+
+        if (!resumed) {
+            fail("setSessionTimeout(0) stopped session resumption");
         }
     }
 

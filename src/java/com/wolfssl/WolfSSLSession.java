@@ -644,8 +644,9 @@ public class WolfSSLSession {
     private native int setServerID(long ssl, byte[] id, int len, int newSess);
     private native int setTimeout(long ssl, long t);
     private native long getTimeout(long ssl);
-    private native int setSessTimeout(long session, long t);
-    private native long getSessTimeout(long session);
+    private static native int setSessTimeout(long session, long t);
+    private static native int setSessMaxTimeout(long session);
+    private static native long getSessTimeout(long session);
     private native int setCipherList(long ssl, String list);
     private native int dtlsGetCurrentTimeout(long ssl);
     private native int dtlsGotTimeout(long ssl);
@@ -2262,6 +2263,96 @@ public class WolfSSLSession {
             WolfSSLDebug.INFO, () -> "session resumable: " + ret);
 
         return ret;
+    }
+
+    /**
+     * Set the timeout in seconds of a native WOLFSSL_SESSION, calling
+     * wolfSSL_SSL_SESSION_set_timeout().
+     *
+     * Static, so usable after the WOLFSSL the session came from is freed.
+     * Native wolfSSL treats a timeout of 0, or one that wraps its 32-bit sum
+     * with the session creation time, as already expired.
+     *
+     * @param session pointer to native WOLFSSL_SESSION, ex: from getSession()
+     * @param t timeout in seconds, 0 to Integer.MAX_VALUE
+     *
+     * @return WolfSSL.SSL_SUCCESS on success,
+     *         WolfSSL.JNI_SESSION_UNAVAILABLE if session is 0,
+     *         WolfSSL.BAD_FUNC_ARG if t is out of range, otherwise
+     *         a negative value on failure.
+     * @see    #sessionSetMaxTimeout(long)
+     */
+    public static int sessionSetTimeout(long session, long t) {
+
+        final int ret;
+
+        WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO,
+            () -> "entered sessionSetTimeout(timeout (sec): " + t + ")");
+
+        if (session == 0) {
+            return WolfSSL.JNI_SESSION_UNAVAILABLE;
+        }
+
+        ret = setSessTimeout(session, t);
+
+        WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, () -> "set session timeout, ret: " + ret);
+
+        return ret;
+    }
+
+    /**
+     * Set the timeout of a native WOLFSSL_SESSION to the longest value that
+     * does not expire it. Use for no limit, since native treats 0 as expired.
+     *
+     * Static, so usable after the WOLFSSL the session came from is freed.
+     *
+     * @param session pointer to native WOLFSSL_SESSION, ex: from getSession()
+     *
+     * @return WolfSSL.SSL_SUCCESS on success,
+     *         WolfSSL.JNI_SESSION_UNAVAILABLE if session is 0, otherwise
+     *         a negative value on failure.
+     * @see    #sessionSetTimeout(long, long)
+     */
+    public static int sessionSetMaxTimeout(long session) {
+
+        final int ret;
+
+        WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, () -> "entered sessionSetMaxTimeout()");
+
+        if (session == 0) {
+            return WolfSSL.JNI_SESSION_UNAVAILABLE;
+        }
+
+        ret = setSessMaxTimeout(session);
+
+        WolfSSLDebug.log(WolfSSLSession.class, WolfSSLDebug.Component.JNI,
+            WolfSSLDebug.INFO, () -> "set session max timeout, ret: " + ret);
+
+        return ret;
+    }
+
+    /**
+     * Get the timeout in seconds of a native WOLFSSL_SESSION, calling
+     * wolfSSL_SESSION_get_timeout().
+     *
+     * Static, so usable after the WOLFSSL the session came from is freed.
+     *
+     * @param session pointer to native WOLFSSL_SESSION, ex: from getSession()
+     *
+     * @return timeout in seconds, or WolfSSL.JNI_SESSION_UNAVAILABLE if
+     *         session is 0
+     * @see    #sessionSetTimeout(long, long)
+     */
+    public static long sessionGetTimeout(long session) {
+
+        if (session == 0) {
+            return WolfSSL.JNI_SESSION_UNAVAILABLE;
+        }
+
+        return getSessTimeout(session);
     }
 
     /**
