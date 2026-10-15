@@ -4232,4 +4232,78 @@ public class WolfSSLEngineTest {
             }
         }
     }
+
+    /**
+     * TLS 1.3 client unwrap() with no session ticket from the server.
+     * Saving the session must not read the caller's input, which made
+     * BUFFER_OVERFLOW consume input and swallowed the next record. The
+     * session is also saved on close, so the close_notify exchange is
+     * run as well.
+     */
+    @Test
+    public void testUnwrapTls13WithoutSessionTicket() throws Exception {
+
+        Assume.assumeTrue(enabledProtocols.contains("TLSv1.3"));
+        try {
+            SSLContext.getInstance("TLSv1.3", "SunJSSE");
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            Assume.assumeNoException("SunJSSE TLS 1.3 not available", e);
+        }
+
+        /* SunJSSE sends no TLS 1.3 ticket when the session timeout is
+         * over the 7 day ticket lifetime limit */
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.3", "SunJSSE");
+        srvCtx.getServerSessionContext().setSessionTimeout(604801);
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.3", engineProvider);
+
+        SSLEngine server = srvCtx.createSSLEngine();
+        SSLEngine client = cliCtx.createSSLEngine("localhost", 11111);
+        server.setUseClientMode(false);
+        client.setUseClientMode(true);
+        assertEquals(0, tf.testConnection(server, client, null,
+            new String[] { "TLSv1.3" }, "no ticket test"));
+
+        ByteBuffer net = ByteBuffer.allocate(
+            2 * server.getSession().getPacketBufferSize());
+        ByteBuffer plain = ByteBuffer.allocate(
+            client.getSession().getApplicationBufferSize());
+        byte[] big = new byte[1000];
+        Arrays.fill(big, (byte)'a');
+
+        /* Record larger than output buffer */
+        server.wrap(ByteBuffer.wrap(big), net);
+        net.flip();
+        SSLEngineResult res = client.unwrap(net, ByteBuffer.allocate(512));
+        assertEquals(SSLEngineResult.Status.BUFFER_OVERFLOW,
+            res.getStatus());
+        assertEquals("BUFFER_OVERFLOW consumed input", 0,
+            res.bytesConsumed());
+        res = client.unwrap(net, plain);
+        assertEquals(SSLEngineResult.Status.OK, res.getStatus());
+        assertEquals(big.length, res.bytesProduced());
+        assertEquals(0, net.remaining());
+
+        /* Two records in one input buffer */
+        net.clear();
+        plain.clear();
+        server.wrap(ByteBuffer.wrap("first".getBytes()), net);
+        server.wrap(ByteBuffer.wrap("second".getBytes()), net);
+        net.flip();
+        int netSize = net.remaining();
+        int consumed = 0;
+        for (int i = 0; i < 4 && net.hasRemaining(); i++) {
+            res = client.unwrap(net, plain);
+            assertEquals(SSLEngineResult.Status.OK, res.getStatus());
+            consumed += res.bytesConsumed();
+        }
+        assertEquals("input not fully consumed", netSize, consumed);
+        assertEquals("firstsecond",
+            new String(plain.array(), 0, plain.position()));
+
+        /* Session is saved again on close. That path must not read
+         * input either, close_notify exchange should complete normally */
+        assertEquals(0, tf.CloseConnection(server, client, false));
+        assertTrue(client.isOutboundDone());
+        assertTrue(client.isInboundDone());
+    }
 }
