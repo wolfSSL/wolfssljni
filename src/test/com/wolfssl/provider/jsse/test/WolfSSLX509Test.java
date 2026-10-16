@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
@@ -55,6 +56,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.Date;
@@ -75,6 +77,7 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.test.WolfSSLTestCommon;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -268,6 +271,45 @@ public class WolfSSLX509Test {
         /* SKID is present but not stored as DER */
         WolfSSLX509 cert = new WolfSSLX509(tf.getCert("server"));
         assertNull(cert.getExtensionValue("2.5.29.14"));
+    }
+
+    @Test
+    public void testGetExtendedKeyUsageBadOid() throws Exception {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate pem = new WolfSSLCertificate(
+            WolfSSLTestCommon.getPath(
+                "examples/certs/test/eku-bad-oid-cert.pem"),
+            WolfSSL.SSL_FILETYPE_PEM);
+        WolfSSLX509 cert = new WolfSSLX509(pem.getDer());
+        pem.free();
+
+        try {
+            cert.getExtendedKeyUsage();
+            fail("Expected CertificateParsingException");
+        } catch (CertificateParsingException e) {
+            /* expected */
+        }
+    }
+
+    @Test
+    public void testGetExtendedKeyUsageFreedCert() throws Exception {
+
+        WolfSSLX509 x509 = new WolfSSLX509(tf.getCert("server"));
+
+        /* Free the wrapped cert, ex: free() racing on another thread */
+        Field f = WolfSSLX509.class.getDeclaredField("cert");
+        f.setAccessible(true);
+        ((WolfSSLCertificate)f.get(x509)).free();
+
+        try {
+            x509.getExtendedKeyUsage();
+            fail("Expected IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
     }
 
     @Test

@@ -377,7 +377,16 @@ public class WolfSSLX509 extends X509Certificate {
             return null;
         }
 
-        ekuArray = this.cert.getExtendedKeyUsage();
+        try {
+            ekuArray = this.cert.getExtendedKeyUsage();
+        } catch (IllegalStateException e) {
+            /* Rethrow read and decode errors, not a freed certificate */
+            if (e.getCause() instanceof CertificateParsingException) {
+                throw (CertificateParsingException)e.getCause();
+            }
+            throw e;
+        }
+
         if (ekuArray == null) {
             return null;
         }

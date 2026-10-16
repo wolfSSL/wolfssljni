@@ -163,6 +163,57 @@ if [ $? -ne 0 ]; then
 fi
 rm -rf "${TMP_DIR}"
 
+# Generate Extended Key Usage test certs holding OIDs wolfSSL does not
+# recognize (smartcard logon, document signing), alone and mixed with
+# serverAuth and clientAuth, plus large OIDs (arcs over 32 bits, a 128-bit
+# UUID arc, a first arc over 79, over 32 bytes of content) and an OID with
+# a non-minimal encoding
+printf "Generating test/eku-unknown-cert.pem, test/eku-unknown-mixed-cert.pem, "
+printf "test/eku-large-arc-cert.pem, test/eku-bad-oid-cert.pem\n"
+mkdir -p test
+TMP_DIR="$(mktemp -d)"
+cat > "${TMP_DIR}/openssl.cnf" <<EOF
+[ req ]
+distinguished_name = dn
+prompt = no
+
+[ dn ]
+CN = Test EKU Unknown
+O = wolfSSL Test
+C = US
+
+[ v3_unknown ]
+basicConstraints = CA:FALSE
+extendedKeyUsage = 1.3.6.1.4.1.311.20.2.2, 1.3.6.1.4.1.311.10.3.12
+
+[ v3_unknown_mixed ]
+basicConstraints = CA:FALSE
+extendedKeyUsage = serverAuth, 1.3.6.1.4.1.311.20.2.2, clientAuth
+
+[ v3_large_arc ]
+basicConstraints = CA:FALSE
+extendedKeyUsage = 1.3.6.1.5.5.7.3.4294967297, \
+2.25.329800735698586629295641978511506172918, 2.999.1, \
+1.3.6.1.4.1.32473.1.2.3.4.5.6.7.8.9.1.2.3.4.5.6.7.8.9.1.2.3.4.5.6.7.8.9
+
+[ v3_bad_oid ]
+basicConstraints = CA:FALSE
+2.5.29.37 = DER:30:06:06:04:2B:06:80:01
+EOF
+
+for EXT in unknown unknown-mixed large-arc bad-oid; do
+    openssl req -new -newkey rsa:2048 -nodes -x509 -days 3650 \
+      -keyout "${TMP_DIR}/eku-key.pem" -out "test/eku-${EXT}-cert.pem" \
+      -config "${TMP_DIR}/openssl.cnf" -extensions "v3_${EXT//-/_}" \
+      >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        printf "Failed to generate test/eku-%s-cert.pem\n" "${EXT}"
+        rm -rf "${TMP_DIR}"
+        exit 1
+    fi
+done
+rm -rf "${TMP_DIR}"
+
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-cert.pem

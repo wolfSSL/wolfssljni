@@ -2101,43 +2101,6 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
     return ret;
 }
 
-/* Helper function to add an Extended Key Usage (EKU) OID string to the
- * jobjectArray array if the flag is set. Returns updated index in array. */
-static int addEkuOid(JNIEnv* jenv, jobjectArray ret, int idx,
-    unsigned int ekuBits, unsigned int flag, int nid)
-{
-    WOLFSSL_ASN1_OBJECT* obj = NULL;
-    jstring ekuStr = NULL;
-    char oidBuf[128];
-    int oidLen = 0;
-
-    if (ekuBits & flag) {
-
-        /* Convert NID to WOLFSSL_ASN1_OBJECT */
-        obj = wolfSSL_OBJ_nid2obj(nid);
-        if (obj != NULL) {
-
-            /* Convert WOLFSSL_ASN1_OBJECT to OID string */
-            oidLen = wolfSSL_OBJ_obj2txt(oidBuf, sizeof(oidBuf), obj, 1);
-            if (oidLen > 0) {
-
-                /* Create Java String and add to array */
-                ekuStr = (*jenv)->NewStringUTF(jenv, oidBuf);
-                if (ekuStr != NULL) {
-                    (*jenv)->SetObjectArrayElement(jenv, ret, idx, ekuStr);
-                    (*jenv)->DeleteLocalRef(jenv, ekuStr);
-                    idx++;
-                }
-            }
-
-            /* Free WOLFSSL_ASN1_OBJECT */
-            wolfSSL_ASN1_OBJECT_free(obj);
-        }
-    }
-
-    return idx;
-}
-
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
      defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) && \
@@ -2211,14 +2174,28 @@ static jobjectArray stackStringToArray(JNIEnv* jenv, jclass jcl,
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1extended_1key_1usage
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
+    /* OID for each XKU_* flag wolfSSL sets */
+    static const struct {
+        unsigned int flag;
+        const char* oid;
+    } ekuFlagOids[] = {
+        { XKU_SSL_SERVER, "1.3.6.1.5.5.7.3.1" },
+        { XKU_SSL_CLIENT, "1.3.6.1.5.5.7.3.2" },
+        { XKU_CODE_SIGN,  "1.3.6.1.5.5.7.3.3" },
+        { XKU_SMIME,      "1.3.6.1.5.5.7.3.4" },
+        { XKU_TIMESTAMP,  "1.3.6.1.5.5.7.3.8" },
+        { XKU_OCSP_SIGN,  "1.3.6.1.5.5.7.3.9" },
+        { XKU_ANYEKU,     "2.5.29.37.0" }
+    };
+
     jobjectArray ret = NULL;
     jclass stringClass = NULL;
+    jstring ekuStr = NULL;
     unsigned int ekuBits = 0;
+    unsigned int knownBits = 0;
     int ekuCount = 0;
     int idx = 0;
-    int i = 0;
-    jobjectArray trimmed = NULL;
-    jobject elem = NULL;
+    size_t i = 0;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
@@ -2228,19 +2205,19 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
 
     /* Get extended key usage bitmask from wolfSSL */
     ekuBits = wolfSSL_X509_get_extended_key_usage(x509);
-    if (ekuBits == 0) {
-        return NULL;
+    for (i = 0; i < sizeof(ekuFlagOids) / sizeof(ekuFlagOids[0]); i++) {
+        knownBits |= ekuFlagOids[i].flag;
+        if (ekuBits & ekuFlagOids[i].flag) {
+            ekuCount++;
+        }
     }
 
-    /* Count how many EKU bits are set */
-    if (ekuBits & XKU_SSL_SERVER) ekuCount++;
-    if (ekuBits & XKU_SSL_CLIENT) ekuCount++;
-    if (ekuBits & XKU_CODE_SIGN)  ekuCount++;
-    if (ekuBits & XKU_SMIME)      ekuCount++;
-    if (ekuBits & XKU_TIMESTAMP)  ekuCount++;
-    if (ekuBits & XKU_OCSP_SIGN)  ekuCount++;
-    if (ekuBits & XKU_ANYEKU)     ekuCount++;
-
+    /* Fail on a flag missing from the table instead of dropping its EKU */
+    if (ekuBits & ~knownBits) {
+        throwWolfSSLJNIException(jenv,
+            "Unrecognized XKU flag in X509_get_extended_key_usage");
+        return NULL;
+    }
     if (ekuCount == 0) {
         return NULL;
     }
@@ -2250,57 +2227,26 @@ JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1ex
     if (stringClass == NULL) {
         return NULL;
     }
-
     ret = (*jenv)->NewObjectArray(jenv, ekuCount, stringClass, NULL);
-    if (ret == NULL) {
-        (*jenv)->DeleteLocalRef(jenv, stringClass);
-        return NULL;
-    }
-
-    /* Add each EKU OID string to array */
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SSL_SERVER,
-        EKU_SERVER_AUTH_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SSL_CLIENT,
-        EKU_CLIENT_AUTH_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_CODE_SIGN,
-        EKU_CODESIGNING_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_SMIME,
-        EKU_EMAILPROTECT_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_TIMESTAMP,
-        EKU_TIMESTAMP_OID);
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_OCSP_SIGN,
-        EKU_OCSP_SIGN_OID);
-    /* NID_anyExtendedKeyUsage used here since no EKU_*_OID sum for anyEKU */
-    idx = addEkuOid(jenv, ret, idx, ekuBits, XKU_ANYEKU,
-        NID_anyExtendedKeyUsage);
-
-    /* Fewer OIDs than counted are written only if a conversion was skipped.
-     * Throw when none converted so this is distinguishable from "not present"
-     * null returned above. Otherwise trim off the trailing nulls. */
-    if (idx == 0) {
-        (*jenv)->DeleteLocalRef(jenv, stringClass);
-        (*jenv)->DeleteLocalRef(jenv, ret);
-        throwWolfSSLJNIException(jenv,
-            "Failed to convert any EKU OID in X509_get_extended_key_usage");
-        return NULL;
-    }
-    if (idx < ekuCount) {
-        trimmed = (*jenv)->NewObjectArray(jenv, idx, stringClass, NULL);
-        if (trimmed == NULL) {
-            (*jenv)->DeleteLocalRef(jenv, stringClass);
-            (*jenv)->DeleteLocalRef(jenv, ret);
-            return NULL;
-        }
-        for (i = 0; i < idx; i++) {
-            elem = (*jenv)->GetObjectArrayElement(jenv, ret, i);
-            (*jenv)->SetObjectArrayElement(jenv, trimmed, i, elem);
-            (*jenv)->DeleteLocalRef(jenv, elem);
-        }
-        (*jenv)->DeleteLocalRef(jenv, ret);
-        ret = trimmed;
-    }
-
     (*jenv)->DeleteLocalRef(jenv, stringClass);
+
+    for (i = 0; (ret != NULL) &&
+        (i < sizeof(ekuFlagOids) / sizeof(ekuFlagOids[0])); i++) {
+
+        if ((ekuBits & ekuFlagOids[i].flag) == 0) {
+            continue;
+        }
+
+        ekuStr = (*jenv)->NewStringUTF(jenv, ekuFlagOids[i].oid);
+        if (ekuStr == NULL) {
+            (*jenv)->DeleteLocalRef(jenv, ret);
+            ret = NULL;
+            break;
+        }
+
+        (*jenv)->SetObjectArrayElement(jenv, ret, idx++, ekuStr);
+        (*jenv)->DeleteLocalRef(jenv, ekuStr);
+    }
 
     return ret;
 }
