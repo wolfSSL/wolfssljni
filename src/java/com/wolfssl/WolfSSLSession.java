@@ -726,7 +726,8 @@ public class WolfSSLSession {
     private native boolean handshakeDone(long ssl);
     private native void setConnectState(long ssl);
     private native void setAcceptState(long ssl);
-    private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc);
+    private native void setVerify(long ssl, int mode, WolfSSLVerifyCallback vc)
+        throws WolfSSLJNIException;
     private native long setOptions(long ssl, long op);
     private native long getOptions(long ssl);
     private native int getShutdown(long ssl);
@@ -5396,7 +5397,8 @@ public class WolfSSLSession {
      * @param callback  custom verification callback to register with the SSL
      *                  session. If no callback is desired, <code>null</code>
      *                  may be used.
-     * @throws IllegalStateException WolfSSLContext has been freed
+     * @throws IllegalStateException WolfSSLContext has been freed, or the
+     *         callback could not be registered
      */
     public void setVerify(int mode, WolfSSLVerifyCallback callback)
         throws IllegalStateException {
@@ -5409,7 +5411,11 @@ public class WolfSSLSession {
                 () -> "entered setVerify(mode: " + mode + ", callback: " +
                 callback + ")");
 
-            setVerify(this.sslPtr, mode, callback);
+            try {
+                setVerify(this.sslPtr, mode, callback);
+            } catch (WolfSSLJNIException e) {
+                throw new IllegalStateException(e.getMessage(), e);
+            }
         }
     }
 
