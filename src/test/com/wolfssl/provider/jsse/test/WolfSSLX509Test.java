@@ -21,12 +21,15 @@
 
 package com.wolfssl.provider.jsse.test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +54,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.Date;
@@ -223,6 +227,50 @@ public class WolfSSLX509Test {
     }
 
     @Test
+    public void testGetExtensionValueMatchesJdk() throws Exception {
+
+        /* Native wolfSSL stores the DER extension value from 5.8.4 */
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() >= 0x05008004);
+
+        byte[] der = tf.getCert("server");
+        X509Certificate jdkCert = (X509Certificate)CertificateFactory
+            .getInstance("X.509").generateCertificate(
+                new ByteArrayInputStream(der));
+        WolfSSLX509 cert = new WolfSSLX509(der);
+
+        /* SKID, AKID (over 127 bytes, long form length), basic constraints,
+         * SAN, extended key usage */
+        for (String oid : new String[] { "2.5.29.14", "2.5.29.35",
+                "2.5.29.19", "2.5.29.17", "2.5.29.37" }) {
+            assertNotNull(oid, jdkCert.getExtensionValue(oid));
+            assertArrayEquals(oid, jdkCert.getExtensionValue(oid),
+                cert.getExtensionValue(oid));
+        }
+
+        /* CRL distribution points, not present in this cert */
+        assertNull(cert.getExtensionValue("2.5.29.31"));
+
+        /* SAN over 255 bytes, two octet long form length */
+        der = Files.readAllBytes(Paths.get(WolfSSLTestCommon.getPath(
+            "examples/certs/san-test/san-test-all-types.der")));
+        jdkCert = (X509Certificate)CertificateFactory.getInstance("X.509")
+            .generateCertificate(new ByteArrayInputStream(der));
+        cert = new WolfSSLX509(der);
+        assertArrayEquals(jdkCert.getExtensionValue("2.5.29.17"),
+            cert.getExtensionValue("2.5.29.17"));
+    }
+
+    @Test
+    public void testGetExtensionValueNullWithoutDerValue() throws Exception {
+
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() < 0x05008004);
+
+        /* SKID is present but not stored as DER */
+        WolfSSLX509 cert = new WolfSSLX509(tf.getCert("server"));
+        assertNull(cert.getExtensionValue("2.5.29.14"));
+    }
+
+    @Test
     public void testFreedCertNotReportedAsCA() throws Exception {
 
         WolfSSLX509 ca = new WolfSSLX509(tf.getCert("ca"));
@@ -328,7 +376,8 @@ public class WolfSSLX509Test {
             }
 
             /* @TODO testing for correctness of return value */
-            if (x509.getExtensionValue("2.5.29.19") == null) {
+            if ((WolfSSL.getLibVersionHex() >= 0x05008004) &&
+                (x509.getExtensionValue("2.5.29.19") == null)) {
                 fail("failed to find basic constraint extension");
             }
 

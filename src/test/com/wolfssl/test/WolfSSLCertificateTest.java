@@ -29,6 +29,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.time.Instant;
@@ -909,6 +910,43 @@ public class WolfSSLCertificateTest {
 
     public void test_free() {
         this.cert.free();
+    }
+
+    @Test
+    public void testGetExtensionReturnsExtensionValue() throws Exception {
+
+        /* Native wolfSSL stores the DER extension value from 5.8.4 */
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() >= 0x05008004);
+
+        byte[] der = Files.readAllBytes(Paths.get(cliCertDer));
+        X509Certificate jdkCert = (X509Certificate)CertificateFactory
+            .getInstance("X.509").generateCertificate(
+                new ByteArrayInputStream(der));
+        WolfSSLCertificate cert = new WolfSSLCertificate(der);
+
+        try {
+            /* SKID, AKID, basic constraints, SAN, extended key usage */
+            for (String oid : new String[] { "2.5.29.14", "2.5.29.35",
+                    "2.5.29.19", "2.5.29.17", "2.5.29.37" }) {
+
+                /* JDK wraps the value in an OCTET STRING, strip its header */
+                byte[] wrapped = jdkCert.getExtensionValue(oid);
+                assertNotNull(oid, wrapped);
+                int off = 2;
+                if ((wrapped[1] & 0x80) != 0) {
+                    off += wrapped[1] & 0x7F;
+                }
+
+                assertArrayEquals(oid,
+                    Arrays.copyOfRange(wrapped, off, wrapped.length),
+                    cert.getExtension(oid));
+            }
+
+            /* CRL distribution points, not present in this cert */
+            assertNull(cert.getExtension("2.5.29.31"));
+        } finally {
+            cert.free();
+        }
     }
 
     @Test

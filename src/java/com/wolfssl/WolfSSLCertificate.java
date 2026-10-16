@@ -107,7 +107,8 @@ public class WolfSSLCertificate implements Serializable {
     static native String[] X509_get1_ocsp(long x509);
     static native int X509_get_aia_overflow(long x509);
     static native String[] X509_get1_ca_issuers(long x509);
-    static native byte[] X509_get_extension(long x509, String oid);
+    static native byte[] X509_get_extension(long x509, String oid)
+        throws WolfSSLJNIException;
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
     static native Object[][] X509_get_subject_alt_names_full(long x509);
@@ -2089,11 +2090,18 @@ public class WolfSSLCertificate implements Serializable {
     /**
      * Get DER encoded extension value from a specified OID
      *
+     * Returns the contents of the extension's extnValue OCTET STRING. Native
+     * wolfSSL releases before 5.8.4 store a per-type format instead of the
+     * DER value, which is returned on those releases.
+     *
      * @param oid OID value of extension to retreive value for
      *
-     * @return DER encoded extension value, or null
+     * @return DER encoded extension value, an empty array if the extension
+     *         is present but native wolfSSL stores no value for its type,
+     *         or null if not present
      *
-     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws IllegalStateException if WolfSSLCertificate has been freed,
+     *         or the extension value cannot be copied.
      */
     public byte[] getExtension(String oid) throws IllegalStateException {
 
@@ -2108,7 +2116,11 @@ public class WolfSSLCertificate implements Serializable {
                 return null;
             }
 
-            return X509_get_extension(this.x509Ptr, oid);
+            try {
+                return X509_get_extension(this.x509Ptr, oid);
+            } catch (WolfSSLJNIException e) {
+                throw new IllegalStateException(e.getMessage(), e);
+            }
         }
     }
 

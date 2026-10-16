@@ -2055,24 +2055,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1verify
 
 }
 
-/* getter function for WOLFSSL_ASN1_OBJECT element */
-static unsigned char* getOBJData(WOLFSSL_ASN1_OBJECT* obj)
-{
-    if (obj) {
-        return (unsigned char*)obj->obj;
-    }
-    return NULL;
-}
-
-/* getter function for WOLFSSL_ASN1_OBJECT size */
-static unsigned int getOBJSize(WOLFSSL_ASN1_OBJECT* obj)
-{
-    if (obj) {
-        return obj->objSz;
-    }
-    return 0;
-}
-
 JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1key_1usage
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
@@ -2408,18 +2390,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr, jstring oidIn)
 {
     int nid = 0;
+    int idx = 0;
     jbyteArray ret = NULL;
     const char* oid = NULL;
-#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
-    int idx = 0;
     WOLFSSL_X509_EXTENSION* ext = NULL;
-#endif
-    WOLFSSL_ASN1_OBJECT* obj = NULL;
-#if LIBWOLFSSL_VERSION_HEX < 0x04002000
-    void* sk = NULL;
-#endif
     unsigned char* data = NULL;
-    unsigned int sz = 0;
+    int sz = 0;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
@@ -2438,39 +2414,29 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
         return NULL;
     }
 
-#if LIBWOLFSSL_VERSION_HEX >= 0x04002000
     /* get extension index, or -1 if not found */
     idx = wolfSSL_X509_get_ext_by_NID(x509, nid, -1);
 
     if (idx >= 0) {
-        /* extension found at idx, get WOLFSSL_ASN1_OBJECT */
+        /* extension found at idx, get its DER encoded value. Read ext->value
+         * directly, wolfSSL_X509_EXTENSION_get_data() converts it
+         * to a per-type format under WOLFSSL_OLD_EXTDATA_FMT. */
         ext = wolfSSL_X509_get_ext(x509, idx);
         if (ext != NULL) {
-            obj = ext->obj;
+            data = (unsigned char*)ext->value.data;
+            sz = (data != NULL) ? ext->value.length : 0;
         }
     }
-#else
-    /* wolfSSL prior to 4.2.0 did not have wolfSSL_X509_get_ext_by_NID */
-    sk = wolfSSL_X509_get_ext_d2i(x509, nid, NULL, NULL);
-    if (sk == NULL) {
-        /* extension was not found or error was encountered */
-        return NULL;
-    }
 
-    obj = wolfSSL_sk_ASN1_OBJECT_pop((WOLFSSL_STACK*)sk);
-#endif
-
-    if (obj != NULL) {
-        /* get extension data, set into jbytearray and return */
-        data = getOBJData(obj);
-        sz = getOBJSize(obj);
-
+    if (ext != NULL) {
+        /* set extension data into jbytearray and return. Empty when wolfSSL
+         * stores no data for the type (ex: CRL DP before wolfSSL 5.8.4) */
         ret = (*jenv)->NewByteArray(jenv, sz);
         if (ret == NULL) {
             throwWolfSSLJNIException(jenv,
                 "Failed to create byte array in native X509_get_extension");
         }
-        else {
+        else if (sz > 0) {
             (*jenv)->SetByteArrayRegion(jenv, ret, 0, sz, (jbyte*)data);
             if ((*jenv)->ExceptionOccurred(jenv)) {
                 (*jenv)->ExceptionDescribe(jenv);
@@ -2480,12 +2446,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1exte
             }
         }
     }
-
-#if LIBWOLFSSL_VERSION_HEX < 0x04002000
-    /* obj was popped from sk, both are owned here */
-    wolfSSL_ASN1_OBJECT_free(obj);
-    wolfSSL_sk_ASN1_OBJECT_free((WOLFSSL_STACK*)sk);
-#endif
 
     return ret;
 }
