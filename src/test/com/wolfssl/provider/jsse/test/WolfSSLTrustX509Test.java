@@ -1652,8 +1652,8 @@ public class WolfSSLTrustX509Test {
         /* LDAPS hostname verification test, wildcard success */
         testX509ExtTrustMgrSSLEngineWildcardSuccessLDAPS();
 
-        /* SSLEngine should fail if trying to use bad endoint alg */
-        testX509ExtTrustMgrSSLEngineEndpointAlgFail();
+        /* SSLEngine LDAPS should fail when only SNI matches server cert */
+        testX509ExtTrustMgrSSLEngineLDAPSIgnoresSNIFail();
 
     }
 
@@ -2305,10 +2305,238 @@ public class WolfSSLTrustX509Test {
         cliParams.setEndpointIdentificationAlgorithm(endpointIdAlgo);
         client.setSSLParameters(cliParams);
 
-        return tf.testConnection(server, client, null, null, endpointIdAlgo);
+        return tf.testConnection(server, client, null, null,
+            "Test endpoint ID");
     }
 
-    private void testX509ExtTrustMgrSSLEngineEndpointAlgFail()
+    /* Endpoint identification algorithm names are case-insensitive. Apache
+     * HttpClient 5 sets "https" in lower case. Each path also checks a
+     * hostname mismatch to confirm verification ran and was not skipped. */
+    @Test
+    public void testEndpointIdAlgorithmCaseInsensitive() throws Exception {
+
+        KeyStore sniCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "example.com", true);
+        KeyStore hostCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "localhost", true);
+        KeyStore otherCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "bar.example.com", true);
+        KeyStore full = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "*.example.com", true);
+
+        /* SSLSocket, WolfSSLTrustX509 */
+        assertNull(connectSSLSocketEndpointAlgo(
+            sniCert, "https", "example.com"));
+        assertNull(connectSSLSocketEndpointAlgo(
+            sniCert, "Https", "example.com"));
+        assertNotNull(connectSSLSocketEndpointAlgo(
+            sniCert, "https", "www.invalid.com"));
+        assertNull(connectSSLSocketEndpointAlgo(hostCert, "ldaps", null));
+        assertNull(connectSSLSocketEndpointAlgo(hostCert, "LdApS", null));
+        assertNotNull(connectSSLSocketEndpointAlgo(otherCert, "ldaps", null));
+
+        /* SSLEngine, WolfSSLTrustX509. Distinct ports so no connection
+         * resumes an earlier session. */
+        assertEquals(0, connectSSLEngineEndpointAlgo(null,
+            "https", "wolfSSL auth test", "example.com", 11120));
+        assertEquals(0, connectSSLEngineEndpointAlgo(null,
+            "hTtPs", "wolfSSL auth test", "example.com", 11121));
+        assertNotEquals(0, connectSSLEngineEndpointAlgo(null,
+            "https", "wolfSSL auth test", "www.invalid.com", 11122));
+        assertEquals(0, connectSSLEngineEndpointAlgo(null,
+            "ldaps", "example.com", null, 11123));
+        assertEquals(0, connectSSLEngineEndpointAlgo(null,
+            "LdApS", "example.com", null, 11124));
+        assertNotEquals(0, connectSSLEngineEndpointAlgo(null,
+            "ldaps", "www.invalid.com", null, 11125));
+
+        /* Basic X509TrustManager, peer host is foo.example.com */
+        assertEquals(0, connectWithBasicTrustManager(full, "https", 11126));
+        assertEquals(0, connectWithBasicTrustManager(full, "Https", 11127));
+        assertNotEquals(0,
+            connectWithBasicTrustManager(otherCert, "https", 11128));
+        assertEquals(0, connectWithBasicTrustManager(full, "ldaps", 11129));
+        assertEquals(0, connectWithBasicTrustManager(full, "LdApS", 11130));
+        assertNotEquals(0,
+            connectWithBasicTrustManager(otherCert, "ldaps", 11131));
+    }
+
+    /* Lower case "ldaps" must select LDAPS rules, not HTTPS ones. LDAPS
+     * ignores SNI and only allows a full left-most wildcard label. Each
+     * HTTPS success shows the LDAPS failure comes from those rules. */
+    @Test
+    public void testEndpointIdAlgorithmLowerCaseLDAPSRules()
+        throws Exception {
+
+        KeyStore sniCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "example.com", true);
+        KeyStore partial = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "f*.example.com", true);
+
+        /* SSLSocket, SNI matches cert but peer host "localhost" does not */
+        assertNull(connectSSLSocketEndpointAlgo(
+            sniCert, "https", "example.com"));
+        assertNotNull(connectSSLSocketEndpointAlgo(
+            sniCert, "ldaps", "example.com"));
+
+        /* SSLEngine, partial wildcard against foo.example.com */
+        assertEquals(0, connectSSLEngineEndpointAlgo(partial,
+            "https", "foo.example.com", null, 11140));
+        assertNotEquals(0, connectSSLEngineEndpointAlgo(partial,
+            "ldaps", "foo.example.com", null, 11141));
+
+        /* Basic X509TrustManager, partial wildcard against foo.example.com */
+        assertEquals(0, connectWithBasicTrustManager(partial, "https", 11142));
+        assertNotEquals(0,
+            connectWithBasicTrustManager(partial, "ldaps", 11143));
+    }
+
+    /* Unknown algorithm names must fail the handshake even when the hostname
+     * matches, rather than skip verification. Case-insensitive matching must
+     * not loosen this to near misses. An empty name skips verification. */
+    @Test
+    public void testEndpointIdAlgorithmUnknownOrEmpty() throws Exception {
+
+        String[] unknown = { "HTTP", "https ", " HTTPS", "HTTPS1", "LDAPS/" };
+        KeyStore sniCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "example.com", true);
+        KeyStore hostCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "localhost", true);
+        KeyStore otherCert = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "bar.example.com", true);
+        KeyStore full = tf.generateSelfSignedCertJKS(
+            "invalidname.com", "*.example.com", true);
+        int port = 11150;
+
+        /* Each setup below passes under both HTTPS and LDAPS rules, so a
+         * failure with an unknown name can only come from rejecting it */
+        for (String alg : new String[] { "HTTPS", "LDAPS" }) {
+            assertNull(alg, connectSSLSocketEndpointAlgo(hostCert, alg, null));
+            assertEquals(alg, 0, connectSSLEngineEndpointAlgo(null,
+                alg, "example.com", "example.com", port++));
+            assertEquals(alg, 0,
+                connectWithBasicTrustManager(full, alg, port++));
+        }
+
+        for (String alg : unknown) {
+            assertNotNull(alg,
+                connectSSLSocketEndpointAlgo(hostCert, alg, null));
+            assertNotEquals(alg, 0, connectSSLEngineEndpointAlgo(null,
+                alg, "example.com", "example.com", port++));
+            assertNotEquals(alg, 0,
+                connectWithBasicTrustManager(full, alg, port++));
+        }
+
+        /* Empty name, hostname mismatch is not checked */
+        assertNull(connectSSLSocketEndpointAlgo(
+            sniCert, "", "www.invalid.com"));
+        assertEquals(0, connectSSLEngineEndpointAlgo(null,
+            "", "wolfSSL auth test", "www.invalid.com", port++));
+        assertEquals(0, connectWithBasicTrustManager(otherCert, "", port++));
+    }
+
+    /* Connect SSLSocket client to "localhost", with server presenting the
+     * cert in srvCertStore. sni may be null. Returns first exception from
+     * client or server, or null on success. */
+    private Exception connectSSLSocketEndpointAlgo(KeyStore srvCertStore,
+        String endpointIdAlgo, String sni) throws Exception {
+
+        Exception cliException = null;
+
+        SSLContext srvCtx = tf.createSSLContext("TLSv1.2", provider,
+            tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+            tf.createKeyManager("SunX509", srvCertStore, provider));
+
+        SSLContext cliCtx = tf.createSSLContext("TLSv1.2", provider,
+            tf.createTrustManager("SunX509", srvCertStore, provider),
+            tf.createKeyManager("SunX509", tf.clientJKS, provider));
+
+        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
+            .createServerSocket(0);
+
+        TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
+        TestSSLSocketServer server = new TestSSLSocketServer(
+            srvCtx, ss, serverArgs, 1);
+        server.start();
+
+        SSLSocket sock = (SSLSocket)cliCtx.getSocketFactory().createSocket();
+        try {
+            sock.connect(new InetSocketAddress("localhost", ss.getLocalPort()));
+
+            SSLParameters params = sock.getSSLParameters();
+            params.setEndpointIdentificationAlgorithm(endpointIdAlgo);
+            if (sni != null) {
+                List<SNIServerName> sniNames = new ArrayList<>(1);
+                sniNames.add(new SNIHostName(sni));
+                params.setServerNames(sniNames);
+            }
+            sock.setSSLParameters(params);
+
+            sock.startHandshake();
+            sock.getOutputStream().write('A');
+            assertEquals((int)'B', sock.getInputStream().read());
+
+        } catch (Exception e) {
+            cliException = e;
+
+        } finally {
+            sock.close();
+            server.join(1000);
+            ss.close();
+        }
+
+        if (cliException != null) {
+            return cliException;
+        }
+
+        return server.getException();
+    }
+
+    /* Connect SSLEngine client to server with given endpoint identification
+     * algorithm, peer host, and optional SNI. Server presents the cert in
+     * srvCertStore, or default server cert if null. Returns 0 on success. */
+    private int connectSSLEngineEndpointAlgo(KeyStore srvCertStore,
+        String endpointIdAlgo, String host, String sni, int port)
+        throws Exception {
+
+        SSLContext srvCtx;
+        SSLContext cliCtx;
+
+        if (srvCertStore == null) {
+            srvCtx = tf.createSSLContext("TLS", provider);
+            cliCtx = srvCtx;
+        }
+        else {
+            srvCtx = tf.createSSLContext("TLS", provider,
+                tf.createTrustManager("SunX509", tf.caClientJKS, provider),
+                tf.createKeyManager("SunX509", srvCertStore, provider));
+            cliCtx = tf.createSSLContext("TLS", provider,
+                tf.createTrustManager("SunX509", srvCertStore, provider),
+                tf.createKeyManager("SunX509", tf.clientJKS, provider));
+        }
+
+        SSLEngine server = srvCtx.createSSLEngine();
+        SSLEngine client = cliCtx.createSSLEngine(host, port);
+
+        server.setWantClientAuth(true);
+        server.setNeedClientAuth(true);
+        client.setUseClientMode(true);
+        server.setUseClientMode(false);
+
+        SSLParameters cliParams = client.getSSLParameters();
+        cliParams.setEndpointIdentificationAlgorithm(endpointIdAlgo);
+        if (sni != null) {
+            List<SNIServerName> sniNames = new ArrayList<>(1);
+            sniNames.add(new SNIHostName(sni));
+            cliParams.setServerNames(sniNames);
+        }
+        client.setSSLParameters(cliParams);
+
+        return tf.testConnection(server, client, null, null,
+            "Test endpoint ID");
+    }
+
+    private void testX509ExtTrustMgrSSLEngineLDAPSIgnoresSNIFail()
         throws CertificateException, IOException, Exception {
 
         int ret;
@@ -2326,13 +2554,13 @@ public class WolfSSLTrustX509Test {
 
         SSLParameters cliParams = client.getSSLParameters();
 
-        /* Enable Endpoint Identification for hostname verification on client.
-         * We only support "HTTPS" so setting "LDAPS" here should cause a
-         * failure. */
+        /* Enable LDAPS Endpoint Identification on client. LDAPS verifies
+         * only the peer host, "wolfSSL auth test", which does not match the
+         * peer cert, so this should cause a failure. */
         cliParams.setEndpointIdentificationAlgorithm("LDAPS");
 
-        /* Set SNI, used for hostname verification of server cert. Peer cert
-         * has altName set to "example.com" */
+        /* Set SNI to "example.com", which matches the peer cert altName.
+         * HTTPS would pass using this, but LDAPS ignores SNI. */
         SNIHostName sniName = new SNIHostName("example.com");
         List<SNIServerName> sniNames = new ArrayList<>(1);
         sniNames.add(sniName);
