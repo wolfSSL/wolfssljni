@@ -605,6 +605,32 @@ public class WolfSSLEngine extends SSLEngine {
     }
 
     /**
+     * Save session without network reads. For TLS 1.3 without a session
+     * ticket, native get1Session() peeks for one, which would read the
+     * caller's unwrap() input outside of consumed byte accounting. A ticket
+     * is read in a later engine unwrap() and saved then at read time.
+     *
+     * @return WolfSSL.SSL_SUCCESS if session was stored, otherwise
+     *         WolfSSL.SSL_FAILURE
+     */
+    private int saveSessionNoRead() {
+
+        ByteBuffer savedNetData;
+
+        synchronized (netDataLock) {
+            savedNetData = this.netData;
+            this.netData = null;
+        }
+        try {
+            return this.engineHelper.saveSession();
+        } finally {
+            synchronized (netDataLock) {
+                this.netData = savedNetData;
+            }
+        }
+    }
+
+    /**
      * Handles logic during shutdown
      *
      * @return WolfSSL.SSL_SUCCESS on success, zero or negative on error
@@ -628,7 +654,7 @@ public class WolfSSLEngine extends SSLEngine {
                 !this.sessionStored) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "saving WOLFSSL_SESSION into cache");
-                this.engineHelper.saveSession();
+                saveSessionNoRead();
             }
             else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
@@ -1721,7 +1747,7 @@ public class WolfSSLEngine extends SSLEngine {
                                 !this.sessionStored) {
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     () -> "calling engineHelper.saveSession()");
-                                int ret2 = this.engineHelper.saveSession();
+                                int ret2 = saveSessionNoRead();
                                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                     () -> "return from saveSession(), ret = " +
                                     ret2);
