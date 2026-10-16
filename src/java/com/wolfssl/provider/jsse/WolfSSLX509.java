@@ -48,6 +48,7 @@ import java.util.TreeSet;
 import java.util.List;
 import java.util.Collection;
 
+import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.WolfSSLException;
@@ -376,7 +377,16 @@ public class WolfSSLX509 extends X509Certificate {
             return null;
         }
 
-        ekuArray = this.cert.getExtendedKeyUsage();
+        try {
+            ekuArray = this.cert.getExtendedKeyUsage();
+        } catch (IllegalStateException e) {
+            /* Rethrow read and decode errors, not a freed certificate */
+            if (e.getCause() instanceof CertificateParsingException) {
+                throw (CertificateParsingException)e.getCause();
+            }
+            throw e;
+        }
+
         if (ekuArray == null) {
             return null;
         }
@@ -680,17 +690,50 @@ public class WolfSSLX509 extends X509Certificate {
     }
 
 
-    /* slight difference in that the ASN1 syntax is not returned.
-     * i.e. no OCTET STRING Id "04 16 04 14" before subject key id */
+    /* Returns the extnValue wrapped in a DER OCTET STRING, as required by
+     * X509Extension.getExtensionValue(). Returns null with native wolfSSL
+     * before 5.8.4, which does not store the DER extension value. */
     public byte[] getExtensionValue(String oid) {
+
+        byte[] value;
+        byte[] ret;
+        int lenBytes = 0;
+        int i;
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             () -> "entered getExtensionValue()");
 
-        if (this.cert == null) {
+        if ((this.cert == null) ||
+            (WolfSSL.getLibVersionHex() < 0x05008004)) {
             return null;
         }
-        return this.cert.getExtension(oid);
+
+        value = this.cert.getExtension(oid);
+        if (value == null) {
+            return null;
+        }
+
+        /* Octets needed for a long form length */
+        if (value.length >= 0x80) {
+            for (i = value.length; i != 0; i >>>= 8) {
+                lenBytes++;
+            }
+        }
+
+        ret = new byte[2 + lenBytes + value.length];
+        ret[0] = 0x04;
+        if (lenBytes == 0) {
+            ret[1] = (byte)value.length;
+        }
+        else {
+            ret[1] = (byte)(0x80 | lenBytes);
+            for (i = 0; i < lenBytes; i++) {
+                ret[2 + i] = (byte)(value.length >>> (8 * (lenBytes - 1 - i)));
+            }
+        }
+        System.arraycopy(value, 0, ret, 2 + lenBytes, value.length);
+
+        return ret;
     }
 
 

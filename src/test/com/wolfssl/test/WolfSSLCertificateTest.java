@@ -25,10 +25,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.time.Instant;
@@ -87,6 +89,14 @@ public class WolfSSLCertificateTest {
     public static String crlDpCertPem = "examples/certs/test/crl-dp-cert.pem";
     public static String ekuAnyMixedCertPem =
         "examples/certs/test/eku-any-mixed-cert.pem";
+    public static String ekuUnknownCertPem =
+        "examples/certs/test/eku-unknown-cert.pem";
+    public static String ekuUnknownMixedCertPem =
+        "examples/certs/test/eku-unknown-mixed-cert.pem";
+    public static String ekuLargeArcCertPem =
+        "examples/certs/test/eku-large-arc-cert.pem";
+    public static String ekuBadOidCertPem =
+        "examples/certs/test/eku-bad-oid-cert.pem";
     public static String sanTestUpnCert = null;
     public static String sanTestAllTypesCert = null;
     public static String sanTestAllTypesDer = null;
@@ -154,6 +164,11 @@ public class WolfSSLCertificateTest {
         sanTestDir = WolfSSLTestCommon.getPath(sanTestDir);
         crlDpCertPem = WolfSSLTestCommon.getPath(crlDpCertPem);
         ekuAnyMixedCertPem = WolfSSLTestCommon.getPath(ekuAnyMixedCertPem);
+        ekuUnknownCertPem = WolfSSLTestCommon.getPath(ekuUnknownCertPem);
+        ekuUnknownMixedCertPem =
+            WolfSSLTestCommon.getPath(ekuUnknownMixedCertPem);
+        ekuLargeArcCertPem = WolfSSLTestCommon.getPath(ekuLargeArcCertPem);
+        ekuBadOidCertPem = WolfSSLTestCommon.getPath(ekuBadOidCertPem);
         sanTestUpnCert = sanTestDir + "/san-test-othername-upn.pem";
         sanTestAllTypesCert = sanTestDir + "/san-test-all-types.pem";
         sanTestAllTypesDer = sanTestDir + "/san-test-all-types.der";
@@ -766,6 +781,231 @@ public class WolfSSLCertificateTest {
     }
 
     @Test
+    public void test_getExtendedKeyUsageUnknownOnly()
+        throws WolfSSLException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuUnknownCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            /* Smartcard logon, document signing */
+            assertArrayEquals(new String[] {
+                "1.3.6.1.4.1.311.20.2.2", "1.3.6.1.4.1.311.10.3.12" },
+                cert.getExtendedKeyUsage());
+        } finally {
+            cert.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageUnknownMixed()
+        throws WolfSSLException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuUnknownMixedCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            /* serverAuth, smartcard logon, clientAuth, in certificate order */
+            assertArrayEquals(new String[] {
+                "1.3.6.1.5.5.7.3.1", "1.3.6.1.4.1.311.20.2.2",
+                "1.3.6.1.5.5.7.3.2" }, cert.getExtendedKeyUsage());
+        } finally {
+            cert.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageReturnsCopy()
+        throws WolfSSLException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuUnknownMixedCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            /* Change the first and a cached return */
+            cert.getExtendedKeyUsage()[0] = null;
+            cert.getExtendedKeyUsage()[0] = null;
+            assertEquals("1.3.6.1.5.5.7.3.1",
+                cert.getExtendedKeyUsage()[0]);
+        } finally {
+            cert.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageLargeArcs()
+        throws WolfSSLException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuLargeArcCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            /* 2^32 + 1 arc must not wrap to serverAuth (1.3.6.1.5.5.7.3.1).
+             * Last OID has over 32 bytes of content. */
+            assertArrayEquals(new String[] {
+                "1.3.6.1.5.5.7.3.4294967297",
+                "2.25.329800735698586629295641978511506172918",
+                "2.999.1",
+                "1.3.6.1.4.1.32473.1.2.3.4.5.6.7.8.9." +
+                "1.2.3.4.5.6.7.8.9.1.2.3.4.5.6.7.8.9" },
+                cert.getExtendedKeyUsage());
+        } finally {
+            cert.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageBadOid() throws WolfSSLException {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        /* KeyPurposeId with a non-minimal subidentifier */
+        WolfSSLCertificate cert = new WolfSSLCertificate(
+            ekuBadOidCertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            cert.getExtendedKeyUsage();
+            fail("Expected IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        } finally {
+            cert.free();
+        }
+    }
+
+    private static String[] decodeOids(byte[] der) throws Exception {
+        Method m = WolfSSLCertificate.class.getDeclaredMethod(
+            "decodeOids", byte[].class);
+        m.setAccessible(true);
+        return (String[])m.invoke(null, (Object)der);
+    }
+
+    @Test
+    public void test_decodeOids() throws Exception {
+
+        /* 1.3 followed by 299 arcs of 1, two octet long form length */
+        byte[] longOid = new byte[4 + 300];
+        byte[] longSeq = new byte[4 + longOid.length];
+        StringBuilder longStr = new StringBuilder("1.3");
+
+        longOid[0] = 0x06;
+        longOid[1] = (byte)0x82;
+        longOid[2] = 0x01;
+        longOid[3] = 0x2C;
+        longOid[4] = 0x2B;
+        for (int i = 5; i < longOid.length; i++) {
+            longOid[i] = 0x01;
+            longStr.append(".1");
+        }
+        longSeq[0] = 0x30;
+        longSeq[1] = (byte)0x82;
+        longSeq[2] = 0x01;
+        longSeq[3] = 0x30;
+        System.arraycopy(longOid, 0, longSeq, 4, longOid.length);
+
+        /* First subidentifier boundaries */
+        assertArrayEquals(new String[] { "0.39" },
+            decodeOids(new byte[] { 0x06, 0x01, 0x27 }));
+        assertArrayEquals(new String[] { "1.0" },
+            decodeOids(new byte[] { 0x06, 0x01, 0x28 }));
+        assertArrayEquals(new String[] { "1.39" },
+            decodeOids(new byte[] { 0x06, 0x01, 0x4F }));
+        assertArrayEquals(new String[] { "2.0" },
+            decodeOids(new byte[] { 0x06, 0x01, 0x50 }));
+        assertArrayEquals(new String[] { "2.999" },
+            decodeOids(new byte[] { 0x06, 0x02, (byte)0x88, 0x37 }));
+
+        /* extnValue SEQUENCE, and the bare OIDs inside it */
+        assertArrayEquals(new String[] { "1.3", "2.0" }, decodeOids(
+            new byte[] { 0x30, 0x06, 0x06, 0x01, 0x2B, 0x06, 0x01, 0x50 }));
+        assertArrayEquals(new String[] { "1.3", "2.0" }, decodeOids(
+            new byte[] { 0x06, 0x01, 0x2B, 0x06, 0x01, 0x50 }));
+        assertArrayEquals(new String[] { longStr.toString() },
+            decodeOids(longSeq));
+
+        byte[][] bad = {
+            /* Empty input, empty SEQUENCE */
+            {}, { 0x30, 0x00 },
+            /* Wrong tag, nested SEQUENCE, SEQUENCE after an OID */
+            { 0x04, 0x01, 0x2B },
+            { 0x30, 0x05, 0x30, 0x03, 0x06, 0x01, 0x2B },
+            { 0x06, 0x01, 0x2B, 0x30, 0x03, 0x06, 0x01, 0x2B },
+            /* SEQUENCE not spanning the input */
+            { 0x30, 0x03, 0x06, 0x01, 0x2B, 0x06 },
+            /* Truncated header, long form length of 0 and 4 octets,
+             * truncated long form length */
+            { 0x06 }, { 0x06, (byte)0x80 },
+            { 0x06, (byte)0x84, 0x00, 0x00, 0x00, 0x01, 0x2B },
+            { 0x06, (byte)0x82, 0x01 },
+            /* Non-minimal long form lengths */
+            { 0x06, (byte)0x81, 0x01, 0x2B },
+            { 0x06, (byte)0x82, 0x00, 0x01, 0x2B },
+            /* Zero length, length past end of input */
+            { 0x06, 0x00 }, { 0x06, 0x02, 0x2B },
+            /* Non-minimal subidentifiers */
+            { 0x06, 0x02, (byte)0x80, 0x01 },
+            { 0x06, 0x03, 0x2B, (byte)0x80, 0x01 },
+            /* Truncated last subidentifier */
+            { 0x06, 0x02, 0x2B, (byte)0x81 }
+        };
+        for (byte[] der : bad) {
+            assertNull(Arrays.toString(der), decodeOids(der));
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageGeneratedCert()
+        throws WolfSSLException, WolfSSLJNIException {
+
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        /* Cert built in memory has no encoded EKU extension */
+        WolfSSLCertificate x509 = new WolfSSLCertificate();
+        try {
+            x509.addExtension(WolfSSL.NID_ext_key_usage,
+                "serverAuth,clientAuth,codeSigning,emailProtection," +
+                "timeStamping,OCSPSigning", false);
+            assertArrayEquals(new String[] {
+                "1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.2",
+                "1.3.6.1.5.5.7.3.3", "1.3.6.1.5.5.7.3.4",
+                "1.3.6.1.5.5.7.3.8", "1.3.6.1.5.5.7.3.9" },
+                x509.getExtendedKeyUsage());
+        } finally {
+            x509.free();
+        }
+    }
+
+    @Test
+    public void test_getExtendedKeyUsageAfterAddExtension()
+        throws WolfSSLException, WolfSSLJNIException, IOException {
+
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() > 0x05006003);
+
+        WolfSSLCertificate x509 = new WolfSSLCertificate(
+            Files.readAllBytes(Paths.get(cliCertDer)));
+        try {
+            assertArrayEquals(new String[] {
+                "1.3.6.1.5.5.7.3.1", "1.3.6.1.5.5.7.3.2" },
+                x509.getExtendedKeyUsage());
+
+            x509.addExtension(WolfSSL.NID_ext_key_usage, "codeSigning",
+                false);
+            assertArrayEquals(new String[] { "1.3.6.1.5.5.7.3.3" },
+                x509.getExtendedKeyUsage());
+        } finally {
+            x509.free();
+        }
+    }
+
+    @Test
     public void test_getAiaMulti() {
         String[] ocsp;
         String[] ca;
@@ -909,6 +1149,43 @@ public class WolfSSLCertificateTest {
 
     public void test_free() {
         this.cert.free();
+    }
+
+    @Test
+    public void testGetExtensionReturnsExtensionValue() throws Exception {
+
+        /* Native wolfSSL stores the DER extension value from 5.8.4 */
+        Assume.assumeTrue(WolfSSL.getLibVersionHex() >= 0x05008004);
+
+        byte[] der = Files.readAllBytes(Paths.get(cliCertDer));
+        X509Certificate jdkCert = (X509Certificate)CertificateFactory
+            .getInstance("X.509").generateCertificate(
+                new ByteArrayInputStream(der));
+        WolfSSLCertificate cert = new WolfSSLCertificate(der);
+
+        try {
+            /* SKID, AKID, basic constraints, SAN, extended key usage */
+            for (String oid : new String[] { "2.5.29.14", "2.5.29.35",
+                    "2.5.29.19", "2.5.29.17", "2.5.29.37" }) {
+
+                /* JDK wraps the value in an OCTET STRING, strip its header */
+                byte[] wrapped = jdkCert.getExtensionValue(oid);
+                assertNotNull(oid, wrapped);
+                int off = 2;
+                if ((wrapped[1] & 0x80) != 0) {
+                    off += wrapped[1] & 0x7F;
+                }
+
+                assertArrayEquals(oid,
+                    Arrays.copyOfRange(wrapped, off, wrapped.length),
+                    cert.getExtension(oid));
+            }
+
+            /* CRL distribution points, not present in this cert */
+            assertNull(cert.getExtension("2.5.29.31"));
+        } finally {
+            cert.free();
+        }
     }
 
     @Test

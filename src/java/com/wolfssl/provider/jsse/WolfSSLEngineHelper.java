@@ -1127,7 +1127,9 @@ public class WolfSSLEngineHelper {
     }
 
     /* sets client auth on or off if needed / wanted */
-    private void setLocalAuth(SSLSocket socket, SSLEngine engine) {
+    private void setLocalAuth(SSLSocket socket, SSLEngine engine)
+        throws SSLException {
+
         int mask = WolfSSL.SSL_VERIFY_NONE;
 
         /* default to client side authenticating the server connecting to */
@@ -1173,7 +1175,11 @@ public class WolfSSLEngineHelper {
             this.verifyMask = mask;
         }
 
-        this.ssl.setVerify(this.verifyMask, wicb);
+        try {
+            this.ssl.setVerify(this.verifyMask, wicb);
+        } catch (IllegalStateException e) {
+            throw new SSLException("Failed to register verify callback", e);
+        }
     }
 
 
