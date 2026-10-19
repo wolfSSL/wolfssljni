@@ -5137,7 +5137,7 @@ public class WolfSSLSession {
      * The callback should return the length of the key in octets or
      * 0 for error. The <b>ssl</b> parameter is available for the user's
      * convenience. <b>hint</b> is the client PSK hint. <b>identity</b>
-     * is the client identity, with a maximum size in characters of
+     * is the client identity, with a maximum size in bytes of
      * <b>idMaxLen</b>. <b>key</b> is the client key, with a maximum size
      * in bytes of <b>keyMaxLen</b>. An example callback can be found
      * in examples/MyPskClientCallback.java.
