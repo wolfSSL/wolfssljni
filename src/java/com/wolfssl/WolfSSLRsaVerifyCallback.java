@@ -51,8 +51,8 @@ public interface WolfSSLRsaVerifyCallback {
      * @param keyDer    the RSA Public key in ASN1 format
      * @param keySz     the length of the key, <b>keyDer</b>, in bytes
      * @param ctx       custom user-registered RSA verify context
-     * @return          <b><code>0</code></b> upon success,
-     *                  otherwise a negative value on error.
+     * @return          the number of plaintext bytes on success, otherwise a
+     *                  negative value on error.
      */
     public int rsaVerifyCallback(WolfSSLSession ssl, ByteBuffer sig,
             long sigSz, ByteBuffer out, long outSz, ByteBuffer keyDer,

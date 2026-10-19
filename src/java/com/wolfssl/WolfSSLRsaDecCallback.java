@@ -51,8 +51,8 @@ public interface WolfSSLRsaDecCallback {
      * @param keyDer    RSA Private key in ASN1 format
      * @param keySz     length of the key, <b>keyDer</b>, in bytes
      * @param ctx       custom user-registered RSA private decrypt context
-     * @return          <b><code>0</code></b> upon success,
-     *                  otherwise a negative value on error.
+     * @return          the number of plaintext bytes on success, otherwise a
+     *                  negative value on error.
      */
     public int rsaDecCallback(WolfSSLSession ssl, ByteBuffer in, long inSz,
             ByteBuffer out, long outSz, ByteBuffer keyDer, long keySz,
