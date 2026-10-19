@@ -5437,15 +5437,15 @@ JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setVerify
                 (void)NativeVerifyCbLock();
                 appData->g_verifySSLCbIfaceObj = verifyCb;
                 (void)NativeVerifyCbUnlock();
-
-                /* set verify mode, register Java callback with wolfSSL */
-                wolfSSL_set_verify(ssl, mode, NativeSSLVerifyCallback);
             }
         }
 
-        /* If callback could not be registered, still apply requested mode */
+        /* Register even if callback could not be stored */
+        wolfSSL_set_verify(ssl, mode, NativeSSLVerifyCallback);
+
         if ((appData == NULL) || (verifyCb == NULL)) {
-            wolfSSL_set_verify(ssl, mode, NULL);
+            throwWolfSSLJNIException(jenv,
+                "Failed to register verify callback in setVerify");
         }
     }
 }

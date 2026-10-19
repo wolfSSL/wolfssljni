@@ -46,6 +46,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateParsingException;
 
 /**
  * WolfSSLCertificate class, wraps native wolfSSL WOLFSSL_X509 functionality.
@@ -70,8 +71,15 @@ public class WolfSSLCertificate implements Serializable {
     /** lock around native WOLFSSL_X509 pointer use */
     private transient final Object x509Lock = new Object();
 
+    /** Extended Key Usage set by addExtension(), read from XKU flags */
+    private boolean extKeyUsageAdded = false;
+
+    /** Cache Extended Key Usage OIDs once retrieved, empty if not present */
+    private String[] extKeyUsage = null;
+
     /** Cache alt names once retrieved once */
     private ArrayList<List<?>> altNames = null;
+
     /** Cache alt names array once retrieved once */
     private WolfSSLAltName[] altNamesArray = null;
 
@@ -103,11 +111,13 @@ public class WolfSSLCertificate implements Serializable {
     static native int X509_get_pathLength(long x509);
     static native int X509_verify(long x509, byte[] pubKey, int pubKeySz);
     static native boolean[] X509_get_key_usage(long x509);
-    static native String[] X509_get_extended_key_usage(long x509);
+    static native String[] X509_get_extended_key_usage(long x509)
+        throws WolfSSLJNIException;
     static native String[] X509_get1_ocsp(long x509);
     static native int X509_get_aia_overflow(long x509);
     static native String[] X509_get1_ca_issuers(long x509);
-    static native byte[] X509_get_extension(long x509, String oid);
+    static native byte[] X509_get_extension(long x509, String oid)
+        throws WolfSSLJNIException;
     static native int X509_is_extension_set(long x509, String oid);
     static native String X509_get_next_altname(long x509);
     static native Object[][] X509_get_subject_alt_names_full(long x509);
@@ -1182,6 +1192,11 @@ public class WolfSSLCertificate implements Serializable {
         synchronized (x509Lock) {
             ret = X509_add_ext_via_nconf_nid(this.x509Ptr, nid, value,
                     isCritical);
+            if ((ret == WolfSSL.SSL_SUCCESS) &&
+                (nid == WolfSSL.NID_ext_key_usage)) {
+                this.extKeyUsageAdded = true;
+                this.extKeyUsage = null;
+            }
         }
 
         if (ret != WolfSSL.SSL_SUCCESS) {
@@ -2008,9 +2023,16 @@ public class WolfSSLCertificate implements Serializable {
      * @return Array of OID strings, or null if Extended Key Usage extension
      *         is not present in certificate
      *
-     * @throws IllegalStateException if WolfSSLCertificate has been freed
+     * @throws IllegalStateException if WolfSSLCertificate has been freed,
+     *         or the Extended Key Usage extension cannot be read or decoded.
+     *         The latter has a CertificateParsingException cause.
      */
     public String[] getExtendedKeyUsage() throws IllegalStateException {
+
+        byte[] ext = null;
+        String[] ret = null;
+        String msg = null;
+        int isSet = 0;
 
         confirmObjectIsActive();
 
@@ -2019,8 +2041,155 @@ public class WolfSSLCertificate implements Serializable {
                 WolfSSLDebug.INFO, this.x509Ptr,
                 () -> "entering getExtendedKeyUsage()");
 
-            return X509_get_extended_key_usage(this.x509Ptr);
+            if (this.extKeyUsage != null) {
+                if (this.extKeyUsage.length == 0) {
+                    return null;
+                }
+                return this.extKeyUsage.clone();
+            }
+
+            try {
+                if (!this.extKeyUsageAdded) {
+                    /* Short name resolves without WOLFSSL_CERT_EXT */
+                    ext = X509_get_extension(this.x509Ptr, "extendedKeyUsage");
+
+                    if (ext == null) {
+                        /* XKU flags drop unrecognized OIDs, don't fall back */
+                        isSet = X509_is_extension_set(this.x509Ptr,
+                            "extendedKeyUsage");
+                        if (isSet != 0) {
+                            msg = "Unable to read EKU extension";
+                            throw new IllegalStateException(msg,
+                                new CertificateParsingException(msg));
+                        }
+                    }
+                }
+
+                /* Set by addExtension() or not present */
+                if (ext == null) {
+                    ret = X509_get_extended_key_usage(this.x509Ptr);
+                }
+                else {
+                    ret = decodeOids(ext);
+                    if (ret == null) {
+                        msg = "Unable to decode Extended Key Usage OIDs";
+                        throw new IllegalStateException(msg,
+                            new CertificateParsingException(msg));
+                    }
+                }
+            } catch (WolfSSLJNIException e) {
+                throw new IllegalStateException(e.getMessage(),
+                    new CertificateParsingException(e.getMessage(), e));
+            }
+
+            if (ret == null) {
+                this.extKeyUsage = new String[0];
+                return null;
+            }
+
+            this.extKeyUsage = ret;
+
+            return ret.clone();
         }
+    }
+
+    /**
+     * Decode DER encoded KeyPurposeIds to dotted OID strings.
+     *
+     * Accepts the extnValue SEQUENCE, or the concatenated OBJECT IDENTIFIERs
+     * inside it that native wolfSSL before 5.8.4 returns. Arcs are decoded
+     * as BigInteger, so arcs of any size stay exact.
+     *
+     * @param der DER encoded KeyPurposeIds
+     *
+     * @return array of OID strings, or null if the encoding is malformed
+     */
+    private static String[] decodeOids(byte[] der) {
+
+        List<String> oids = new ArrayList<String>();
+        BigInteger eighty = BigInteger.valueOf(80);
+        int idx = 0;
+
+        while (idx < der.length) {
+            StringBuilder sb = new StringBuilder();
+            BigInteger arc = BigInteger.ZERO;
+            boolean arcDone = true;
+            boolean atStart = (idx == 0);
+            int tag;
+            int len;
+            int end;
+
+            tag = der[idx++];
+            if (idx >= der.length) {
+                return null;
+            }
+
+            len = der[idx++] & 0xFF;
+            if (len > 0x7F) {
+                int n = len & 0x7F;
+                /* DER long form: no leading zero, length 128 or more */
+                if ((n < 1) || (n > 3) || (n > der.length - idx) ||
+                    (der[idx] == 0)) {
+                    return null;
+                }
+                len = 0;
+                while (n-- > 0) {
+                    len = (len << 8) | (der[idx++] & 0xFF);
+                }
+                if (len < 0x80) {
+                    return null;
+                }
+            }
+
+            if ((len < 1) || (len > der.length - idx)) {
+                return null;
+            }
+
+            /* Decode the OIDs inside a SEQUENCE spanning the input */
+            if ((tag == 0x30) && atStart && (len == der.length - idx)) {
+                continue;
+            }
+            if (tag != 0x06) {
+                return null;
+            }
+
+            for (end = idx + len; idx < end; idx++) {
+                int b = der[idx] & 0xFF;
+
+                /* Reject non-minimal subidentifier encoding */
+                if (arcDone && (b == 0x80)) {
+                    return null;
+                }
+                arc = arc.shiftLeft(7).or(BigInteger.valueOf(b & 0x7F));
+                arcDone = ((b & 0x80) == 0);
+                if (!arcDone) {
+                    continue;
+                }
+
+                if (sb.length() == 0) {
+                    /* First subidentifier encodes the first two arcs */
+                    int first = arc.min(eighty).intValue() / 40;
+                    sb.append(first).append('.')
+                      .append(arc.subtract(BigInteger.valueOf(first * 40)));
+                }
+                else {
+                    sb.append('.').append(arc);
+                }
+                arc = BigInteger.ZERO;
+            }
+
+            /* Last subidentifier must not be truncated */
+            if (!arcDone) {
+                return null;
+            }
+            oids.add(sb.toString());
+        }
+
+        if (oids.isEmpty()) {
+            return null;
+        }
+
+        return oids.toArray(new String[oids.size()]);
     }
 
     /**
@@ -2089,11 +2258,18 @@ public class WolfSSLCertificate implements Serializable {
     /**
      * Get DER encoded extension value from a specified OID
      *
+     * Returns the contents of the extension's extnValue OCTET STRING. Native
+     * wolfSSL releases before 5.8.4 store a per-type format instead of the
+     * DER value, which is returned on those releases.
+     *
      * @param oid OID value of extension to retreive value for
      *
-     * @return DER encoded extension value, or null
+     * @return DER encoded extension value, an empty array if the extension
+     *         is present but native wolfSSL stores no value for its type,
+     *         or null if not present
      *
-     * @throws IllegalStateException if WolfSSLCertificate has been freed.
+     * @throws IllegalStateException if WolfSSLCertificate has been freed,
+     *         or the extension value cannot be copied.
      */
     public byte[] getExtension(String oid) throws IllegalStateException {
 
@@ -2108,7 +2284,11 @@ public class WolfSSLCertificate implements Serializable {
                 return null;
             }
 
-            return X509_get_extension(this.x509Ptr, oid);
+            try {
+                return X509_get_extension(this.x509Ptr, oid);
+            } catch (WolfSSLJNIException e) {
+                throw new IllegalStateException(e.getMessage(), e);
+            }
         }
     }
 
@@ -2709,6 +2889,7 @@ public class WolfSSLCertificate implements Serializable {
             /* set altNames caches to null so GC can free */
             this.altNames = null;
             this.altNamesArray = null;
+            this.extKeyUsage = null;
 
             synchronized (x509Lock) {
                 /* only free native resources if we own pointer */
