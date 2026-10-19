@@ -1233,7 +1233,7 @@ public class WolfSSL {
      * Tests if Certificate Signing Request (CSR) support has been compiled
      * into the native wolfSSL library.
      *
-     * @return true if enabled, otherwise false if WOLFSSL_CERT_EXT not defined.
+     * @return true if enabled, otherwise false if WOLFSSL_CERT_REQ not defined.
      */
     public static native boolean certReqEnabled();
 
