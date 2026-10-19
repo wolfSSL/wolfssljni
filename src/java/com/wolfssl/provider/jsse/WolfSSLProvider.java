@@ -161,13 +161,15 @@ public final class WolfSSLProvider extends Provider {
      * Set the native wolfSSL crypto callback devId for SSLContext
      * objects.
      *
+     * This only stores the device ID. Use registerDevId() to register the
+     * native crypto callback for the device.
+     *
      * @param devId crypto callback device ID. Default is
      *        WolfSSL.INVALID_DEVID which will cause software crypto
      *        to be used. To reset global device ID, pass in
      *        WolfSSL.INVALID_DEVID.
      *
-     * @throws WolfSSLException if error registering native crypto callback
-     *         function
+     * @throws WolfSSLException never thrown, declared for API compatibility
      */
     public static void setDevId(int devId) throws WolfSSLException {
 
