@@ -676,10 +676,16 @@ public class WolfSSL {
     /* Track if library loading was skipped via system property */
     private static volatile boolean libraryLoadSkipped = false;
 
+    /* Have FIPS CASTs passed in init(), guarded by castLock */
+    private static boolean fipsCastsDone = false;
+
     /* ---------------------------- locks ------------------------------- */
 
     /* lock for cleanup */
     private final Object cleanupLock = new Object();
+
+    /* lock for running FIPS CASTs in init() */
+    private static final Object castLock = new Object();
 
     /* ------------------------ constructors ---------------------------- */
 
@@ -697,6 +703,9 @@ public class WolfSSL {
      * This property can be set programmatically via
      * {@code Security.setProperty("wolfjsse.skipFIPSCAST", "true")} or
      * in the {@code java.security} configuration file.
+     *
+     * CASTs are run at most once per process. After one WolfSSL object runs
+     * them successfully, later objects skip them.
      *
      * @throws com.wolfssl.WolfSSLException if wolfSSL library fails to
      *                                      initialize correctly
@@ -721,7 +730,7 @@ public class WolfSSL {
                 "init (wolfjsse.skipFIPSCAST=true)");
         }
 
-        ret = init(skipCAST);
+        ret = initOnce(skipCAST);
         if (ret != SSL_SUCCESS) {
             throw new WolfSSLException(
                 "Failed to initialize wolfSSL library: " + ret);
@@ -796,6 +805,23 @@ public class WolfSSL {
     /* ------------------- private/protected methods -------------------- */
 
     private native int init(int skipFIPSCAST);
+
+    /* Run CASTs only once per process */
+    private int initOnce(int skipCAST) {
+        int ret;
+
+        synchronized (castLock) {
+            if (fipsCastsDone) {
+                skipCAST = 1;
+            }
+            ret = init(skipCAST);
+            if (ret == SSL_SUCCESS && skipCAST == 0) {
+                fipsCastsDone = true;
+            }
+        }
+
+        return ret;
+    }
 
     /**
      * Free native memory allocated at pointer provided.

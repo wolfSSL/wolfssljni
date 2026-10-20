@@ -31,11 +31,15 @@ import static org.junit.Assert.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLContext;
 import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLLoggingCallback;
 import com.wolfssl.WolfSSLFIPSErrorCallback;
 
@@ -64,6 +68,71 @@ public class WolfSSLTest {
             fail("failed to load native JNI library");
         } catch (WolfSSLException we) {
             fail("failed to create WolfSSL object");
+        }
+    }
+
+    /* Creating WolfSSL objects must not break other threads creating sessions.
+     * On FIPS builds, rerunning CASTs in each constructor fails other threads
+     * using those algorithms at the same time. */
+    @Test
+    public void test_WolfSSL_newWithConcurrentSessions()
+        throws InterruptedException, WolfSSLException {
+
+        /* First object runs the CASTs before session threads start */
+        new WolfSSL();
+
+        final int numThreads = 4;
+        final AtomicBoolean stop = new AtomicBoolean(false);
+        final AtomicInteger sessions = new AtomicInteger(0);
+        final AtomicReference<Throwable> firstError =
+            new AtomicReference<Throwable>();
+        Thread[] threads = new Thread[numThreads];
+
+        for (int i = 0; i < numThreads; i++) {
+            threads[i] = new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        while (!stop.get()) {
+                            WolfSSLContext ctx = new WolfSSLContext(
+                                WolfSSL.SSLv23_ClientMethod());
+                            WolfSSLSession ssl = new WolfSSLSession(ctx);
+                            ssl.freeSSL();
+                            ctx.free();
+                            sessions.incrementAndGet();
+                        }
+                    } catch (Throwable t) {
+                        firstError.compareAndSet(null, t);
+                    }
+                }
+            });
+            threads[i].start();
+        }
+
+        try {
+            /* Wait for session threads to start, up to 5 seconds */
+            for (int i = 0; i < 5000 && sessions.get() < 100 &&
+                firstError.get() == null; i++) {
+                Thread.sleep(1);
+            }
+            for (int i = 0; i < 20 && firstError.get() == null; i++) {
+                new WolfSSL();
+            }
+        } catch (WolfSSLException e) {
+            firstError.compareAndSet(null, e);
+        } finally {
+            stop.set(true);
+            for (int i = 0; i < numThreads; i++) {
+                threads[i].join();
+            }
+        }
+
+        Throwable err = firstError.get();
+        if (err != null) {
+            AssertionError ae = new AssertionError(
+                "WolfSSL() with concurrent sessions failed: " +
+                err.getMessage());
+            ae.initCause(err);
+            throw ae;
         }
     }
 
