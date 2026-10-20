@@ -1506,7 +1506,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -1772,7 +1772,7 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
