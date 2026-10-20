@@ -7233,7 +7233,7 @@ int NativeSSLIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
 
         if (sz >= 0) {
-            /* create jbyteArray to hold received data */
+            /* create jbyteArray to hold data to send */
             outData = (*jenv)->NewByteArray(jenv, sz);
             if (!outData) {
                 throwWolfSSLJNIException(jenv,
