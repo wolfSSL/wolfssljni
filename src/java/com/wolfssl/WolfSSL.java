@@ -230,6 +230,8 @@ public class WolfSSL {
     public static final int UNKNOWN_ALPN_PROTOCOL_NAME_E = -405;
     /** DTLS application data ready for read */
     public static final int APP_DATA_READY = -441;
+    /** Unable to match a cipher suite with peer */
+    public static final int MATCH_SUITE_ERROR = -501;
 
     /* extra definitions from ssl.h */
     /** CertManager: check all cert CRLs */
