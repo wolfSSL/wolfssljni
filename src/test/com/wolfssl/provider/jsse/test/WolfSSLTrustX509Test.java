@@ -4297,6 +4297,70 @@ public class WolfSSLTrustX509Test {
         }
     }
 
+    @Test
+    public void testChainCertMustBeCaToIssue() throws Exception {
+
+        KeyStore.PrivateKeyEntry ca = tf.generateCert("Test CA", true, null);
+        KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+        ks.load(null, null);
+        ks.setCertificateEntry("ca", ca.getCertificate());
+        X509TrustManager tm = (X509TrustManager)tf.createTrustManager(
+            "SunX509", ks, provider)[0];
+
+        String[] goodKeyUsage = { null, "keyCertSign,cRLSign" };
+        for (String ku : goodKeyUsage) {
+            KeyStore.PrivateKeyEntry inter =
+                tf.generateCert("Good Inter", true, ca, ku);
+            X509Certificate leaf = (X509Certificate)tf.generateCert(
+                "good.example.com", false, inter).getCertificate();
+            tm.checkServerTrusted(new X509Certificate[] {
+                leaf, (X509Certificate)inter.getCertificate() }, "RSA");
+        }
+
+        KeyStore.PrivateKeyEntry[] badInters = {
+            tf.generateCert("Non-CA Inter", false, ca),
+            tf.generateCert("No CertSign Inter", true, ca, "digitalSignature")
+        };
+        for (KeyStore.PrivateKeyEntry inter : badInters) {
+            X509Certificate[] chain = new X509Certificate[] {
+                (X509Certificate)tf.generateCert(
+                    "bad.example.com", false, inter).getCertificate(),
+                (X509Certificate)inter.getCertificate() };
+            try {
+                tm.checkServerTrusted(chain, "RSA");
+                fail("Server chain through non-issuing cert was trusted");
+            } catch (CertificateException e) {
+                /* expected */
+            }
+            try {
+                tm.checkClientTrusted(chain, "RSA");
+                fail("Client chain through non-issuing cert was trusted");
+            } catch (CertificateException e) {
+                /* expected */
+            }
+        }
+    }
+
+    /* With trusted peer certs, a self-signed non-CA KeyStore entry is
+     * trusted even when the peer also sends it as a chain cert */
+    @Test
+    public void testTrustedNonCaPeerCertSentTwice() throws Exception {
+
+        Assume.assumeTrue(WolfSSL.trustPeerCertEnabled());
+
+        X509Certificate selfSigned = (X509Certificate)tf.generateCert(
+            "localhost", false, null).getCertificate();
+        KeyStore ks = KeyStore.getInstance(tf.keyStoreType);
+        ks.load(null, null);
+        ks.setCertificateEntry("peer", selfSigned);
+        X509TrustManager tm = (X509TrustManager)tf.createTrustManager(
+            "SunX509", ks, provider)[0];
+
+        tm.checkServerTrusted(new X509Certificate[] { selfSigned }, "RSA");
+        tm.checkServerTrusted(
+            new X509Certificate[] { selfSigned, selfSigned }, "RSA");
+    }
+
     /**
      * Test that when checkServerTrusted() returns the cert chain, it excludes
      * CA certificates that were skipped during verification due to alternate

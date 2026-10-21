@@ -1029,6 +1029,26 @@ class WolfSSLTestFactory {
         throws CertificateException, WolfSSLException,
         NoSuchAlgorithmException, IOException, WolfSSLJNIException {
 
+        return generateCert(commonName, isCA, issuer, null);
+    }
+
+    /**
+     * Generate a new RSA 2048-bit certificate with basicConstraints and an
+     * optional keyUsage extension set.
+     *
+     * @param commonName subject common name
+     * @param isCA true to set CA:TRUE, false to set CA:FALSE
+     * @param issuer entry whose key signs the new cert, or null to self sign
+     * @param keyUsage keyUsage extension value (ex: "keyCertSign,cRLSign"),
+     *        or null to leave the extension out
+     *
+     * @return new private key and certificate
+     */
+    protected KeyStore.PrivateKeyEntry generateCert(String commonName,
+        boolean isCA, KeyStore.PrivateKeyEntry issuer, String keyUsage)
+        throws CertificateException, WolfSSLException,
+        NoSuchAlgorithmException, IOException, WolfSSLJNIException {
+
         WolfSSLCertificate x509 = null;
         WolfSSLCertificate issuerCert = null;
         WolfSSLX509Name subjectName = null;
@@ -1059,6 +1079,9 @@ class WolfSSLTestFactory {
             }
             x509.setPublicKey(keyPair.getPublic());
             x509.addExtension(WolfSSL.NID_basic_constraints, isCA, true);
+            if (keyUsage != null) {
+                x509.addExtension(WolfSSL.NID_key_usage, keyUsage, true);
+            }
             x509.signCert((issuer != null) ? issuer.getPrivateKey() :
                 keyPair.getPrivate(), "SHA256");
 

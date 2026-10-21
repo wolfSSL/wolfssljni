@@ -519,6 +519,30 @@ public final class WolfSSLTrustX509 extends X509ExtendedTrustManager {
                     }
                 }
 
+                /* Only load chain certs that may sign certs, or KeyStore
+                 * entries when peer certs are trusted. getBasicConstraints()
+                 * returns -1 unless the cert has basicConstraints cA=true.
+                 * getKeyUsage() is null when the extension is absent, and
+                 * index 5 is the keyCertSign bit */
+                boolean[] keyUsage = sortedCerts[tmpI].getKeyUsage();
+                boolean mayIssue =
+                    (sortedCerts[tmpI].getBasicConstraints() >= 0) &&
+                    (keyUsage == null || (keyUsage.length > 5 && keyUsage[5]));
+
+                if (!mayIssue && WolfSSL.trustPeerCertEnabled()) {
+                    try {
+                        String alias =
+                            this.store.getCertificateAlias(sortedCerts[tmpI]);
+                        mayIssue = (alias != null);
+                    } catch (KeyStoreException e) {
+                        /* not a trusted entry */
+                    }
+                }
+                if (!mayIssue) {
+                    throw new CertificateException("Intermediate chain cert " +
+                        "is not a CA, not allowed to sign certificates");
+                }
+
                 /* Load chain cert as trusted CA */
                 ret = cm.CertManagerLoadCABuffer(encoded, encoded.length,
                         WolfSSL.SSL_FILETYPE_ASN1);
