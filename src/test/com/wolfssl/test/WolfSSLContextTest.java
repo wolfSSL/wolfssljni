@@ -1252,7 +1252,7 @@ public class WolfSSLContextTest {
             cliCtxA.setVerify(WolfSSL.SSL_VERIFY_PEER, cbA);
             cliCtxB.setVerify(WolfSSL.SSL_VERIFY_PEER, cbB);
 
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final int port = srvSocket.getLocalPort();
             final ServerSocket fSrvSock = srvSocket;
@@ -1500,7 +1500,7 @@ public class WolfSSLContextTest {
         int cliRet;
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket fSrvSock = srvSocket;
             es = Executors.newSingleThreadExecutor();
@@ -1951,7 +1951,7 @@ public class WolfSSLContextTest {
             final TestRsaCbCtx srvVerifyCtx = new TestRsaCbCtx();
             final TestRsaCbCtx cliVerifyCtx = new TestRsaCbCtx();
 
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final int port = srvSocket.getLocalPort();
             final ServerSocket fSrvSock = srvSocket;
@@ -2102,7 +2102,7 @@ public class WolfSSLContextTest {
             final TestRsaCbCtx srvSignCtx = new TestRsaCbCtx();
             final TestRsaCbCtx srvVerifyCtx = new TestRsaCbCtx();
 
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final int port = srvSocket.getLocalPort();
             final ServerSocket fSrvSock = srvSocket;

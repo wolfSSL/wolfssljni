@@ -616,7 +616,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx;
 
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
         final int port = srvSocket.getLocalPort();
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
@@ -830,7 +830,7 @@ public class WolfSSLSessionTest {
         new WolfSSL();
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             int port = srvSocket.getLocalPort();
 
@@ -1017,7 +1017,7 @@ public class WolfSSLSessionTest {
             cliCert, cliKey, WolfSSL.SSL_FILETYPE_PEM, caCert,
             WolfSSL.TLSv1_2_ClientMethod());
 
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
         final int port = srvSocket.getLocalPort();
         Socket cliSock = null;
         WolfSSLSession ssl = null;
@@ -1136,7 +1136,7 @@ public class WolfSSLSessionTest {
             assertEquals("client setCipherList", WolfSSL.SSL_SUCCESS,
                 cliCtx.setCipherList("ECDHE-RSA-AES256-GCM-SHA384"));
 
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             es = Executors.newSingleThreadExecutor();
             srvFuture = runOneShotTlsServer(srvSocket, srvCtx, es);
@@ -1571,7 +1571,7 @@ public class WolfSSLSessionTest {
         try {
             /* Create ServerSocket first to get ephemeral port, set
              * 10 sec timeout on accept() to prevent test hangs. */
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
 
             final int port = srvSocket.getLocalPort();
@@ -1966,7 +1966,7 @@ public class WolfSSLSessionTest {
         try {
             /* Create ServerSocket first to get ephemeral port,
              * set 10 sec timeout on accept() to prevent test hangs. */
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
 
             final int port = srvSocket.getLocalPort();
@@ -2126,7 +2126,7 @@ public class WolfSSLSessionTest {
         try {
             /* Create ServerSocket first to get ephemeral port, set
              * 10 sec timeout on accept() to prevent test hangs. */
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
 
             final int port = srvSocket.getLocalPort();
@@ -2288,7 +2288,7 @@ public class WolfSSLSessionTest {
         try {
             /* Create ServerSocket first to get ephemeral port, set
              * 10 sec timeout on accept() to prevent test hangs. */
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
 
             final int port = srvSocket.getLocalPort();
@@ -2659,7 +2659,8 @@ public class WolfSSLSessionTest {
 
         try {
             /* Create ServerSocket first to get ephemeral port */
-            final ServerSocket srvSocket = new ServerSocket(0);
+            final ServerSocket srvSocket =
+                WolfSSLTestCommon.createServerSocket(0);
 
             srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
                 WolfSSL.SSL_FILETYPE_PEM, cliCert,
@@ -2928,7 +2929,7 @@ public class WolfSSLSessionTest {
         try {
             /* Create ServerSocket first to get ephemeral port, set 10 sec
              * timeout on accept() to prevent test hangs. */
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket finalSrvSocket = srvSocket;
 
@@ -3241,7 +3242,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx;
 
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
             WolfSSL.SSL_FILETYPE_PEM, cliCert,
@@ -3555,7 +3556,7 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_readBadArgsConsumesNothing()
         throws Exception {
 
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
         final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
             srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
             WolfSSL.SSLv23_ServerMethod());
@@ -3860,7 +3861,7 @@ public class WolfSSLSessionTest {
         WolfSSL lib = new WolfSSL();
         assertNotNull(lib);
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
             WolfSSL.SSL_FILETYPE_PEM, cliCert,
@@ -4067,7 +4068,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx;
 
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
             WolfSSL.SSL_FILETYPE_PEM, cliCert,
@@ -4245,7 +4246,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx;
 
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
             WolfSSL.SSL_FILETYPE_PEM, cliCert, WolfSSL.SSLv23_ServerMethod());
@@ -4402,7 +4403,7 @@ public class WolfSSLSessionTest {
     public void test_WolfSSLSession_writeOutOfBoundsSendsNothing()
         throws Exception {
 
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
         final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
             srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
             WolfSSL.SSLv23_ServerMethod());
@@ -4558,7 +4559,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext cliCtx;
 
         /* Create ServerSocket first to get ephemeral port */
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
 
         srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
             WolfSSL.SSL_FILETYPE_PEM, cliCert,
@@ -6111,7 +6112,7 @@ public class WolfSSLSessionTest {
      * not backing[pos). */
     @Test
     public void test_WolfSSLSession_readSlicedByteBuffer() throws Exception {
-        final ServerSocket srvSocket = new ServerSocket(0);
+        final ServerSocket srvSocket = WolfSSLTestCommon.createServerSocket(0);
         final WolfSSLContext srvCtx = createAndSetupWolfSSLContext(
             srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
             WolfSSL.SSLv23_ServerMethod());
@@ -6482,7 +6483,7 @@ public class WolfSSLSessionTest {
         Future<Void> srvFuture = null;
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             final int port = srvSocket.getLocalPort();
 
             srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
@@ -6655,7 +6656,7 @@ public class WolfSSLSessionTest {
         final CountDownLatch clientDone = new CountDownLatch(1);
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket srv = srvSocket;
 
@@ -6767,7 +6768,7 @@ public class WolfSSLSessionTest {
         int ret;
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket srv = srvSocket;
 
@@ -7166,7 +7167,7 @@ public class WolfSSLSessionTest {
         final CountDownLatch clientDone = new CountDownLatch(1);
 
         try {
-            srvSocket = new ServerSocket(0);
+            srvSocket = WolfSSLTestCommon.createServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket srv = srvSocket;
 

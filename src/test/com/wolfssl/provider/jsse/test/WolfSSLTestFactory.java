@@ -29,6 +29,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
@@ -47,12 +49,15 @@ import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Enumeration;
+import javax.net.ServerSocketFactory;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -1273,6 +1278,77 @@ class WolfSSLTestFactory {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Create a ServerSocket from the given factory, listening on all
+     * interfaces.
+     *
+     * For an ephemeral port (0), SO_REUSEADDR is disabled before binding.
+     * With it enabled, the Java default on non-Windows platforms, macOS can
+     * assign a port another process has bound on a specific address such as
+     * 127.0.0.1, so connections to that address reach the other process
+     * instead of this listener.
+     *
+     * @param factory factory to create the socket from
+     * @param port port to listen on, 0 for an ephemeral port
+     * @return bound ServerSocket
+     * @throws IOException on error creating or binding the socket
+     */
+    protected static ServerSocket createServerSocket(
+        ServerSocketFactory factory, int port) throws IOException {
+
+        ServerSocket ss = factory.createServerSocket();
+        if (port == 0) {
+            ss.setReuseAddress(false);
+        }
+        ss.bind(new InetSocketAddress(port));
+        return ss;
+    }
+
+    /**
+     * Create a plain ServerSocket, see
+     * createServerSocket(ServerSocketFactory, int).
+     *
+     * @param port port to listen on, 0 for an ephemeral port
+     * @return bound ServerSocket
+     * @throws IOException on error creating or binding the socket
+     */
+    protected static ServerSocket createServerSocket(int port)
+        throws IOException {
+
+        return createServerSocket(ServerSocketFactory.getDefault(), port);
+    }
+
+    /**
+     * Create an SSLServerSocket from the given factory, see
+     * createServerSocket(ServerSocketFactory, int).
+     *
+     * @param sf factory to create the socket from
+     * @param port port to listen on, 0 for an ephemeral port
+     * @return bound SSLServerSocket
+     * @throws IOException on error creating or binding the socket
+     */
+    protected static SSLServerSocket createServerSocket(
+        SSLServerSocketFactory sf, int port) throws IOException {
+
+        return (SSLServerSocket)createServerSocket(
+            (ServerSocketFactory)sf, port);
+    }
+
+    /**
+     * Create an SSLServerSocket from the given SSLContext, see
+     * createServerSocket(ServerSocketFactory, int).
+     *
+     * @param ctx SSLContext to create the socket from
+     * @param port port to listen on, 0 for an ephemeral port
+     * @return bound SSLServerSocket
+     * @throws IOException on error creating or binding the socket
+     */
+    protected static SSLServerSocket createServerSocket(SSLContext ctx,
+        int port) throws IOException {
+
+        return createServerSocket(ctx.getServerSocketFactory(), port);
     }
 
     /**

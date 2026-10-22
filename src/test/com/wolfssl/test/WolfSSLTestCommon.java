@@ -22,6 +22,9 @@
 package com.wolfssl.test;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 
 import com.wolfssl.WolfSSLException;
 
@@ -88,5 +91,29 @@ public class WolfSSLTestCommon {
                 FFDHE2048_P.substring(i * 2, i * 2 + 2), 16);
         }
         return new byte[][] { p, new byte[] { 2 } };
+    }
+
+    /**
+     * Create a ServerSocket listening on all interfaces.
+     *
+     * For an ephemeral port (0), SO_REUSEADDR is disabled before binding.
+     * With it enabled, the Java default on non-Windows platforms, macOS can
+     * assign a port another process has bound on a specific address such as
+     * 127.0.0.1, so connections to that address reach the other process
+     * instead of this listener.
+     *
+     * @param port port to listen on, 0 for an ephemeral port
+     * @return bound ServerSocket
+     * @throws IOException on error creating or binding the socket
+     */
+    public static ServerSocket createServerSocket(int port)
+        throws IOException {
+
+        ServerSocket ss = new ServerSocket();
+        if (port == 0) {
+            ss.setReuseAddress(false);
+        }
+        ss.bind(new InetSocketAddress(port));
+        return ss;
     }
 }

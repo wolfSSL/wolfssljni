@@ -136,6 +136,10 @@ public class WolfSSLEngineTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
+        /* Start static lists empty so running this again in the same JVM does
+         * not add duplicate entries */
+        enabledProtocols.clear();
+
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
@@ -1725,8 +1729,7 @@ public class WolfSSLEngineTest {
         public void run() {
             try {
                 SSLContext ctx = tf.createSSLContext("TLS", engineProvider);
-                ss = (SSLServerSocket)ctx
-                    .getServerSocketFactory().createServerSocket(serverPort);
+                ss = WolfSSLTestFactory.createServerSocket(ctx, serverPort);
 
                 while (clientConnections > 0) {
                     serverOpenLatch.countDown();

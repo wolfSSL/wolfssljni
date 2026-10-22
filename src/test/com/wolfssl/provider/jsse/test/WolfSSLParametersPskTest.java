@@ -561,8 +561,7 @@ public class WolfSSLParametersPskTest {
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
 
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
         int port = ss.getLocalPort();
 
         final CountDownLatch latch = new CountDownLatch(1);
@@ -638,8 +637,7 @@ public class WolfSSLParametersPskTest {
         SSLContext ctx = SSLContext.getInstance("TLSv1.2", engineProvider);
         ctx.init(null, null, null);
 
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
         int port = ss.getLocalPort();
 
         final CountDownLatch latch = new CountDownLatch(1);
