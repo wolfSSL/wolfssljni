@@ -1504,6 +1504,47 @@ public class WolfSSLSessionTest {
         }
     }
 
+    @Test
+    public void test_WolfSSLSession_restoreFdBlocking() throws Exception {
+
+        WolfSSLSession ssl = null;
+        ServerSocket srvSock = null;
+        Socket cliSock = null;
+
+        try {
+            ssl = new WolfSSLSession(ctx);
+
+            /* No socket set yet, nothing to restore */
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.restoreFdBlocking());
+
+            srvSock = new ServerSocket(0, 0, InetAddress.getLoopbackAddress());
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSock.getLocalPort());
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.setFd(cliSock));
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.restoreFdBlocking());
+
+            ssl.freeSSL();
+            try {
+                ssl.restoreFdBlocking();
+                fail("restoreFdBlocking() after freeSSL() should throw");
+            } catch (IllegalStateException e) {
+                /* expected */
+            }
+            ssl = null;
+
+        } finally {
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSock != null) {
+                srvSock.close();
+            }
+        }
+    }
+
     /* Run one client/server TLS handshake over localhost, with the server
      * using the provided ALPN select callback and the client offering
      * cliProtos via useALPN(). Returns int[2] containing the server
@@ -6612,11 +6653,6 @@ public class WolfSSLSessionTest {
         boolean shutdownHung = false;
         final CountDownLatch clientDone = new CountDownLatch(1);
 
-        /* setFd() leaves the socket blocking on Windows, so connect() can
-         * not time out mid-handshake */
-        Assume.assumeFalse("setFd() socket is blocking on Windows",
-            WolfSSLTestCommon.isWindows());
-
         try {
             srvSocket = new ServerSocket(0);
             srvSocket.setSoTimeout(10000);
@@ -6698,6 +6734,133 @@ public class WolfSSLSessionTest {
             }
             if (srvEs != null) {
                 srvEs.shutdownNow();
+            }
+        }
+    }
+
+    /**
+     * read() with a timeout must throw SocketTimeoutException when the peer
+     * sends nothing, and the session must still read data sent afterwards.
+     *
+     * On Windows this needs setFd() to put the socket in non-blocking mode,
+     * otherwise wolfSSL_read() waits inside recv() and the timeout is never
+     * applied. SOCKET values on Windows are normally larger than FD_SETSIZE,
+     * so this also covers the socketSelect() descriptor check there.
+     */
+    @Test
+    public void test_WolfSSLSession_readTimeout() throws Exception {
+
+        final int timeoutMs = 1000;
+        final byte[] msg = "ping".getBytes(StandardCharsets.US_ASCII);
+        final CountDownLatch sendLatch = new CountDownLatch(1);
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ServerSocket srvSocket = null;
+        Socket cliSock = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession ssl = null;
+        ExecutorService es = null;
+        byte[] buf = new byte[64];
+        long start;
+        long elapsedMs;
+        int ret;
+
+        try {
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket srv = srvSocket;
+
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.SSLv23_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.SSLv23_ClientMethod());
+            final WolfSSLContext sCtx = srvCtx;
+
+            /* Server finishes the handshake, stays silent until released,
+             * then sends msg. Sends anyway after 20 sec, so a read() that
+             * never times out fails the test instead of hanging it. */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> srvFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    WolfSSLSession srvSes = null;
+                    try (Socket s = srv.accept()) {
+                        srvSes = new WolfSSLSession(sCtx);
+                        assertEquals(WolfSSL.SSL_SUCCESS, srvSes.setFd(s));
+                        assertEquals(WolfSSL.SSL_SUCCESS,
+                            srvSes.accept(10000));
+                        sendLatch.await(20, TimeUnit.SECONDS);
+                        assertEquals(msg.length,
+                            srvSes.write(msg, msg.length, 10000));
+
+                        /* Keep socket open until client has read msg */
+                        clientDone.await(20, TimeUnit.SECONDS);
+                        return null;
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                    }
+                }
+            });
+
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSocket.getLocalPort());
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.setFd(cliSock));
+            ret = ssl.connect(10000);
+            assertEquals("connect() failed, err = " + ssl.getError(ret),
+                WolfSSL.SSL_SUCCESS, ret);
+
+            /* Peer is silent, read() must time out */
+            start = System.nanoTime();
+            try {
+                ret = ssl.read(buf, 0, buf.length, timeoutMs);
+                fail("read() with " + timeoutMs + " ms timeout and a " +
+                    "silent peer returned " + ret + " after " +
+                    ((System.nanoTime() - start) / 1000000) + " ms, " +
+                    "expected SocketTimeoutException");
+            } catch (SocketTimeoutException e) {
+                elapsedMs = (System.nanoTime() - start) / 1000000;
+                /* Allow for coarse select() timer resolution on Windows */
+                assertTrue("read() timed out early, after " + elapsedMs +
+                    " ms", elapsedMs >= timeoutMs - 100);
+                assertTrue("read() timed out late, after " + elapsedMs +
+                    " ms", elapsedMs < timeoutMs + 9000);
+            }
+
+            /* Session is still usable after the timeout */
+            sendLatch.countDown();
+            ret = ssl.read(buf, 0, buf.length, 10000);
+            assertEquals(msg.length, ret);
+            assertArrayEquals(msg, Arrays.copyOf(buf, ret));
+
+            clientDone.countDown();
+            srvFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            sendLatch.countDown();
+            clientDone.countDown();
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (es != null) {
+                es.shutdown();
+                es.awaitTermination(10, TimeUnit.SECONDS);
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
             }
         }
     }

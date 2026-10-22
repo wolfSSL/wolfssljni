@@ -760,6 +760,7 @@ public class WolfSSLSession {
     private native int useClientSuites(long ssl);
     private native int interruptBlockedIO(long ssl);
     private native int getThreadsBlockedInPoll(long ssl);
+    private native int restoreFdBlocking(long ssl);
     private native int setMTU(long ssl, int mtu);
     private native String stateStringLong(long ssl);
     private native int getMaxOutputSize(long ssl);
@@ -5765,6 +5766,36 @@ public class WolfSSLSession {
             () -> "entered getThreadsBlockedInPoll()");
 
         return getThreadsBlockedInPoll(this.sslPtr);
+    }
+
+    /**
+     * Put the socket set with setFd() back into blocking mode.
+     *
+     * setFd() puts the socket into non-blocking mode. On Windows,
+     * closesocket() on a non-blocking socket with SO_LINGER enabled fails
+     * and leaves the socket open. Call this after shutdownSSL() and before
+     * the socket is closed. Does nothing on other platforms.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, WolfSSL.SSL_FAILURE if the
+     *         socket mode could not be changed.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int restoreFdBlocking() throws IllegalStateException {
+
+        final int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered restoreFdBlocking()");
+
+            ret = restoreFdBlocking(this.sslPtr);
+        }
+
+        return ret;
     }
 
     /**

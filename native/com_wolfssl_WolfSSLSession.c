@@ -518,7 +518,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
     jobject impl;
     jobject fdesc;
 #ifdef USE_WINDOWS_API
-    unsigned long blocking = 0;
+    /* FIONBIO enables non-blocking mode when set to non-zero */
+    unsigned long nonBlocking = 1;
 #endif
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
     (void)jcl;
@@ -629,12 +630,17 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setFd(JNIEnv* jenv,
     /* set socket to non-blocking so we can use select() to detect
      * WANT_READ / WANT_WRITE */
 #ifdef USE_WINDOWS_API
-    ret = ioctlsocket(fd, FIONBIO, &blocking);
-    if (ret == SOCKET_ERROR) {
-        ret = SSL_FAILURE;
-    }
-    else {
-        ret = SSL_SUCCESS;
+    /* Only for Socket (type 1). DatagramSocket stays blocking, since wolfSSL
+     * is not told the socket is non-blocking and relies on a blocking
+     * socket receive timeout to retransmit DTLS handshake messages. */
+    if (type == 1) {
+        ret = ioctlsocket(fd, FIONBIO, &nonBlocking);
+        if (ret == SOCKET_ERROR) {
+            ret = SSL_FAILURE;
+        }
+        else {
+            ret = SSL_SUCCESS;
+        }
     }
 #else
     ret = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -841,8 +847,10 @@ enum {
  * ready for read/write, or timeout. Note that we explicitly set the underlying
  * socket descriptor to non-blocking.
  *
- * NOTE: the FD_ISSET macro behavior is undefined if the descriptor value is
- *       less than 0 or greater than or equal to FD_SETSIZE (1024 by default).
+ * NOTE: on POSIX the FD_ISSET macro behavior is undefined if the descriptor
+ *       value is less than 0 or greater than or equal to FD_SETSIZE (1024 by
+ *       default). On Windows FD_SETSIZE is the number of SOCKET slots in an
+ *       fd_set (64 by default), not a limit on the SOCKET value.
  *
  * On a Java Socket, a timeout of 0 is an infinite timeout. Greater than zero
  * is a timeout in milliseconds. Negative timeout is invalid and not supported.
@@ -891,11 +899,21 @@ static int socketSelect(SSLAppData* appData, int sockfd, int timeout_ms, int rx,
         return WOLFJNI_IO_EVENT_ERROR;
     }
 
+#ifdef USE_WINDOWS_API
+    /* Winsock FD_SET stores the SOCKET in the next free slot of fd_array
+     * and ignores it once all FD_SETSIZE slots are used, so SOCKET values
+     * above FD_SETSIZE are valid. Only one SOCKET is placed in each set
+     * here, reject only invalid descriptors. */
+    if (sockfd < 0) {
+        return WOLFJNI_IO_EVENT_ERROR;
+    }
+#else
     /* Guard against FD_SET overflow. FD_SET behavior is undefined
-     * if sockfd >= FD_SETSIZE (1024 on Linux, 64 on Windows). */
+     * if sockfd >= FD_SETSIZE (1024 by default). */
     if (sockfd < 0 || sockfd >= FD_SETSIZE) {
         return WOLFJNI_IO_EVENT_ERROR;
     }
+#endif
 
 #ifndef USE_WINDOWS_API
     do {
@@ -6942,6 +6960,33 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getThreadsBlockedInPoll
     }
 
     return (jint)threadsWaitingInPollSelect(appData);
+}
+
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_restoreFdBlocking
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#ifdef USE_WINDOWS_API
+    int fd;
+    unsigned long nonBlocking = 0;
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+#endif
+    (void)jenv;
+    (void)jcl;
+
+#ifdef USE_WINDOWS_API
+    /* Undo FIONBIO set in setFd(). Winsock closesocket() on a non-blocking
+     * SOCKET with SO_LINGER enabled fails with WSAEWOULDBLOCK and leaves the
+     * SOCKET open. */
+    fd = wolfSSL_get_fd(ssl);
+    if ((fd >= 0) &&
+        (ioctlsocket(fd, FIONBIO, &nonBlocking) == SOCKET_ERROR)) {
+        return SSL_FAILURE;
+    }
+#else
+    (void)sslPtr;
+#endif
+
+    return SSL_SUCCESS;
 }
 
 JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_setSSLIORecv

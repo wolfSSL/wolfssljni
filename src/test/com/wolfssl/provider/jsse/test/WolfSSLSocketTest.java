@@ -4140,6 +4140,198 @@ public class WolfSSLSocketTest {
         }
     }
 
+    /* Read on an SSLSocket with setSoTimeout() set and a silent peer must
+     * throw SocketTimeoutException once the timeout has passed, and leave
+     * the socket usable for later reads. If layered is true, the SSLSocket
+     * is created over an already connected plain Socket, otherwise the
+     * SSLSocket is connected directly. wolfJSSE passes a different Socket
+     * to native setFd() in each case.
+     *
+     * On Windows this needs native setFd() to put the socket in non-blocking
+     * mode, otherwise the read waits inside recv() and the timeout is never
+     * applied. */
+    private void socketReadTimeoutTest(boolean layered) throws Exception {
+
+        final int timeoutMs = 1000;
+        final byte[] msg = "ping".getBytes(StandardCharsets.US_ASCII);
+        final CountDownLatch sendLatch = new CountDownLatch(1);
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        byte[] buf = new byte[64];
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        Socket plain = null;
+        ExecutorService es = null;
+        long start;
+        long elapsedMs;
+        int ret;
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        try {
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+            InetSocketAddress addr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(), ss.getLocalPort());
+
+            if (layered) {
+                plain = new Socket();
+                plain.connect(addr);
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket(
+                    plain, addr.getHostString(), addr.getPort(), true);
+            }
+            else {
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+                cs.connect(addr);
+            }
+            server = (SSLSocket)ss.accept();
+
+            /* Server finishes the handshake, stays silent until released,
+             * then sends msg. Sends anyway after 20 sec, so a read() that
+             * never times out fails the test instead of hanging it. */
+            final SSLSocket srv = server;
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    sendLatch.await(20, TimeUnit.SECONDS);
+                    OutputStream out = srv.getOutputStream();
+                    out.write(msg);
+                    out.flush();
+
+                    /* Keep socket open until client has read msg */
+                    clientDone.await(20, TimeUnit.SECONDS);
+                    return null;
+                }
+            });
+
+            cs.startHandshake();
+            InputStream in = cs.getInputStream();
+
+            /* Peer is silent, read() must time out */
+            cs.setSoTimeout(timeoutMs);
+            start = System.nanoTime();
+            try {
+                ret = in.read(buf, 0, buf.length);
+                fail("read() with setSoTimeout(" + timeoutMs + ") and a " +
+                    "silent peer returned " + ret + " after " +
+                    ((System.nanoTime() - start) / 1000000) + " ms, " +
+                    "expected SocketTimeoutException");
+            } catch (SocketTimeoutException e) {
+                elapsedMs = (System.nanoTime() - start) / 1000000;
+                /* Allow for coarse select() timer resolution on Windows */
+                assertTrue("read() timed out early, after " + elapsedMs +
+                    " ms", elapsedMs >= timeoutMs - 100);
+                assertTrue("read() timed out late, after " + elapsedMs +
+                    " ms", elapsedMs < timeoutMs + 9000);
+            }
+
+            /* Socket is still usable after the timeout, and a timeout of 0
+             * waits for data with no limit */
+            cs.setSoTimeout(0);
+            sendLatch.countDown();
+            ret = in.read(buf, 0, buf.length);
+            assertEquals(msg.length, ret);
+            assertArrayEquals(msg, Arrays.copyOf(buf, ret));
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            sendLatch.countDown();
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(plain);
+            closeQuietly(server);
+            closeQuietly(ss);
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
+    }
+
+    /* SSLSocket created with createSocket() then connect() */
+    @Test(timeout = 60000)
+    public void testSocketReadTimeout() throws Exception {
+        socketReadTimeoutTest(false);
+    }
+
+    /* SSLSocket layered over a connected plain Socket with
+     * createSocket(Socket, String, int, boolean), as used by Apache
+     * HttpClient */
+    @Test(timeout = 60000)
+    public void testLayeredSocketReadTimeout() throws Exception {
+        socketReadTimeoutTest(true);
+    }
+
+    /* startHandshake() with setSoTimeout() set must throw
+     * SocketTimeoutException when the peer accepts the TCP connection but
+     * never answers the ClientHello. */
+    @Test(timeout = 60000)
+    public void testSocketHandshakeTimeout() throws Exception {
+
+        final int timeoutMs = 1000;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ServerSocket ss = null;
+        SSLSocket cs = null;
+        ExecutorService es = null;
+        long start;
+        long elapsedMs;
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        try {
+            ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+            final ServerSocket srv = ss;
+
+            /* Plain TCP server that accepts, then never responds. Closes
+             * after 20 sec, so a handshake that never times out fails the
+             * test instead of hanging it. */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    Socket s = srv.accept();
+                    try {
+                        clientDone.await(20, TimeUnit.SECONDS);
+                    } finally {
+                        s.close();
+                    }
+                    return null;
+                }
+            });
+
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(
+                InetAddress.getLoopbackAddress(), ss.getLocalPort()));
+            cs.setSoTimeout(timeoutMs);
+
+            start = System.nanoTime();
+            try {
+                cs.startHandshake();
+                fail("startHandshake() against a silent peer should time out");
+            } catch (SocketTimeoutException e) {
+                elapsedMs = (System.nanoTime() - start) / 1000000;
+                assertTrue("startHandshake() timed out early, after " +
+                    elapsedMs + " ms", elapsedMs >= timeoutMs - 100);
+                assertTrue("startHandshake() timed out late, after " +
+                    elapsedMs + " ms", elapsedMs < timeoutMs + 9000);
+            }
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(ss);
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
+    }
+
     /* Close a resource, ignoring exceptions, for deterministic
      * per-iteration cleanup in the stress tests below. */
     private static void closeQuietly(java.io.Closeable c) {

@@ -2396,6 +2396,22 @@ public class WolfSSLSocket extends SSLSocket {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "thread got ioLock (freeSSL)");
 
+                    /* setFd() made the socket non-blocking. Restore blocking
+                     * mode before the socket is closed, here or later by the
+                     * application, so a Windows close with SO_LINGER does
+                     * not fail and leave the socket open. Skip this once the
+                     * transport is closed, since its descriptor value may
+                     * already belong to another socket. */
+                    if ((this.ssl != null) && !this.connectionClosed &&
+                        !((this.socket != null) ? this.socket.isClosed() :
+                            super.isClosed())) {
+                        try {
+                            this.ssl.restoreFdBlocking();
+                        } catch (IllegalStateException e) {
+                            /* session already freed, nothing to restore */
+                        }
+                    }
+
                     /* Free the native WOLFSSL session now to release memory
                      * and the interruptFds[] pipe earlier than finalize(),
                      * or defer to the last exiting I/O operation if a thread

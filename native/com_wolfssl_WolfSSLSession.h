@@ -1129,6 +1129,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getThreadsBlockedInPoll
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    restoreFdBlocking
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_restoreFdBlocking
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    setMTU
  * Signature: (JI)I
  */

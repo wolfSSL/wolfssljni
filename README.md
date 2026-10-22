@@ -525,7 +525,9 @@ wolfSSL JNI/JSSE does not select/poll on a large number of file descriptors
 connections, when using `select()` the `FD_ISSET` and other related macros
 result in undefined behavior when the file descriptor number is larger than
 `FD_SETSIZE` (defaults to 1024 on most systems). For this reason, `poll()` is
-used as the default descriptor monitoring function.
+used as the default descriptor monitoring function. This limit does not apply
+to Windows, where `FD_SETSIZE` is the number of sockets an `fd_set` can hold
+rather than a limit on the socket value.
 
 ### Security Property Support
 
