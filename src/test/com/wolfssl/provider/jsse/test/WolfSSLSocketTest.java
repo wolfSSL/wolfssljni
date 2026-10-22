@@ -3995,7 +3995,7 @@ public class WolfSSLSocketTest {
                  * is reset and reports the socket as closed. */
                 String msg = e.getMessage();
                 if (msg == null ||
-                    (!msg.contains("Socket fd closed during poll") &&
+                    (!msg.contains("Socket fd closed during select/poll") &&
                      !msg.contains("Socket is closed"))) {
                     e.printStackTrace();
                     fail("Incorrect SocketException thrown by client");

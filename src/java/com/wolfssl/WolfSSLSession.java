@@ -1042,12 +1042,12 @@ public class WolfSSLSession {
                 "Native socket timed out during " + nativeFunc);
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_FD_CLOSED) {
-            throw new SocketException("Socket fd closed during poll(), " +
-                "errno = " + WolfSSL.getErrno());
+            throw new SocketException("Socket fd closed during " +
+                "select/poll(), errno = " + WolfSSL.getErrno());
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_ERROR) {
-            throw new SocketException("Socket fd poll() exceptional error, " +
-                "errno = " + WolfSSL.getErrno());
+            throw new SocketException("Socket fd select/poll() exceptional " +
+                "error, errno = " + WolfSSL.getErrno());
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_POLLHUP) {
             throw new SocketException("Socket disconnected during poll(), " +

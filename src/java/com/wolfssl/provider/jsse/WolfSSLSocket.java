@@ -3024,12 +3024,12 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                 } catch (SocketException e) {
-                    /* ssl.read() can throw SocketException from poll() if fd
-                     * closed or peer shut down connection */
+                    /* ssl.read() can throw SocketException from select/poll()
+                     * if fd closed or peer shut down connection. */
                     String msg = e.getMessage();
                     if (msg != null &&
-                        (msg.contains("fd closed during poll") ||
-                         msg.contains("disconnected during poll"))) {
+                        (msg.contains("fd closed during") ||
+                         msg.contains("disconnected during"))) {
                         /* end of stream */
                         return -1;
                     }
