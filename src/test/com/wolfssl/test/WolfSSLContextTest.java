@@ -37,7 +37,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
+import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -69,6 +72,8 @@ import com.wolfssl.WolfSSLRsaPssSignCallback;
 import com.wolfssl.WolfSSLRsaPssVerifyCallback;
 import com.wolfssl.WolfSSLRsaEncCallback;
 import com.wolfssl.WolfSSLRsaDecCallback;
+import com.wolfssl.WolfSSLDecryptVerifyCallback;
+import com.wolfssl.WolfSSLVerifyDecryptCallback;
 import com.wolfssl.WolfCryptRSA;
 import com.wolfssl.WolfCryptECC;
 import com.wolfssl.WolfCryptEccKey;
@@ -1878,6 +1883,114 @@ public class WolfSSLContextTest {
                     srvCtx.free();
                 }
             }
+        }
+    }
+
+    /* Atomic decrypt callbacks setting a padding size outside the record
+     * must be rejected in JNI. The jlong is narrowed to unsigned int, so
+     * 2^32 plus the real size would otherwise pass */
+    @Test
+    public void test_WolfSSLContext_decryptVerifyCbOversizedPadSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue("ATOMIC_USER not compiled in",
+            WolfSSL.isEnabledAtomicUser() == 1);
+
+        /* 0: real padding, 1: 2^32 plus real padding, 2: negative */
+        for (final int mode : new int[] { 0, 1, 2 }) {
+            final boolean[] called = new boolean[2];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                /* The callbacks below only decrypt AES-CBC */
+                Assume.assumeTrue("no AES-CBC cipher suite",
+                    cliCtx.setCipherList("ECDHE-RSA-AES128-SHA256:" +
+                        "ECDHE-RSA-AES256-SHA384") == WolfSSL.SSL_SUCCESS);
+
+                /* With encrypt-then-MAC negotiated wolfSSL calls
+                 * verify/decrypt and leaves the MAC out of decSz,
+                 * otherwise it calls decrypt/verify */
+                cliCtx.setDecryptVerifyCb(new WolfSSLDecryptVerifyCallback() {
+                    public int decryptVerifyCallback(WolfSSLSession ssl,
+                        ByteBuffer decOut, byte[] decIn, long decSz,
+                        int content, int verify, long[] padSz, Object ctx) {
+                        called[0] = true;
+                        return cbcDecryptForTest(ssl, decOut, decIn, decSz,
+                            true, mode, padSz);
+                    }
+                });
+                cliCtx.setVerifyDecryptCb(new WolfSSLVerifyDecryptCallback() {
+                    public int verifyDecryptCallback(WolfSSLSession ssl,
+                        ByteBuffer decOut, byte[] decIn, long decSz,
+                        int content, int macVerify, long[] padSz,
+                        Object ctx) {
+                        called[1] = true;
+                        return cbcDecryptForTest(ssl, decOut, decIn, decSz,
+                            false, mode, padSz);
+                    }
+                });
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertTrue("atomic decrypt cb not called, mode=" + mode,
+                    called[0] || called[1]);
+                if (mode == 0) {
+                    assertEquals("client connect() failed, mode=0",
+                        WolfSSL.SSL_SUCCESS, ret[1]);
+                } else {
+                    assertTrue("client connect() should fail, mode=" + mode,
+                        ret[1] != WolfSSL.SSL_SUCCESS);
+                    assertEquals("bad padSz reached wolfSSL, mode=" + mode,
+                        WolfSSL.SSL_FATAL_ERROR, ret[3]);
+                }
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
+        }
+    }
+
+    /* Decrypt one AES-CBC record without checking the MAC. decIn starts with
+     * the explicit IV, which wolfSSL discards after the callback. padSz gets
+     * the real padding size adjusted for mode */
+    private static int cbcDecryptForTest(WolfSSLSession ssl,
+        ByteBuffer decOut, byte[] decIn, long decSz, boolean withMac,
+        int mode, long[] padSz) {
+
+        try {
+            int blockSz = ssl.getCipherBlockSize();
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE,
+                new SecretKeySpec(ssl.getServerWriteKey(), "AES"),
+                new IvParameterSpec(decIn, 0, blockSz));
+            byte[] plain = cipher.doFinal(decIn, blockSz,
+                (int)decSz - blockSz);
+            decOut.position(blockSz);
+            decOut.put(plain);
+
+            long pad = (plain[plain.length - 1] & 0xFF) + 1;
+            if (withMac) {
+                pad += ssl.getHmacSize();
+            }
+            if (mode == 1) {
+                pad += (1L << 32);
+            } else if (mode == 2) {
+                pad = -1;
+            }
+            padSz[0] = pad;
+            return 0;
+        } catch (Exception e) {
+            return -1;
         }
     }
 

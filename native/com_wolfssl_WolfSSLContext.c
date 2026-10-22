@@ -3223,7 +3223,12 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             }
             return -1;
         }
-        *padSz = (unsigned int)tmpVal;
+        /* Reject negative and too large padSz values */
+        if ((tmpVal < 0) || (tmpVal > (jlong)decSz)) {
+            retval = -1;
+        } else {
+            *padSz = (unsigned int)tmpVal;
+        }
     }
 
     /* delete local refs, detach JNIEnv from thread */
@@ -3533,7 +3538,12 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             }
             return -1;
         }
-        *padSz = (unsigned int)tmpVal;
+        /* Reject negative and too large padSz values */
+        if ((tmpVal < 0) || (tmpVal > (jlong)decSz)) {
+            retval = -1;
+        } else {
+            *padSz = (unsigned int)tmpVal;
+        }
     }
 
     /* delete local refs, detach JNIEnv from thread */
