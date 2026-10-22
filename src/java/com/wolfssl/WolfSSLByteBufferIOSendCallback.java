@@ -51,6 +51,10 @@ public interface WolfSSLByteBufferIOSendCallback {
      * The callback should send data from the provided ByteBuffer (buf) across
      * the transport layer. The number of bytes sent should be returned, or
      * a negative error code on error.
+     * <p>
+     * The <b>buf</b> ByteBuffer wraps native memory that is only valid
+     * until this method returns. Do not use it, or any duplicate or
+     * slice of it, after returning.
      *
      * @param ssl   the current SSL session object from which the callback was
      *              initiated.
