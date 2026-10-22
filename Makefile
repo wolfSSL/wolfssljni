@@ -164,6 +164,8 @@ dist:
 		exit 1 ; }
 	@mkdir -p "$(NAME)-$(VERSION)"
 	@cp -pr $(DIST_FILES) "$(NAME)-$(VERSION)"
+	@rm -f "$(NAME)-$(VERSION)"/$(NATIVE_SRC_DIR)/*.o \
+		"$(NAME)-$(VERSION)"/$(NATIVE_SRC_DIR)/*.d
 	tar -zcf "$(NAME)-$(VERSION).tar.gz" "$(NAME)-$(VERSION)"
 	@rm -rf "$(NAME)-$(VERSION)"
 
