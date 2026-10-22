@@ -47,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import java.io.InputStream;
@@ -3962,7 +3963,9 @@ public class WolfSSLSocketTest {
                     /* Sleep so write thread has a chance to do some
                      * writing before interrupt */
                     Thread.sleep(1000);
-                    cs.setSoLinger(true, 5);
+                    /* close() waits up to SO_LINGER for close_notify, which
+                     * cannot be sent while the send buffer is full */
+                    cs.setSoLinger(true, 1);
                     cs.close();
 
                 } catch (SSLException e) {
@@ -4078,7 +4081,7 @@ public class WolfSSLSocketTest {
 
                     /* Sleep to let client thread hit read call */
                     Thread.sleep(1000);
-                    cs.setSoLinger(true, 5);
+                    cs.setSoLinger(true, 1);
                     cs.close();
 
                 } catch (SSLException e) {
@@ -4389,6 +4392,101 @@ public class WolfSSLSocketTest {
             closeQuietly(ss);
             es.shutdownNow();
         }
+    }
+
+    /* Close a client SSLSocket with SO_LINGER set to linger seconds while
+     * another thread is blocked in write() because the peer does not read.
+     * The blocked write() must fail once the socket is closed. Returns how
+     * long close() took, in milliseconds. */
+    private long closeWithLingerWhileWriteBlocked(int linger)
+        throws Exception {
+
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        final AtomicLong written = new AtomicLong(0);
+        long last;
+        long start;
+        long closeMs;
+
+        /* TLS 1.2 if available, since close() on a TLS 1.3 client can also
+         * wait for a session ticket, which would add to the time measured */
+        this.ctx = tf.createSSLContext(
+            WolfSSL.TLSv12Enabled() ? "TLSv1.2" : "TLS", ctxProvider);
+
+        try {
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0, 0, InetAddress.getLoopbackAddress());
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
+            server = (SSLSocket)ss.accept();
+
+            final SSLSocket srv = server;
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    return null;
+                }
+            });
+            cs.startHandshake();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+            /* Server never reads, so writes stop once buffers are full */
+            final OutputStream out = cs.getOutputStream();
+            Future<Throwable> writer = es.submit(new Callable<Throwable>() {
+                @Override
+                public Throwable call() {
+                    byte[] buf = new byte[1024];
+                    try {
+                        while (true) {
+                            out.write(buf);
+                            written.addAndGet(buf.length);
+                        }
+                    } catch (Throwable t) {
+                        return t;
+                    }
+                }
+            });
+
+            /* Wait until write() has made no progress for 500 ms */
+            start = System.nanoTime();
+            do {
+                last = written.get();
+                Thread.sleep(500);
+                assertTrue("write() did not block within 20 sec",
+                    (System.nanoTime() - start) < 20000000000L);
+            } while (written.get() != last);
+
+            cs.setSoLinger(true, linger);
+            start = System.nanoTime();
+            cs.close();
+            closeMs = (System.nanoTime() - start) / 1000000;
+
+            Throwable t = writer.get(10, TimeUnit.SECONDS);
+            assertTrue("blocked write() should fail with IOException after " +
+                "close(), got: " + t, t instanceof IOException);
+
+            return closeMs;
+
+        } finally {
+            closeQuietly(cs);
+            closeQuietly(server);
+            closeQuietly(ss);
+            es.shutdownNow();
+        }
+    }
+
+    /* SO_LINGER 0 means close without waiting, so close() must not wait for
+     * close_notify to be sent while the send buffer is full. */
+    @Test(timeout = 60000)
+    public void testSocketCloseLingerZeroDoesNotWait() throws Exception {
+
+        long closeMs = closeWithLingerWhileWriteBlocked(0);
+        assertTrue("close() with SO_LINGER 0 took " + closeMs + " ms",
+            closeMs < 2000);
     }
 
     /* Close a resource, ignoring exceptions, for deterministic

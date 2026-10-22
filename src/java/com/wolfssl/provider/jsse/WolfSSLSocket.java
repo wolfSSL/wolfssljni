@@ -2228,6 +2228,10 @@ public class WolfSSLSocket extends SSLSocket {
      * If this socket was created with an autoClose value set to true,
      * this will also close the underlying Socket.
      *
+     * If SO_LINGER is enabled with a non-zero timeout, this waits up to that
+     * many seconds for the TLS close_notify alert to be sent. Otherwise
+     * close_notify is sent without waiting.
+     *
      * A native session free that fails is reported as IOException once this
      * socket is otherwise closed and its transport released. One deferred to
      * an I/O thread still running here cannot report back to this caller and
@@ -2316,16 +2320,19 @@ public class WolfSSLSocket extends SSLSocket {
                         }
 
                         try {
-                            /* Use SO_LINGER value when calling
-                             * shutdown here, since we are closing the
-                             * socket */
+                            /* Wait up to SO_LINGER seconds for close_notify
+                             * to be sent, since we are closing the socket.
+                             * shutdownSSL() takes milliseconds and treats 0
+                             * as no limit, so pass -1 to not wait when
+                             * SO_LINGER is disabled (-1) or 0. */
+                            final int linger;
                             if (this.socket != null) {
-                                ret = ssl.shutdownSSL(
-                                    this.socket.getSoLinger());
+                                linger = this.socket.getSoLinger();
                             } else {
-                                ret = ssl.shutdownSSL(
-                                    super.getSoLinger());
+                                linger = super.getSoLinger();
                             }
+                            ret = ssl.shutdownSSL(
+                                (linger > 0) ? (linger * 1000) : -1);
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 () -> "ssl.shutdownSSL() ret = " + ret);
