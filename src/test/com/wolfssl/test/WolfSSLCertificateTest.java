@@ -141,6 +141,9 @@ public class WolfSSLCertificateTest {
     @Rule
     public TestRule testWatcher = TimedTestWatcher.create();
 
+    /* WolfSSL() sets the NID values these tests use */
+    private static WolfSSL sslLib = null;
+
     @BeforeClass
     public static void setCertPaths() throws WolfSSLException {
 
@@ -151,6 +154,7 @@ public class WolfSSLCertificateTest {
         } catch (UnsatisfiedLinkError ule) {
             fail("failed to load native JNI library");
         }
+        sslLib = new WolfSSL();
 
         cliCertDer = WolfSSLTestCommon.getPath(cliCertDer);
         cliCertPem = WolfSSLTestCommon.getPath(cliCertPem);

@@ -65,6 +65,9 @@ public class WolfSSLCertRequestTest {
     public static String cliEccKeyDer = "examples/certs/ecc-client-key.der";
     public static String cliEccKeyPem = "examples/certs/ecc-client-key.pem";
 
+    /* WolfSSL() sets the NID values these tests use */
+    private static WolfSSL sslLib = null;
+
     @BeforeClass
     public static void setCertPaths() throws WolfSSLException {
 
@@ -75,6 +78,7 @@ public class WolfSSLCertRequestTest {
         } catch (UnsatisfiedLinkError ule) {
             fail("failed to load native JNI library");
         }
+        sslLib = new WolfSSL();
 
         cliKeyDer = WolfSSLTestCommon.getPath(cliKeyDer);
         cliKeyPem = WolfSSLTestCommon.getPath(cliKeyPem);
