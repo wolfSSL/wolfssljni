@@ -51,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CountDownLatch;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -6848,6 +6849,143 @@ public class WolfSSLSessionTest {
             }
             if (cliSock != null) {
                 cliSock.close();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (es != null) {
+                es.shutdown();
+                es.awaitTermination(10, TimeUnit.SECONDS);
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+    }
+
+    /**
+     * A read() waiting for data when close() starts, which calls
+     * interruptBlockedIO() then restoreFdBlocking(), must not use the socket
+     * again once woken. Partial TLS record data from the peer would otherwise
+     * leave wolfSSL_read() waiting in recv() on a socket that is blocking
+     * again on Windows, with no timeout.
+     */
+    @Test
+    public void test_WolfSSLSession_readAfterRestoreFdBlocking()
+        throws Exception {
+
+        final CountDownLatch sendLatch = new CountDownLatch(1);
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ServerSocket srvSocket = null;
+        Socket cliSock = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        WolfSSLSession ssl = null;
+        ExecutorService es = null;
+        ExecutorService readEs = null;
+        int ret;
+
+        try {
+            srvSocket = new ServerSocket(0, 0,
+                InetAddress.getLoopbackAddress());
+            srvSocket.setSoTimeout(10000);
+            final ServerSocket srv = srvSocket;
+
+            srvCtx = createAndSetupWolfSSLContext(srvCert, srvKey,
+                WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.SSLv23_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(cliCert, cliKey,
+                WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.SSLv23_ClientMethod());
+            final WolfSSLContext sCtx = srvCtx;
+
+            /* Server finishes the handshake, then when released sends the
+             * first byte of a TLS record header directly on the socket */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> srvFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    WolfSSLSession srvSes = null;
+                    try (Socket s = srv.accept()) {
+                        srvSes = new WolfSSLSession(sCtx);
+                        assertEquals(WolfSSL.SSL_SUCCESS, srvSes.setFd(s));
+                        assertEquals(WolfSSL.SSL_SUCCESS, srvSes.accept(10000));
+                        sendLatch.await(20, TimeUnit.SECONDS);
+                        s.getOutputStream().write(0x17);
+                        s.getOutputStream().flush();
+
+                        clientDone.await(20, TimeUnit.SECONDS);
+                        return null;
+                    } finally {
+                        if (srvSes != null) {
+                            srvSes.freeSSL();
+                        }
+                    }
+                }
+            });
+
+            cliSock = new Socket(InetAddress.getLoopbackAddress(),
+                srvSocket.getLocalPort());
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.setFd(cliSock));
+            ret = ssl.connect(10000);
+            assertEquals("connect() failed, err = " + ssl.getError(ret),
+                WolfSSL.SSL_SUCCESS, ret);
+
+            final WolfSSLSession cliSes = ssl;
+            readEs = Executors.newSingleThreadExecutor();
+            Future<Exception> readFuture = readEs.submit(
+                new Callable<Exception>() {
+                    @Override
+                    public Exception call() {
+                        byte[] buf = new byte[64];
+                        try {
+                            cliSes.read(buf, 0, buf.length, 20000);
+                            return null;
+                        } catch (Exception e) {
+                            return e;
+                        }
+                    }
+                });
+
+            /* Let read() reach select()/poll(), then start close */
+            Thread.sleep(500);
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.interruptBlockedIO());
+            assertEquals(WolfSSL.SSL_SUCCESS, ssl.restoreFdBlocking());
+            sendLatch.countDown();
+
+            Exception readEx = null;
+            try {
+                readEx = readFuture.get(5, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                fail("read() did not return after interruptBlockedIO() " +
+                    "and restoreFdBlocking()");
+            }
+            assertNotNull("read() should throw once close has started",
+                readEx);
+            assertTrue("Expected SocketException, got: " + readEx,
+                (readEx instanceof SocketException) &&
+                readEx.getMessage().contains("fd closed during"));
+
+            clientDone.countDown();
+            srvFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            sendLatch.countDown();
+            clientDone.countDown();
+            /* Close socket first to release a read() stuck in recv() */
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            if (readEs != null) {
+                readEs.shutdown();
+                readEs.awaitTermination(10, TimeUnit.SECONDS);
+            }
+            if (ssl != null) {
+                ssl.freeSSL();
             }
             if (srvSocket != null) {
                 srvSocket.close();

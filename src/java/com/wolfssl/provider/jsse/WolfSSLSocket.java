@@ -3223,6 +3223,13 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                     if (ret < 0) {
+                        /* A blocked write() fails when close() from another
+                         * thread closes the transport. Report that as a
+                         * closed socket, matching the check above. */
+                        if (this.isClosed || socket.isClosed()) {
+                            throw new SocketException("Socket is closed");
+                        }
+
                         /* print error description string */
                         String errStr = WolfSSL.getErrorString(err);
                         throw new IOException(

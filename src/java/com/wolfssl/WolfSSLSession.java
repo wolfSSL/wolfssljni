@@ -5728,6 +5728,12 @@ public class WolfSSLSession {
      *
      * This is used by wolfJSSE when SSLSocket.close() is called, to wake up
      * threads that are blocked in select()/poll().
+     * <p>
+     * On Windows, threads already blocked in select() are not woken by this
+     * call, they wake when the socket is closed. After this call, read()
+     * and write() on this session throw SocketException without using the
+     * socket, and other select() waits return without waiting, except in
+     * shutdownSSL().
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error.
      *

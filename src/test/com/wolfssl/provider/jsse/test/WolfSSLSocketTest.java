@@ -3914,11 +3914,6 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = null;
         boolean passed = false;
 
-        /* pipe() interrupt mechamism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv11Enabled()) {
@@ -3993,11 +3988,15 @@ public class WolfSSLSocketTest {
                 }
 
             } catch (SocketException e) {
-                /* We expect SocketException with this message, error if
-                 * different than expected */
+                /* We expect SocketException with one of these messages,
+                 * error if different than expected. Where close() lingers
+                 * on unsent data before the socket is released (Windows,
+                 * JDK 12 and earlier), the write fails once the connection
+                 * is reset and reports the socket as closed. */
                 String msg = e.getMessage();
                 if (msg == null ||
-                    !msg.contains("Socket fd closed during poll")) {
+                    (!msg.contains("Socket fd closed during poll") &&
+                     !msg.contains("Socket is closed"))) {
                     e.printStackTrace();
                     fail("Incorrect SocketException thrown by client");
                     throw e;
@@ -4031,11 +4030,6 @@ public class WolfSSLSocketTest {
         String protocol = null;
         SSLServerSocket ss = null;
         boolean passed = false;
-
-        /* pipe() interrupt mechamism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
 
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
@@ -4332,6 +4326,64 @@ public class WolfSSLSocketTest {
         }
     }
 
+    /* close() on a TLS 1.3 client checks for a session ticket the peer may
+     * still send. It must not wait for one while closing, even if the peer
+     * stays silent after the handshake. getSession() is not called before
+     * close(), since that would run the same ticket check first. */
+    @Test(timeout = 60000)
+    public void testSocketCloseTls13ClientDoesNotWaitForTicket()
+        throws Exception {
+
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        long start;
+        long closeMs;
+
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled());
+
+        this.ctx = tf.createSSLContext("TLSv1.3", ctxProvider);
+
+        try {
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0);
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
+            server = (SSLSocket)ss.accept();
+
+            /* Server completes the handshake, then stays silent */
+            final SSLSocket srv = server;
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    clientDone.await(20, TimeUnit.SECONDS);
+                    return null;
+                }
+            });
+            cs.startHandshake();
+
+            start = System.nanoTime();
+            cs.close();
+            closeMs = (System.nanoTime() - start) / 1000000;
+            assertTrue("close() of TLS 1.3 client took " + closeMs + " ms",
+                closeMs < 1000);
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(server);
+            closeQuietly(ss);
+            es.shutdownNow();
+        }
+    }
+
     /* Close a resource, ignoring exceptions, for deterministic
      * per-iteration cleanup in the stress tests below. */
     private static void closeQuietly(java.io.Closeable c) {
@@ -4391,11 +4443,6 @@ public class WolfSSLSocketTest {
         String protocol = null;
         final int maxIterations = 300;
         final long budgetMs = 5000;
-
-        /* pipe() interrupt mechanism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
 
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
@@ -4574,11 +4621,6 @@ public class WolfSSLSocketTest {
         String protocol = null;
         final int maxIterations = 500;
         final long budgetMs = 5000;
-
-        /* pipe() interrupt mechanism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
 
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
