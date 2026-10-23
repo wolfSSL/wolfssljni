@@ -7080,7 +7080,7 @@ int NativeSSLIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
-        /* call Java send callback, ignore ctx since Java handles it */
+        /* call Java receive callback, ignore ctx since Java handles it */
         retval = (*jenv)->CallIntMethod(jenv, (jobject)(*g_cachedSSLObj),
             g_sslIORecvMethodId, (jobject)(*g_cachedSSLObj), inData, (jint)sz);
 

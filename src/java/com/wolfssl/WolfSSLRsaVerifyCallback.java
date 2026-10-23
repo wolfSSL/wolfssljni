@@ -40,6 +40,10 @@ public interface WolfSSLRsaVerifyCallback {
     /**
      * RSA verification callback method.
      * This method acts as RSA verification callback.
+     * <p>
+     * ByteBuffer arguments wrap native memory that is only valid until
+     * this method returns. Do not use them, or any duplicate or slice of
+     * them, after returning.
      *
      * @param ssl       the current SSL session object from which the
      *                  callback was initiated.

@@ -50,6 +50,10 @@ public interface WolfSSLByteBufferIORecvCallback {
      * be read from the transport layer. The callback should read data and
      * place the data into the buffer provided. The number of bytes read should
      * be returned. The callback should return an error code on error.
+     * <p>
+     * The <b>buf</b> ByteBuffer wraps native memory that is only valid
+     * until this method returns. Do not use it, or any duplicate or
+     * slice of it, after returning.
      *
      * @param ssl   the current SSL session object from which the callback was
      *              initiated.
