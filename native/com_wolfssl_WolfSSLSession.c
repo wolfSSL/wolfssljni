@@ -2209,6 +2209,8 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getError
   (JNIEnv* jenv, jobject jcl, jlong sslPtr, jint ret)
 {
     WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    int err = 0;
+    int state = 0;
     (void)jcl;
 
     if (jenv == NULL) {
@@ -2216,7 +2218,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getError
     }
 
     /* wolfSSL checks ssl for NULL */
-    return wolfSSL_get_error(ssl, ret);
+    err = wolfSSL_get_error(ssl, ret);
+
+    /* With OPENSSL_EXTRA, wolfSSL_get_error() converts MATCH_SUITE_ERROR and
+     * SOCKET_PEER_CLOSED_E to SSL_ERROR_SYSCALL. Return the original error
+     * instead. */
+    if (err == SSL_ERROR_SYSCALL) {
+        state = wolfSSL_state(ssl);
+        if (state == MATCH_SUITE_ERROR || state == SOCKET_PEER_CLOSED_E) {
+            err = state;
+        }
+    }
+
+    return err;
 }
 
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setSession

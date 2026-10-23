@@ -2039,6 +2039,11 @@ public class WolfSSLSession {
      * After <code>getError()</code> is called and returns the unique error
      * code, <code>getErrorString()</code> may be called to get a human-
      * readable error string.
+     * <p>
+     * When native wolfSSL is compiled with OPENSSL_EXTRA, wolfSSL_get_error()
+     * converts MATCH_SUITE_ERROR and SSL_ERROR_SOCKET_PEER_CLOSED to
+     * SSL_ERROR_SYSCALL. This method returns the original error code for those
+     * cases instead, to match builds without OPENSSL_EXTRA.
      *
      * @param ret  return value of the previous function which resulted
      *             in an error return code.

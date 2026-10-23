@@ -101,6 +101,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_UNKNOWN_ALPN_PROTOCOL_NAME_E -405L
 #undef com_wolfssl_WolfSSL_APP_DATA_READY
 #define com_wolfssl_WolfSSL_APP_DATA_READY -441L
+#undef com_wolfssl_WolfSSL_MATCH_SUITE_ERROR
+#define com_wolfssl_WolfSSL_MATCH_SUITE_ERROR -501L
 #undef com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL
 #define com_wolfssl_WolfSSL_WOLFSSL_CRL_CHECKALL 1L
 #undef com_wolfssl_WolfSSL_WOLFSSL_OCSP_URL_OVERRIDE

@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -461,7 +462,7 @@ public class WolfSSLSocketTest {
                 /* Probe without legacy property first, skip if build cannot
                  * complete ffdhe2048 DHE handshake. */
                 try {
-                    dheSocketHandshake(dheSuites);
+                    tls12SocketHandshake(dheSuites, dheSuites);
                 } catch (Exception e) {
                     Assume.assumeNoException(
                         "TLS 1.2 ffdhe2048 DHE handshake not supported by " +
@@ -471,7 +472,7 @@ public class WolfSSLSocketTest {
                 /* Legacy property must not cause checkKeySize to reject same
                  * valid handshake. */
                 System.setProperty("jdk.tls.ephemeralDHKeySize", "legacy");
-                String suite = dheSocketHandshake(dheSuites);
+                String suite = tls12SocketHandshake(dheSuites, dheSuites);
                 assertTrue("negotiated cipher suite must be DHE_RSA, got: " +
                     suite, suite.startsWith("TLS_DHE_RSA_") ||
                     suite.startsWith("DHE-RSA-"));
@@ -489,23 +490,27 @@ public class WolfSSLSocketTest {
         }
     }
 
-    /* Complete a TLS 1.2 DHE_RSA SSLSocket handshake with the given suites
-     * and return the negotiated cipher suite. Throws on handshake failure. */
-    private String dheSocketHandshake(String[] dheSuites) throws Exception {
-        SSLContext dheCtx = tf.createSSLContext("TLSv1.2", "wolfJSSE");
+    /* Complete a TLS 1.2 SSLSocket handshake with the given server and
+     * client cipher suites and return the negotiated cipher suite. On
+     * failure throws the server exception if the server handshake failed,
+     * otherwise the client exception. */
+    private String tls12SocketHandshake(String[] srvSuites,
+        String[] cliSuites) throws Exception {
+
+        SSLContext ctx = tf.createSSLContext("TLSv1.2", "wolfJSSE");
         SSLServerSocket ss = null;
         SSLSocket cs = null;
         SSLSocket server = null;
         ExecutorService es = Executors.newSingleThreadExecutor();
 
         try {
-            ss = (SSLServerSocket)dheCtx.getServerSocketFactory()
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
                 .createServerSocket(0);
-            ss.setEnabledCipherSuites(dheSuites);
+            ss.setEnabledCipherSuites(srvSuites);
             ss.setEnabledProtocols(new String[] { "TLSv1.2" });
 
-            cs = (SSLSocket)dheCtx.getSocketFactory().createSocket();
-            cs.setEnabledCipherSuites(dheSuites);
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.setEnabledCipherSuites(cliSuites);
             cs.setEnabledProtocols(new String[] { "TLSv1.2" });
             cs.connect(new InetSocketAddress(ss.getLocalPort()));
 
@@ -517,8 +522,26 @@ public class WolfSSLSocketTest {
                 return null;
             });
 
-            cs.startHandshake();
-            f.get(10, TimeUnit.SECONDS);
+            Exception cliEx = null;
+            try {
+                cs.startHandshake();
+            } catch (Exception e) {
+                cliEx = e;
+                /* Close client so a still waiting server fails fast */
+                cs.close();
+            }
+
+            try {
+                f.get(10, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                throw (cause instanceof Exception) ? (Exception)cause : e;
+            } catch (TimeoutException e) {
+                throw (cliEx != null) ? cliEx : e;
+            }
+            if (cliEx != null) {
+                throw cliEx;
+            }
 
             return cs.getSession().getCipherSuite();
         }
@@ -545,6 +568,101 @@ public class WolfSSLSocketTest {
             }
         }
         return matched.toArray(new String[matched.size()]);
+    }
+
+    /**
+     * A handshake with no cipher suite in common must report the native
+     * MATCH_SUITE_ERROR from the server. Native wolfSSL compiled with
+     * OPENSSL_EXTRA converts that error to SSL_ERROR_SYSCALL in
+     * wolfSSL_get_error(), which reads as an I/O error instead.
+     */
+    @Test
+    public void testCipherSuiteMismatchReportsMatchSuiteError()
+        throws Exception {
+
+        final String srvSuite = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
+        final String cliSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+
+        Assume.assumeTrue("TLS 1.2 and RSA required in native wolfSSL",
+            WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+        List<String> available = Arrays.asList(WolfSSL.getCiphersIana());
+        Assume.assumeTrue("ECDHE_RSA AES-GCM cipher suites not available",
+            available.contains(srvSuite) && available.contains(cliSuite));
+
+        try {
+            tls12SocketHandshake(new String[] { srvSuite },
+                new String[] { cliSuite });
+            fail("Handshake should fail with no common cipher suite");
+        } catch (SSLHandshakeException e) {
+            String msg = e.getMessage();
+            assertTrue("Server error should report MATCH_SUITE_ERROR, " +
+                "got: " + msg, msg.contains("error code: " +
+                WolfSSL.MATCH_SUITE_ERROR + ","));
+        }
+    }
+
+    /**
+     * When the peer closes the TCP connection without sending close_notify,
+     * InputStream.read() must return the data already received and then
+     * end of stream. Native wolfSSL returns 0 with SOCKET_PEER_CLOSED_E,
+     * which wolfSSL_get_error() converts to SSL_ERROR_SYSCALL when compiled
+     * with OPENSSL_EXTRA, and read() used to return 0 in that case.
+     */
+    @Test
+    public void testReadReturnsEndOfStreamAfterPeerClose() throws Exception {
+
+        Assume.assumeTrue("TLS 1.2 required in native wolfSSL",
+            WolfSSL.TLSv12Enabled());
+
+        final SSLContext ctx = tf.createSSLContext("TLSv1.2", "wolfJSSE");
+        final byte[] msg = "hello".getBytes(StandardCharsets.UTF_8);
+        final ServerSocket ss = new ServerSocket(0);
+        SSLSocket cs = null;
+        ExecutorService es = Executors.newSingleThreadExecutor();
+
+        try {
+            /* Layer TLS over a plain socket so the server can close TCP
+             * without sending close_notify */
+            Future<Void> f = es.submit(() -> {
+                Socket s = ss.accept();
+                SSLSocket server = null;
+                try {
+                    server = (SSLSocket)ctx.getSocketFactory()
+                        .createSocket(s, "localhost", s.getPort(), false);
+                    server.setUseClientMode(false);
+                    server.startHandshake();
+                    server.getOutputStream().write(msg);
+                }
+                finally {
+                    /* Close TCP first so server.close() skips close_notify */
+                    s.close();
+                    if (server != null) {
+                        server.close();
+                    }
+                }
+                return null;
+            });
+
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket(
+                "localhost", ss.getLocalPort());
+            cs.setSoTimeout(10000);
+            cs.startHandshake();
+            f.get(10, TimeUnit.SECONDS);
+
+            InputStream in = cs.getInputStream();
+            byte[] buf = new byte[msg.length];
+            assertEquals("read() should return data sent before close",
+                msg.length, in.read(buf, 0, buf.length));
+            assertEquals("read() should return end of stream after peer " +
+                "closed connection", -1, in.read(buf, 0, buf.length));
+        }
+        finally {
+            es.shutdownNow();
+            if (cs != null) {
+                cs.close();
+            }
+            ss.close();
+        }
     }
 
     @Test

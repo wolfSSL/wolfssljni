@@ -767,14 +767,17 @@ public class WolfSSLSessionTest {
     }
 
     /* Accept one TLS connection on a background thread. A server-side
-     * handshake failure is expected once the client rejects the cert. */
-    private Future<Void> runOneShotTlsServer(final ServerSocket srvSocket,
+     * handshake failure is expected in the tests using this. Returns
+     * {ret, getError(ret)} from the last accept(), or null if an exception
+     * was thrown first. */
+    private Future<int[]> runOneShotTlsServer(final ServerSocket srvSocket,
         final WolfSSLContext srvCtx, ExecutorService es) {
-        return es.submit(new Callable<Void>() {
+        return es.submit(new Callable<int[]>() {
             @Override
-            public Void call() {
+            public int[] call() {
                 Socket server = null;
                 WolfSSLSession srvSes = null;
+                int[] result = null;
                 try {
                     server = srvSocket.accept();
                     server.setSoTimeout(10000);
@@ -787,8 +790,9 @@ public class WolfSSLSessionTest {
                     } while (ret != WolfSSL.SSL_SUCCESS &&
                              (err == WolfSSL.SSL_ERROR_WANT_READ ||
                               err == WolfSSL.SSL_ERROR_WANT_WRITE));
+                    result = new int[] { ret, err };
                 } catch (Exception e) {
-                    /* expected once the client rejects the certificate */
+                    /* expected once the client rejects the handshake */
                 } finally {
                     if (srvSes != null) {
                         try {
@@ -801,7 +805,7 @@ public class WolfSSLSessionTest {
                         } catch (Exception e) { }
                     }
                 }
-                return null;
+                return result;
             }
         });
     }
@@ -816,7 +820,7 @@ public class WolfSSLSessionTest {
         WolfSSLContext srvCtx = null;
         WolfSSLContext cliCtx = null;
         ExecutorService es = null;
-        Future<Void> srvFuture = null;
+        Future<int[]> srvFuture = null;
         Socket cliSock = null;
         WolfSSLSession ssl = null;
 
@@ -1098,6 +1102,97 @@ public class WolfSSLSessionTest {
             srvSocket.close();
             cliCtx.free();
             srvCtx.free();
+        }
+    }
+
+    @Test
+    public void test_WolfSSLSession_getErrorAfterCipherSuiteMismatch()
+        throws Exception {
+
+        Assume.assumeTrue("TLS 1.2 not compiled into native wolfSSL",
+            WolfSSL.TLSv12Enabled());
+        Assume.assumeTrue("ECDHE-RSA AES-GCM cipher suites not available",
+            suiteAvailable("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256") &&
+            suiteAvailable("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"));
+
+        ServerSocket srvSocket = null;
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+        ExecutorService es = null;
+        Future<int[]> srvFuture = null;
+        Socket cliSock = null;
+        WolfSSLSession ssl = null;
+
+        try {
+            srvCtx = createAndSetupWolfSSLContext(
+                srvCert, srvKey, WolfSSL.SSL_FILETYPE_PEM, cliCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createAndSetupWolfSSLContext(
+                cliCert, cliKey, WolfSSL.SSL_FILETYPE_PEM, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            assertEquals("server setCipherList", WolfSSL.SSL_SUCCESS,
+                srvCtx.setCipherList("ECDHE-RSA-AES128-GCM-SHA256"));
+            assertEquals("client setCipherList", WolfSSL.SSL_SUCCESS,
+                cliCtx.setCipherList("ECDHE-RSA-AES256-GCM-SHA384"));
+
+            srvSocket = new ServerSocket(0);
+            srvSocket.setSoTimeout(10000);
+            es = Executors.newSingleThreadExecutor();
+            srvFuture = runOneShotTlsServer(srvSocket, srvCtx, es);
+
+            cliSock = new Socket("localhost", srvSocket.getLocalPort());
+            cliSock.setSoTimeout(10000);
+            ssl = new WolfSSLSession(cliCtx);
+            assertEquals("client setFd", WolfSSL.SSL_SUCCESS,
+                ssl.setFd(cliSock));
+
+            int ret, err;
+            do {
+                ret = ssl.connect();
+                err = ssl.getError(ret);
+            } while (ret != WolfSSL.SSL_SUCCESS &&
+                     (err == WolfSSL.SSL_ERROR_WANT_READ ||
+                      err == WolfSSL.SSL_ERROR_WANT_WRITE));
+            assertNotEquals("client handshake should fail with no " +
+                "common cipher suite", WolfSSL.SSL_SUCCESS, ret);
+
+            int[] srv = srvFuture.get(10, TimeUnit.SECONDS);
+            assertNotNull("server accept() should return a result", srv);
+            assertNotEquals("server handshake should fail with no " +
+                "common cipher suite", WolfSSL.SSL_SUCCESS, srv[0]);
+
+            /* Not converted to SSL_ERROR_SYSCALL even when native wolfSSL
+             * is compiled with OPENSSL_EXTRA */
+            assertEquals("server getError() should be MATCH_SUITE_ERROR",
+                WolfSSL.MATCH_SUITE_ERROR, srv[1]);
+
+        } finally {
+            if (ssl != null) {
+                ssl.freeSSL();
+            }
+            if (cliSock != null) {
+                cliSock.close();
+            }
+            /* Wait for server thread before freeing its context */
+            if (srvFuture != null) {
+                try {
+                    srvFuture.get(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    /* ignore on purpose */
+                }
+            }
+            if (es != null) {
+                es.shutdownNow();
+            }
+            if (srvSocket != null) {
+                srvSocket.close();
+            }
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
         }
     }
 

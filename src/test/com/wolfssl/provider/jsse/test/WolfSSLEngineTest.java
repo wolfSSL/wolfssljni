@@ -239,6 +239,76 @@ public class WolfSSLEngineTest {
 
     }
 
+    /**
+     * A handshake with no cipher suite in common must report the native
+     * MATCH_SUITE_ERROR from the server SSLEngine. Native wolfSSL compiled
+     * with OPENSSL_EXTRA converts that error to SSL_ERROR_SYSCALL in
+     * wolfSSL_get_error(), which would otherwise be reported instead.
+     */
+    @Test
+    public void testCipherSuiteMismatchReportsMatchSuiteError()
+        throws Exception {
+
+        final String srvSuite = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
+        final String cliSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+
+        Assume.assumeTrue("TLS 1.2 and RSA required in native wolfSSL",
+            WolfSSL.TLSv12Enabled() && WolfSSL.RsaEnabled());
+        List<String> available = Arrays.asList(WolfSSL.getCiphersIana());
+        Assume.assumeTrue("ECDHE_RSA AES-GCM cipher suites not available",
+            available.contains(srvSuite) && available.contains(cliSuite));
+
+        this.ctx = tf.createSSLContext("TLSv1.2", engineProvider);
+        SSLEngine server = this.ctx.createSSLEngine();
+        server.setUseClientMode(false);
+        server.setEnabledProtocols(new String[] { "TLSv1.2" });
+        server.setEnabledCipherSuites(new String[] { srvSuite });
+
+        SSLEngine client = this.ctx.createSSLEngine("wolfSSL test", 11111);
+        client.setUseClientMode(true);
+        client.setEnabledProtocols(new String[] { "TLSv1.2" });
+        client.setEnabledCipherSuites(new String[] { cliSuite });
+
+        ByteBuffer empty = ByteBuffer.allocate(0);
+        ByteBuffer cliToSrv = ByteBuffer.allocate(
+            client.getSession().getPacketBufferSize());
+        ByteBuffer srvToCli = ByteBuffer.allocate(
+            server.getSession().getPacketBufferSize());
+        ByteBuffer appData = ByteBuffer.allocate(
+            server.getSession().getApplicationBufferSize());
+        SSLHandshakeException srvException = null;
+
+        for (int i = 0; i < 20 && srvException == null; i++) {
+            client.wrap(empty, cliToSrv);
+            cliToSrv.flip();
+            try {
+                server.unwrap(cliToSrv, appData);
+                Runnable task;
+                while ((task = server.getDelegatedTask()) != null) {
+                    task.run();
+                }
+                server.wrap(empty, srvToCli);
+            } catch (SSLHandshakeException e) {
+                srvException = e;
+            }
+            cliToSrv.compact();
+
+            srvToCli.flip();
+            try {
+                client.unwrap(srvToCli, appData);
+            } catch (SSLException e) {
+                /* expected once client processes handshake_failure alert */
+            }
+            srvToCli.compact();
+        }
+
+        assertNotNull("Server handshake should fail with no common suite",
+            srvException);
+        String msg = srvException.getMessage();
+        assertTrue("Server error should report MATCH_SUITE_ERROR, got: " +
+            msg, msg.contains(String.valueOf(WolfSSL.MATCH_SUITE_ERROR)));
+    }
+
     @Test
     public void testCipherConnectionTLS()
         throws NoSuchProviderException, NoSuchAlgorithmException,
