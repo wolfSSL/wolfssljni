@@ -2428,7 +2428,8 @@ public class WolfSSLCertificate implements Serializable {
      * A SAN entry whose value contains an embedded null byte is omitted,
      * so it is never returned truncated at the null.
      *
-     * @return immutable Collection of subject alternative names, or null
+     * @return immutable Collection of subject alternative names, empty
+     *         if the certificate has none
      *
      * @throws IllegalStateException if WolfSSLCertificate has been freed.
      */
