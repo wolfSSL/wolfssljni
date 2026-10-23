@@ -104,6 +104,10 @@ public class WolfSSLContextTest {
             e.printStackTrace();
         }
 
+        /* Start static lists empty so running this again in the same JVM does
+         * not add duplicate entries */
+        enabledProtocols.clear();
+
         /* populate enabledProtocols */
         synchronized (WolfSSLTestFactory.jdkTlsDisabledAlgorithmsLock) {
             for (int i = 0; i < allProtocols.length; i++) {

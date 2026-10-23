@@ -57,6 +57,7 @@ import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.ServerSocket;
@@ -468,7 +469,7 @@ public class WolfSSLSessionTest {
 
         /* One listening port keeps the client session cache key the same,
          * each accepted socket is wrapped with the chosen server context */
-        try (ServerSocket listener = new ServerSocket(0)) {
+        try (ServerSocket listener = WolfSSLTestFactory.createServerSocket(0)) {
             listener.setSoTimeout(10000);
 
             clientKm.setForcedClientAlias("client");
@@ -533,7 +534,7 @@ public class WolfSSLSessionTest {
             new AtomicReference<SSLSocket>();
 
         /* Server socket loads "server" and completes a handshake */
-        try (ServerSocket listener = new ServerSocket(0)) {
+        try (ServerSocket listener = WolfSSLTestFactory.createServerSocket(0)) {
             listener.setSoTimeout(10000);
             final int port = listener.getLocalPort();
             ExecutorService es = Executors.newSingleThreadExecutor();
@@ -1671,11 +1672,11 @@ public class WolfSSLSessionTest {
         ctx = tf.createSSLContext(protocol, engineProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
         final SSLSocket server = (SSLSocket)ss.accept();
         server.setNeedClientAuth(true);
 

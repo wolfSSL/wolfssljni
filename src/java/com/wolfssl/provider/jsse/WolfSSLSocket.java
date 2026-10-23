@@ -2228,6 +2228,10 @@ public class WolfSSLSocket extends SSLSocket {
      * If this socket was created with an autoClose value set to true,
      * this will also close the underlying Socket.
      *
+     * If SO_LINGER is enabled with a non-zero timeout, this waits up to that
+     * many seconds for the TLS close_notify alert to be sent. Otherwise
+     * close_notify is sent without waiting.
+     *
      * A native session free that fails is reported as IOException once this
      * socket is otherwise closed and its transport released. One deferred to
      * an I/O thread still running here cannot report back to this caller and
@@ -2316,16 +2320,19 @@ public class WolfSSLSocket extends SSLSocket {
                         }
 
                         try {
-                            /* Use SO_LINGER value when calling
-                             * shutdown here, since we are closing the
-                             * socket */
+                            /* Wait up to SO_LINGER seconds for close_notify
+                             * to be sent, since we are closing the socket.
+                             * shutdownSSL() takes milliseconds and treats 0
+                             * as no limit, so pass -1 to not wait when
+                             * SO_LINGER is disabled (-1) or 0. */
+                            final int linger;
                             if (this.socket != null) {
-                                ret = ssl.shutdownSSL(
-                                    this.socket.getSoLinger());
+                                linger = this.socket.getSoLinger();
                             } else {
-                                ret = ssl.shutdownSSL(
-                                    super.getSoLinger());
+                                linger = super.getSoLinger();
                             }
+                            ret = ssl.shutdownSSL(
+                                (linger > 0) ? (linger * 1000) : -1);
 
                             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                                 () -> "ssl.shutdownSSL() ret = " + ret);
@@ -2395,6 +2402,22 @@ public class WolfSSLSocket extends SSLSocket {
                 synchronized (ioLock) {
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         () -> "thread got ioLock (freeSSL)");
+
+                    /* setFd() made the socket non-blocking. Restore blocking
+                     * mode before the socket is closed, here or later by the
+                     * application, so a Windows close with SO_LINGER does
+                     * not fail and leave the socket open. Skip this once the
+                     * transport is closed, since its descriptor value may
+                     * already belong to another socket. */
+                    if ((this.ssl != null) && !this.connectionClosed &&
+                        !((this.socket != null) ? this.socket.isClosed() :
+                            super.isClosed())) {
+                        try {
+                            this.ssl.restoreFdBlocking();
+                        } catch (IllegalStateException e) {
+                            /* session already freed, nothing to restore */
+                        }
+                    }
 
                     /* Free the native WOLFSSL session now to release memory
                      * and the interruptFds[] pipe earlier than finalize(),
@@ -3008,12 +3031,12 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                 } catch (SocketException e) {
-                    /* ssl.read() can throw SocketException from poll() if fd
-                     * closed or peer shut down connection */
+                    /* ssl.read() can throw SocketException from select/poll()
+                     * if fd closed or peer shut down connection. */
                     String msg = e.getMessage();
                     if (msg != null &&
-                        (msg.contains("fd closed during poll") ||
-                         msg.contains("disconnected during poll"))) {
+                        (msg.contains("fd closed during") ||
+                         msg.contains("disconnected during"))) {
                         /* end of stream */
                         return -1;
                     }
@@ -3207,6 +3230,13 @@ public class WolfSSLSocket extends SSLSocket {
                     }
 
                     if (ret < 0) {
+                        /* A blocked write() fails when close() from another
+                         * thread closes the transport. Report that as a
+                         * closed socket, matching the check above. */
+                        if (this.isClosed || socket.isClosed()) {
+                            throw new SocketException("Socket is closed");
+                        }
+
                         /* print error description string */
                         String errStr = WolfSSL.getErrorString(err);
                         throw new IOException(
