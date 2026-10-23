@@ -214,6 +214,49 @@ for EXT in unknown unknown-mixed large-arc bad-oid; do
 done
 rm -rf "${TMP_DIR}"
 
+# Generate Key Usage test certs setting bits past decipherOnly (8), which
+# RFC 5280 does not define: digitalSignature plus bit 9 or bit 15, and bits
+# 10 and 12 alone
+printf "Generating test/ku-bit9-cert.pem, test/ku-bit15-cert.pem, "
+printf "test/ku-bit10-bit12-cert.pem\n"
+mkdir -p test
+TMP_DIR="$(mktemp -d)"
+cat > "${TMP_DIR}/openssl.cnf" <<EOF
+[ req ]
+distinguished_name = dn
+prompt = no
+
+[ dn ]
+CN = Test Key Usage
+O = wolfSSL Test
+C = US
+
+[ v3_bit9 ]
+basicConstraints = CA:FALSE
+2.5.29.15 = critical, DER:03:03:06:80:40
+
+[ v3_bit15 ]
+basicConstraints = CA:FALSE
+2.5.29.15 = critical, DER:03:03:00:80:01
+
+[ v3_bit10_bit12 ]
+basicConstraints = CA:FALSE
+2.5.29.15 = critical, DER:03:03:03:00:28
+EOF
+
+for KU in bit9 bit15 bit10-bit12; do
+    openssl req -new -newkey rsa:2048 -nodes -x509 -days 3650 \
+      -keyout "${TMP_DIR}/ku-key.pem" -out "test/ku-${KU}-cert.pem" \
+      -config "${TMP_DIR}/openssl.cnf" -extensions "v3_${KU//-/_}" \
+      >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        printf "Failed to generate test/ku-%s-cert.pem\n" "${KU}"
+        rm -rf "${TMP_DIR}"
+        exit 1
+    fi
+done
+rm -rf "${TMP_DIR}"
+
 # Remove text info from intermediate certs, causes issues on Android (WRONG TAG)
 printf "Removing text info from intermediate certs\n"
 sed -i.bak -n '/-----BEGIN CERTIFICATE-----/,$p' ca-cert.pem

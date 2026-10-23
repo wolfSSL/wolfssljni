@@ -1992,6 +1992,10 @@ public class WolfSSLCertificate implements Serializable {
      *    [7] = KEYUSE_ENCIPHER_ONLY
      *    [8] = KEYUSE_DECIPHER_ONLY
      *
+     * RFC 5280 defines no bits past [8]. The array has 9 elements, extended
+     * to the highest bit set in [9] to [15], ex: 10 elements when bit 9 is
+     * the highest set.
+     *
      * @return arrray of key usages set for certificate, or null
      *
      * @throws IllegalStateException if WolfSSLCertificate has been freed.
