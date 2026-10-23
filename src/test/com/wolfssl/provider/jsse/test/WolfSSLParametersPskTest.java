@@ -37,6 +37,9 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.security.Provider;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -519,6 +522,102 @@ public class WolfSSLParametersPskTest {
 
         clientEngine.closeOutbound();
         serverEngine.closeOutbound();
+    }
+
+    @Test
+    public void testPskEngineIdentityMaxLength() throws Exception {
+
+        List<String> recvIds = new ArrayList<String>();
+
+        /* TLS 1.3 builds raise idMaxLen past the TLS 1.2 ClientKeyExchange
+         * identity limit, so only TLS 1.3 can send an identity that long */
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled());
+
+        assertTrue("Identity of idMaxLen bytes rejected",
+            pskEngineHandshakeIdentity("a", recvIds));
+
+        /* One byte over idMaxLen, as one extra 'a' or as a two byte last
+         * character in idMaxLen characters */
+        for (String tail : new String[] { "aa", "\u00e9" }) {
+            recvIds.clear();
+            assertFalse("Identity over idMaxLen bytes accepted",
+                pskEngineHandshakeIdentity(tail, recvIds));
+            assertTrue("Server received a truncated identity",
+                recvIds.isEmpty());
+        }
+    }
+
+    /* Run a PSK handshake with a client identity of idMaxLen - 1 'a'
+     * characters followed by tail, return true if it completes. The server
+     * records each identity received and only accepts the one sent. */
+    private boolean pskEngineHandshakeIdentity(final String tail,
+        final List<String> recvIds) throws Exception {
+
+        final String[] sentId = new String[1];
+        boolean handshakeSucceeded = false;
+
+        SSLContext ctx = SSLContext.getInstance("TLSv1.3", engineProvider);
+        ctx.init(null, null, null);
+
+        SSLEngine serverEngine = ctx.createSSLEngine();
+        serverEngine.setUseClientMode(false);
+
+        WolfSSLParameters serverParams = new WolfSSLParameters();
+        serverParams.setPskServerCb(new WolfSSLPskServerCallback() {
+            public long pskServerCallback(WolfSSLSession ssl,
+                String identity, byte[] key, long keyMaxLen) {
+
+                recvIds.add(identity);
+                if (!identity.equals(sentId[0]) || keyMaxLen < 4) {
+                    return 0;
+                }
+                key[0] = 26;
+                key[1] = 43;
+                key[2] = 60;
+                key[3] = 77;
+                return 4;
+            }
+        });
+        serverEngine.setSSLParameters(serverParams);
+
+        SSLEngine clientEngine = ctx.createSSLEngine("localhost", 0);
+        clientEngine.setUseClientMode(true);
+
+        WolfSSLParameters clientParams = new WolfSSLParameters();
+        clientParams.setPskClientCb(new WolfSSLPskClientCallback() {
+            public long pskClientCallback(WolfSSLSession ssl, String hint,
+                StringBuffer identity, long idMaxLen, byte[] key,
+                long keyMaxLen) {
+
+                char[] id = new char[(int)idMaxLen - 1];
+                Arrays.fill(id, 'a');
+                sentId[0] = new String(id) + tail;
+                identity.append(sentId[0]);
+                if (keyMaxLen < 4) {
+                    return 0;
+                }
+                key[0] = 26;
+                key[1] = 43;
+                key[2] = 60;
+                key[3] = 77;
+                return 4;
+            }
+        });
+        clientEngine.setSSLParameters(clientParams);
+
+        try {
+            doInMemoryHandshake(clientEngine, serverEngine);
+            handshakeSucceeded = true;
+        } catch (Exception e) {
+            /* Handshake failed */
+        } catch (AssertionError e) {
+            /* doInMemoryHandshake loop exhausted */
+        }
+
+        clientEngine.closeOutbound();
+        serverEngine.closeOutbound();
+
+        return handshakeSucceeded;
     }
 
     @Test
