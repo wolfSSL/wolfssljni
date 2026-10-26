@@ -37,7 +37,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
+import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -69,6 +72,8 @@ import com.wolfssl.WolfSSLRsaPssSignCallback;
 import com.wolfssl.WolfSSLRsaPssVerifyCallback;
 import com.wolfssl.WolfSSLRsaEncCallback;
 import com.wolfssl.WolfSSLRsaDecCallback;
+import com.wolfssl.WolfSSLDecryptVerifyCallback;
+import com.wolfssl.WolfSSLVerifyDecryptCallback;
 import com.wolfssl.WolfCryptRSA;
 import com.wolfssl.WolfCryptECC;
 import com.wolfssl.WolfCryptEccKey;
@@ -1476,9 +1481,10 @@ public class WolfSSLContextTest {
         }
     }
 
-    /* Accept or connect until the handshake finishes, returns final ret */
-    private static int pkCbHandshakeLoop(WolfSSLSession ses, boolean client)
-        throws Exception {
+    /* Accept or connect until the handshake finishes, returns
+     * { final ret, error code } */
+    private static int[] pkCbHandshakeLoop(WolfSSLSession ses,
+        boolean client) throws Exception {
 
         int ret;
         int err;
@@ -1488,23 +1494,24 @@ public class WolfSSLContextTest {
         } while (ret != WolfSSL.SSL_SUCCESS &&
             (err == WolfSSL.SSL_ERROR_WANT_READ ||
              err == WolfSSL.SSL_ERROR_WANT_WRITE));
-        return ret;
+        return new int[] { ret, err };
     }
 
-    /* Run one localhost handshake, returns { accept() ret, connect() ret } */
+    /* Run one localhost handshake, returns { accept() ret, connect() ret,
+     * server error, client error } */
     private int[] runPkCbHandshake(final WolfSSLContext srvCtx,
         WolfSSLContext cliCtx) throws Exception {
 
         ServerSocket srvSocket = null;
         ExecutorService es = null;
-        int cliRet;
+        int[] cliRet;
 
         try {
             srvSocket = new ServerSocket(0);
             srvSocket.setSoTimeout(10000);
             final ServerSocket fSrvSock = srvSocket;
             es = Executors.newSingleThreadExecutor();
-            Future<Integer> srv = es.submit(() -> {
+            Future<int[]> srv = es.submit(() -> {
                 try (Socket sock = fSrvSock.accept()) {
                     sock.setSoTimeout(10000);
                     WolfSSLSession ses = new WolfSSLSession(srvCtx);
@@ -1534,7 +1541,8 @@ public class WolfSSLContextTest {
                     ses.freeSSL();
                 }
             }
-            return new int[] { srv.get(10, TimeUnit.SECONDS), cliRet };
+            int[] srvRet = srv.get(10, TimeUnit.SECONDS);
+            return new int[] { srvRet[0], cliRet[0], srvRet[1], cliRet[1] };
         } finally {
             if (es != null) {
                 es.shutdownNow();
@@ -1736,6 +1744,253 @@ public class WolfSSLContextTest {
                     srvCtx.free();
                 }
             }
+        }
+    }
+
+    /* RSA verify callback returning a length larger than the signature
+     * buffer must be rejected in JNI. wolfSSL keeps only the low 16 bits of
+     * the length, so 65536 plus the real length would otherwise pass */
+    @Test
+    public void test_WolfSSLContext_rsaVerifyCbOversizedReturn()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+
+        final boolean[] called = new boolean[1];
+        final int[] verifyRet = { -1 };
+        WolfSSLContext srvCtx = null;
+        WolfSSLContext cliCtx = null;
+
+        try {
+            srvCtx = createCtx(svrCert, svrKey, caCert,
+                WolfSSL.TLSv1_2_ServerMethod());
+            cliCtx = createCtx(cliCert, cliKey, caCert,
+                WolfSSL.TLSv1_2_ClientMethod());
+            if (WolfSSL.RsaPssEnabled()) {
+                /* Server must sign PKCS#1 v1.5 to reach this callback */
+                Assume.assumeTrue("set1SigAlgsList() not compiled in",
+                    srvCtx.set1SigAlgsList("RSA+SHA256") ==
+                    WolfSSL.SSL_SUCCESS);
+            }
+            try {
+                cliCtx.setRsaVerifyCb(new WolfSSLRsaVerifyCallback() {
+                    public int rsaVerifyCallback(WolfSSLSession ssl,
+                        ByteBuffer sig, long sigSz, ByteBuffer out,
+                        long outSz, ByteBuffer keyDer, long keySz,
+                        Object ctx) {
+                        called[0] = true;
+                        verifyRet[0] = new WolfCryptRSA().doVerify(sig,
+                            sigSz, out, outSz, keyDer, keySz);
+                        if (verifyRet[0] <= 0) {
+                            return verifyRet[0];
+                        }
+                        return (1 << 16) + verifyRet[0];
+                    }
+                });
+            } catch (WolfSSLJNIException e) {
+                assumePkCallbacks(e);
+            }
+
+            /* Skip cert check so only ServerKeyExchange calls verify cb */
+            cliCtx.setVerify(WolfSSL.SSL_VERIFY_NONE, null);
+            int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+            assertTrue("RSA verify cb not called", called[0]);
+            assertTrue("RSA verify failed: " + verifyRet[0], verifyRet[0] > 0);
+            assertTrue("client connect() should fail",
+                ret[1] != WolfSSL.SSL_SUCCESS);
+            assertEquals("oversized return reached wolfSSL",
+                WolfSSL.SSL_FATAL_ERROR, ret[3]);
+        } finally {
+            if (cliCtx != null) {
+                cliCtx.free();
+            }
+            if (srvCtx != null) {
+                srvCtx.free();
+            }
+        }
+    }
+
+    /* RSA sign check callbacks returning a length larger than the signature
+     * buffer must be rejected in JNI, not as a signature fault in wolfSSL */
+    @Test
+    public void test_WolfSSLContext_rsaSignCheckCbOversizedReturn()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+
+        for (final boolean pss : new boolean[] { false, true }) {
+            if (pss && !WolfSSL.RsaPssEnabled()) {
+                continue;
+            }
+            final boolean[] called = new boolean[1];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                if (!pss && WolfSSL.RsaPssEnabled() &&
+                    srvCtx.set1SigAlgsList("RSA+SHA256") !=
+                    WolfSSL.SSL_SUCCESS) {
+                    /* cannot force PKCS#1 v1.5, the PSS pass still runs */
+                    continue;
+                }
+                try {
+                    if (pss) {
+                        srvCtx.setRsaPssSignCheckCb(
+                            new WolfSSLRsaPssVerifyCallback() {
+                            public int rsaPssVerifyCallback(
+                                WolfSSLSession ssl, ByteBuffer sig,
+                                long sigSz, ByteBuffer out, long outSz,
+                                int hash, int mgf, ByteBuffer keyDer,
+                                long keySz, Object ctx) {
+                                called[0] = true;
+                                return (int)sigSz + 1;
+                            }
+                        });
+                    }
+                    else {
+                        srvCtx.setRsaSignCheckCb(
+                            new WolfSSLRsaVerifyCallback() {
+                            public int rsaVerifyCallback(WolfSSLSession ssl,
+                                ByteBuffer sig, long sigSz, ByteBuffer out,
+                                long outSz, ByteBuffer keyDer, long keySz,
+                                Object ctx) {
+                                called[0] = true;
+                                return (int)sigSz + 1;
+                            }
+                        });
+                    }
+                } catch (WolfSSLJNIException e) {
+                    assumePkCallbacks(e);
+                }
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertTrue("sign check cb not called, pss=" + pss, called[0]);
+                assertTrue("server accept() should fail, pss=" + pss,
+                    ret[0] != WolfSSL.SSL_SUCCESS);
+                assertEquals("oversized return reached wolfSSL, pss=" + pss,
+                    WolfSSL.SSL_FATAL_ERROR, ret[2]);
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
+        }
+    }
+
+    /* Atomic decrypt callbacks setting a padding size outside the record
+     * must be rejected in JNI. The jlong is narrowed to unsigned int, so
+     * 2^32 plus the real size would otherwise pass */
+    @Test
+    public void test_WolfSSLContext_decryptVerifyCbOversizedPadSz()
+        throws Exception {
+
+        Assume.assumeTrue(WolfSSL.RsaEnabled() && WolfSSL.FileSystemEnabled());
+        Assume.assumeTrue("ATOMIC_USER not compiled in",
+            WolfSSL.isEnabledAtomicUser() == 1);
+
+        /* 0: real padding, 1: 2^32 plus real padding, 2: negative */
+        for (final int mode : new int[] { 0, 1, 2 }) {
+            final boolean[] called = new boolean[2];
+            WolfSSLContext srvCtx = null;
+            WolfSSLContext cliCtx = null;
+
+            try {
+                srvCtx = createCtx(svrCert, svrKey, caCert,
+                    WolfSSL.TLSv1_2_ServerMethod());
+                cliCtx = createCtx(cliCert, cliKey, caCert,
+                    WolfSSL.TLSv1_2_ClientMethod());
+                /* The callbacks below only decrypt AES-CBC */
+                Assume.assumeTrue("no AES-CBC cipher suite",
+                    cliCtx.setCipherList("ECDHE-RSA-AES128-SHA256:" +
+                        "ECDHE-RSA-AES256-SHA384") == WolfSSL.SSL_SUCCESS);
+
+                /* With encrypt-then-MAC negotiated wolfSSL calls
+                 * verify/decrypt and leaves the MAC out of decSz,
+                 * otherwise it calls decrypt/verify */
+                cliCtx.setDecryptVerifyCb(new WolfSSLDecryptVerifyCallback() {
+                    public int decryptVerifyCallback(WolfSSLSession ssl,
+                        ByteBuffer decOut, byte[] decIn, long decSz,
+                        int content, int verify, long[] padSz, Object ctx) {
+                        called[0] = true;
+                        return cbcDecryptForTest(ssl, decOut, decIn, decSz,
+                            true, mode, padSz);
+                    }
+                });
+                cliCtx.setVerifyDecryptCb(new WolfSSLVerifyDecryptCallback() {
+                    public int verifyDecryptCallback(WolfSSLSession ssl,
+                        ByteBuffer decOut, byte[] decIn, long decSz,
+                        int content, int macVerify, long[] padSz,
+                        Object ctx) {
+                        called[1] = true;
+                        return cbcDecryptForTest(ssl, decOut, decIn, decSz,
+                            false, mode, padSz);
+                    }
+                });
+
+                int[] ret = runPkCbHandshake(srvCtx, cliCtx);
+
+                assertTrue("atomic decrypt cb not called, mode=" + mode,
+                    called[0] || called[1]);
+                if (mode == 0) {
+                    assertEquals("client connect() failed, mode=0",
+                        WolfSSL.SSL_SUCCESS, ret[1]);
+                } else {
+                    assertTrue("client connect() should fail, mode=" + mode,
+                        ret[1] != WolfSSL.SSL_SUCCESS);
+                    assertEquals("bad padSz reached wolfSSL, mode=" + mode,
+                        WolfSSL.SSL_FATAL_ERROR, ret[3]);
+                }
+            } finally {
+                if (cliCtx != null) {
+                    cliCtx.free();
+                }
+                if (srvCtx != null) {
+                    srvCtx.free();
+                }
+            }
+        }
+    }
+
+    /* Decrypt one AES-CBC record without checking the MAC. decIn starts with
+     * the explicit IV, which wolfSSL discards after the callback. padSz gets
+     * the real padding size adjusted for mode */
+    private static int cbcDecryptForTest(WolfSSLSession ssl,
+        ByteBuffer decOut, byte[] decIn, long decSz, boolean withMac,
+        int mode, long[] padSz) {
+
+        try {
+            int blockSz = ssl.getCipherBlockSize();
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE,
+                new SecretKeySpec(ssl.getServerWriteKey(), "AES"),
+                new IvParameterSpec(decIn, 0, blockSz));
+            byte[] plain = cipher.doFinal(decIn, blockSz,
+                (int)decSz - blockSz);
+            decOut.position(blockSz);
+            decOut.put(plain);
+
+            long pad = (plain[plain.length - 1] & 0xFF) + 1;
+            if (withMac) {
+                pad += ssl.getHmacSize();
+            }
+            if (mode == 1) {
+                pad += (1L << 32);
+            } else if (mode == 2) {
+                pad = -1;
+            }
+            padSz[0] = pad;
+            return 0;
+        } catch (Exception e) {
+            return -1;
         }
     }
 

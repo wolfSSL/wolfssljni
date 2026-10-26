@@ -43,6 +43,10 @@ public interface WolfSSLVerifyDecryptCallback {
      * Atomic record layer verify/decrypt callback method.
      * This method acts as the verify/decrypt callback to be used with
      * the wolfSSL atomic record layer processing.
+     * <p>
+     * ByteBuffer arguments wrap native memory that is only valid until
+     * this method returns. Do not use them, or any duplicate or slice of
+     * them, after returning.
      *
      * @param ssl       the current SSL session object from which the
      *                  callback was initiated.

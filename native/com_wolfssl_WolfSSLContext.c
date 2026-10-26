@@ -3223,7 +3223,12 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
             }
             return -1;
         }
-        *padSz = (unsigned int)tmpVal;
+        /* Reject negative and too large padSz values */
+        if ((tmpVal < 0) || (tmpVal > (jlong)decSz)) {
+            retval = -1;
+        } else {
+            *padSz = (unsigned int)tmpVal;
+        }
     }
 
     /* delete local refs, detach JNIEnv from thread */
@@ -3533,7 +3538,12 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
             }
             return -1;
         }
-        *padSz = (unsigned int)tmpVal;
+        /* Reject negative and too large padSz values */
+        if ((tmpVal < 0) || (tmpVal > (jlong)decSz)) {
+            retval = -1;
+        } else {
+            *padSz = (unsigned int)tmpVal;
+        }
     }
 
     /* delete local refs, detach JNIEnv from thread */
@@ -5537,6 +5547,11 @@ int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
         return -1;
     }
 
+    if ((retval > 0) && ((unsigned int)retval > sigSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
+    }
+
     /* point out* to the beginning of our decrypted buffer */
     if (retval > 0)
         *out = sig;
@@ -5833,6 +5848,11 @@ int NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
         return -1;
     }
 
+    if ((retval > 0) && ((unsigned int)retval > sigSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
+    }
+
     /* point out* to the beginning of decrypted buffer */
     if (retval > 0) {
         *out = sig;
@@ -6068,6 +6088,11 @@ int NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
             (*g_vm)->DetachCurrentThread(g_vm);
         }
         return -1;
+    }
+
+    if ((retval > 0) && ((unsigned int)retval > sigSz)) {
+        /* wolfSSL uses positive return as the output length */
+        retval = -1;
     }
 
     /* point out* to the beginning of decrypted buffer */
@@ -6645,6 +6670,11 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
     if ((*jenv)->ExceptionOccurred(jenv)) {
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
+        retval = -1;
+    }
+
+    if ((retval > 0) && ((unsigned int)retval > inSz)) {
+        /* wolfSSL uses positive return as the output length */
         retval = -1;
     }
 
