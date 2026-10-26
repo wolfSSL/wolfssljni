@@ -7115,9 +7115,10 @@ unsigned int NativePskClientCb(WOLFSSL* ssl, const char* hint, char* identity,
             }
             return 0;
         }
-        if (XSTRLEN(tmpString) >= id_max_len) {
-            (*jenv)->ReleaseStringUTFChars(jenv, bufString,
-                tmpString);
+        /* wolfSSL passes MAX_PSK_ID_LEN + NULL_TERM_LEN identity buffer with
+         * id_max_len = MAX_PSK_ID_LEN, so id_max_len bytes fit */
+        if (XSTRLEN(tmpString) > id_max_len) {
+            (*jenv)->ReleaseStringUTFChars(jenv, bufString, tmpString);
             (*jenv)->DeleteLocalRef(jenv, ctxRef);
             (*jenv)->DeleteLocalRef(jenv, hintString);
             (*jenv)->DeleteLocalRef(jenv, strBufObj);

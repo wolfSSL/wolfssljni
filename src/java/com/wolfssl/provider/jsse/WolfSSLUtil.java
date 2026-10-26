@@ -611,13 +611,13 @@ public class WolfSSLUtil {
     }
 
     /**
-     * Return maximum key size allowed if minimum is set in
-     * jdk.tls.disabledAlgorithms security property for specified algorithm.
+     * Return minimum key size allowed if set in jdk.tls.disabledAlgorithms
+     * security property for specified algorithm.
      *
      * @param algo Algorithm to search for key size limitation for, options
      *             are "RSA", "DH", and "EC".
      *
-     * @return maximum RSA key size allowed, or 0 if not set in property
+     * @return minimum key size allowed for algo, or 0 if not set in property
      *
      * @throws WolfSSLException if algorithm string does not match
      *         a supported string.
