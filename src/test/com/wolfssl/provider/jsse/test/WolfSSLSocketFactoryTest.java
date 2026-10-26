@@ -109,6 +109,11 @@ public class WolfSSLSocketFactoryTest {
             throw new Exception(e);
         }
 
+        /* Start static lists empty so running this again in the same JVM does
+         * not add duplicate entries */
+        enabledProtocols.clear();
+        sockFactories.clear();
+
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {

@@ -95,6 +95,11 @@ public class WolfSSLServerSocketFactoryTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
+        /* Static lists are filled below. Start empty so running this again
+         * in the same JVM does not add duplicate entries */
+        enabledProtocols.clear();
+        sockFactories.clear();
+
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {

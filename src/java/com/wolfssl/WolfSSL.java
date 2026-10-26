@@ -85,13 +85,14 @@ public class WolfSSL {
     public static final int WOLFJNI_IO_EVENT_TIMEOUT = -11;
 
     /**
-     * Socket poll() exceptional error, matches com_wolfssl_WolfSSLSession.c
-     * socketPoll() return value */
+     * Socket select/poll() exceptional error, matches
+     * com_wolfssl_WolfSSLSession.c socketSelect()/socketPoll() return value.
+     */
     public static final int WOLFJNI_IO_EVENT_ERROR = -14;
 
     /**
      * Socket file descriptor closed, matches com_wolfssl_WolfSSLSession.c
-     * socketPoll() return value */
+     * socketSelect() and socketPoll() return value */
     public static final int WOLFJNI_IO_EVENT_FD_CLOSED = -15;
 
     /**
@@ -737,6 +738,10 @@ public class WolfSSL {
             throw new WolfSSLException(
                 "Failed to initialize wolfSSL library: " + ret);
         }
+
+        /* Resolve getErrno() early. On Windows the JVM first-call symbol
+         * lookup would overwrite WSAGetLastError() before it is read. */
+        getErrno();
 
         /* Populate NID values from native wolfSSL enums */
         NID_surname = getNID_surname();
@@ -2076,9 +2081,9 @@ public class WolfSSL {
      * error is encountered. This JNI method is a simple getter to retrive
      * the current system errno value.
      *
-     * If on Windows, this will return 0 (no errno support on Windows)
+     * On Windows, this returns the value of WSAGetLastError().
      *
-     * @return System native errno value
+     * @return System native errno value, or WSAGetLastError() on Windows
      */
     public static native int getErrno();
 

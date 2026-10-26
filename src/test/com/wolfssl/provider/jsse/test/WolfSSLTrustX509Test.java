@@ -57,6 +57,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.net.Socket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -1568,8 +1569,7 @@ public class WolfSSLTrustX509Test {
             tf.createTrustManager("SunX509", tf.caServerJKS, provider),
             tf.createKeyManager("SunX509", tf.clientRSAPSSJKS, provider));
 
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1669,8 +1669,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1721,8 +1720,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1773,8 +1771,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1825,8 +1822,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1877,8 +1873,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -1921,8 +1916,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -2451,8 +2445,7 @@ public class WolfSSLTrustX509Test {
             tf.createTrustManager("SunX509", srvCertStore, provider),
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -2664,8 +2657,8 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(serverPort);
+        SSLServerSocket ss =
+            WolfSSLTestFactory.createServerSocket(srvCtx, serverPort);
         serverPort = ss.getLocalPort();
 
         serverArgs = new TestArgs(null, null, true, true, true, null);
@@ -2746,8 +2739,7 @@ public class WolfSSLTrustX509Test {
         wctx.flushSessions((int)(Instant.now().getEpochSecond() + 1000));
         wctx.free();
 
-        ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(serverPort);
+        ss = WolfSSLTestFactory.createServerSocket(srvCtx, serverPort);
 
         serverArgs = new TestArgs(null, null, true, true, true, null);
         server = new TestSSLSocketServer(srvCtx, ss, serverArgs, 1);
@@ -3328,8 +3320,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -3380,8 +3371,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -3423,8 +3413,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -3476,8 +3465,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, true, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -3529,8 +3517,7 @@ public class WolfSSLTrustX509Test {
             tf.createKeyManager("SunX509", tf.clientJKS, provider));
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         TestArgs serverArgs = new TestArgs(null, null, true, true, false, null);
         TestSSLSocketServer server = new TestSSLSocketServer(
@@ -3802,7 +3789,8 @@ public class WolfSSLTrustX509Test {
                 SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
                     .createSocket();
                 sock.setUseClientMode(true);
-                sock.connect(new InetSocketAddress(srvPort));
+                sock.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), srvPort));
 
                 SSLParameters params = sock.getSSLParameters();
 

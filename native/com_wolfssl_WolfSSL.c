@@ -3063,7 +3063,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getErrno
 #ifndef USE_WINDOWS_API
     return errno;
 #else
-    return 0;
+    return WSAGetLastError();
 #endif
 }
 

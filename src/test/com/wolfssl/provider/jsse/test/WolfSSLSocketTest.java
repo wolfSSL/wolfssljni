@@ -25,6 +25,7 @@ import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.BeforeClass;
+import org.junit.AfterClass;
 import org.junit.rules.TestRule;
 import static org.junit.Assert.*;
 
@@ -46,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import java.io.InputStream;
@@ -202,6 +204,12 @@ public class WolfSSLSocketTest {
         Provider p = Security.getProvider("wolfJSSE");
         assertNotNull(p);
 
+        /* Start static lists empty so running this again in the same JVM does
+         * not add duplicate entries */
+        enabledProtocols.clear();
+        sockFactories.clear();
+        socks.clear();
+
         /* populate enabledProtocols */
         for (int i = 0; i < allProtocols.length; i++) {
             try {
@@ -265,6 +273,16 @@ public class WolfSSLSocketTest {
 
             socks.add(s);
         }
+    }
+
+    @AfterClass
+    public static void testCleanupSockets() {
+
+        /* Close connections opened by testSetupSocketFactory() */
+        for (SSLSocket s : socks) {
+            closeQuietly(s);
+        }
+        socks.clear();
     }
 
     @Test
@@ -361,13 +379,13 @@ public class WolfSSLSocketTest {
         };
 
         /* --- Case 1: default (server order) --- */
-        SSLServerSocket ss1 = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss1 = WolfSSLTestFactory.createServerSocket(ctx, 0);
         ss1.setEnabledCipherSuites(serverSuites);
 
         SSLSocket cs1 = (SSLSocket)ctx.getSocketFactory().createSocket();
         cs1.setEnabledCipherSuites(clientSuites);
-        cs1.connect(new InetSocketAddress(ss1.getLocalPort()));
+        cs1.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss1.getLocalPort()));
 
         final SSLSocket server1 = (SSLSocket)ss1.accept();
 
@@ -396,8 +414,7 @@ public class WolfSSLSocketTest {
         ss1.close();
 
         /* --- Case 2: server honors client order --- */
-        SSLServerSocket ss2 = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss2 = WolfSSLTestFactory.createServerSocket(ctx, 0);
         ss2.setEnabledCipherSuites(serverSuites);
 
         /* Do not honor local cipher suites preference */
@@ -407,7 +424,8 @@ public class WolfSSLSocketTest {
 
         SSLSocket cs2 = (SSLSocket)ctx.getSocketFactory().createSocket();
         cs2.setEnabledCipherSuites(clientSuites);
-        cs2.connect(new InetSocketAddress(ss2.getLocalPort()));
+        cs2.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss2.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss2.accept();
 
@@ -504,15 +522,15 @@ public class WolfSSLSocketTest {
         ExecutorService es = Executors.newSingleThreadExecutor();
 
         try {
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
             ss.setEnabledCipherSuites(srvSuites);
             ss.setEnabledProtocols(new String[] { "TLSv1.2" });
 
             cs = (SSLSocket)ctx.getSocketFactory().createSocket();
             cs.setEnabledCipherSuites(cliSuites);
             cs.setEnabledProtocols(new String[] { "TLSv1.2" });
-            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
 
             final SSLSocket server0 = (SSLSocket)ss.accept();
             server = server0;
@@ -616,7 +634,7 @@ public class WolfSSLSocketTest {
 
         final SSLContext ctx = tf.createSSLContext("TLSv1.2", "wolfJSSE");
         final byte[] msg = "hello".getBytes(StandardCharsets.UTF_8);
-        final ServerSocket ss = new ServerSocket(0);
+        final ServerSocket ss = WolfSSLTestFactory.createServerSocket(0);
         SSLSocket cs = null;
         ExecutorService es = Executors.newSingleThreadExecutor();
 
@@ -816,8 +834,7 @@ public class WolfSSLSocketTest {
             Security.setProperty("wolfjsse.enabledSupportedCurves", "");
 
             /* create SSLServerSocket first to get ephemeral port */
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
@@ -866,8 +883,7 @@ public class WolfSSLSocketTest {
                 "secp256r1");
 
             /* create SSLServerSocket first to get ephemeral port */
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
@@ -916,8 +932,7 @@ public class WolfSSLSocketTest {
                 "secp256r1, secp521r1");
 
             /* create SSLServerSocket first to get ephemeral port */
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
@@ -968,8 +983,7 @@ public class WolfSSLSocketTest {
                 "badone, badtwo");
 
             /* create SSLServerSocket first to get ephemeral port */
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
 
@@ -1019,8 +1033,7 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         TestArgs sArgs = new TestArgs(null, null, true, true, true, null);
         TestArgs cArgs = new TestArgs(null, null, false, false, true, null);
@@ -1072,8 +1085,7 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         sDoneLatch = new CountDownLatch(1);
         cDoneLatch = new CountDownLatch(1);
@@ -1270,8 +1282,8 @@ public class WolfSSLSocketTest {
             final boolean expectFail = choice.indexOf('\u0000') >= 0;
             SSLContext srvCtx = tf.createSSLContext("TLS", ctxProvider);
             SSLContext cliCtx = tf.createSSLContext("TLS", "SunJSSE");
-            final SSLServerSocket ss = (SSLServerSocket)srvCtx
-                .getServerSocketFactory().createServerSocket(0);
+            final SSLServerSocket ss =
+                WolfSSLTestFactory.createServerSocket(srvCtx, 0);
             final AtomicReference<List<String>> seen =
                 new AtomicReference<List<String>>();
             final AtomicReference<Exception> srvErr =
@@ -1351,8 +1363,8 @@ public class WolfSSLSocketTest {
         public void run() {
             try {
                 SSLContext ctx = tf.createSSLContext("TLS", ctxProvider);
-                SSLServerSocket ss = (SSLServerSocket)ctx
-                    .getServerSocketFactory().createServerSocket(serverPort);
+                SSLServerSocket ss =
+                    WolfSSLTestFactory.createServerSocket(ctx, serverPort);
 
                 boundPort = ss.getLocalPort();
 
@@ -1426,7 +1438,8 @@ public class WolfSSLSocketTest {
 
             SSLSocket sock = (SSLSocket)ctx.getSocketFactory().
                 createSocket();
-            sock.connect(new InetSocketAddress(serverPort));
+            sock.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                serverPort));
 
             /* Do TLS handshake */
             sock.startHandshake();
@@ -1567,11 +1580,12 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create plain TCP server socket */
-        ServerSocket serverSock = new ServerSocket(0);
+        ServerSocket serverSock = WolfSSLTestFactory.createServerSocket(0);
 
         /* connect TLS client to TCP server socket */
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(serverSock.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            serverSock.getLocalPort()));
 
         final Socket server = serverSock.accept();
 
@@ -1651,11 +1665,12 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create new ServerSocket first to get ephemeral port */
-        ServerSocket ss = new ServerSocket(0);
+        ServerSocket ss = WolfSSLTestFactory.createServerSocket(0);
 
         /* create new Socket, connect() to server */
         Socket cs = new Socket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         /* accept client connection, normal java.net.Socket */
         final Socket socket = ss.accept();
@@ -1679,11 +1694,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         /* test getter/setter on client socket */
         assertEquals(cs.getEnableSessionCreation(), true);
@@ -1742,11 +1757,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", "wolfJSSE");
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         /* test getter/setter on client socket, then restore to true */
         assertEquals(cs.getUseClientMode(), true);
@@ -1794,11 +1809,11 @@ public class WolfSSLSocketTest {
         ss.close();
 
         /* calling setUseClientMode() after handshake should throw exception */
-        ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss.accept();
 
@@ -1893,11 +1908,11 @@ public class WolfSSLSocketTest {
         serverFlag = false;
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         HandshakeCompletedListener clientListener =
             new HandshakeCompletedListener() {
@@ -2018,11 +2033,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
 
@@ -2071,11 +2086,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss.accept();
 
@@ -2416,11 +2431,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLSv1.2", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
         server.setWantClientAuth(true);
@@ -2460,11 +2475,11 @@ public class WolfSSLSocketTest {
                 tf.createTrustManager("SunX509", (String)null, ctxProvider),
                 tf.createKeyManager("SunX509", tf.serverJKS, ctxProvider));
 
-        ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss.accept();
         server2.setWantClientAuth(true);
@@ -2512,11 +2527,11 @@ public class WolfSSLSocketTest {
                 tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
                 tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
-        ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server3 = (SSLSocket)ss.accept();
         server3.setWantClientAuth(false);
@@ -2575,10 +2590,10 @@ public class WolfSSLSocketTest {
             tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
             tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
-        SSLServerSocket ss = (SSLServerSocket)srvCtx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
         SSLSocket cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
         server.setWantClientAuth(true);
@@ -2624,10 +2639,10 @@ public class WolfSSLSocketTest {
             tf.createTrustManager("SunX509", tf.caServerJKS, ctxProvider),
             tf.createKeyManager("SunX509", tf.clientJKS, ctxProvider));
 
-        ss = (SSLServerSocket)srvCtx2.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(srvCtx2, 0);
         cs = (SSLSocket)cliCtx2.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server2 = (SSLSocket)ss.accept();
         server2.setWantClientAuth(true);
@@ -2748,11 +2763,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
         final SSLSocket server = (SSLSocket)ss.accept();
 
         ExecutorService es = Executors.newSingleThreadExecutor();
@@ -2866,12 +2881,12 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         /* create Socket to wrap inside our ExtendedSocket */
         Socket sock1 = new Socket();
-        sock1.connect(new InetSocketAddress(ss.getLocalPort()));
+        sock1.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         /* create ExtendedSocket, tests non-Socket inside WolfSSLSocket */
         ExtendedSocket sock = new ExtendedSocket(sock1);
@@ -2931,8 +2946,7 @@ public class WolfSSLSocketTest {
 
                 /* create SSLServerSocket first to get ephemeral port */
                 SSLServerSocket ss =
-                    (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+                    WolfSSLTestFactory.createServerSocket(ctx, 0);
 
                 SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
                 /* restrict to single protocol that is being disabled */
@@ -2943,7 +2957,8 @@ public class WolfSSLSocketTest {
                     enabledProtocols.get(i));
 
                 /* don't need server since should throw exception before */
-                cs.connect(new InetSocketAddress(ss.getLocalPort()));
+                cs.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), ss.getLocalPort()));
 
                 try {
                     cs.startHandshake();
@@ -2998,8 +3013,7 @@ public class WolfSSLSocketTest {
 
             /* create SSLServerSocket first to get ephemeral port */
             final SSLServerSocket ss =
-                (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+                WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
@@ -3109,8 +3123,7 @@ public class WolfSSLSocketTest {
         try {
             this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
             final int port = ss.getLocalPort();
             final SSLServerSocket fss = ss;
 
@@ -3248,8 +3261,7 @@ public class WolfSSLSocketTest {
             this.ctx = tf.createSSLContext(protocol, ctxProvider);
             cliSesCtx = ctx.getClientSessionContext();
 
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
             final int port = ss.getLocalPort();
             final SSLServerSocket fss = ss;
 
@@ -3420,8 +3432,7 @@ public class WolfSSLSocketTest {
 
             /* Create SSLServerSocket first to get ephemeral port */
             final SSLServerSocket ss =
-                (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+                WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
@@ -3523,8 +3534,7 @@ public class WolfSSLSocketTest {
 
             /* create SSLServerSocket first to get ephemeral port */
             final SSLServerSocket ss =
-                (SSLServerSocket)ctx.getServerSocketFactory()
-                    .createServerSocket(0);
+                WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             SSLSocketFactory cliFactory = ctx.getSocketFactory();
 
@@ -3606,11 +3616,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
         final SSLSocket server = (SSLSocket)ss.accept();
 
         ExecutorService es = Executors.newSingleThreadExecutor();
@@ -3718,11 +3728,11 @@ public class WolfSSLSocketTest {
         ctx.init(null, null, null);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
         final SSLSocket server = (SSLSocket)ss.accept();
 
         ExecutorService es = Executors.newSingleThreadExecutor();
@@ -3914,11 +3924,6 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = null;
         boolean passed = false;
 
-        /* pipe() interrupt mechamism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv11Enabled()) {
@@ -3932,11 +3937,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
         final CountDownLatch closeLatch = new CountDownLatch(1);
@@ -3958,7 +3963,9 @@ public class WolfSSLSocketTest {
                     /* Sleep so write thread has a chance to do some
                      * writing before interrupt */
                     Thread.sleep(1000);
-                    cs.setSoLinger(true, 5);
+                    /* close() waits up to SO_LINGER for close_notify, which
+                     * cannot be sent while the send buffer is full */
+                    cs.setSoLinger(true, 1);
                     cs.close();
 
                 } catch (SSLException e) {
@@ -3993,11 +4000,15 @@ public class WolfSSLSocketTest {
                 }
 
             } catch (SocketException e) {
-                /* We expect SocketException with this message, error if
-                 * different than expected */
+                /* We expect SocketException with one of these messages,
+                 * error if different than expected. Where close() lingers
+                 * on unsent data before the socket is released (Windows,
+                 * JDK 12 and earlier), the write fails once the connection
+                 * is reset and reports the socket as closed. */
                 String msg = e.getMessage();
                 if (msg == null ||
-                    !msg.contains("Socket fd closed during poll")) {
+                    (!msg.contains("Socket fd closed during select/poll") &&
+                     !msg.contains("Socket is closed"))) {
                     e.printStackTrace();
                     fail("Incorrect SocketException thrown by client");
                     throw e;
@@ -4032,11 +4043,6 @@ public class WolfSSLSocketTest {
         SSLServerSocket ss = null;
         boolean passed = false;
 
-        /* pipe() interrupt mechamism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv11Enabled()) {
@@ -4050,11 +4056,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         final SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
 
         final SSLSocket server = (SSLSocket)ss.accept();
         final CountDownLatch closeLatch = new CountDownLatch(1);
@@ -4075,7 +4081,7 @@ public class WolfSSLSocketTest {
 
                     /* Sleep to let client thread hit read call */
                     Thread.sleep(1000);
-                    cs.setSoLinger(true, 5);
+                    cs.setSoLinger(true, 1);
                     cs.close();
 
                 } catch (SSLException e) {
@@ -4140,6 +4146,349 @@ public class WolfSSLSocketTest {
         }
     }
 
+    /* Read on an SSLSocket with setSoTimeout() set and a silent peer must
+     * throw SocketTimeoutException once the timeout has passed, and leave
+     * the socket usable for later reads. If layered is true, the SSLSocket
+     * is created over an already connected plain Socket, otherwise the
+     * SSLSocket is connected directly. wolfJSSE passes a different Socket
+     * to native setFd() in each case.
+     *
+     * On Windows this needs native setFd() to put the socket in non-blocking
+     * mode, otherwise the read waits inside recv() and the timeout is never
+     * applied. */
+    private void socketReadTimeoutTest(boolean layered) throws Exception {
+
+        final int timeoutMs = 1000;
+        final byte[] msg = "ping".getBytes(StandardCharsets.US_ASCII);
+        final CountDownLatch sendLatch = new CountDownLatch(1);
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        byte[] buf = new byte[64];
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        Socket plain = null;
+        ExecutorService es = null;
+        long start;
+        long elapsedMs;
+        int ret;
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        try {
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
+            InetSocketAddress addr = new InetSocketAddress(
+                InetAddress.getLoopbackAddress(), ss.getLocalPort());
+
+            if (layered) {
+                plain = new Socket();
+                plain.connect(addr);
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket(
+                    plain, addr.getHostString(), addr.getPort(), true);
+            }
+            else {
+                cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+                cs.connect(addr);
+            }
+            server = (SSLSocket)ss.accept();
+
+            /* Server finishes the handshake, stays silent until released,
+             * then sends msg. Sends anyway after 20 sec, so a read() that
+             * never times out fails the test instead of hanging it. */
+            final SSLSocket srv = server;
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    sendLatch.await(20, TimeUnit.SECONDS);
+                    OutputStream out = srv.getOutputStream();
+                    out.write(msg);
+                    out.flush();
+
+                    /* Keep socket open until client has read msg */
+                    clientDone.await(20, TimeUnit.SECONDS);
+                    return null;
+                }
+            });
+
+            cs.startHandshake();
+            InputStream in = cs.getInputStream();
+
+            /* Peer is silent, read() must time out */
+            cs.setSoTimeout(timeoutMs);
+            start = System.nanoTime();
+            try {
+                ret = in.read(buf, 0, buf.length);
+                fail("read() with setSoTimeout(" + timeoutMs + ") and a " +
+                    "silent peer returned " + ret + " after " +
+                    ((System.nanoTime() - start) / 1000000) + " ms, " +
+                    "expected SocketTimeoutException");
+            } catch (SocketTimeoutException e) {
+                elapsedMs = (System.nanoTime() - start) / 1000000;
+                /* Allow for coarse select() timer resolution on Windows */
+                assertTrue("read() timed out early, after " + elapsedMs +
+                    " ms", elapsedMs >= timeoutMs - 100);
+                assertTrue("read() timed out late, after " + elapsedMs +
+                    " ms", elapsedMs < timeoutMs + 9000);
+            }
+
+            /* Socket is still usable after the timeout, and a timeout of 0
+             * waits for data with no limit */
+            cs.setSoTimeout(0);
+            sendLatch.countDown();
+            ret = in.read(buf, 0, buf.length);
+            assertEquals(msg.length, ret);
+            assertArrayEquals(msg, Arrays.copyOf(buf, ret));
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            sendLatch.countDown();
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(plain);
+            closeQuietly(server);
+            closeQuietly(ss);
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
+    }
+
+    /* SSLSocket created with createSocket() then connect() */
+    @Test(timeout = 60000)
+    public void testSocketReadTimeout() throws Exception {
+        socketReadTimeoutTest(false);
+    }
+
+    /* SSLSocket layered over a connected plain Socket with
+     * createSocket(Socket, String, int, boolean), as used by Apache
+     * HttpClient */
+    @Test(timeout = 60000)
+    public void testLayeredSocketReadTimeout() throws Exception {
+        socketReadTimeoutTest(true);
+    }
+
+    /* startHandshake() with setSoTimeout() set must throw
+     * SocketTimeoutException when the peer accepts the TCP connection but
+     * never answers the ClientHello. */
+    @Test(timeout = 60000)
+    public void testSocketHandshakeTimeout() throws Exception {
+
+        final int timeoutMs = 1000;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ServerSocket ss = null;
+        SSLSocket cs = null;
+        ExecutorService es = null;
+        long start;
+        long elapsedMs;
+
+        this.ctx = tf.createSSLContext("TLS", ctxProvider);
+
+        try {
+            ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+            final ServerSocket srv = ss;
+
+            /* Plain TCP server that accepts, then never responds. Closes
+             * after 20 sec, so a handshake that never times out fails the
+             * test instead of hanging it. */
+            es = Executors.newSingleThreadExecutor();
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    Socket s = srv.accept();
+                    try {
+                        clientDone.await(20, TimeUnit.SECONDS);
+                    } finally {
+                        s.close();
+                    }
+                    return null;
+                }
+            });
+
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(
+                InetAddress.getLoopbackAddress(), ss.getLocalPort()));
+            cs.setSoTimeout(timeoutMs);
+
+            start = System.nanoTime();
+            try {
+                cs.startHandshake();
+                fail("startHandshake() against a silent peer should time out");
+            } catch (SocketTimeoutException e) {
+                elapsedMs = (System.nanoTime() - start) / 1000000;
+                assertTrue("startHandshake() timed out early, after " +
+                    elapsedMs + " ms", elapsedMs >= timeoutMs - 100);
+                assertTrue("startHandshake() timed out late, after " +
+                    elapsedMs + " ms", elapsedMs < timeoutMs + 9000);
+            }
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(ss);
+            if (es != null) {
+                es.shutdownNow();
+            }
+        }
+    }
+
+    /* close() on a TLS 1.3 client checks for a session ticket the peer may
+     * still send. It must not wait for one while closing, even if the peer
+     * stays silent after the handshake. getSession() is not called before
+     * close(), since that would run the same ticket check first. */
+    @Test(timeout = 60000)
+    public void testSocketCloseTls13ClientDoesNotWaitForTicket()
+        throws Exception {
+
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        final CountDownLatch clientDone = new CountDownLatch(1);
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        long start;
+        long closeMs;
+
+        Assume.assumeTrue(WolfSSL.TLSv13Enabled());
+
+        this.ctx = tf.createSSLContext("TLSv1.3", ctxProvider);
+
+        try {
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
+            server = (SSLSocket)ss.accept();
+
+            /* Server completes the handshake, then stays silent */
+            final SSLSocket srv = server;
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    clientDone.await(20, TimeUnit.SECONDS);
+                    return null;
+                }
+            });
+            cs.startHandshake();
+
+            start = System.nanoTime();
+            cs.close();
+            closeMs = (System.nanoTime() - start) / 1000000;
+            assertTrue("close() of TLS 1.3 client took " + closeMs + " ms",
+                closeMs < 1000);
+
+            clientDone.countDown();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+        } finally {
+            clientDone.countDown();
+            closeQuietly(cs);
+            closeQuietly(server);
+            closeQuietly(ss);
+            es.shutdownNow();
+        }
+    }
+
+    /* Close a client SSLSocket with SO_LINGER set to linger seconds while
+     * another thread is blocked in write() because the peer does not read.
+     * The blocked write() must fail once the socket is closed. Returns how
+     * long close() took, in milliseconds. */
+    private long closeWithLingerWhileWriteBlocked(int linger)
+        throws Exception {
+
+        SSLServerSocket ss = null;
+        SSLSocket cs = null;
+        SSLSocket server = null;
+        ExecutorService es = Executors.newSingleThreadExecutor();
+        final AtomicLong written = new AtomicLong(0);
+        long last;
+        long start;
+        long closeMs;
+
+        /* TLS 1.2 if available, since close() on a TLS 1.3 client can also
+         * wait for a session ticket, which would add to the time measured */
+        this.ctx = tf.createSSLContext(
+            WolfSSL.TLSv12Enabled() ? "TLSv1.2" : "TLS", ctxProvider);
+
+        try {
+            ss = (SSLServerSocket)ctx.getServerSocketFactory()
+                .createServerSocket(0, 0, InetAddress.getLoopbackAddress());
+            cs = (SSLSocket)ctx.getSocketFactory().createSocket();
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
+            server = (SSLSocket)ss.accept();
+
+            final SSLSocket srv = server;
+            Future<Void> serverFuture = es.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    srv.startHandshake();
+                    return null;
+                }
+            });
+            cs.startHandshake();
+            serverFuture.get(10, TimeUnit.SECONDS);
+
+            /* Server never reads, so writes stop once buffers are full */
+            final OutputStream out = cs.getOutputStream();
+            Future<Throwable> writer = es.submit(new Callable<Throwable>() {
+                @Override
+                public Throwable call() {
+                    byte[] buf = new byte[1024];
+                    try {
+                        while (true) {
+                            out.write(buf);
+                            written.addAndGet(buf.length);
+                        }
+                    } catch (Throwable t) {
+                        return t;
+                    }
+                }
+            });
+
+            /* Wait until write() has made no progress for 500 ms */
+            start = System.nanoTime();
+            do {
+                last = written.get();
+                Thread.sleep(500);
+                assertTrue("write() did not block within 20 sec",
+                    (System.nanoTime() - start) < 20000000000L);
+            } while (written.get() != last);
+
+            cs.setSoLinger(true, linger);
+            start = System.nanoTime();
+            cs.close();
+            closeMs = (System.nanoTime() - start) / 1000000;
+
+            Throwable t = writer.get(10, TimeUnit.SECONDS);
+            assertTrue("blocked write() should fail with IOException after " +
+                "close(), got: " + t, t instanceof IOException);
+
+            return closeMs;
+
+        } finally {
+            closeQuietly(cs);
+            closeQuietly(server);
+            closeQuietly(ss);
+            es.shutdownNow();
+        }
+    }
+
+    /* SO_LINGER 0 means close without waiting, so close() must not wait for
+     * close_notify to be sent while the send buffer is full. */
+    @Test(timeout = 60000)
+    public void testSocketCloseLingerZeroDoesNotWait() throws Exception {
+
+        long closeMs = closeWithLingerWhileWriteBlocked(0);
+        assertTrue("close() with SO_LINGER 0 took " + closeMs + " ms",
+            closeMs < 2000);
+    }
+
     /* Close a resource, ignoring exceptions, for deterministic
      * per-iteration cleanup in the stress tests below. */
     private static void closeQuietly(java.io.Closeable c) {
@@ -4200,11 +4549,6 @@ public class WolfSSLSocketTest {
         final int maxIterations = 300;
         final long budgetMs = 5000;
 
-        /* pipe() interrupt mechanism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv13Enabled()) {
@@ -4251,8 +4595,7 @@ public class WolfSSLSocketTest {
                 SSLSocket server = null;
 
                 try {
-                    ss = (SSLServerSocket)ctx
-                        .getServerSocketFactory().createServerSocket(0);
+                    ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
                     /* autoClose false keeps underlying Socket open across
                      * SSLSocket.close() */
@@ -4383,11 +4726,6 @@ public class WolfSSLSocketTest {
         final int maxIterations = 500;
         final long budgetMs = 5000;
 
-        /* pipe() interrupt mechanism not implemented for Windows yet since
-         * Windows does not support Unix/Linux pipe(). Re-enable this test
-         * for Windows when that support has been added */
-        Assume.assumeFalse(WolfSSLTestFactory.isWindows());
-
         if (WolfSSL.TLSv12Enabled()) {
             protocol = "TLSv1.2";
         } else if (WolfSSL.TLSv13Enabled()) {
@@ -4437,8 +4775,7 @@ public class WolfSSLSocketTest {
                 final AtomicBoolean serverStop = new AtomicBoolean(false);
 
                 try {
-                    ss = (SSLServerSocket)ctx
-                        .getServerSocketFactory().createServerSocket(0);
+                    ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
                     /* autoClose false keeps underlying Socket open across
                      * SSLSocket.close() */
@@ -4592,8 +4929,7 @@ public class WolfSSLSocketTest {
                 SSLSocket server = null;
 
                 try {
-                    ss = (SSLServerSocket)ctx
-                        .getServerSocketFactory().createServerSocket(0);
+                    ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
                     plain = new Socket();
                     plain.connect(new InetSocketAddress("127.0.0.1",
                         ss.getLocalPort()));
@@ -4737,7 +5073,7 @@ public class WolfSSLSocketTest {
             try {
                 /* Plain (non-TLS) server that accepts then closes, so the
                  * client handshake fails after the streams are created. */
-                ss = new ServerSocket(0);
+                ss = WolfSSLTestFactory.createServerSocket(0);
                 final ServerSocket srv = ss;
                 Thread acceptor = new Thread(new Runnable() {
                     @Override
@@ -4827,7 +5163,7 @@ public class WolfSSLSocketTest {
             SSLSocket cs = null;
 
             try {
-                ss = new ServerSocket(0);
+                ss = WolfSSLTestFactory.createServerSocket(0);
                 plain = new Socket();
                 plain.connect(new InetSocketAddress("127.0.0.1",
                     ss.getLocalPort()));
@@ -4900,8 +5236,7 @@ public class WolfSSLSocketTest {
                 Future<Void> serverFuture = null;
 
                 try {
-                    ss = (SSLServerSocket)ctx
-                        .getServerSocketFactory().createServerSocket(0);
+                    ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
                     plain = new Socket();
                     plain.connect(new InetSocketAddress("127.0.0.1",
                         ss.getLocalPort()));
@@ -5058,7 +5393,7 @@ public class WolfSSLSocketTest {
         WolfSSLSession origSsl = null;
 
         try {
-            ss = new ServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(0);
             plain = new Socket();
             plain.connect(new InetSocketAddress("127.0.0.1",
                 ss.getLocalPort()));
@@ -5145,11 +5480,11 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext(protocol, ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-        cs.connect(new InetSocketAddress(ss.getLocalPort()));
+        cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+            ss.getLocalPort()));
         final SSLSocket server = (SSLSocket)ss.accept();
 
         ExecutorService es = Executors.newSingleThreadExecutor();
@@ -5337,8 +5672,7 @@ public class WolfSSLSocketTest {
             this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
             /* Create SSLServerSocket first to get ephemeral port */
-            SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             /* Set up test arguments without explicit SNI configuration.
              * With autoSNI=true, SNI should be automatically set based on
@@ -5382,8 +5716,7 @@ public class WolfSSLSocketTest {
             /* Test with autoSNI disabled */
             System.setProperty("wolfjsse.autoSNI", "false");
 
-            ss = (SSLServerSocket)ctx.getServerSocketFactory()
-                .createServerSocket(0);
+            ss = WolfSSLTestFactory.createServerSocket(ctx, 0);
 
             sDoneLatch = new CountDownLatch(1);
             cDoneLatch = new CountDownLatch(1);
@@ -5436,8 +5769,8 @@ public class WolfSSLSocketTest {
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
         /* create SSLServerSocket first to get ephemeral port */
-        final SSLServerSocket ss = (SSLServerSocket)ctx.getServerSocketFactory()
-            .createServerSocket(0);
+        final SSLServerSocket ss =
+            WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         /* Configure SNI matcher for server*/
         SNIMatcher matcher =
@@ -5455,7 +5788,8 @@ public class WolfSSLSocketTest {
             /* ------------------------------------ */
 
             SSLSocket cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
 
             /* Set SNI hostname for client */
             SNIHostName serverName = new SNIHostName("www.example.com");
@@ -5491,7 +5825,8 @@ public class WolfSSLSocketTest {
             /* Test unmatched SNI case, should fail */
             /* ------------------------------------ */
             cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
 
             /* Set non-matching SNI hostname for client */
             serverName = new SNIHostName("www.example.org");
@@ -5553,8 +5888,8 @@ public class WolfSSLSocketTest {
 
         this.ctx = tf.createSSLContext("TLS", ctxProvider);
 
-        final SSLServerSocket ss = (SSLServerSocket)ctx
-            .getServerSocketFactory().createServerSocket(0);
+        final SSLServerSocket ss =
+            WolfSSLTestFactory.createServerSocket(ctx, 0);
 
         /* Server accepts only SNI www.example.com */
         SNIMatcher matcher =
@@ -5571,7 +5906,8 @@ public class WolfSSLSocketTest {
 
         try {
             cs = (SSLSocket)ctx.getSocketFactory().createSocket();
-            cs.connect(new InetSocketAddress(ss.getLocalPort()));
+            cs.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                ss.getLocalPort()));
 
             /* Non-matching SNI makes the server throw SSLHandshakeException
              * after the native handshake completes. */
@@ -5886,7 +6222,8 @@ public class WolfSSLSocketTest {
                 SSLSocket sock = (SSLSocket)ctx.getSocketFactory()
                     .createSocket();
                 sock.setUseClientMode(true);
-                sock.connect(new InetSocketAddress(srvPort));
+                sock.connect(new InetSocketAddress(
+                    InetAddress.getLoopbackAddress(), srvPort));
 
                 SSLParameters params = sock.getSSLParameters();
 
@@ -6198,8 +6535,7 @@ public class WolfSSLSocketTest {
                            serverTM.getTrustManagers(), null);
 
             serverSocket =
-                (SSLServerSocket)serverCtx.getServerSocketFactory()
-                    .createServerSocket(0);
+                WolfSSLTestFactory.createServerSocket(serverCtx, 0);
             final int serverPort = serverSocket.getLocalPort();
             final SSLServerSocket finalServerSocket = serverSocket;
 
@@ -6397,8 +6733,7 @@ public class WolfSSLSocketTest {
         cliCtx.init(null, rejectingTMs, null);
 
         /* Create server socket on ephemeral port */
-        SSLServerSocket ss = (SSLServerSocket)srvCtx
-            .getServerSocketFactory().createServerSocket(0);
+        SSLServerSocket ss = WolfSSLTestFactory.createServerSocket(srvCtx, 0);
 
         SSLSocket cs = (SSLSocket)cliCtx.getSocketFactory().createSocket();
         cs.connect(new InetSocketAddress(

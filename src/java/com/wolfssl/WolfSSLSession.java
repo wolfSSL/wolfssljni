@@ -760,6 +760,7 @@ public class WolfSSLSession {
     private native int useClientSuites(long ssl);
     private native int interruptBlockedIO(long ssl);
     private native int getThreadsBlockedInPoll(long ssl);
+    private native int restoreFdBlocking(long ssl);
     private native int setMTU(long ssl, int mtu);
     private native String stateStringLong(long ssl);
     private native int getMaxOutputSize(long ssl);
@@ -1041,12 +1042,12 @@ public class WolfSSLSession {
                 "Native socket timed out during " + nativeFunc);
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_FD_CLOSED) {
-            throw new SocketException("Socket fd closed during poll(), " +
-                "errno = " + WolfSSL.getErrno());
+            throw new SocketException("Socket fd closed during " +
+                "select/poll(), errno = " + WolfSSL.getErrno());
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_ERROR) {
-            throw new SocketException("Socket fd poll() exceptional error, " +
-                "errno = " + WolfSSL.getErrno());
+            throw new SocketException("Socket fd select/poll() exceptional " +
+                "error, errno = " + WolfSSL.getErrno());
         }
         else if (ret == WolfSSL.WOLFJNI_IO_EVENT_POLLHUP) {
             throw new SocketException("Socket disconnected during poll(), " +
@@ -5727,6 +5728,12 @@ public class WolfSSLSession {
      *
      * This is used by wolfJSSE when SSLSocket.close() is called, to wake up
      * threads that are blocked in select()/poll().
+     * <p>
+     * On Windows, threads already blocked in select() are not woken by this
+     * call, they wake when the socket is closed. After this call, read()
+     * and write() on this session throw SocketException without using the
+     * socket, and other select() waits return without waiting, except in
+     * shutdownSSL().
      *
      * @return WolfSSL.SSL_SUCCESS on success, negative on error.
      *
@@ -5765,6 +5772,36 @@ public class WolfSSLSession {
             () -> "entered getThreadsBlockedInPoll()");
 
         return getThreadsBlockedInPoll(this.sslPtr);
+    }
+
+    /**
+     * Put the socket set with setFd() back into blocking mode.
+     *
+     * setFd() puts the socket into non-blocking mode. On Windows,
+     * closesocket() on a non-blocking socket with SO_LINGER enabled fails
+     * and leaves the socket open. Call this after shutdownSSL() and before
+     * the socket is closed. Does nothing on other platforms.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success, WolfSSL.SSL_FAILURE if the
+     *         socket mode could not be changed.
+     *
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int restoreFdBlocking() throws IllegalStateException {
+
+        final int ret;
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.Component.JNI,
+                WolfSSLDebug.INFO, this.sslPtr,
+                () -> "entered restoreFdBlocking()");
+
+            ret = restoreFdBlocking(this.sslPtr);
+        }
+
+        return ret;
     }
 
     /**
