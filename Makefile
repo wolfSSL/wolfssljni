@@ -172,7 +172,8 @@ dist:
 rpm: dist
 	@rm -f *.rpm
 	rpmdev-setuptree
-	find ~/rpmbuild/RPMS ~/rpmbuild/SRPMS -name "$(PACKAGE)-$(VERSION)*.rpm" | xargs rm -f
+	find ~/rpmbuild/RPMS ~/rpmbuild/SRPMS \
+		-name "$(NAME)-$(VERSION)*.rpm" | xargs rm -f
 	@cp "$(NAME)-$(VERSION).tar.gz" ~/rpmbuild/SOURCES/
 	@cp rpm/spec.in rpm/spec
 	@sed -i rpm/spec -e "s/@NAME@/$(NAME)/g"
