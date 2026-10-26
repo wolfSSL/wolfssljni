@@ -313,6 +313,29 @@ public class WolfSSLX509Test {
     }
 
     @Test
+    public void testGetKeyUsageMatchesJdk() throws Exception {
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        for (String path : new String[] {
+                "examples/certs/test/ku-bit9-cert.pem",
+                "examples/certs/test/ku-bit15-cert.pem",
+                "examples/certs/test/ku-bit10-bit12-cert.pem" }) {
+            WolfSSLCertificate pem = new WolfSSLCertificate(
+                WolfSSLTestCommon.getPath(path), WolfSSL.SSL_FILETYPE_PEM);
+            byte[] der = pem.getDer();
+            pem.free();
+
+            X509Certificate jdkCert = (X509Certificate)CertificateFactory
+                .getInstance("X.509").generateCertificate(
+                    new ByteArrayInputStream(der));
+            boolean[] wolfKu = new WolfSSLX509(der).getKeyUsage();
+            assertNotNull(path, wolfKu);
+            assertArrayEquals(path, jdkCert.getKeyUsage(), wolfKu);
+        }
+    }
+
+    @Test
     public void testFreedCertNotReportedAsCA() throws Exception {
 
         WolfSSLX509 ca = new WolfSSLX509(tf.getCert("ca"));

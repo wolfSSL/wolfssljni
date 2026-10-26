@@ -97,6 +97,12 @@ public class WolfSSLCertificateTest {
         "examples/certs/test/eku-large-arc-cert.pem";
     public static String ekuBadOidCertPem =
         "examples/certs/test/eku-bad-oid-cert.pem";
+    public static String kuBit9CertPem =
+        "examples/certs/test/ku-bit9-cert.pem";
+    public static String kuBit15CertPem =
+        "examples/certs/test/ku-bit15-cert.pem";
+    public static String kuBit10Bit12CertPem =
+        "examples/certs/test/ku-bit10-bit12-cert.pem";
     public static String sanTestUpnCert = null;
     public static String sanTestAllTypesCert = null;
     public static String sanTestAllTypesDer = null;
@@ -173,6 +179,9 @@ public class WolfSSLCertificateTest {
             WolfSSLTestCommon.getPath(ekuUnknownMixedCertPem);
         ekuLargeArcCertPem = WolfSSLTestCommon.getPath(ekuLargeArcCertPem);
         ekuBadOidCertPem = WolfSSLTestCommon.getPath(ekuBadOidCertPem);
+        kuBit9CertPem = WolfSSLTestCommon.getPath(kuBit9CertPem);
+        kuBit15CertPem = WolfSSLTestCommon.getPath(kuBit15CertPem);
+        kuBit10Bit12CertPem = WolfSSLTestCommon.getPath(kuBit10Bit12CertPem);
         sanTestUpnCert = sanTestDir + "/san-test-othername-upn.pem";
         sanTestAllTypesCert = sanTestDir + "/san-test-all-types.pem";
         sanTestAllTypesDer = sanTestDir + "/san-test-all-types.der";
@@ -645,6 +654,50 @@ public class WolfSSLCertificateTest {
             ext.free();
         } catch (Exception ex) {
             fail("Error loading external certificate");
+        }
+    }
+
+    @Test
+    public void test_getKeyUsageUndefinedBits() throws WolfSSLException {
+
+        boolean[] expected;
+        WolfSSLCertificate cert;
+
+        Assume.assumeTrue(WolfSSL.FileSystemEnabled());
+
+        /* digitalSignature and bit 9 */
+        expected = new boolean[10];
+        expected[0] = true;
+        expected[9] = true;
+        cert = new WolfSSLCertificate(kuBit9CertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            assertArrayEquals(expected, cert.getKeyUsage());
+        } finally {
+            cert.free();
+        }
+
+        /* digitalSignature and bit 15 */
+        expected = new boolean[16];
+        expected[0] = true;
+        expected[15] = true;
+        cert = new WolfSSLCertificate(
+            kuBit15CertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            assertArrayEquals(expected, cert.getKeyUsage());
+        } finally {
+            cert.free();
+        }
+
+        /* Bits 10 and 12 only */
+        expected = new boolean[13];
+        expected[10] = true;
+        expected[12] = true;
+        cert = new WolfSSLCertificate(
+            kuBit10Bit12CertPem, WolfSSL.SSL_FILETYPE_PEM);
+        try {
+            assertArrayEquals(expected, cert.getKeyUsage());
+        } finally {
+            cert.free();
         }
     }
 

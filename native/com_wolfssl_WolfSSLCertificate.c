@@ -2059,8 +2059,10 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
   (JNIEnv* jenv, jclass jcl, jlong x509Ptr)
 {
     jbooleanArray ret = NULL;
-    jboolean values[9];
+    jboolean values[16];
     unsigned short kuse;
+    int len = 9;
+    int i;
     WOLFSSL_X509* x509 = (WOLFSSL_X509*)(uintptr_t)x509Ptr;
     (void)jcl;
 
@@ -2070,13 +2072,6 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
 
     kuse = wolfSSL_X509_get_keyUsage(x509);
     if (kuse != 0) {
-        ret = (*jenv)->NewBooleanArray(jenv, 9);
-        if (!ret) {
-            throwWolfSSLJNIException(jenv,
-                "Failed to create boolean array in native X509_get_key_usage");
-            return NULL;
-        }
-
         values[0] = (kuse & KEYUSE_DIGITAL_SIG)? JNI_TRUE : JNI_FALSE;
         values[1] = (kuse & KEYUSE_CONTENT_COMMIT)? JNI_TRUE : JNI_FALSE;
         values[2] = (kuse & KEYUSE_KEY_ENCIPHER)? JNI_TRUE : JNI_FALSE;
@@ -2087,7 +2082,25 @@ JNIEXPORT jbooleanArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1k
         values[7] = (kuse & KEYUSE_ENCIPHER_ONLY)? JNI_TRUE : JNI_FALSE;
         values[8] = (kuse & KEYUSE_DECIPHER_ONLY)? JNI_TRUE : JNI_FALSE;
 
-        (*jenv)->SetBooleanArrayRegion(jenv, ret, 0, 9, values);
+        /* Bits 9-15 have no defines, stored just below KEYUSE_DECIPHER_ONLY */
+        for (i = 9; i < 16; i++) {
+            if (kuse & (KEYUSE_DECIPHER_ONLY >> (i - 8))) {
+                values[i] = JNI_TRUE;
+                len = i + 1;
+            }
+            else {
+                values[i] = JNI_FALSE;
+            }
+        }
+
+        ret = (*jenv)->NewBooleanArray(jenv, len);
+        if (!ret) {
+            throwWolfSSLJNIException(jenv,
+                "Failed to create boolean array in native X509_get_key_usage");
+            return NULL;
+        }
+
+        (*jenv)->SetBooleanArrayRegion(jenv, ret, 0, len, values);
         if ((*jenv)->ExceptionOccurred(jenv)) {
             (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
