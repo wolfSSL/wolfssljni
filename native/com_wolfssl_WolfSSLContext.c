@@ -1506,7 +1506,7 @@ int NativeIORecvCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -1772,7 +1772,7 @@ int NativeIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    /* find WolfSSLContext.getAssociatedContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -2770,7 +2770,7 @@ int NativeMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -3076,7 +3076,7 @@ int  NativeDecryptVerifyCb(WOLFSSL* ssl, unsigned char* decOut,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -3388,7 +3388,7 @@ int NativeVerifyDecryptCb(WOLFSSL* ssl, unsigned char* decOut,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -3688,7 +3688,7 @@ int  NativeEccSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -4008,7 +4008,7 @@ int  NativeEccVerifyCb(WOLFSSL* ssl, const unsigned char* sig,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -4244,7 +4244,7 @@ static int GetWolfSSLContextFromSessionObj(JNIEnv* jenv, jobject* sessObj,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
                 "getAssociatedContextPtr",
                 "()Lcom/wolfssl/WolfSSLContext;");
@@ -4784,7 +4784,7 @@ int  NativeRsaSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -5104,7 +5104,7 @@ int NativeRsaPssSignCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -5430,7 +5430,7 @@ int  NativeRsaVerifyCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -5729,7 +5729,7 @@ int NativeRsaSignCheckCb(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -5971,7 +5971,7 @@ int NativeRsaPssSignCheckCb(WOLFSSL* ssl, unsigned char* sig,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr", "()Lcom/wolfssl/WolfSSLContext;");
     if (!getCtxMethodId) {
@@ -6245,7 +6245,7 @@ int  NativeRsaEncCb(WOLFSSL* ssl, const unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");
@@ -6563,7 +6563,7 @@ int  NativeRsaDecCb(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
         return -1;
     }
 
-    /* find getContextPtr() method */
+    /* find WolfSSLSession.getAssociatedContextPtr() method */
     getCtxMethodId = (*jenv)->GetMethodID(jenv, sessClass,
         "getAssociatedContextPtr",
         "()Lcom/wolfssl/WolfSSLContext;");

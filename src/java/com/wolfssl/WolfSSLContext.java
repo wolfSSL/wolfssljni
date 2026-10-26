@@ -561,9 +561,9 @@ public class WolfSSLContext {
      * parameter is a directory path which contains certificates of trusted
      * root CAs. If the value of <b>file</b> is not NULL, <b>path</b> may be
      * specified as <code>null</code> if not needed. If <b>path</b> is
-     * specified, and <code>NO_WOLFSSL_DIR</code> is defined when building the
-     * library, wolfSSL will load all CA certificates located in the given
-     * directory.
+     * specified, and <code>NO_WOLFSSL_DIR</code> is not defined when
+     * building the library, wolfSSL will load all CA certificates located
+     * in the given directory.
      *
      * @param file  path to the file containing PEM-formatted CA certificates
      * @param path  path to directory containing PEM-formatted CA certificates
