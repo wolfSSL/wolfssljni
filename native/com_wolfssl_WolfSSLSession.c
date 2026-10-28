@@ -195,7 +195,6 @@ int NativeSSLVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             /* exception occurred on the Java side during method call */
-            (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             (*jenv)->DeleteLocalRef(jenv, verifyCbObj);
             if (needsDetach)
@@ -6276,10 +6275,8 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
             alpnSelectMethodId, (jobject)(*g_cachedSSLObj), outProtoArr,
             peerProtosArr);
         if ((*jenv)->ExceptionCheck(jenv)) {
-            (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
-            throwWolfSSLJNIException(jenv,
-                "Exception while calling internalAlpnSelectCallback()");
+            WOLFSSL_MSG("Exception while calling internalAlpnSelectCallback()");
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
     }
@@ -6304,11 +6301,9 @@ int NativeALPNSelectCb(WOLFSSL *ssl, const unsigned char **out,
             jenv, outProtoArr, 0);
         if (selectedProto == NULL) {
             if ((*jenv)->ExceptionCheck(jenv)) {
-                (*jenv)->ExceptionDescribe(jenv);
                 (*jenv)->ExceptionClear(jenv);
             }
-            throwWolfSSLJNIException(jenv,
-                "Selected ALPN protocol in String[] is NULL");
+            WOLFSSL_MSG("Selected ALPN protocol in String[] is NULL");
             ret = SSL_TLSEXT_ERR_ALERT_FATAL;
         }
     }

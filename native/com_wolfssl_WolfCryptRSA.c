@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #include "com_wolfssl_WolfCryptRSA.h"
 
@@ -473,7 +474,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfCryptRSA_doPssVerify
             printf("wc_RsaPSS_Verify failed, ret = %d\n", ret);
         }
     } else {
-        printf("RSA key decode failed, ret = %d\n", ret);
+        WOLFSSL_MSG("RSA key decode failed");
     }
 
     wc_FreeRsaKey(&myKey);
