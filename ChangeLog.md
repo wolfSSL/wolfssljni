@@ -1,3 +1,100 @@
+### wolfSSL JNI Release 1.19.0 (10/29/2026)
+
+Release 1.19.0 of wolfSSL JNI and JSSE has bug fixes and new features including
+fixes for socket read and handshake timeouts on Windows, SSLEngine fixes for
+TLS 1.3 connections, and new JNI APIs for canceling a handshake and managing
+native session timeouts. Other fixes validate JNI arguments and buffer sizes,
+zero sensitive data, and release JNI resources on error paths. Other changes
+improve session caching and resumption, closing connections before the handshake
+finishes, and FIPS self-test behavior under concurrent use.
+
+**New JNI Functionality:**
+* Add `WolfSSLSession.sendUserCanceled()` for canceling a handshake before it completes (PR 424)
+* Add static `WolfSSLSession.sessionSetTimeout()` and related native session timeout methods (PR 435)
+* Add `WolfSSLSession.getDhKeySize()` to get the negotiated DH group size in bits (PR 401)
+* Add `WolfSSL.wolfssl_chacha` and `wolfssl_camellia` bulk cipher constants for `getBulkCipher()` (PR 421)
+
+**JNI and JSSE Changes:**
+* Fix `SSLSocket.setSoTimeout()` read and handshake timeouts on Windows (PR 444)
+* Fix `IllegalArgumentException` retrying `SSLEngine.unwrap()` after `BUFFER_OVERFLOW` on TLS 1.3 (PR 436)
+* Fix `SSLEngine.unwrap()` truncating JDK `HttpClient` responses when TLS 1.3 servers send no ticket (PR 436)
+* Fix Apache HttpClient 5 handshake failures from lowercase `"https"` endpoint identification (PR 434)
+* Send `close_notify` when closing mid-handshake (PR 424)
+* Fix `shutdownSSL()` looping on a `WANT_READ`/`WANT_WRITE` left from an unfinished handshake (PR 424)
+* Fix `SSLEngine.isOutboundDone()` getting stuck after a failed init (PR 424)
+* Return original native errors from `getError()` instead of `SSL_ERROR_SYSCALL` (PR 442)
+* Fix `SSLSocket` `read()` returning 0 instead of -1 when the peer closes without `close_notify` (PR 442)
+* Run FIPS CASTs once per process, fixing failures in concurrent threads when creating `WolfSSL` (PR 440)
+* Fix LDAPS hostname checks allowing non-left-most wildcards with a basic `X509TrustManager` (PR 426)
+* Fix minimum key sizes reset to 0 when `jdk.tls.disabledAlgorithms` has no `keySize` limit (PR 396)
+* Enforce `jdk.tls.disabledAlgorithms` DH key size limits on the negotiated DH group (PR 401)
+* Fix `CertManagerCheckOCSPResponse()` not returning an error when OCSP could not be enabled (PR 426)
+* Omit subject alternative names containing NUL bytes instead of returning them truncated (PR 404)
+* Fail on a corrupt system trust store and skip a missing `jssecacerts` (PR 416)
+* Fix sessions invalidated with `SSLSession.invalidate()` still being resumed or cached (PR 406)
+* Fix `SSLSession` IDs and SNI names lost after close or in sessions from the cache (PR 413, 435)
+* Fix `SSLSession.getLocalPrincipal()` freeing certificates owned by the `X509KeyManager` (PR 416)
+* Return null from `SSLSession` local identity getters when no `X509KeyManager` is set (PR 421)
+* Fix `SSLEngine.getHandshakeSession()` returning a session when no handshake is in progress (PR 421)
+* Fix `getPeerCertificateChainDER()` rejecting chains with empty slots from newer wolfSSL (PR 435)
+* Fix `SSLSocket.close()` not cleanly ending blocked reads on Windows and `select()` builds (PR 397, 444)
+* Fix `SSLSocket.close()` not treating `SO_LINGER` as seconds and waiting when it is 0 (PR 444)
+* Fix native resource leaks when `SSLSocket.close()` overlaps I/O or follows transport close (PR 414, 415, 418)
+* Fix `SSLServerSocket.accept()` leaking the accepted socket when wrapping it fails (PR 420)
+* Fix `SSLEngine` send buffer growth ignoring queued data, which could fail large `wrap()` calls (PR 400)
+* Throw `IllegalArgumentException` from `setUseClientMode()` once the handshake has begun (PR 419)
+* Reject negative session timeouts and packet sizes and empty ALPN protocol names (PR 420)
+* Fix `jdk.tls.*.SignatureSchemes` properties skipping schemes after a comma and space (PR 419)
+* Fix ALPN protocol names with commas, NUL or non-ASCII bytes being altered in select callbacks (PR 431)
+* Fix `setHandshakeApplicationProtocolSelector(null)` not clearing the ALPN selector (PR 418)
+* Fix `KeyManagerFactory` key loading failing after the caller clears its `init()` password (PR 429)
+* Fix `X509KeyManager` alias lookups failing on KeyStore entries without a certificate (PR 412)
+* Fix Android system CA loading stopping at a CA file whose DER conversion fails (PR 417)
+* Fix `WolfSSLX509.getExtensionValue()` returning the extension OID instead of its DER value (PR 437)
+* Fix `getExtendedKeyUsage()` null entries and missing `anyExtendedKeyUsage` or unknown OIDs (PR 396, 411, 437)
+* Fix `getKeyUsage()` truncating Key Usage bits past `decipherOnly` (PR 438)
+* Fix `WolfSSLX509.getPublicKey()` returning null for EdDSA and RSASSA-PSS keys (PR 416)
+* Fix `WolfSSLX509` subject and issuer DNs mangling RDN types such as `DC` (PR 407)
+* Fix `WolfSSLX509` extension OID getters returning null or empty sets contrary to `X509Certificate` (PR 409)
+* Report a freed `WolfSSLX509` as not a CA from `getBasicConstraints()` (PR 430)
+* Return the distinguished name from `WolfSSLX509Name.toString()` (PR 420)
+* Fix `WolfSSLAltName.equals()` giving different results depending on argument order (PR 411)
+* Throw from `WolfSSLCertificate.getX509Certificate()` on errors instead of returning null (PR 422)
+* Return null from `WolfSSLX509StoreCtx.getCerts()` when a chain certificate cannot be read (PR 396)
+* Fix certificate, CSR and CRL signing methods not reporting native signing failures (PR 394)
+* Fix certificate and CRL date setters truncating dates or using uninitialized time data (PR 402)
+* Fix certificate and CRL validity date parsing failing under non-English default locales (PR 416)
+* Fix `WolfSSLCRL.addRevoked()` and `addRevokedCert()` ignoring the given revocation date (PR 407)
+* Fix `WolfSSLSession.write()` resending data when falling back from its direct `ByteBuffer` path (PR 427)
+* Reject invalid `read()` and `write()` offsets and lengths before any data is read or sent (PR 400, 427, 429)
+* Fix PSK handshakes failing with no identity hint or a maximum-length client identity (PR 410, 439)
+* Fix `WolfSSLSession.dtlsSetPeer()` and `dtlsGetPeer()` with IPv6 peer addresses (PR 421)
+* Fix `WolfSSL.getErrno()` returning `errno` instead of `WSAGetLastError()` on Windows (PR 444)
+
+**Debugging Changes:**
+* Fix `refreshDebugFlags()` ignoring `wolfjsse.debugFormat` changes while debug logging is on (PR 422)
+
+**Example Changes:**
+* Use client certificates in the RMI, threaded socket and dual-provider FIPS example servers (PR 405)
+* Enable HTTPS hostname verification in the RMI TLS client example (PR 405)
+* Link Android example native libraries with 16 KB page alignment for Android 15+ devices (PR 432)
+* Update Android example FIPS Ready core hash defaults to the FIPS v7 HMAC-SHA-512 length (PR 432)
+
+**Testing Changes:**
+* Add socket read and handshake timeout tests, and run close interrupt tests on Windows (PR 444)
+* Cap busy-spin threads in concurrent `SSLSocket` close tests to avoid timeouts on many-core hosts (PR 395)
+* Fix flaky session resumption and `SSLEngine` memory leak tests (PR 435)
+* Add test certificates for EKU, Key Usage, and EdDSA and RSA-PSS public key handling (PR 396, 416, 437, 438)
+* Add a test checking that revoked serial numbers in generated CRLs decode unchanged (PR 413)
+
+**Misc Changes:**
+* Auto-detect `JAVA_HOME` in the `Makefile` and quote JNI include paths for directories with spaces (PR 402)
+* Update Android example Gradle wrapper to 8.4 and remove an unused `libs/*.jar` dependency (PR 425)
+
+The wolfSSL JNI/JSSE Manual is available at:
+https://www.wolfssl.com/documentation/manuals/wolfssljni/. For build
+instructions and more details, please check the manual.
+
 ### wolfSSL JNI Release 1.18.0 (08/10/2026)
 
 Release 1.18.0 of wolfSSL JNI and JSSE changes the open source license from
