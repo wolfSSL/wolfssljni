@@ -2556,7 +2556,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     }
 
     if (protocolVersion < 0 || protocolVersion > 8) {
-        printf("Input protocol version invalid: %d\n", protocolVersion);
+        WOLFSSL_MSG("Input protocol version invalid");
         return NULL;
     }
 
@@ -2609,7 +2609,7 @@ JNIEXPORT jstring JNICALL Java_com_wolfssl_WolfSSL_getAvailableCipherSuitesIana
     #endif
 #endif
         default:
-            printf("Input protocol version invalid: %d\n", protocolVersion);
+            WOLFSSL_MSG("Input protocol version invalid");
             return NULL;
     }
 

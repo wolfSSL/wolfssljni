@@ -926,7 +926,6 @@ int NativeVerifyCallback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store)
 
         if ((*jenv)->ExceptionOccurred(jenv)) {
             /* exception occurred on the Java side during method call */
-            (*jenv)->ExceptionDescribe(jenv);
             (*jenv)->ExceptionClear(jenv);
             freeNativeVerifyCbLocalRefs(jenv, excClass, verifyClass,
                 verifyCbObj);
