@@ -33,6 +33,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import javax.net.ssl.SSLException;
 
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLCertificate;
@@ -579,6 +580,35 @@ public class WolfSSLUtil {
         }
 
         return true;
+    }
+
+    /**
+     * Return if a legacy (non-Extended) TLS master secret is allowed, set
+     * by the following System property:
+     *
+     * jdk.tls.allowLegacyMasterSecret
+     *
+     * If property is not set (null), we default to allowing it. A set value
+     * must be "true" or "false" (case insensitive).
+     *
+     * @return false if the property is "false", true if it is "true" or not set
+     * @throws SSLException if the property is set to any other value
+     */
+    protected static boolean allowLegacyMasterSecret() throws SSLException {
+
+        String allowLegacy =
+            System.getProperty("jdk.tls.allowLegacyMasterSecret");
+
+        if (allowLegacy == null || allowLegacy.equalsIgnoreCase("true")) {
+            return true;
+        }
+
+        if (allowLegacy.equalsIgnoreCase("false")) {
+            return false;
+        }
+
+        throw new SSLException("Value of jdk.tls.allowLegacyMasterSecret " +
+            "must be either 'true' or 'false'");
     }
 
     /**

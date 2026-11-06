@@ -6919,6 +6919,25 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableExtendedMasterSecr
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_requireExtendedMasterSecret
+  (JNIEnv* jenv, jobject jcl, jlong sslPtr)
+{
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
+    (LIBWOLFSSL_VERSION_HEX >= 0x05009004)
+    WOLFSSL* ssl = (WOLFSSL*)(uintptr_t)sslPtr;
+    (void)jenv;
+    (void)jcl;
+
+    /* Checks ssl for null internally */
+    return (jint)wolfSSL_RequireExtendedMasterSecret(ssl);
+#else
+    (void)jenv;
+    (void)jcl;
+    (void)sslPtr;
+    return (jint)NOT_COMPILED_IN;
+#endif
+}
+
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_hasTicket
   (JNIEnv* jenv, jobject jcl, jlong sessionPtr)
 {

@@ -756,6 +756,7 @@ public class WolfSSLSession {
     private native int useSupportedCurve(long ssl, int name);
     private native int useKeyShare(long ssl, int group);
     private native int disableExtendedMasterSecret(long ssl);
+    private native int requireExtendedMasterSecret(long ssl);
     private native int hasTicket(long session);
     private native int useClientSuites(long ssl);
     private native int interruptBlockedIO(long ssl);
@@ -2997,6 +2998,28 @@ public class WolfSSLSession {
 
         synchronized (sslLock) {
             return disableExtendedMasterSecret(this.sslPtr);
+        }
+    }
+
+    /**
+     * Require TLS Extended Master Secret (RFC 7627).
+     *
+     * A TLS 1.2 or earlier handshake that does not negotiate it fails with
+     * EXT_MASTER_SECRET_NEEDED_E. TLS 1.3 is not affected. Call before the
+     * handshake starts. Needs native wolfSSL 5.9.4 or later.
+     *
+     * @return <code>WolfSSL.SSL_SUCCESS</code> on success,
+     *         <code>WolfSSL.NOT_COMPILED_IN</code> if native wolfSSL does not
+     *         support it, otherwise negative on error.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public int requireExtendedMasterSecret()
+        throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            return requireExtendedMasterSecret(this.sslPtr);
         }
     }
 

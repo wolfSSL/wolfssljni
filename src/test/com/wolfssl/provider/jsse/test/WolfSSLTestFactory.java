@@ -100,6 +100,10 @@ class WolfSSLTestFactory {
     protected String keyStoreType = "JKS";
     private boolean extraDebug = Boolean.getBoolean("wolfjsse.test.extraDebug");
 
+    /* SSLException caught by the last testConnection() call, or null if
+     * none was caught */
+    protected SSLException lastConnectionException = null;
+
     /**
      * Shared lock for synchronization around tests that modify or use the Java
      * Security property: jdk.tls.disabledAlgorithms
@@ -608,6 +612,8 @@ class WolfSSLTestFactory {
     protected int testConnection(SSLEngine server, SSLEngine client,
         String[] cipherSuites, String[] protocols, String appData) {
 
+        this.lastConnectionException = null;
+
         /* Max loop protection against infinite loops. Bumped from 50 to 200 to
          * accommodate handshakes with large PQC signatures (eg ML-DSA-87
          * CertificateVerify is ~4.6 KB) that need more SSLEngine wrap/unwrap
@@ -738,6 +744,7 @@ class WolfSSLTestFactory {
                 }
 
             } catch (SSLException ex) {
+                this.lastConnectionException = ex;
                 return -1;
             }
         }
