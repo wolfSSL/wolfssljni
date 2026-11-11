@@ -798,6 +798,16 @@ disable the use of the Extended Master Secret (EMS) extension. This extension
 is enabled by default, unless explicitly disabled by setting this property to
 false.
 
+**jdk.tls.allowLegacyMasterSecret (boolean)** - Set to "false" to require the
+Extended Master Secret (EMS) extension. A TLS 1.2 (or earlier) handshake that
+does not negotiate EMS then fails instead of falling back to a legacy master
+secret. TLS 1.3 is not affected. Default is "true". Only "true" and "false" are
+accepted values - on other values handshakes will fail with an `SSLException`.
+A "false" value is ignored when `jdk.tls.useExtendedMasterSecret` is "false".
+Needs native wolfSSL 5.9.4 or later. With older versions, or when EMS is not
+compiled in, setting it to "false" makes handshakes fail with an `SSLException`
+when a protocol below TLS 1.3 can be negotiated, since EMS cannot be required.
+
 **wolfjsse.autoSNI (boolean)** - Controls automatic Server Name Indication (SNI)
 extension setting based on hostname or peer address. When set to "true", enables
 legacy behavior where SNI is automatically configured from hostname/peer

@@ -4379,4 +4379,246 @@ public class WolfSSLEngineTest {
         assertTrue(client.isOutboundDone());
         assertTrue(client.isInboundDone());
     }
+
+    /* Set a System property, or clear it if value is null */
+    private static void setSysProp(String name, String value) {
+        if (value == null) {
+            System.clearProperty(name);
+        }
+        else {
+            System.setProperty(name, value);
+        }
+    }
+
+    /**
+     * Handshake where server and client each use their own
+     * jdk.tls.useExtendedMasterSecret / jdk.tls.allowLegacyMasterSecret
+     * values (null leaves the property unset). System properties are JVM
+     * wide and read when the engine initializes, so each engine is
+     * initialized with beginHandshake() under its own values.
+     *
+     * @return 0 on success, -1 on failure
+     */
+    private int emsHandshake(String protocol, String srvUseEMS,
+        String srvAllowLegacy, String cliUseEMS, String cliAllowLegacy)
+        throws Exception {
+
+        final String useProp = "jdk.tls.useExtendedMasterSecret";
+        final String legacyProp = "jdk.tls.allowLegacyMasterSecret";
+        String savedUse = System.getProperty(useProp);
+        String savedLegacy = System.getProperty(legacyProp);
+
+        try {
+            SSLEngine server = tf.createSSLContext(protocol, engineProvider)
+                .createSSLEngine();
+            SSLEngine client = tf.createSSLContext(protocol, engineProvider)
+                .createSSLEngine("wolfSSL EMS test", 11111);
+            server.setUseClientMode(false);
+            server.setNeedClientAuth(false);
+            client.setUseClientMode(true);
+            server.setEnabledProtocols(new String[] { protocol });
+            client.setEnabledProtocols(new String[] { protocol });
+
+            setSysProp(useProp, srvUseEMS);
+            setSysProp(legacyProp, srvAllowLegacy);
+            server.beginHandshake();
+
+            setSysProp(useProp, cliUseEMS);
+            setSysProp(legacyProp, cliAllowLegacy);
+            client.beginHandshake();
+
+            return tf.testConnection(server, client, null, null, "EMS test");
+
+        } finally {
+            setSysProp(useProp, savedUse);
+            setSysProp(legacyProp, savedLegacy);
+        }
+    }
+
+    /* Native wolfSSL_RequireExtendedMasterSecret() is in 5.9.4+ */
+    private static void assumeRequireEMSSupported() {
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled() &&
+            WolfSSL.isEnabledTLSExtendedMasterSecret() == 1 &&
+            WolfSSL.getLibVersionHex() >= 0x05009004L);
+    }
+
+    @Test
+    public void testAllowLegacyMasterSecretFalseWithEMSPeers()
+        throws Exception {
+
+        assumeRequireEMSSupported();
+
+        /* Both sides require EMS and support it */
+        assertEquals("TLS 1.2 handshake with EMS required on both sides",
+            0, emsHandshake("TLSv1.2", null, "false", null, "false"));
+
+        /* TLS 1.3 has its own key schedule, not affected */
+        if (WolfSSL.TLSv13Enabled()) {
+            assertEquals("TLS 1.3 handshake with EMS required on both sides",
+                0, emsHandshake("TLSv1.3", null, "false", null, "false"));
+        }
+    }
+
+    @Test
+    public void testAllowLegacyMasterSecretFalseServerRejectsNoEMS()
+        throws Exception {
+
+        assumeRequireEMSSupported();
+
+        /* Control: legacy master secret allowed by default */
+        assertEquals("non-EMS client, server default", 0,
+            emsHandshake("TLSv1.2", null, null, "false", null));
+
+        assertEquals("non-EMS client, server requires EMS", -1,
+            emsHandshake("TLSv1.2", null, "false", "false", null));
+
+        /* EXT_MASTER_SECRET_NEEDED_E */
+        assertTrue(String.valueOf(tf.lastConnectionException),
+            String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+    }
+
+    @Test
+    public void testAllowLegacyMasterSecretFalseClientRejectsNoEMS()
+        throws Exception {
+
+        assumeRequireEMSSupported();
+
+        /* Control: legacy master secret allowed by default */
+        assertEquals("non-EMS server, client default", 0,
+            emsHandshake("TLSv1.2", "false", null, null, null));
+
+        assertEquals("non-EMS server, client requires EMS", -1,
+            emsHandshake("TLSv1.2", "false", null, null, "false"));
+
+        /* EXT_MASTER_SECRET_NEEDED_E */
+        assertTrue(String.valueOf(tf.lastConnectionException),
+            String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+
+        /* Ignored when the client also disables EMS, as in SunJSSE */
+        assertEquals("allowLegacyMasterSecret=false ignored with " +
+            "useExtendedMasterSecret=false", 0,
+            emsHandshake("TLSv1.2", "false", null, "false", "false"));
+    }
+
+    /**
+     * Test jdk.tls.allowLegacyMasterSecret=false when native wolfSSL cannot
+     * require EMS (EMS not compiled in, or wolfSSL older than 5.9.4).
+     * Session setup should fail closed if TLS 1.2 is enabled, but succeed
+     * if only TLS 1.3 is enabled, the SSLContext is (D)TLS 1.3 only, or EMS
+     * is disabled.
+     */
+    @Test
+    public void testAllowLegacyMasterSecretFalseUnsupported()
+        throws Exception {
+
+        final String legacyProp = "jdk.tls.allowLegacyMasterSecret";
+        String savedLegacy = System.getProperty(legacyProp);
+
+        /* Skip if TLS 1.2 is not compiled in, or native wolfSSL can
+         * require EMS */
+        Assume.assumeTrue(WolfSSL.TLSv12Enabled());
+        Assume.assumeFalse(WolfSSL.isEnabledTLSExtendedMasterSecret() == 1 &&
+            WolfSSL.getLibVersionHex() >= 0x05009004L);
+
+        /* Fails closed when TLS 1.2 is enabled */
+        SSLEngine client = tf.createSSLContext("TLSv1.2", engineProvider)
+            .createSSLEngine("wolfSSL EMS test", 11111);
+        client.setUseClientMode(true);
+        client.setEnabledProtocols(new String[] { "TLSv1.2" });
+        try {
+            setSysProp(legacyProp, "false");
+            client.beginHandshake();
+            fail("beginHandshake() should throw SSLException when EMS " +
+                "cannot be required");
+        } catch (SSLException e) {
+            assertTrue(e.getMessage(),
+                e.getMessage().contains(legacyProp + "=false"));
+        } finally {
+            setSysProp(legacyProp, savedLegacy);
+        }
+
+        /* TLS 1.3 only, no legacy master secret */
+        if (WolfSSL.TLSv13Enabled()) {
+            client = tf.createSSLContext("TLS", engineProvider)
+                .createSSLEngine("wolfSSL EMS test", 11111);
+            client.setUseClientMode(true);
+            client.setEnabledProtocols(new String[] { "TLSv1.3" });
+            try {
+                setSysProp(legacyProp, "false");
+                client.beginHandshake();
+            } finally {
+                setSysProp(legacyProp, savedLegacy);
+            }
+
+            assertEquals("TLS 1.3 handshake with allowLegacyMasterSecret=false",
+                0, emsHandshake("TLSv1.3", null, "false", null, "false"));
+        }
+
+        /* (D)TLS 1.3-only SSLContext, even though its default enabled
+         * protocols list includes TLSv1.2 */
+        for (String proto : new String[] { "TLSv1.3", "DTLSv1.3" }) {
+            if (!enabledProtocols.contains(proto)) {
+                continue;
+            }
+            client = tf.createSSLContext(proto, engineProvider)
+                .createSSLEngine("wolfSSL EMS test", 11111);
+            client.setUseClientMode(true);
+            try {
+                setSysProp(legacyProp, "false");
+                client.beginHandshake();
+            } finally {
+                setSysProp(legacyProp, savedLegacy);
+            }
+        }
+
+        /* Ignored when EMS is disabled */
+        assertEquals("allowLegacyMasterSecret=false ignored with " +
+            "useExtendedMasterSecret=false", 0,
+            emsHandshake("TLSv1.2", "false", "false", "false", "false"));
+    }
+
+    /**
+     * Test that jdk.tls.allowLegacyMasterSecret only accepts "true" or
+     * "false" (case insensitive). Any other value should make session setup
+     * fail with SSLException, even when EMS is disabled, as in SunJSSE.
+     */
+    @Test
+    public void testAllowLegacyMasterSecretInvalidValue()
+        throws Exception {
+
+        final String useProp = "jdk.tls.useExtendedMasterSecret";
+        final String legacyProp = "jdk.tls.allowLegacyMasterSecret";
+        String savedUse = System.getProperty(useProp);
+        String savedLegacy = System.getProperty(legacyProp);
+        String proto = WolfSSL.TLSv13Enabled() ? "TLSv1.3" : "TLSv1.2";
+
+        /* { useExtendedMasterSecret, allowLegacyMasterSecret } */
+        String[][] vals = {
+            { null, "flase" }, { null, "" }, { null, " false" },
+            { "false", "flase" }
+        };
+
+        for (String[] val : vals) {
+            SSLEngine client = tf.createSSLContext("TLS", engineProvider)
+                .createSSLEngine("wolfSSL EMS test", 11111);
+            client.setUseClientMode(true);
+            try {
+                setSysProp(useProp, val[0]);
+                setSysProp(legacyProp, val[1]);
+                client.beginHandshake();
+                fail("beginHandshake() should throw SSLException with " +
+                    useProp + "=" + val[0] + ", " +
+                    legacyProp + "=\"" + val[1] + "\"");
+            } catch (SSLException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains(legacyProp));
+            } finally {
+                setSysProp(useProp, savedUse);
+                setSysProp(legacyProp, savedLegacy);
+            }
+        }
+
+        /* Value is case insensitive */
+        assertEquals("handshake with allowLegacyMasterSecret=TRUE", 0,
+            emsHandshake(proto, null, "TRUE", null, "TRUE"));
+    }
 }

@@ -1097,6 +1097,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_disableExtendedMasterSecr
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    requireExtendedMasterSecret
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_requireExtendedMasterSecret
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    hasTicket
  * Signature: (J)I
  */

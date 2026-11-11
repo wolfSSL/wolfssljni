@@ -6276,6 +6276,44 @@ public class WolfSSLSessionTest {
         tls13Ctx.free();
     }
 
+    @Test
+    public void test_WolfSSLSession_requireExtendedMasterSecret()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+
+        try {
+            int ret = ssl.requireExtendedMasterSecret();
+            boolean nativeApi = WolfSSL.TLSv12Enabled() &&
+                WolfSSL.getLibVersionHex() >= 0x05009004L;
+            if (!nativeApi) {
+                assertEquals("requireExtendedMasterSecret() without native " +
+                    "support", WolfSSL.NOT_COMPILED_IN, ret);
+            }
+            else if (WolfSSL.isEnabledTLSExtendedMasterSecret() == 1) {
+                assertEquals("requireExtendedMasterSecret()",
+                    WolfSSL.SSL_SUCCESS, ret);
+            }
+            else {
+                /* EMS not compiled in, or NO_WOLFSSL_CLIENT, which
+                 * isEnabledTLSExtendedMasterSecret() also checks */
+                assertTrue("requireExtendedMasterSecret() ret = " + ret,
+                    ret == WolfSSL.SSL_SUCCESS ||
+                    ret == WolfSSL.NOT_COMPILED_IN);
+            }
+        } finally {
+            ssl.freeSSL();
+        }
+
+        try {
+            ssl.requireExtendedMasterSecret();
+            fail("requireExtendedMasterSecret() after freeSSL() should " +
+                 "throw IllegalStateException");
+        } catch (IllegalStateException e) {
+            /* expected */
+        }
+    }
+
     /**
      * useSupportedCurves(String[]) must report a non-success return when any
      * per-curve native call fails, even when later entries in the list succeed.

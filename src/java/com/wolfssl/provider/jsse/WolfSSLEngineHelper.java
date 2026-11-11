@@ -130,10 +130,10 @@ public class WolfSSLEngineHelper {
     private WolfSSLInternalVerifyCb wicb = null;
 
     /* Effective enabled protocols for this session, computed by
-     * applyConfiguredCipherProtocolSettings() during session setup
-     * (after jdk.tls.disabledAlgorithms sanitization and cipher-suite-based
-     * protocol filtering). Read by isTLS13Enabled() for PQC named-group
-     * decisions. */
+     * applyConfiguredCipherProtocolSettings() during session setup (after
+     * jdk.tls.disabledAlgorithms sanitization and cipher-suite-based protocol
+     * filtering). Read by isTLS13Enabled() for PQC named-group decisions and
+     * by isPreTLS13Enabled() for the Extended Master Secret requirement. */
     private String[] effectiveProtocols = null;
 
     /* Cache of per-token native wolfSSL_set1_sigalgs_list() probe results,
@@ -1790,6 +1790,42 @@ public class WolfSSLEngineHelper {
         return false;
     }
 
+    /**
+     * Returns true if a protocol below (D)TLS 1.3, which derives a master
+     * secret, is part of the effective enabled protocols list for this
+     * session and compiled into native wolfSSL.
+     */
+    private boolean isPreTLS13Enabled() {
+
+        String[] enabled = this.effectiveProtocols;
+        WolfSSL.TLS_VERSION ctxVersion = this.authStore.getProtocolVersion();
+
+        /* A (D)TLS 1.3-only context can never negotiate lower */
+        if (ctxVersion == WolfSSL.TLS_VERSION.TLSv1_3 ||
+            ctxVersion == WolfSSL.TLS_VERSION.DTLSv1_3) {
+            return false;
+        }
+
+        if (!WolfSSL.TLSv12Enabled() && !WolfSSL.TLSv11Enabled() &&
+            !WolfSSL.TLSv1Enabled()) {
+            return false;
+        }
+
+        if (enabled == null || enabled.length == 0) {
+            /* Effective protocol list not computed or empty, assume a
+             * protocol below TLS 1.3 can be negotiated */
+            return true;
+        }
+
+        for (String p : enabled) {
+            if (!"TLSv1.3".equals(p) && !"DTLSv1.3".equals(p)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void setLocalMaximumPacketSize() {
         /* Set maximum packet size, currently only makes a differnce if
          * DTLS is enabled and used. Calling application will set this via
@@ -1821,12 +1857,19 @@ public class WolfSSLEngineHelper {
         }
     }
 
-    private void setLocalExtendedMasterSecret() {
-        /* Native wolfSSL enables TLS Extended Master Secret by default.
-         * Check the Java System property (jdk.tls.useExtendedMasterSecret)
-         * to see if the user has explicitly disabled it. */
+    /**
+     * Set TLS Extended Master Secret behavior.
+     *
+     * Native wolfSSL enables TLS Extended Master Secret by default.
+     * jdk.tls.useExtendedMasterSecret=false disables it.
+     * jdk.tls.allowLegacyMasterSecret=false requires it, and is ignored
+     * when EMS is disabled.
+     */
+    private void setLocalExtendedMasterSecret() throws SSLException {
+
         int ret;
         boolean useEMS = WolfSSLUtil.useExtendedMasterSecret();
+        boolean allowLegacy = WolfSSLUtil.allowLegacyMasterSecret();
 
         if (!useEMS) {
             ret = this.ssl.disableExtendedMasterSecret();
@@ -1839,6 +1882,31 @@ public class WolfSSLEngineHelper {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                     () -> "Failed to disable TLS Extended Master Secret, " +
                     "ret = " + ret);
+            }
+            if (!allowLegacy) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Ignoring jdk.tls.allowLegacyMasterSecret=false, " +
+                    "TLS Extended Master Secret is disabled");
+            }
+        }
+        else if (!allowLegacy) {
+            /* Fail closed: do not fall back to a legacy master secret */
+            ret = this.ssl.requireExtendedMasterSecret();
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "TLS Extended Master Secret required due to " +
+                    "jdk.tls.allowLegacyMasterSecret System property");
+            }
+            else if (isPreTLS13Enabled()) {
+                throw new SSLException("Unable to require TLS Extended " +
+                    "Master Secret (jdk.tls.allowLegacyMasterSecret=false), " +
+                    "ret = " + ret);
+            }
+            else {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    () -> "Unable to require TLS Extended Master Secret " +
+                    "(ret = " + ret + "), not needed since only (D)TLS 1.3 " +
+                    "is enabled");
             }
         }
         else {
