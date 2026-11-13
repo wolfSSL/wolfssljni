@@ -46,7 +46,8 @@ import org.junit.runners.Suite;
     WolfSSLPQCKeyExchangeTest.class,
     WolfSSLPQCAuthenticationTest.class,
     WolfSSLPQCAuthKeyStoreTest.class,
-    WolfSSLCNSA2Test.class
+    WolfSSLCNSA2Test.class,
+    WolfSSLProviderTest.class
 })
 
 

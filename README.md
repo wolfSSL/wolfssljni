@@ -495,6 +495,17 @@ interface.
 - java.security.cert.X509Certificate
 - javax.security.cert.X509Certificate
 
+### Provider Services Are Read-Only
+
+After the wolfJSSE provider is constructed, its services cannot be changed at
+runtime. `put()`, `remove()`, `putService()`, `load()` and the other
+`Provider` / `Properties` methods that would add, change or remove a service
+throw `SecurityException`. The collection views returned by `keySet()`,
+`values()` and `entrySet()` are read-only and throw
+`UnsupportedOperationException` if modified. This stops application code from
+potentially registering a non-wolfSSL implementation under the wolfJSSE name,
+for example with `put("SSLContext.TLSv1.3", ...)`.
+
 ### Secure Renegotiation Support
 
 wolfSSL JNI and JSSE provider wrap native wolfSSL APIs to enable and conduct

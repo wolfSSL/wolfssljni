@@ -21,7 +21,15 @@
 
 package com.wolfssl.provider.jsse;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.Reader;
 import java.security.Provider;
+import java.security.Security;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLDebug;
 import com.wolfssl.WolfSSLException;
@@ -29,6 +37,11 @@ import com.wolfssl.WolfSSLFIPSErrorCallback;
 
 /**
  * wolfSSL JSSE Provider implementation
+ *
+ * Services are registered by the constructor and are read-only afterwards.
+ * Provider and Properties methods that would add, change or remove a service
+ * throw SecurityException.
+ *
  * @author wolfSSL
  */
 public final class WolfSSLProvider extends Provider {
@@ -38,6 +51,12 @@ public final class WolfSSLProvider extends Provider {
     /* Keep one static reference to native wolfSSL library across
      * all WolfSSLProvider objects. */
     private static WolfSSL sslLib = null;
+
+    /* Set at end of the constructor, after services are registered */
+    private transient volatile boolean servicesLocked = false;
+
+    /* False for deserialized objects, which can never be changed */
+    private final transient boolean constructed;
 
     /**
      * Inner callback class for wolfCrypt FIPS 140-2/3 errors
@@ -79,6 +98,7 @@ public final class WolfSSLProvider extends Provider {
     public WolfSSLProvider() {
         super("wolfJSSE", 1.19, "wolfSSL JSSE Provider");
         /* super("wolfJSSE", "1.19", "wolfSSL JSSE Provider"); */
+        constructed = true;
 
         /* load native wolfSSLJNI library */
         WolfSSL.loadLibrary();
@@ -155,6 +175,179 @@ public final class WolfSSLProvider extends Provider {
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
         put("TrustManagerFactory.SunX509",
                 "com.wolfssl.provider.jsse.WolfSSLTrustManager");
+
+        /* No services can be added or removed after this point */
+        servicesLocked = true;
+    }
+
+    /**
+     * Lock the deserialized object. It is then replaced by readResolve().
+     *
+     * @param in stream to read the object from
+     * @throws IOException if reading the stream fails
+     * @throws ClassNotFoundException if a serialized class is not found
+     */
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+
+        servicesLocked = true;
+        in.defaultReadObject();
+    }
+
+    /**
+     * Replace a deserialized provider with the registered wolfJSSE provider,
+     * or a new one, so services always come from the constructor and never
+     * from serialized data.
+     *
+     * @return the registered wolfJSSE provider, or a new WolfSSLProvider
+     */
+    private Object readResolve() {
+
+        Provider p = Security.getProvider("wolfJSSE");
+        if (p instanceof WolfSSLProvider) {
+            return p;
+        }
+        return new WolfSSLProvider();
+    }
+
+    /**
+     * Reject service changes once services are registered. Prevents code from
+     * adding a non-wolfSSL implementation under the wolfJSSE name.
+     *
+     * @throws SecurityException if services are locked or this object was
+     *         deserialized
+     */
+    private void checkServicesUnlocked() {
+
+        if (servicesLocked || !constructed) {
+            throw new SecurityException(
+                "wolfJSSE provider services cannot be modified");
+        }
+    }
+
+    @Override
+    public synchronized Object put(Object key, Object value) {
+        checkServicesUnlocked();
+        return super.put(key, value);
+    }
+
+    @Override
+    public synchronized void putAll(Map<?, ?> t) {
+        /* Drop entries restored by Provider.readObject() */
+        if (!constructed && !servicesLocked) {
+            return;
+        }
+        checkServicesUnlocked();
+        super.putAll(t);
+    }
+
+    @Override
+    public synchronized Object putIfAbsent(Object key, Object value) {
+        checkServicesUnlocked();
+        return super.putIfAbsent(key, value);
+    }
+
+    @Override
+    public synchronized Object remove(Object key) {
+        checkServicesUnlocked();
+        return super.remove(key);
+    }
+
+    @Override
+    public synchronized boolean remove(Object key, Object value) {
+        checkServicesUnlocked();
+        return super.remove(key, value);
+    }
+
+    @Override
+    public synchronized boolean replace(Object key, Object oldValue,
+        Object newValue) {
+        checkServicesUnlocked();
+        return super.replace(key, oldValue, newValue);
+    }
+
+    @Override
+    public synchronized Object replace(Object key, Object value) {
+        checkServicesUnlocked();
+        return super.replace(key, value);
+    }
+
+    @Override
+    public synchronized void replaceAll(BiFunction<? super Object,
+        ? super Object, ? extends Object> function) {
+        checkServicesUnlocked();
+        super.replaceAll(function);
+    }
+
+    @Override
+    public synchronized Object compute(Object key, BiFunction<? super Object,
+        ? super Object, ? extends Object> remappingFunction) {
+        checkServicesUnlocked();
+        return super.compute(key, remappingFunction);
+    }
+
+    @Override
+    public synchronized Object computeIfAbsent(Object key, Function<? super
+        Object, ? extends Object> mappingFunction) {
+        checkServicesUnlocked();
+        return super.computeIfAbsent(key, mappingFunction);
+    }
+
+    @Override
+    public synchronized Object computeIfPresent(Object key, BiFunction<?
+        super Object, ? super Object, ? extends Object> remappingFunction) {
+        checkServicesUnlocked();
+        return super.computeIfPresent(key, remappingFunction);
+    }
+
+    @Override
+    public synchronized Object merge(Object key, Object value,
+        BiFunction<? super Object, ? super Object, ? extends Object>
+        remappingFunction) {
+        checkServicesUnlocked();
+        return super.merge(key, value, remappingFunction);
+    }
+
+    @Override
+    public synchronized void clear() {
+        checkServicesUnlocked();
+        super.clear();
+    }
+
+    @Override
+    public synchronized Object setProperty(String key, String value) {
+        checkServicesUnlocked();
+        return super.setProperty(key, value);
+    }
+
+    @Override
+    public synchronized void load(InputStream inStream) throws IOException {
+        checkServicesUnlocked();
+        super.load(inStream);
+    }
+
+    @Override
+    public synchronized void load(Reader reader) throws IOException {
+        checkServicesUnlocked();
+        super.load(reader);
+    }
+
+    @Override
+    public synchronized void loadFromXML(InputStream in) throws IOException {
+        checkServicesUnlocked();
+        super.loadFromXML(in);
+    }
+
+    @Override
+    protected synchronized void putService(Provider.Service s) {
+        checkServicesUnlocked();
+        super.putService(s);
+    }
+
+    @Override
+    protected synchronized void removeService(Provider.Service s) {
+        checkServicesUnlocked();
+        super.removeService(s);
     }
 
     /**
