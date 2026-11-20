@@ -440,6 +440,9 @@ public class WolfSSL {
     /** No password provided by user */
     public static final int NO_PASSWORD     = -176;
 
+    /** Extended Master Secret required but not negotiated */
+    public static final int EXT_MASTER_SECRET_NEEDED_E = -414;
+
     /** TLS 1.3 secret callback function failure */
     public static final int TLS13_SECRET_CB_E = -438;
 
@@ -2056,6 +2059,10 @@ public class WolfSSL {
      * @return 1 if available, 0 if not compiled in.
      */
     public static native int isEnabledTLSExtendedMasterSecret();
+
+    /** @return 1 if native wolfSSL always requires TLS 1.2 Extended Master
+     *  Secret (WOLFSSL_EMS_ALWAYS_REQUIRED, FIPS v7), otherwise 0. */
+    public static native int isEnabledEMSAlwaysRequired();
 
     /**
      * Checks which protocols where built into wolfSSL

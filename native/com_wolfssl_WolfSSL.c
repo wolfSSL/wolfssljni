@@ -2891,6 +2891,19 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledTLSExtendedMasterSecret
 #endif
 }
 
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledEMSAlwaysRequired
+  (JNIEnv* jenv, jclass jcl)
+{
+    (void)jenv;
+    (void)jcl;
+
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 JNIEXPORT jobjectArray JNICALL Java_com_wolfssl_WolfSSL_getProtocols
   (JNIEnv* jenv, jclass jcl)
 {

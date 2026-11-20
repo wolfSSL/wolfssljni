@@ -4469,12 +4469,18 @@ public class WolfSSLEngineTest {
         assertEquals("non-EMS client, server default", 0,
             emsHandshake("TLSv1.2", null, null, "false", null));
 
-        assertEquals("non-EMS client, server requires EMS", -1,
-            emsHandshake("TLSv1.2", null, "false", "false", null));
+        if (WolfSSL.isEnabledEMSAlwaysRequired() == 1) {
+            /* Client cannot disable EMS, so the server accepts it */
+            assertEquals("client keeps EMS, server requires EMS", 0,
+                emsHandshake("TLSv1.2", null, "false", "false", null));
+        } else {
+            assertEquals("non-EMS client, server requires EMS", -1,
+                emsHandshake("TLSv1.2", null, "false", "false", null));
 
-        /* EXT_MASTER_SECRET_NEEDED_E */
-        assertTrue(String.valueOf(tf.lastConnectionException),
-            String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+            /* EXT_MASTER_SECRET_NEEDED_E */
+            assertTrue(String.valueOf(tf.lastConnectionException),
+                String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+        }
     }
 
     @Test
@@ -4487,12 +4493,18 @@ public class WolfSSLEngineTest {
         assertEquals("non-EMS server, client default", 0,
             emsHandshake("TLSv1.2", "false", null, null, null));
 
-        assertEquals("non-EMS server, client requires EMS", -1,
-            emsHandshake("TLSv1.2", "false", null, null, "false"));
+        if (WolfSSL.isEnabledEMSAlwaysRequired() == 1) {
+            /* Server cannot disable EMS, so the client accepts it */
+            assertEquals("server keeps EMS, client requires EMS", 0,
+                emsHandshake("TLSv1.2", "false", null, null, "false"));
+        } else {
+            assertEquals("non-EMS server, client requires EMS", -1,
+                emsHandshake("TLSv1.2", "false", null, null, "false"));
 
-        /* EXT_MASTER_SECRET_NEEDED_E */
-        assertTrue(String.valueOf(tf.lastConnectionException),
-            String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+            /* EXT_MASTER_SECRET_NEEDED_E */
+            assertTrue(String.valueOf(tf.lastConnectionException),
+                String.valueOf(tf.lastConnectionException).endsWith(": -414"));
+        }
 
         /* Ignored when the client also disables EMS, as in SunJSSE */
         assertEquals("allowLegacyMasterSecret=false ignored with " +

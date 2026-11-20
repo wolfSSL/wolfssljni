@@ -225,6 +225,8 @@ extern "C" {
 #define com_wolfssl_WolfSSL_NOT_COMPILED_IN -174L
 #undef com_wolfssl_WolfSSL_NO_PASSWORD
 #define com_wolfssl_WolfSSL_NO_PASSWORD -176L
+#undef com_wolfssl_WolfSSL_EXT_MASTER_SECRET_NEEDED_E
+#define com_wolfssl_WolfSSL_EXT_MASTER_SECRET_NEEDED_E -414L
 #undef com_wolfssl_WolfSSL_TLS13_SECRET_CB_E
 #define com_wolfssl_WolfSSL_TLS13_SECRET_CB_E -438L
 #undef com_wolfssl_WolfSSL_ASN_OTHER_TYPE
@@ -1383,6 +1385,14 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledPKCallbacks
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledTLSExtendedMasterSecret
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     com_wolfssl_WolfSSL
+ * Method:    isEnabledEMSAlwaysRequired
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_isEnabledEMSAlwaysRequired
   (JNIEnv *, jclass);
 
 /*

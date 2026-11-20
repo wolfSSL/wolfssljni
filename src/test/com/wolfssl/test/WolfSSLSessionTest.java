@@ -6277,6 +6277,30 @@ public class WolfSSLSessionTest {
     }
 
     @Test
+    public void test_WolfSSLSession_disableExtendedMasterSecret()
+        throws WolfSSLJNIException, WolfSSLException {
+
+        WolfSSLSession ssl = new WolfSSLSession(ctx);
+
+        try {
+            int ret = ssl.disableExtendedMasterSecret();
+            if (WolfSSL.isEnabledTLSExtendedMasterSecret() == 0) {
+                assertEquals("disableExtendedMasterSecret() without EMS",
+                    WolfSSL.NOT_COMPILED_IN, ret);
+            } else if (WolfSSL.isEnabledEMSAlwaysRequired() == 1) {
+                assertEquals("disableExtendedMasterSecret() with EMS " +
+                    "always required", WolfSSL.EXT_MASTER_SECRET_NEEDED_E,
+                    ret);
+            } else {
+                assertEquals("disableExtendedMasterSecret()",
+                    WolfSSL.SSL_SUCCESS, ret);
+            }
+        } finally {
+            ssl.freeSSL();
+        }
+    }
+
+    @Test
     public void test_WolfSSLSession_requireExtendedMasterSecret()
         throws WolfSSLJNIException, WolfSSLException {
 
