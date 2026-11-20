@@ -23,6 +23,7 @@ package com.wolfssl.provider.jsse.test;
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.WolfSSLCertManager;
+import com.wolfssl.WolfSSLCertificate;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
 import com.wolfssl.test.WolfSSLCertManagerTest;
 import com.wolfssl.provider.jsse.WolfSSLTrustX509;
@@ -2242,8 +2243,26 @@ public class WolfSSLTrustX509Test {
         }
     }
 
+    /* 0 if native wolfSSL matches foo.example.com to this partial wildcard
+     * cert with no flags, else -1. RFC 9525 sec. 6.3 rejects partial labels. */
+    private static int partialWildcardResult(KeyStore partial)
+        throws Exception {
+
+        X509Certificate cert =
+            (X509Certificate)partial.getCertificate("cert_entry");
+        WolfSSLCertificate x509 = new WolfSSLCertificate(cert.getEncoded());
+        try {
+            if (x509.checkHost("foo.example.com", 0) == WolfSSL.SSL_SUCCESS) {
+                return 0;
+            }
+            return -1;
+        } finally {
+            x509.free();
+        }
+    }
+
     /* A basic X509TrustManager leaves hostname checks to wolfJSSE. LDAPS must
-     * reject a partial left-most wildcard that HTTPS accepts. */
+     * reject a partial left-most wildcard; HTTPS follows native wolfSSL. */
     @Test
     public void testBasicX509TrustManagerLDAPSLeftMostWildcardOnly()
         throws Exception {
@@ -2252,9 +2271,11 @@ public class WolfSSLTrustX509Test {
             "invalidname.com", "f*.example.com", true);
         KeyStore full = tf.generateSelfSignedCertJKS(
             "invalidname.com", "*.example.com", true);
+        int httpsPartial = partialWildcardResult(partial);
 
         /* Distinct ports so no connection resumes an earlier session */
-        assertEquals(0, connectWithBasicTrustManager(partial, "HTTPS", 11111));
+        assertEquals(httpsPartial,
+            connectWithBasicTrustManager(partial, "HTTPS", 11111));
         assertNotEquals(0,
             connectWithBasicTrustManager(partial, "LDAPS", 11112));
         assertEquals(0, connectWithBasicTrustManager(full, "LDAPS", 11113));
@@ -2356,8 +2377,7 @@ public class WolfSSLTrustX509Test {
     }
 
     /* Lower case "ldaps" must select LDAPS rules, not HTTPS ones. LDAPS
-     * ignores SNI and only allows a full left-most wildcard label. Each
-     * HTTPS success shows the LDAPS failure comes from those rules. */
+     * ignores SNI and only allows a full left-most wildcard label. */
     @Test
     public void testEndpointIdAlgorithmLowerCaseLDAPSRules()
         throws Exception {
@@ -2366,6 +2386,7 @@ public class WolfSSLTrustX509Test {
             "invalidname.com", "example.com", true);
         KeyStore partial = tf.generateSelfSignedCertJKS(
             "invalidname.com", "f*.example.com", true);
+        int httpsPartial = partialWildcardResult(partial);
 
         /* SSLSocket, SNI matches cert but peer host "localhost" does not */
         assertNull(connectSSLSocketEndpointAlgo(
@@ -2374,13 +2395,14 @@ public class WolfSSLTrustX509Test {
             sniCert, "ldaps", "example.com"));
 
         /* SSLEngine, partial wildcard against foo.example.com */
-        assertEquals(0, connectSSLEngineEndpointAlgo(partial,
+        assertEquals(httpsPartial, connectSSLEngineEndpointAlgo(partial,
             "https", "foo.example.com", null, 11140));
         assertNotEquals(0, connectSSLEngineEndpointAlgo(partial,
             "ldaps", "foo.example.com", null, 11141));
 
         /* Basic X509TrustManager, partial wildcard against foo.example.com */
-        assertEquals(0, connectWithBasicTrustManager(partial, "https", 11142));
+        assertEquals(httpsPartial,
+            connectWithBasicTrustManager(partial, "https", 11142));
         assertNotEquals(0,
             connectWithBasicTrustManager(partial, "ldaps", 11143));
     }
